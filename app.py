@@ -3,82 +3,12 @@ import streamlit as st
 from datetime import datetime
 from pathlib import Path
 
-from wslog import parse_file, summarize, pick_samples, time_histogram, render_histogram, per_file_summary
+from wslog import parse_file, summarize, render_markdown_report
 
 UPLOADS_DIR = Path("uploads")
 REPORTS_DIR = Path("reports")
 UPLOADS_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
-
-
-def generate_report(events, top_n=10, samples_n=5, hist_minutes=1):
-    """Generate a markdown report string from parsed events (mirrors CLI logic)."""
-    s = summarize(events, top_n)
-    samples = pick_samples(events, samples_n)
-    hist = time_histogram(events, bucket_minutes=hist_minutes)
-    file_summary = per_file_summary(events)
-
-    md = []
-    md.append("# WebSphere/Java Log Triage Report")
-    md.append("")
-    md.append(f"- Files: {len(file_summary)}")
-    md.append(f"- Parsed events: {s['total_events']}")
-    md.append("")
-
-    if len(file_summary) > 1:
-        md.append("## Per-File Breakdown")
-        for fname, total, errors in file_summary:
-            err_note = f" ({errors} errors)" if errors else ""
-            md.append(f"- `{fname}`: {total} events{err_note}")
-        md.append("")
-
-    md.append("## Top Levels")
-    md += [f"- **{k}**: {v}" for k, v in s["levels"]]
-    md.append("")
-    md.append("## Top WebSphere/Liberty Codes")
-    md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
-    md.append("")
-    md.append("## Top Exceptions/Errors")
-    md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
-    md.append("")
-    md.append("## Signal Tags")
-    md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
-    md.append("")
-    md.append("## Timeline (events per minute)")
-    md.append("")
-    md.append("```")
-    md += render_histogram(hist)
-    md.append("```")
-    md.append("")
-    md.append("## Sample Events (sanitized)")
-    md.append("")
-    for idx, e in enumerate(samples, start=1):
-        header = f"### {idx}. {e['level'] or 'UNKNOWN'}"
-        if e["code"]:
-            header += f" `{e['code']}`"
-        if e["exception"]:
-            header += f" -- {e['exception']}"
-        if e["ts"]:
-            header += f" ({e['ts']})"
-        md.append(header)
-        parts = []
-        if e["tags"]:
-            parts.append(f"Tags: {', '.join(e['tags'])}")
-        if e["thread_id"]:
-            parts.append(f"Thread: 0x{e['thread_id']}")
-        if e["root_cause"] and e["root_cause"] != e["exception"]:
-            parts.append(f"Root cause: `{e['root_cause']}`")
-        if parts:
-            md.append(f"- {' | '.join(parts)}")
-        md.append("")
-        md.append("```")
-        md.append(e["text"][:4000])
-        if len(e["text"]) > 4000:
-            md.append("\n...[TRUNCATED]...")
-        md.append("```")
-        md.append("")
-
-    return "\n".join(md)
 
 
 def get_report_history(limit=20):
@@ -95,9 +25,10 @@ st.title("WebSphere Log Analyzer")
 tab_analyze, tab_history = st.tabs(["Analyze", "History"])
 
 with tab_analyze:
-    uploaded = st.file_uploader(
-        "Upload a WebSphere log file",
+    uploaded_files = st.file_uploader(
+        "Upload WebSphere log file(s)",
         type=["log", "gz"],
+        accept_multiple_files=True,
         help="SystemOut.log, SystemErr.log, or .gz compressed logs",
     )
 
@@ -109,30 +40,44 @@ with tab_analyze:
     with col3:
         hist_minutes = st.number_input("Histogram bucket (min)", min_value=1, max_value=60, value=1)
 
-    if uploaded is not None:
+    if uploaded_files:
         if st.button("Analyze", type="primary"):
             ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            all_events = []
 
-            # Save uploaded file
-            upload_name = f"{ts}_{uploaded.name}"
-            upload_path = UPLOADS_DIR / upload_name
-            upload_path.write_bytes(uploaded.getvalue())
+            for uploaded in uploaded_files:
+                upload_name = f"{ts}_{uploaded.name}"
+                upload_path = UPLOADS_DIR / upload_name
+                upload_path.write_bytes(uploaded.getvalue())
 
-            # Parse
-            with st.spinner("Parsing log file..."):
-                events = parse_file(upload_path, max_lines=None)
+                with st.spinner(f"Parsing {uploaded.name}..."):
+                    try:
+                        events = parse_file(upload_path)
+                        all_events.extend(events)
+                    except Exception as ex:
+                        st.error(f"Failed to parse {uploaded.name}: {ex}")
 
-            if not events:
-                st.error("No events parsed. Is the file empty or in an unsupported format?")
+            if not all_events:
+                st.error("No events parsed. Are the files empty or in an unsupported format?")
             else:
-                report = generate_report(events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+                # Quick metrics
+                s = summarize(all_events, top_n)
+                error_count = sum(1 for e in all_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
+                top_exc = s["exceptions"][0] if s["exceptions"] else None
+
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Total Events", s["total_events"])
+                m2.metric("Errors", error_count)
+                m3.metric("Top Exception", top_exc[0] if top_exc else "None")
+
+                report = render_markdown_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
 
                 # Save report
                 report_name = f"report_{ts}.md"
                 report_path = REPORTS_DIR / report_name
                 report_path.write_text(report, encoding="utf-8")
 
-                st.success(f"Parsed {len(events)} events. Report saved as `{report_name}`.")
+                st.success(f"Parsed {len(all_events)} events from {len(uploaded_files)} file(s). Report saved as `{report_name}`.")
 
                 st.download_button(
                     label="Download Report",

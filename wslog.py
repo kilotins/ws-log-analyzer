@@ -129,7 +129,7 @@ def classify_event(text):
     }
 
 
-def parse_file(path: Path, max_lines: int):
+def parse_file(path: Path, max_lines: int = None):
     events = []
     current = []
     current_meta = {"file": str(path), "first_ts": None}
@@ -284,7 +284,9 @@ def pick_samples(events, n):
     # prioritize: ERROR/SEVERE, then with exception, then tagged
     def score(e):
         s = 0
+        if e["level"] in ("FATAL",): s += 4
         if e["level"] in ("ERROR", "SEVERE"): s += 3
+        if e["level"] in ("WARNING",): s += 1
         if e["exception"]: s += 2
         if e["code"]: s += 1
         if e["tags"]: s += 1
@@ -302,6 +304,73 @@ def per_file_summary(events):
         if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
             files[f]["errors"] += 1
     return [(f, files[f]["total"], files[f]["errors"]) for f in sorted(files)]
+
+
+def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
+    """Generate a complete markdown triage report from parsed events."""
+    s = summarize(events, top_n)
+    samples = pick_samples(events, samples_n)
+    hist = time_histogram(events, bucket_minutes=hist_minutes)
+    file_summary = per_file_summary(events)
+
+    md = []
+    md.append("# WebSphere/Java Log Triage Report")
+    md.append("")
+    md.append(f"- Files: {len(file_summary)}")
+    md.append(f"- Parsed events: {s['total_events']}")
+    md.append("")
+
+    if len(file_summary) > 1:
+        md.append("## Per-File Breakdown")
+        for fname, total, errors in file_summary:
+            err_note = f" ({errors} errors)" if errors else ""
+            md.append(f"- `{fname}`: {total} events{err_note}")
+        md.append("")
+
+    md.append("## Top Levels")
+    md += [f"- **{k}**: {v}" for k, v in s["levels"]]
+    md.append("")
+    md.append("## Top WebSphere/Liberty Codes")
+    md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
+    md.append("")
+    md.append("## Top Exceptions/Errors")
+    md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
+    md.append("")
+    md.append("## Signal Tags")
+    md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
+    md.append("")
+    md.append("## Timeline (events per minute)")
+    md.append("")
+    md.append("```")
+    md += render_histogram(hist)
+    md.append("```")
+    md.append("")
+    md.append("## Sample Events (sanitized)")
+    md.append("")
+    for idx, e in enumerate(samples, start=1):
+        header = f"### {idx}. {e['level'] or 'UNKNOWN'}"
+        if e["code"]: header += f" `{e['code']}`"
+        if e["exception"]: header += f" -- {e['exception']}"
+        if e["ts"]: header += f" ({e['ts']})"
+        md.append(header)
+        parts = []
+        if e["tags"]:
+            parts.append(f"Tags: {', '.join(e['tags'])}")
+        if e["thread_id"]:
+            parts.append(f"Thread: 0x{e['thread_id']}")
+        if e["root_cause"] and e["root_cause"] != e["exception"]:
+            parts.append(f"Root cause: `{e['root_cause']}`")
+        if parts:
+            md.append(f"- {' | '.join(parts)}")
+        md.append("")
+        md.append("```")
+        md.append(e["text"][:4000])
+        if len(e["text"]) > 4000:
+            md.append("\n...[TRUNCATED]...")
+        md.append("```")
+        md.append("")
+
+    return "\n".join(md)
 
 
 def main():
@@ -328,14 +397,13 @@ def main():
         print("No events parsed. Are the files empty or binary/scanned?", file=sys.stderr)
         sys.exit(2)
 
-    s = summarize(all_events, args.top)
-    samples = pick_samples(all_events, args.samples)
-    hist = time_histogram(all_events, bucket_minutes=args.hist_minutes)
-    file_summary = per_file_summary(all_events)
-
     out_path = Path(args.out)
 
     if args.format == "json":
+        s = summarize(all_events, args.top)
+        samples = pick_samples(all_events, args.samples)
+        hist = time_histogram(all_events, bucket_minutes=args.hist_minutes)
+        file_summary = per_file_summary(all_events)
         data = {
             "files": [{"file": f, "events": t, "errors": e} for f, t, e in file_summary],
             "total_events": s["total_events"],
@@ -364,64 +432,7 @@ def main():
         out_path.write_text(report, encoding="utf-8")
         print(f"Wrote report: {out_path}")
     else:
-        md = []
-        md.append("# WebSphere/Java Log Triage Report")
-        md.append("")
-        md.append(f"- Files: {len(file_summary)}")
-        md.append(f"- Parsed events: {s['total_events']}")
-        md.append("")
-
-        if len(file_summary) > 1:
-            md.append("## Per-File Breakdown")
-            for fname, total, errors in file_summary:
-                err_note = f" ({errors} errors)" if errors else ""
-                md.append(f"- `{fname}`: {total} events{err_note}")
-            md.append("")
-
-        md.append("## Top Levels")
-        md += [f"- **{k}**: {v}" for k, v in s["levels"]]
-        md.append("")
-        md.append("## Top WebSphere/Liberty Codes")
-        md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
-        md.append("")
-        md.append("## Top Exceptions/Errors")
-        md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
-        md.append("")
-        md.append("## Signal Tags")
-        md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
-        md.append("")
-        md.append("## Timeline (events per minute)")
-        md.append("")
-        md.append("```")
-        md += render_histogram(hist)
-        md.append("```")
-        md.append("")
-        md.append("## Sample Events (sanitized)")
-        md.append("")
-        for idx, e in enumerate(samples, start=1):
-            header = f"### {idx}. {e['level'] or 'UNKNOWN'}"
-            if e["code"]: header += f" `{e['code']}`"
-            if e["exception"]: header += f" -- {e['exception']}"
-            if e["ts"]: header += f" ({e['ts']})"
-            md.append(header)
-            parts = []
-            if e["tags"]:
-                parts.append(f"Tags: {', '.join(e['tags'])}")
-            if e["thread_id"]:
-                parts.append(f"Thread: 0x{e['thread_id']}")
-            if e["root_cause"] and e["root_cause"] != e["exception"]:
-                parts.append(f"Root cause: `{e['root_cause']}`")
-            if parts:
-                md.append(f"- {' | '.join(parts)}")
-            md.append("")
-            md.append("```")
-            md.append(e["text"][:4000])
-            if len(e["text"]) > 4000:
-                md.append("\n...[TRUNCATED]...")
-            md.append("```")
-            md.append("")
-
-        report = "\n".join(md)
+        report = render_markdown_report(all_events, top_n=args.top, samples_n=args.samples, hist_minutes=args.hist_minutes)
         out_path.write_text(report, encoding="utf-8")
         print(f"Wrote report: {out_path}")
 

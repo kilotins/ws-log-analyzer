@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from wslog import (
     extract_ts, redact, parse_file, summarize, bucket_tags,
     time_histogram, render_histogram, pick_samples, per_file_summary,
-    classify_event, _parse_ts_parts,
+    classify_event, _parse_ts_parts, render_markdown_report,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -438,3 +438,46 @@ def test_parse_ts_parts_iso():
 
 def test_parse_ts_parts_invalid():
     assert _parse_ts_parts("garbage") is None
+
+
+# --- render_markdown_report ---
+
+def test_render_markdown_report(sample_events):
+    report = render_markdown_report(sample_events, top_n=5, samples_n=3, hist_minutes=1)
+    assert "# WebSphere/Java Log Triage Report" in report
+    assert "Parsed events: 5" in report
+    assert "## Top Levels" in report
+    assert "## Top WebSphere/Liberty Codes" in report
+    assert "## Sample Events (sanitized)" in report
+    assert "## Timeline (events per minute)" in report
+
+
+def test_render_markdown_report_includes_exceptions(sample_events):
+    report = render_markdown_report(sample_events, top_n=5, samples_n=5)
+    assert "CertPathBuilderException" in report
+
+
+# --- pick_samples scoring ---
+
+def test_pick_samples_fatal_first():
+    events = [
+        {"level": "ERROR", "code": "ERR0001E", "exception": "java.lang.RuntimeException",
+         "tags": [], "ts": "1", "text": "error", "thread_id": "1", "root_cause": None},
+        {"level": "FATAL", "code": "FAT0001F", "exception": "java.lang.OutOfMemoryError",
+         "tags": ["OOM/GC"], "ts": "2", "text": "fatal", "thread_id": "2", "root_cause": None},
+        {"level": "INFO", "code": None, "exception": None,
+         "tags": [], "ts": "3", "text": "info", "thread_id": "3", "root_cause": None},
+    ]
+    samples = pick_samples(events, n=3)
+    assert samples[0]["level"] == "FATAL"
+
+
+def test_pick_samples_warning_over_info():
+    events = [
+        {"level": "INFO", "code": None, "exception": None,
+         "tags": [], "ts": "1", "text": "info", "thread_id": "1", "root_cause": None},
+        {"level": "WARNING", "code": "WARN001W", "exception": None,
+         "tags": [], "ts": "2", "text": "warning", "thread_id": "2", "root_cause": None},
+    ]
+    samples = pick_samples(events, n=2)
+    assert samples[0]["level"] == "WARNING"
