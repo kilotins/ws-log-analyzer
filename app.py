@@ -63,12 +63,30 @@ with tab_analyze:
                 # Quick metrics
                 s = summarize(all_events, top_n)
                 error_count = sum(1 for e in all_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
-                top_exc = s["exceptions"][0] if s["exceptions"] else None
 
-                m1, m2, m3 = st.columns(3)
+                m1, m2, m3, m4 = st.columns(4)
                 m1.metric("Total Events", s["total_events"])
                 m2.metric("Errors", error_count)
-                m3.metric("Top Exception", top_exc[0] if top_exc else "None")
+                m3.metric("Files", len(uploaded_files))
+                level_counts = dict(s["levels"])
+                m4.metric("Warnings", level_counts.get("WARNING", 0))
+
+                # Top exceptions & codes tables side by side
+                exc_col, code_col = st.columns(2)
+                with exc_col:
+                    st.subheader("Top Exceptions")
+                    if s["exceptions"]:
+                        for name, count in s["exceptions"][:5]:
+                            st.text(f"  {count:>4}  {name}")
+                    else:
+                        st.caption("None detected")
+                with code_col:
+                    st.subheader("Top Message Codes")
+                    if s["codes"]:
+                        for code, count in s["codes"][:5]:
+                            st.text(f"  {count:>4}  {code}")
+                    else:
+                        st.caption("None detected")
 
                 report = render_markdown_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
 
