@@ -20,12 +20,15 @@ TS_PATTERNS = [
 LEVEL_RE = re.compile(r'\b(SEVERE|ERROR|WARN|WARNING|INFO|DEBUG|FINE|FINER|FINEST)\b', re.IGNORECASE)
 
 # WebSphere uses single-letter severity after thread ID: [ts] threadid Component X
-# where X is: I=Info, A=Audit, W=Warning, E=Error, O=Off, F=Fatal, R=??, D=Detail
+# I=Info, A=Audit, W=Warning, E=Error, O=SystemOut/SystemErr, F=Fatal, R=Report, D=Detail
 WAS_LEVEL_RE = re.compile(r'\]\s+[0-9a-f]+\s+\S+\s+([IAWEOFRD])\s')
 WAS_LEVEL_MAP = {
     'I': 'INFO', 'A': 'AUDIT', 'W': 'WARNING', 'E': 'ERROR',
-    'O': 'OFF', 'F': 'FATAL', 'R': 'REPORT', 'D': 'DEBUG',
+    'O': 'STDOUT', 'F': 'FATAL', 'R': 'REPORT', 'D': 'DEBUG',
 }
+
+# Thread ID: hex digits between ] and component name
+WAS_THREAD_RE = re.compile(r'\]\s+([0-9a-f]{8})\s+')
 
 # WebSphere / Liberty message codes (general pattern: 4-5 uppercase letters + 4 digits + severity letter)
 WAS_CODE_RE = re.compile(r'\b([A-Z]{4,5}\d{4}[A-Z])\b')
@@ -36,7 +39,7 @@ STACK_LINE_RE = re.compile(r'^\s+at\s+[\w.$]+\(.*\)$')
 CAUSED_BY_RE = re.compile(r'^\s*Caused by:\s+(?P<cause>.+)$')
 
 OOM_RE = re.compile(r'OutOfMemoryError|Java heap space|GC overhead limit exceeded', re.IGNORECASE)
-HUNG_THREAD_RE = re.compile(r'hung thread|ThreadMonitor|WSVR\d{4}|stuck thread', re.IGNORECASE)
+HUNG_THREAD_RE = re.compile(r'hung thread|ThreadMonitor|WSVR0605|stuck thread', re.IGNORECASE)
 DB_POOL_RE = re.compile(r'connection pool|J2CA|pool.*exhaust|Timeout waiting for idle object', re.IGNORECASE)
 SSL_RE = re.compile(r'SSLHandshakeException|handshake_failure|PKIX path building failed|unable to find valid certification path', re.IGNORECASE)
 HTTP_RE = re.compile(r'\b(4\d\d|5\d\d)\b.*\b(HTTP|SRVE)\b', re.IGNORECASE)
@@ -73,45 +76,87 @@ def bucket_tags(text: str):
     if HTTP_RE.search(text): tags.add("HTTP")
     return tags
 
+
+def classify_event(text):
+    """Classify a block of log text and return a dict of metadata (no file/ts)."""
+    # Level — prefer WAS single-letter (authoritative) over keyword match
+    lvl = None
+    wm = WAS_LEVEL_RE.search(text)
+    if wm:
+        lvl = WAS_LEVEL_MAP.get(wm.group(1), wm.group(1))
+    else:
+        m = LEVEL_RE.search(text)
+        if m:
+            lvl = m.group(1).upper()
+
+    # Thread ID
+    thread_id = None
+    tm = WAS_THREAD_RE.search(text)
+    if tm:
+        thread_id = tm.group(1)
+
+    # WAS message code
+    code = None
+    cm = WAS_CODE_RE.search(text)
+    if cm:
+        code = cm.group(1)
+
+    # Exception (first match)
+    exc = None
+    em = EXC_HEAD_RE.search(text)
+    if em:
+        exc = em.group(1)
+
+    # Root cause — deepest "Caused by:" exception
+    root_cause = None
+    for line in text.splitlines():
+        cb = CAUSED_BY_RE.match(line)
+        if cb:
+            cause_text = cb.group("cause")
+            ce = EXC_HEAD_RE.search(cause_text)
+            if ce:
+                root_cause = ce.group(1)
+
+    tags = bucket_tags(text)
+
+    return {
+        "level": lvl,
+        "thread_id": thread_id,
+        "code": code,
+        "exception": exc,
+        "root_cause": root_cause,
+        "tags": sorted(tags),
+    }
+
+
 def parse_file(path: Path, max_lines: int):
     events = []
     current = []
     current_meta = {"file": str(path), "first_ts": None}
+    has_stacktrace = False
+    seen_first_ts = False
 
     def flush():
-        nonlocal current, current_meta
+        nonlocal current, current_meta, has_stacktrace
         if not current:
             return
+        # Skip preamble block (lines before first timestamp in the file)
+        if not seen_first_ts:
+            current = []
+            current_meta = {"file": str(path), "first_ts": None}
+            has_stacktrace = False
+            return
+
         text = "\n".join(current)
         text = redact(text)
-        # classify — prefer WAS single-letter level (authoritative) over keyword match
-        lvl = None
-        wm = WAS_LEVEL_RE.search(text)
-        if wm:
-            lvl = WAS_LEVEL_MAP.get(wm.group(1), wm.group(1))
-        else:
-            m = LEVEL_RE.search(text)
-            if m:
-                lvl = m.group(1).upper()
-        code = None
-        cm = WAS_CODE_RE.search(text)
-        if cm: code = cm.group(1)
-        exc = None
-        em = EXC_HEAD_RE.search(text)
-        if em: exc = em.group(1)
-        tags = bucket_tags(text)
-
-        events.append({
-            "file": current_meta["file"],
-            "ts": current_meta["first_ts"],
-            "level": lvl,
-            "code": code,
-            "exception": exc,
-            "tags": sorted(tags),
-            "text": text
-        })
+        meta = classify_event(text)
+        meta["file"] = current_meta["file"]
+        meta["ts"] = current_meta["first_ts"]
+        meta["text"] = text
+        events.append(meta)
         current = []
         current_meta = {"file": str(path), "first_ts": None}
+        has_stacktrace = False
 
     with open_text(path) as f:
         for i, line in enumerate(f, start=1):
@@ -125,11 +170,17 @@ def parse_file(path: Path, max_lines: int):
                 flush()
             if ts and current_meta["first_ts"] is None:
                 current_meta["first_ts"] = ts
+            if ts and not seen_first_ts:
+                seen_first_ts = True
 
             current.append(line)
 
+            # Track stacktrace state
+            if STACK_LINE_RE.match(line) or CAUSED_BY_RE.match(line):
+                has_stacktrace = True
+
             # If we hit blank line after a stacktrace, flush
-            if not line.strip() and current and any(STACK_LINE_RE.match(x) or "Caused by:" in x for x in current):
+            if not line.strip() and current and has_stacktrace:
                 flush()
 
     flush()
@@ -175,6 +226,7 @@ def _parse_ts_parts(ts):
 
 def time_histogram(events, bucket_minutes=1):
     """Group events by time bucket and return list of (bucket_label, total, error_count)."""
+    # Single pass: always key with date, strip date suffix at end if only one date seen
     buckets = {}
     dates_seen = set()
     for e in events:
@@ -185,14 +237,10 @@ def time_histogram(events, bucket_minutes=1):
         if not parsed:
             continue
         date_part, h, m = parsed
-        if date_part:
-            dates_seen.add(date_part)
+        date_key = date_part or "_"
+        dates_seen.add(date_key)
         floored = (m // bucket_minutes) * bucket_minutes
-        # Include date in key when multiple dates are present
-        if date_part and len(dates_seen) > 1:
-            key = f"{date_part} {h:02d}:{floored:02d}"
-        else:
-            key = f"{h:02d}:{floored:02d}"
+        key = f"{date_key} {h:02d}:{floored:02d}"
         if key not in buckets:
             buckets[key] = {"total": 0, "errors": 0}
         buckets[key]["total"] += 1
@@ -202,25 +250,9 @@ def time_histogram(events, bucket_minutes=1):
     if not buckets:
         return []
 
-    # If we discovered multiple dates mid-iteration, re-key everything with dates
-    if len(dates_seen) > 1:
-        rebucketed = {}
-        for e in events:
-            ts = e.get("ts")
-            if not ts:
-                continue
-            parsed = _parse_ts_parts(ts)
-            if not parsed:
-                continue
-            date_part, h, m = parsed
-            floored = (m // bucket_minutes) * bucket_minutes
-            key = f"{date_part} {h:02d}:{floored:02d}"
-            if key not in rebucketed:
-                rebucketed[key] = {"total": 0, "errors": 0}
-            rebucketed[key]["total"] += 1
-            if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
-                rebucketed[key]["errors"] += 1
-        buckets = rebucketed
+    # If single date, strip the date prefix from keys
+    if len(dates_seen) == 1:
+        buckets = {k.split(" ", 1)[1]: v for k, v in buckets.items()}
 
     return [(k, buckets[k]["total"], buckets[k]["errors"]) for k in sorted(buckets)]
 
@@ -278,6 +310,7 @@ def main():
     ap.add_argument("--max-lines", type=int, default=None, help="Limit lines per file (speed/safety).")
     ap.add_argument("--top", type=int, default=10, help="Top-N items in summary.")
     ap.add_argument("--samples", type=int, default=5, help="How many sample events to print.")
+    ap.add_argument("--hist-minutes", type=int, default=1, help="Histogram bucket size in minutes.")
     ap.add_argument("--out", default="report.md", help="Write markdown report to this file.")
     ap.add_argument("--format", choices=["markdown", "json"], default="markdown", help="Output format.")
     ap.add_argument("--claude", action="store_true", help="Also ask Claude for root-cause suggestions (sanitized).")
@@ -297,7 +330,7 @@ def main():
 
     s = summarize(all_events, args.top)
     samples = pick_samples(all_events, args.samples)
-    hist = time_histogram(all_events)
+    hist = time_histogram(all_events, bucket_minutes=args.hist_minutes)
     file_summary = per_file_summary(all_events)
 
     out_path = Path(args.out)
@@ -314,8 +347,10 @@ def main():
             "samples": [
                 {
                     "level": e["level"],
+                    "thread_id": e["thread_id"],
                     "code": e["code"],
                     "exception": e["exception"],
+                    "root_cause": e["root_cause"],
                     "ts": e["ts"],
                     "tags": e["tags"],
                     "text": e["text"][:4000],
@@ -366,11 +401,18 @@ def main():
         for idx, e in enumerate(samples, start=1):
             header = f"### {idx}. {e['level'] or 'UNKNOWN'}"
             if e["code"]: header += f" `{e['code']}`"
-            if e["exception"]: header += f" — {e['exception']}"
+            if e["exception"]: header += f" -- {e['exception']}"
             if e["ts"]: header += f" ({e['ts']})"
             md.append(header)
+            parts = []
             if e["tags"]:
-                md.append(f"- Tags: {', '.join(e['tags'])}")
+                parts.append(f"Tags: {', '.join(e['tags'])}")
+            if e["thread_id"]:
+                parts.append(f"Thread: 0x{e['thread_id']}")
+            if e["root_cause"] and e["root_cause"] != e["exception"]:
+                parts.append(f"Root cause: `{e['root_cause']}`")
+            if parts:
+                md.append(f"- {' | '.join(parts)}")
             md.append("")
             md.append("```")
             md.append(e["text"][:4000])
