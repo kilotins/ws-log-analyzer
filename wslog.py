@@ -2,8 +2,8 @@
 import argparse
 import gzip
 import re
+import json
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -27,8 +27,8 @@ WAS_LEVEL_MAP = {
     'O': 'OFF', 'F': 'FATAL', 'R': 'REPORT', 'D': 'DEBUG',
 }
 
-# WebSphere / Liberty codes you often see
-WAS_CODE_RE = re.compile(r'\b(SRVE\d{4}[A-Z]?|WSWS\d{4}[A-Z]?|J2CA\d{4}[A-Z]?|HMGR\d{4}[A-Z]?|TRAS\d{4}[A-Z]?|CWWKZ\d{4}[A-Z]?|CWWKE\d{4}[A-Z]?|CWWKT\d{4}[A-Z]?)\b')
+# WebSphere / Liberty message codes (general pattern: 4-5 uppercase letters + 4 digits + severity letter)
+WAS_CODE_RE = re.compile(r'\b([A-Z]{4,5}\d{4}[A-Z])\b')
 
 # Java exceptions / errors
 EXC_HEAD_RE = re.compile(r'\b([a-zA-Z_$]+(?:\.[a-zA-Z_$]+)+(?:Exception|Error))\b')
@@ -84,15 +84,15 @@ def parse_file(path: Path, max_lines: int):
             return
         text = "\n".join(current)
         text = redact(text)
-        # classify
+        # classify — prefer WAS single-letter level (authoritative) over keyword match
         lvl = None
-        m = LEVEL_RE.search(text)
-        if m:
-            lvl = m.group(1).upper()
+        wm = WAS_LEVEL_RE.search(text)
+        if wm:
+            lvl = WAS_LEVEL_MAP.get(wm.group(1), wm.group(1))
         else:
-            wm = WAS_LEVEL_RE.search(text)
-            if wm:
-                lvl = WAS_LEVEL_MAP.get(wm.group(1), wm.group(1))
+            m = LEVEL_RE.search(text)
+            if m:
+                lvl = m.group(1).upper()
         code = None
         cm = WAS_CODE_RE.search(text)
         if cm: code = cm.group(1)
@@ -152,24 +152,47 @@ def summarize(events, top_n):
         "tags": top(by_tag),
     }
 
+def _parse_ts_parts(ts):
+    """Extract (date_str, hour, minute) from a timestamp string. Returns None on failure."""
+    parts = ts.split()
+    if len(parts) > 1:
+        # WAS format: "MM/DD/YY HH:MM:SS:mmm"
+        date_part = parts[0]
+        time_part = parts[-1]
+    else:
+        # ISO: "2025-03-05T12:34:56.789" or "12:34:56.789"
+        time_part = parts[0]
+        date_part = None
+        if "T" in time_part:
+            iso_parts = time_part.split("T")
+            date_part = iso_parts[0]
+            time_part = iso_parts[1]
+    hms = re.split(r'[:.]', time_part)
+    if len(hms) < 2:
+        return None
+    return (date_part, int(hms[0]), int(hms[1]))
+
+
 def time_histogram(events, bucket_minutes=1):
     """Group events by time bucket and return list of (bucket_label, total, error_count)."""
     buckets = {}
+    dates_seen = set()
     for e in events:
         ts = e.get("ts")
         if not ts:
             continue
-        # Normalize: keep only HH:MM portion, floored to bucket
-        # Handle WAS format "MM/DD/YY HH:MM:SS:mmm" and ISO "YYYY-MM-DD HH:MM:SS..."
-        parts = ts.split()
-        time_part = parts[-1] if len(parts) > 1 else parts[0]
-        # time_part is like "21:22:04:257" or "12:34:56.789"
-        hms = re.split(r'[:.]', time_part)
-        if len(hms) < 2:
+        parsed = _parse_ts_parts(ts)
+        if not parsed:
             continue
-        h, m = int(hms[0]), int(hms[1])
+        date_part, h, m = parsed
+        if date_part:
+            dates_seen.add(date_part)
         floored = (m // bucket_minutes) * bucket_minutes
-        key = f"{h:02d}:{floored:02d}"
+        # Include date in key when multiple dates are present
+        if date_part and len(dates_seen) > 1:
+            key = f"{date_part} {h:02d}:{floored:02d}"
+        else:
+            key = f"{h:02d}:{floored:02d}"
         if key not in buckets:
             buckets[key] = {"total": 0, "errors": 0}
         buckets[key]["total"] += 1
@@ -178,6 +201,27 @@ def time_histogram(events, bucket_minutes=1):
 
     if not buckets:
         return []
+
+    # If we discovered multiple dates mid-iteration, re-key everything with dates
+    if len(dates_seen) > 1:
+        rebucketed = {}
+        for e in events:
+            ts = e.get("ts")
+            if not ts:
+                continue
+            parsed = _parse_ts_parts(ts)
+            if not parsed:
+                continue
+            date_part, h, m = parsed
+            floored = (m // bucket_minutes) * bucket_minutes
+            key = f"{date_part} {h:02d}:{floored:02d}"
+            if key not in rebucketed:
+                rebucketed[key] = {"total": 0, "errors": 0}
+            rebucketed[key]["total"] += 1
+            if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
+                rebucketed[key]["errors"] += 1
+        buckets = rebucketed
+
     return [(k, buckets[k]["total"], buckets[k]["errors"]) for k in sorted(buckets)]
 
 
@@ -196,6 +240,15 @@ def render_histogram(hist, bar_width=40):
 
 
 def pick_samples(events, n):
+    # deduplicate by (level, code, exception) to avoid showing near-identical events
+    seen = set()
+    unique = []
+    for e in events:
+        key = (e["level"], e["code"], e["exception"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(e)
+
     # prioritize: ERROR/SEVERE, then with exception, then tagged
     def score(e):
         s = 0
@@ -204,7 +257,20 @@ def pick_samples(events, n):
         if e["code"]: s += 1
         if e["tags"]: s += 1
         return -s
-    return sorted(events, key=score)[:n]
+    return sorted(unique, key=score)[:n]
+
+def per_file_summary(events):
+    """Return list of (filename, total, error_count) for each source file."""
+    files = {}
+    for e in events:
+        f = e["file"]
+        if f not in files:
+            files[f] = {"total": 0, "errors": 0}
+        files[f]["total"] += 1
+        if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
+            files[f]["errors"] += 1
+    return [(f, files[f]["total"], files[f]["errors"]) for f in sorted(files)]
+
 
 def main():
     ap = argparse.ArgumentParser(description="WebSphere/Java log analyzer (quick triage).")
@@ -213,6 +279,7 @@ def main():
     ap.add_argument("--top", type=int, default=10, help="Top-N items in summary.")
     ap.add_argument("--samples", type=int, default=5, help="How many sample events to print.")
     ap.add_argument("--out", default="report.md", help="Write markdown report to this file.")
+    ap.add_argument("--format", choices=["markdown", "json"], default="markdown", help="Output format.")
     ap.add_argument("--claude", action="store_true", help="Also ask Claude for root-cause suggestions (sanitized).")
     args = ap.parse_args()
 
@@ -230,59 +297,97 @@ def main():
 
     s = summarize(all_events, args.top)
     samples = pick_samples(all_events, args.samples)
-
-    md = []
-    md.append("# WebSphere/Java Log Triage Report")
-    md.append("")
-    md.append(f"- Files: {len(set(e['file'] for e in all_events))}")
-    md.append(f"- Parsed events: {s['total_events']}")
-    md.append("")
-    md.append("## Top Levels")
-    md += [f"- **{k}**: {v}" for k, v in s["levels"]]
-    md.append("")
-    md.append("## Top WebSphere/Liberty Codes")
-    md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
-    md.append("")
-    md.append("## Top Exceptions/Errors")
-    md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
-    md.append("")
-    md.append("## Signal Tags")
-    md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
-    md.append("")
-    md.append("## Timeline (events per minute)")
-    md.append("")
-    md.append("```")
     hist = time_histogram(all_events)
-    md += render_histogram(hist)
-    md.append("```")
-    md.append("")
-    md.append("## Sample Events (sanitized)")
-    md.append("")
-    for idx, e in enumerate(samples, start=1):
-        header = f"### {idx}. {e['level'] or 'UNKNOWN'}"
-        if e["code"]: header += f" `{e['code']}`"
-        if e["exception"]: header += f" — {e['exception']}"
-        if e["ts"]: header += f" ({e['ts']})"
-        md.append(header)
-        if e["tags"]:
-            md.append(f"- Tags: {', '.join(e['tags'])}")
+    file_summary = per_file_summary(all_events)
+
+    out_path = Path(args.out)
+
+    if args.format == "json":
+        data = {
+            "files": [{"file": f, "events": t, "errors": e} for f, t, e in file_summary],
+            "total_events": s["total_events"],
+            "levels": dict(s["levels"]),
+            "codes": dict(s["codes"]),
+            "exceptions": dict(s["exceptions"]),
+            "tags": dict(s["tags"]),
+            "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
+            "samples": [
+                {
+                    "level": e["level"],
+                    "code": e["code"],
+                    "exception": e["exception"],
+                    "ts": e["ts"],
+                    "tags": e["tags"],
+                    "text": e["text"][:4000],
+                }
+                for e in samples
+            ],
+        }
+        report = json.dumps(data, indent=2)
+        if out_path.suffix == ".md":
+            out_path = out_path.with_suffix(".json")
+        out_path.write_text(report, encoding="utf-8")
+        print(f"Wrote report: {out_path}")
+    else:
+        md = []
+        md.append("# WebSphere/Java Log Triage Report")
         md.append("")
-        md.append("```")
-        md.append(e["text"][:4000])  # avoid huge dump
-        if len(e["text"]) > 4000:
-            md.append("\n...[TRUNCATED]...")
-        md.append("```")
+        md.append(f"- Files: {len(file_summary)}")
+        md.append(f"- Parsed events: {s['total_events']}")
         md.append("")
 
-    report = "\n".join(md)
-    Path(args.out).write_text(report, encoding="utf-8")
-    print(f"✅ Wrote report: {args.out}")
+        if len(file_summary) > 1:
+            md.append("## Per-File Breakdown")
+            for fname, total, errors in file_summary:
+                err_note = f" ({errors} errors)" if errors else ""
+                md.append(f"- `{fname}`: {total} events{err_note}")
+            md.append("")
+
+        md.append("## Top Levels")
+        md += [f"- **{k}**: {v}" for k, v in s["levels"]]
+        md.append("")
+        md.append("## Top WebSphere/Liberty Codes")
+        md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
+        md.append("")
+        md.append("## Top Exceptions/Errors")
+        md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
+        md.append("")
+        md.append("## Signal Tags")
+        md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
+        md.append("")
+        md.append("## Timeline (events per minute)")
+        md.append("")
+        md.append("```")
+        md += render_histogram(hist)
+        md.append("```")
+        md.append("")
+        md.append("## Sample Events (sanitized)")
+        md.append("")
+        for idx, e in enumerate(samples, start=1):
+            header = f"### {idx}. {e['level'] or 'UNKNOWN'}"
+            if e["code"]: header += f" `{e['code']}`"
+            if e["exception"]: header += f" — {e['exception']}"
+            if e["ts"]: header += f" ({e['ts']})"
+            md.append(header)
+            if e["tags"]:
+                md.append(f"- Tags: {', '.join(e['tags'])}")
+            md.append("")
+            md.append("```")
+            md.append(e["text"][:4000])
+            if len(e["text"]) > 4000:
+                md.append("\n...[TRUNCATED]...")
+            md.append("```")
+            md.append("")
+
+        report = "\n".join(md)
+        out_path.write_text(report, encoding="utf-8")
+        print(f"Wrote report: {out_path}")
 
     if args.claude:
         try:
             from anthropic import Anthropic
         except ImportError:
-            print("⚠️  anthropic package not installed. Install with: pip install anthropic", file=sys.stderr)
+            print("anthropic package not installed. Install with: pip install anthropic", file=sys.stderr)
             sys.exit(1)
 
         prompt = (
@@ -302,10 +407,11 @@ def main():
                 messages=[{"role": "user", "content": prompt}],
             )
             analysis = message.content[0].text
-            Path("claude-analysis.md").write_text(analysis, encoding="utf-8")
-            print("✅ Wrote claude-analysis.md")
+            analysis_path = out_path.parent / "claude-analysis.md"
+            analysis_path.write_text(analysis, encoding="utf-8")
+            print(f"Wrote claude-analysis.md: {analysis_path}")
         except Exception as ex:
-            print(f"⚠️  Claude API call failed: {ex}", file=sys.stderr)
+            print(f"Claude API call failed: {ex}", file=sys.stderr)
             print("Tip: ensure ANTHROPIC_API_KEY is set.", file=sys.stderr)
 
 if __name__ == "__main__":
