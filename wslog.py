@@ -2,13 +2,15 @@
 import argparse
 import gzip
 import re
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 import sys
 
 # --- Common patterns (WebSphere / Java-ish) ---
 TS_PATTERNS = [
+    # WebSphere classic: [10/12/15 21:22:04:257 CEST]
+    re.compile(r'\[(?P<ts>\d{1,2}/\d{1,2}/\d{2,4}\s+\d{2}:\d{2}:\d{2}:\d{3})\s+\w+\]'),
     # WebSphere common: [2025-03-05 12:34:56:789 CET] or similar variants
     re.compile(r'(?P<ts>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[,:.]\d{3,6})?)'),
     # ISO-like without date brackets
@@ -17,11 +19,19 @@ TS_PATTERNS = [
 
 LEVEL_RE = re.compile(r'\b(SEVERE|ERROR|WARN|WARNING|INFO|DEBUG|FINE|FINER|FINEST)\b', re.IGNORECASE)
 
+# WebSphere uses single-letter severity after thread ID: [ts] threadid Component X
+# where X is: I=Info, A=Audit, W=Warning, E=Error, O=Off, F=Fatal, R=??, D=Detail
+WAS_LEVEL_RE = re.compile(r'\]\s+[0-9a-f]+\s+\S+\s+([IAWEOFRD])\s')
+WAS_LEVEL_MAP = {
+    'I': 'INFO', 'A': 'AUDIT', 'W': 'WARNING', 'E': 'ERROR',
+    'O': 'OFF', 'F': 'FATAL', 'R': 'REPORT', 'D': 'DEBUG',
+}
+
 # WebSphere / Liberty codes you often see
 WAS_CODE_RE = re.compile(r'\b(SRVE\d{4}[A-Z]?|WSWS\d{4}[A-Z]?|J2CA\d{4}[A-Z]?|HMGR\d{4}[A-Z]?|TRAS\d{4}[A-Z]?|CWWKZ\d{4}[A-Z]?|CWWKE\d{4}[A-Z]?|CWWKT\d{4}[A-Z]?)\b')
 
 # Java exceptions / errors
-EXC_HEAD_RE = re.compile(r'\b([a-zA-Z_.$]+Exception|Error)\b')
+EXC_HEAD_RE = re.compile(r'\b([a-zA-Z_$]+(?:\.[a-zA-Z_$]+)+(?:Exception|Error))\b')
 STACK_LINE_RE = re.compile(r'^\s+at\s+[\w.$]+\(.*\)$')
 CAUSED_BY_RE = re.compile(r'^\s*Caused by:\s+(?P<cause>.+)$')
 
@@ -77,7 +87,12 @@ def parse_file(path: Path, max_lines: int):
         # classify
         lvl = None
         m = LEVEL_RE.search(text)
-        if m: lvl = m.group(1).upper()
+        if m:
+            lvl = m.group(1).upper()
+        else:
+            wm = WAS_LEVEL_RE.search(text)
+            if wm:
+                lvl = WAS_LEVEL_MAP.get(wm.group(1), wm.group(1))
         code = None
         cm = WAS_CODE_RE.search(text)
         if cm: code = cm.group(1)
@@ -137,6 +152,49 @@ def summarize(events, top_n):
         "tags": top(by_tag),
     }
 
+def time_histogram(events, bucket_minutes=1):
+    """Group events by time bucket and return list of (bucket_label, total, error_count)."""
+    buckets = {}
+    for e in events:
+        ts = e.get("ts")
+        if not ts:
+            continue
+        # Normalize: keep only HH:MM portion, floored to bucket
+        # Handle WAS format "MM/DD/YY HH:MM:SS:mmm" and ISO "YYYY-MM-DD HH:MM:SS..."
+        parts = ts.split()
+        time_part = parts[-1] if len(parts) > 1 else parts[0]
+        # time_part is like "21:22:04:257" or "12:34:56.789"
+        hms = re.split(r'[:.]', time_part)
+        if len(hms) < 2:
+            continue
+        h, m = int(hms[0]), int(hms[1])
+        floored = (m // bucket_minutes) * bucket_minutes
+        key = f"{h:02d}:{floored:02d}"
+        if key not in buckets:
+            buckets[key] = {"total": 0, "errors": 0}
+        buckets[key]["total"] += 1
+        if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
+            buckets[key]["errors"] += 1
+
+    if not buckets:
+        return []
+    return [(k, buckets[k]["total"], buckets[k]["errors"]) for k in sorted(buckets)]
+
+
+def render_histogram(hist, bar_width=40):
+    """Render ASCII bar chart lines from histogram data."""
+    if not hist:
+        return ["- _(no timestamped events)_"]
+    max_total = max(t for _, t, _ in hist)
+    lines = []
+    for label, total, errors in hist:
+        bar_len = int((total / max_total) * bar_width) if max_total else 0
+        bar = "#" * bar_len
+        err_suffix = f"  ({errors} err)" if errors else ""
+        lines.append(f"  {label} | {bar} {total}{err_suffix}")
+    return lines
+
+
 def pick_samples(events, n):
     # prioritize: ERROR/SEVERE, then with exception, then tagged
     def score(e):
@@ -191,6 +249,13 @@ def main():
     md.append("## Signal Tags")
     md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
     md.append("")
+    md.append("## Timeline (events per minute)")
+    md.append("")
+    md.append("```")
+    hist = time_histogram(all_events)
+    md += render_histogram(hist)
+    md.append("```")
+    md.append("")
     md.append("## Sample Events (sanitized)")
     md.append("")
     for idx, e in enumerate(samples, start=1):
@@ -214,30 +279,34 @@ def main():
     print(f"✅ Wrote report: {args.out}")
 
     if args.claude:
-        # Keep it short and safe: send summary + samples only (already redacted)
-        prompt = f"""
-You are a senior Java/WebSphere SRE. Based on this TRIAGE REPORT (sanitized),
-give:
-1) likely root causes (ranked),
-2) next debugging steps (specific),
-3) quick mitigations,
-4) what extra info you would ask for.
-
-Be careful not to request secrets. If data seems truncated, note assumptions.
-
---- TRIAGE REPORT START ---
-{report[:12000]}
---- TRIAGE REPORT END ---
-"""
-        # Call Claude via CLI if present
-        import subprocess
         try:
-            out = subprocess.check_output(["claude"], input=prompt.encode("utf-8"))
-            Path("claude-analysis.md").write_bytes(out)
+            from anthropic import Anthropic
+        except ImportError:
+            print("⚠️  anthropic package not installed. Install with: pip install anthropic", file=sys.stderr)
+            sys.exit(1)
+
+        prompt = (
+            "You are a senior Java/WebSphere SRE. Based on this TRIAGE REPORT (sanitized), give:\n"
+            "1) likely root causes (ranked),\n"
+            "2) next debugging steps (specific),\n"
+            "3) quick mitigations,\n"
+            "4) what extra info you would ask for.\n\n"
+            "Be careful not to request secrets. If data seems truncated, note assumptions.\n\n"
+            f"--- TRIAGE REPORT START ---\n{report[:12000]}\n--- TRIAGE REPORT END ---"
+        )
+        try:
+            client = Anthropic()
+            message = client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=4096,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            analysis = message.content[0].text
+            Path("claude-analysis.md").write_text(analysis, encoding="utf-8")
             print("✅ Wrote claude-analysis.md")
         except Exception as ex:
-            print(f"⚠️ Claude call failed: {ex}", file=sys.stderr)
-            print("Tip: run `claude doctor` and ensure you're authenticated.", file=sys.stderr)
+            print(f"⚠️  Claude API call failed: {ex}", file=sys.stderr)
+            print("Tip: ensure ANTHROPIC_API_KEY is set.", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
