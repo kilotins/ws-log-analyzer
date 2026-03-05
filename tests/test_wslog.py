@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from wslog import (
     extract_ts, redact, parse_file, summarize, bucket_tags,
     time_histogram, render_histogram, pick_samples, per_file_summary,
-    classify_event, _parse_ts_parts, render_markdown_report,
+    classify_event, _parse_ts_parts, render_markdown_report, render_json_report,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -81,7 +81,7 @@ def stacktrace_log(tmp_path):
 
 @pytest.fixture
 def sample_events(sample_log):
-    return parse_file(sample_log, max_lines=None)
+    return parse_file(sample_log)
 
 
 # --- Timestamp extraction ---
@@ -262,7 +262,7 @@ def test_classify_event_with_exception():
 # --- Root cause extraction ---
 
 def test_root_cause_extracted(stacktrace_log):
-    events = parse_file(stacktrace_log, max_lines=None)
+    events = parse_file(stacktrace_log)
     error_event = [e for e in events if e["level"] == "ERROR"][0]
     assert error_event["root_cause"] == "javax.net.ssl.SSLHandshakeException"
     assert "WebTrustAssociationFailedException" in error_event["exception"]
@@ -276,7 +276,7 @@ def test_root_cause_none_when_no_caused_by(sample_events):
 # --- Preamble handling ---
 
 def test_preamble_skipped(preamble_log):
-    events = parse_file(preamble_log, max_lines=None)
+    events = parse_file(preamble_log)
     assert len(events) == 2
     assert all(e["ts"] is not None for e in events)
     # No UNKNOWN preamble event
@@ -351,7 +351,7 @@ def test_time_histogram(sample_events):
 
 
 def test_time_histogram_multi_day(multi_day_log):
-    events = parse_file(multi_day_log, max_lines=None)
+    events = parse_file(multi_day_log)
     hist = time_histogram(events)
     labels = [h[0] for h in hist]
     assert any("10/12/15" in l for l in labels)
@@ -394,7 +394,7 @@ def test_per_file_summary_multi(tmp_path):
     log2 = tmp_path / "b.log"
     log1.write_text("[10/12/15 21:22:04:257 CEST] 00000001 Comp I   CODE0001I: ok\n")
     log2.write_text("[10/12/15 21:22:04:257 CEST] 00000150 Comp E   CODE0002E: fail\n")
-    events = parse_file(log1, None) + parse_file(log2, None)
+    events = parse_file(log1) + parse_file(log2)
     fs = per_file_summary(events)
     assert len(fs) == 2
     by_file = {f: (t, e) for f, t, e in fs}
@@ -455,6 +455,18 @@ def test_render_markdown_report(sample_events):
 def test_render_markdown_report_includes_exceptions(sample_events):
     report = render_markdown_report(sample_events, top_n=5, samples_n=5)
     assert "CertPathBuilderException" in report
+
+
+def test_render_json_report(sample_events):
+    report = render_json_report(sample_events, top_n=5, samples_n=3)
+    data = json.loads(report)
+    assert data["total_events"] == 5
+    assert "levels" in data
+    assert "codes" in data
+    assert "exceptions" in data
+    assert "timeline" in data
+    assert len(data["samples"]) <= 3
+    assert "thread_id" in data["samples"][0]
 
 
 # --- pick_samples scoring ---
