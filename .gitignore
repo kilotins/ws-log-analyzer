@@ -4,5 +4,7 @@ __pycache__
 *.gz
 report.md
 report-*.md
+report.json
+report-*.json
 claude-analysis.md
 SystemOut.log
