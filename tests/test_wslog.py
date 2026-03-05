@@ -9,11 +9,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from wslog import (
     extract_ts, redact, parse_file, summarize, bucket_tags,
     time_histogram, render_histogram, pick_samples, per_file_summary,
-    _parse_ts_parts,
-    EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, LEVEL_RE,
+    classify_event, _parse_ts_parts,
+    EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
+    LEVEL_RE, HUNG_THREAD_RE,
 )
 
-# --- Shared fixture ---
+# --- Shared fixtures ---
 
 SAMPLE_LOG = """\
 [10/12/15 21:22:04:257 CEST] 00000001 WsmmConfigFac I   ARFM5007I: config loaded
@@ -23,9 +24,30 @@ SAMPLE_LOG = """\
 [10/12/15 21:25:01:000 CEST] 0000014c NotificationS I   CLFWY0297I: task started
 """
 
+PREAMBLE_LOG = """\
+************ Start Display Current Environment ************
+WebSphere Platform 8.5.5.3
+Java version = 1.6.0
+************* End Display Current Environment *************
+[10/12/15 21:22:04:257 CEST] 00000001 WsmmConfigFac I   ARFM5007I: config loaded
+[10/12/15 21:22:04:291 CEST] 00000001 TCPChannel    I   TCPC0001I: TCP listening on port 9081.
+"""
+
 MULTI_DAY_LOG = """\
 [10/12/15 23:59:04:257 CEST] 00000001 WsmmConfigFac I   ARFM5007I: before midnight
 [10/13/15 00:01:04:257 CEST] 00000001 TCPChannel    I   TCPC0001I: after midnight
+"""
+
+STACKTRACE_LOG = """\
+[10/12/15 21:22:13:851 CEST] 00000150 WebAuthentica E   SECJ0126E: Trust Association failed. The exception is com.ibm.websphere.security.WebTrustAssociationFailedException: CWTAI2007E
+\tat com.ibm.ws.security.oidc.client.RelyingParty.handleSigninCallback(RelyingParty.java:566)
+\tat com.ibm.ws.security.web.WebAuthenticator.handleTrustAssociation(WebAuthenticator.java:421)
+Caused by: com.ibm.ws.security.oidc.client.RelyingPartyException: Failed to make a request to OP server
+\tat com.ibm.ws.security.oidc.client.RelyingPartyUtils.invokeRequest(RelyingPartyUtils.java:312)
+Caused by: javax.net.ssl.SSLHandshakeException: PKIX path building failed
+\tat com.ibm.jsse2.o.a(o.java:3)
+
+[10/12/15 21:22:14:000 CEST] 00000001 TCPChannel    I   TCPC0001I: next event
 """
 
 
@@ -37,9 +59,23 @@ def sample_log(tmp_path):
 
 
 @pytest.fixture
+def preamble_log(tmp_path):
+    p = tmp_path / "preamble.log"
+    p.write_text(PREAMBLE_LOG)
+    return p
+
+
+@pytest.fixture
 def multi_day_log(tmp_path):
     p = tmp_path / "multi.log"
     p.write_text(MULTI_DAY_LOG)
+    return p
+
+
+@pytest.fixture
+def stacktrace_log(tmp_path):
+    p = tmp_path / "stack.log"
+    p.write_text(STACKTRACE_LOG)
     return p
 
 
@@ -92,18 +128,36 @@ def test_was_level_audit():
     assert m and WAS_LEVEL_MAP[m.group(1)] == "AUDIT"
 
 
+def test_was_level_stdout():
+    """SystemOut O lines should map to STDOUT, not OFF."""
+    line = "] 00000150 SystemOut     O CWPKI0022E: SSL HANDSHAKE FAILURE"
+    m = WAS_LEVEL_RE.search(line)
+    assert m and WAS_LEVEL_MAP[m.group(1)] == "STDOUT"
+
+
 def test_was_level_takes_priority(sample_events):
     """WAS single-letter level should be used over keyword matches in message body."""
-    # The INFO line has "ARFM5007I" which contains no LEVEL_RE keyword,
-    # but the WARNING line text contains "XJMS0022W" — WAS_LEVEL_RE should classify it.
     levels = [e["level"] for e in sample_events]
     assert levels == ["INFO", "INFO", "WARNING", "ERROR", "INFO"]
+
+
+# --- Thread ID ---
+
+def test_thread_id_extracted():
+    line = "] 00000150 WSX509TrustMa E   CWPKI0022E: SSL failure"
+    m = WAS_THREAD_RE.search(line)
+    assert m and m.group(1) == "00000150"
+
+
+def test_classify_event_thread_id():
+    text = "[10/12/15 21:22:04:257 CEST] 00000150 WSX509TrustMa E   CWPKI0022E: SSL failure"
+    meta = classify_event(text)
+    assert meta["thread_id"] == "00000150"
 
 
 # --- WAS code regex ---
 
 def test_was_code_matches_common_prefixes():
-    """Generalized pattern should match codes beyond the original 8 prefixes."""
     for code in ["ARFM5007I", "TCPC0001I", "CHFW0019I", "SCHD0077I",
                  "CWPKI0022E", "CWWIM6002I", "ODCF8010I", "XJMS0008I",
                  "CLFWY0297I", "CWLRB5873I"]:
@@ -112,7 +166,6 @@ def test_was_code_matches_common_prefixes():
 
 
 def test_was_code_no_false_positive():
-    """Should not match random uppercase strings or short codes."""
     assert WAS_CODE_RE.search("ABC123X something") is None
     assert WAS_CODE_RE.search("normal log line") is None
 
@@ -130,12 +183,10 @@ def test_exc_matches_ssl():
 
 
 def test_exc_no_match_bare_error():
-    """Bare 'Error' without package qualification should NOT match."""
     assert EXC_HEAD_RE.search("Some Error occurred in the system") is None
 
 
 def test_exc_no_match_bare_exception():
-    """Bare 'Exception' without package qualification should NOT match."""
     assert EXC_HEAD_RE.search("An Exception was thrown") is None
 
 
@@ -176,6 +227,62 @@ def test_bucket_tags_none():
     assert len(tags) == 0
 
 
+def test_hung_thread_no_false_positive_wsvr0001():
+    """WSVR0001I (server started) should NOT trigger HungThreads tag."""
+    assert not HUNG_THREAD_RE.search("WSVR0001I: Server open for e-business")
+
+
+def test_hung_thread_matches_wsvr0605():
+    """WSVR0605W (ThreadMonitor) should trigger HungThreads tag."""
+    assert HUNG_THREAD_RE.search("WSVR0605W: Thread stuck for 600 seconds")
+
+
+def test_hung_thread_matches_threadmonitor():
+    assert HUNG_THREAD_RE.search("ThreadMonitor W   WSVR0605W: Thread is hung")
+
+
+# --- classify_event ---
+
+def test_classify_event_basic():
+    text = "[10/12/15 21:22:04:257 CEST] 00000001 WsmmConfigFac I   ARFM5007I: config loaded"
+    meta = classify_event(text)
+    assert meta["level"] == "INFO"
+    assert meta["code"] == "ARFM5007I"
+    assert meta["thread_id"] == "00000001"
+    assert meta["exception"] is None
+    assert meta["root_cause"] is None
+
+
+def test_classify_event_with_exception():
+    text = "CWPKI0022E: PKIX path building failed: java.security.cert.CertPathBuilderException: bad"
+    meta = classify_event(text)
+    assert meta["exception"] == "java.security.cert.CertPathBuilderException"
+
+
+# --- Root cause extraction ---
+
+def test_root_cause_extracted(stacktrace_log):
+    events = parse_file(stacktrace_log, max_lines=None)
+    error_event = [e for e in events if e["level"] == "ERROR"][0]
+    assert error_event["root_cause"] == "javax.net.ssl.SSLHandshakeException"
+    assert "WebTrustAssociationFailedException" in error_event["exception"]
+
+
+def test_root_cause_none_when_no_caused_by(sample_events):
+    for e in sample_events:
+        assert e["root_cause"] is None
+
+
+# --- Preamble handling ---
+
+def test_preamble_skipped(preamble_log):
+    events = parse_file(preamble_log, max_lines=None)
+    assert len(events) == 2
+    assert all(e["ts"] is not None for e in events)
+    # No UNKNOWN preamble event
+    assert all(e["level"] is not None for e in events)
+
+
 # --- Full parse ---
 
 def test_parse_splits_events(sample_events):
@@ -202,6 +309,12 @@ def test_parse_detects_was_codes(sample_events):
     assert "CWPKI0022E" in codes
 
 
+def test_parse_extracts_thread_ids(sample_events):
+    thread_ids = [e["thread_id"] for e in sample_events]
+    assert "00000001" in thread_ids
+    assert "00000150" in thread_ids
+
+
 def test_summarize(sample_events):
     s = summarize(sample_events, top_n=10)
     assert s["total_events"] == 5
@@ -212,14 +325,16 @@ def test_summarize(sample_events):
 # --- Pick samples ---
 
 def test_pick_samples_deduplicates():
-    """Duplicate (level, code, exception) combos should be collapsed."""
     events = [
         {"level": "ERROR", "code": "CWPKI0022E", "exception": "SSLException",
-         "tags": ["SSL/TLS"], "ts": "1", "text": "first"},
+         "tags": ["SSL/TLS"], "ts": "1", "text": "first",
+         "thread_id": "1", "root_cause": None},
         {"level": "ERROR", "code": "CWPKI0022E", "exception": "SSLException",
-         "tags": ["SSL/TLS"], "ts": "2", "text": "duplicate"},
+         "tags": ["SSL/TLS"], "ts": "2", "text": "duplicate",
+         "thread_id": "2", "root_cause": None},
         {"level": "INFO", "code": None, "exception": None,
-         "tags": [], "ts": "3", "text": "info"},
+         "tags": [], "ts": "3", "text": "info",
+         "thread_id": "3", "root_cause": None},
     ]
     samples = pick_samples(events, n=5)
     assert len(samples) == 2
@@ -239,9 +354,15 @@ def test_time_histogram_multi_day(multi_day_log):
     events = parse_file(multi_day_log, max_lines=None)
     hist = time_histogram(events)
     labels = [h[0] for h in hist]
-    # Should include date prefix when multiple dates present
     assert any("10/12/15" in l for l in labels)
     assert any("10/13/15" in l for l in labels)
+
+
+def test_time_histogram_custom_bucket(sample_events):
+    hist = time_histogram(sample_events, bucket_minutes=5)
+    labels = [h[0] for h in hist]
+    assert "21:20" in labels
+    assert "21:25" in labels
 
 
 def test_render_histogram_empty():
@@ -297,6 +418,10 @@ def test_json_output(sample_log, tmp_path):
     assert "timeline" in data
     assert "samples" in data
     assert "files" in data
+    # New fields in samples
+    sample = data["samples"][0]
+    assert "thread_id" in sample
+    assert "root_cause" in sample
 
 
 # --- _parse_ts_parts ---
