@@ -3,7 +3,7 @@ import streamlit as st
 from datetime import datetime
 from pathlib import Path
 
-from wslog import parse_file, summarize, render_markdown_report
+from wslog import parse_file, summarize, render_markdown_report, render_json_report
 
 UPLOADS_DIR = Path("uploads")
 REPORTS_DIR = Path("reports")
@@ -95,14 +95,25 @@ with tab_analyze:
                 report_path = REPORTS_DIR / report_name
                 report_path.write_text(report, encoding="utf-8")
 
+                json_report = render_json_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+
                 st.success(f"Parsed {len(all_events)} events from {len(uploaded_files)} file(s). Report saved as `{report_name}`.")
 
-                st.download_button(
-                    label="Download Report",
-                    data=report,
-                    file_name=report_name,
-                    mime="text/markdown",
-                )
+                dl1, dl2 = st.columns(2)
+                with dl1:
+                    st.download_button(
+                        label="Download Markdown",
+                        data=report,
+                        file_name=report_name,
+                        mime="text/markdown",
+                    )
+                with dl2:
+                    st.download_button(
+                        label="Download JSON",
+                        data=json_report,
+                        file_name=report_name.replace(".md", ".json"),
+                        mime="application/json",
+                    )
 
                 st.markdown("---")
                 st.markdown(report)
@@ -113,14 +124,15 @@ with tab_history:
         st.info("No reports yet. Upload a log file in the Analyze tab to get started.")
     else:
         for rpath in reports:
+            content = rpath.read_text(encoding="utf-8")
             col_name, col_dl = st.columns([4, 1])
             with col_name:
                 with st.expander(rpath.name):
-                    st.markdown(rpath.read_text(encoding="utf-8"))
+                    st.markdown(content)
             with col_dl:
                 st.download_button(
                     label="Download",
-                    data=rpath.read_text(encoding="utf-8"),
+                    data=content,
                     file_name=rpath.name,
                     mime="text/markdown",
                     key=f"dl_{rpath.name}",

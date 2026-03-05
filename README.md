@@ -18,7 +18,7 @@ CLI tool and web GUI that analyzes WebSphere / Java logs and generates a triage 
 ```
 ./wslog.py SystemOut.log
 ./wslog.py SystemOut.log --top 20 --samples 10 --hist-minutes 5
-./wslog.py SystemOut.log --json
+./wslog.py SystemOut.log --format json
 ```
 
 ## GUI Usage

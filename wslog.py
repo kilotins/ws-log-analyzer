@@ -11,10 +11,8 @@ import sys
 TS_PATTERNS = [
     # WebSphere classic: [10/12/15 21:22:04:257 CEST]
     re.compile(r'\[(?P<ts>\d{1,2}/\d{1,2}/\d{2,4}\s+\d{2}:\d{2}:\d{2}:\d{3})\s+\w+\]'),
-    # WebSphere common: [2025-03-05 12:34:56:789 CET] or similar variants
+    # ISO / WebSphere common: 2025-03-05 12:34:56:789 or 2025-03-05T12:34:56.789
     re.compile(r'(?P<ts>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[,:.]\d{3,6})?)'),
-    # ISO-like without date brackets
-    re.compile(r'(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[.:]\d{3,6})?)'),
 ]
 
 LEVEL_RE = re.compile(r'\b(SEVERE|ERROR|WARN|WARNING|INFO|DEBUG|FINE|FINER|FINEST)\b', re.IGNORECASE)
@@ -51,7 +49,7 @@ SECRET_REPLACERS = [
 ]
 
 def open_text(path: Path):
-    if str(path).endswith(".gz"):
+    if path.suffix.lower() == ".gz":
         return gzip.open(path, "rt", errors="ignore")
     return path.open("r", errors="ignore")
 
@@ -306,6 +304,37 @@ def per_file_summary(events):
     return [(f, files[f]["total"], files[f]["errors"]) for f in sorted(files)]
 
 
+def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
+    """Generate a JSON triage report string from parsed events."""
+    s = summarize(events, top_n)
+    samples = pick_samples(events, samples_n)
+    hist = time_histogram(events, bucket_minutes=hist_minutes)
+    file_summary = per_file_summary(events)
+    data = {
+        "files": [{"file": f, "events": t, "errors": e} for f, t, e in file_summary],
+        "total_events": s["total_events"],
+        "levels": dict(s["levels"]),
+        "codes": dict(s["codes"]),
+        "exceptions": dict(s["exceptions"]),
+        "tags": dict(s["tags"]),
+        "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
+        "samples": [
+            {
+                "level": e["level"],
+                "thread_id": e["thread_id"],
+                "code": e["code"],
+                "exception": e["exception"],
+                "root_cause": e["root_cause"],
+                "ts": e["ts"],
+                "tags": e["tags"],
+                "text": e["text"][:4000],
+            }
+            for e in samples
+        ],
+    }
+    return json.dumps(data, indent=2)
+
+
 def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
     """Generate a complete markdown triage report from parsed events."""
     s = summarize(events, top_n)
@@ -383,6 +412,8 @@ def main():
     ap.add_argument("--out", default="report.md", help="Write markdown report to this file.")
     ap.add_argument("--format", choices=["markdown", "json"], default="markdown", help="Output format.")
     ap.add_argument("--claude", action="store_true", help="Also ask Claude for root-cause suggestions (sanitized).")
+    ap.add_argument("--model", default="claude-sonnet-4-6", help="Claude model to use with --claude.")
+    ap.add_argument("-q", "--quiet", action="store_true", help="Suppress progress messages.")
     args = ap.parse_args()
 
     all_events = []
@@ -398,42 +429,17 @@ def main():
         sys.exit(2)
 
     out_path = Path(args.out)
+    # Default extension based on format if user didn't specify --out
+    if args.format == "json" and args.out == "report.md":
+        out_path = out_path.with_suffix(".json")
 
     if args.format == "json":
-        s = summarize(all_events, args.top)
-        samples = pick_samples(all_events, args.samples)
-        hist = time_histogram(all_events, bucket_minutes=args.hist_minutes)
-        file_summary = per_file_summary(all_events)
-        data = {
-            "files": [{"file": f, "events": t, "errors": e} for f, t, e in file_summary],
-            "total_events": s["total_events"],
-            "levels": dict(s["levels"]),
-            "codes": dict(s["codes"]),
-            "exceptions": dict(s["exceptions"]),
-            "tags": dict(s["tags"]),
-            "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
-            "samples": [
-                {
-                    "level": e["level"],
-                    "thread_id": e["thread_id"],
-                    "code": e["code"],
-                    "exception": e["exception"],
-                    "root_cause": e["root_cause"],
-                    "ts": e["ts"],
-                    "tags": e["tags"],
-                    "text": e["text"][:4000],
-                }
-                for e in samples
-            ],
-        }
-        report = json.dumps(data, indent=2)
-        if out_path.suffix == ".md":
-            out_path = out_path.with_suffix(".json")
-        out_path.write_text(report, encoding="utf-8")
-        print(f"Wrote report: {out_path}")
+        report = render_json_report(all_events, top_n=args.top, samples_n=args.samples, hist_minutes=args.hist_minutes)
     else:
         report = render_markdown_report(all_events, top_n=args.top, samples_n=args.samples, hist_minutes=args.hist_minutes)
-        out_path.write_text(report, encoding="utf-8")
+
+    out_path.write_text(report, encoding="utf-8")
+    if not args.quiet:
         print(f"Wrote report: {out_path}")
 
     if args.claude:
@@ -455,14 +461,15 @@ def main():
         try:
             client = Anthropic()
             message = client.messages.create(
-                model="claude-sonnet-4-6",
+                model=args.model,
                 max_tokens=4096,
                 messages=[{"role": "user", "content": prompt}],
             )
             analysis = message.content[0].text
             analysis_path = out_path.parent / "claude-analysis.md"
             analysis_path.write_text(analysis, encoding="utf-8")
-            print(f"Wrote claude-analysis.md: {analysis_path}")
+            if not args.quiet:
+                print(f"Wrote claude-analysis.md: {analysis_path}")
         except Exception as ex:
             print(f"Claude API call failed: {ex}", file=sys.stderr)
             print("Tip: ensure ANTHROPIC_API_KEY is set.", file=sys.stderr)
