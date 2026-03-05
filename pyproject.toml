@@ -7,6 +7,7 @@ dependencies = []
 
 [project.optional-dependencies]
 claude = ["anthropic>=0.40"]
+gui = ["streamlit>=1.30"]
 test = ["pytest>=7"]
 
 [project.scripts]
