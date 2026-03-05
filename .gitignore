@@ -9,3 +9,5 @@ report.json
 report-*.json
 claude-analysis.md
 SystemOut.log
+uploads/
+reports/
