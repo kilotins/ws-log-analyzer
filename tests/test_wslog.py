@@ -10,9 +10,9 @@ from wslog import (
     extract_ts, redact, parse_file, summarize, bucket_tags,
     time_histogram, render_histogram, pick_samples, per_file_summary,
     classify_event, _parse_ts_parts, render_markdown_report, render_json_report,
-    likely_causes, suggested_splunk_queries, hung_thread_drilldown,
+    render_pdf_report, likely_causes, suggested_splunk_queries, hung_thread_drilldown,
     _extract_hung_thread_name, _extract_stack_sample,
-    match_user_query, build_claude_prompt, _truncate_event_text,
+    match_user_query, build_claude_prompt, claude_cache_key, _truncate_event_text,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -470,6 +470,13 @@ def test_render_json_report(sample_events):
     assert "timeline" in data
     assert len(data["samples"]) <= 3
     assert "thread_id" in data["samples"][0]
+
+
+def test_render_pdf_report(sample_events):
+    pdf_bytes = render_pdf_report(sample_events, top_n=5, samples_n=3)
+    assert isinstance(pdf_bytes, (bytes, bytearray))
+    assert pdf_bytes[:5] == b"%PDF-"
+    assert len(pdf_bytes) > 500
 
 
 # --- pick_samples scoring ---
@@ -1321,3 +1328,65 @@ def test_prompt_uses_already_redacted_text(tmp_path):
     prompt = build_claude_prompt("ERR0001E", match)
     assert "s3cret123" not in prompt
     assert "[REDACTED]" in prompt
+
+
+# --- Claude cache key ---
+
+def test_claude_cache_key_stable():
+    """Same query + match result produces the same cache key."""
+    match = {
+        "matched": True, "match_type": "code",
+        "matching_events": [{"text": "some error text", "code": "ERR001"}],
+        "codes": ["ERR001"], "exceptions": [], "tags": set(),
+    }
+    k1 = claude_cache_key("ERR001", match)
+    k2 = claude_cache_key("ERR001", match)
+    assert k1 == k2
+
+
+def test_claude_cache_key_case_insensitive():
+    """Cache key is case-insensitive for user query."""
+    match = {"matched": False, "match_type": None, "matching_events": [],
+             "codes": [], "exceptions": [], "tags": set()}
+    assert claude_cache_key("CWPKI0022E", match) == claude_cache_key("cwpki0022e", match)
+
+
+def test_claude_cache_key_different_query():
+    """Different queries produce different keys."""
+    match = {"matched": False, "match_type": None, "matching_events": [],
+             "codes": [], "exceptions": [], "tags": set()}
+    k1 = claude_cache_key("ERR001", match)
+    k2 = claude_cache_key("ERR002", match)
+    assert k1 != k2
+
+
+def test_claude_cache_key_different_context():
+    """Same query but different matched events produces different key."""
+    m1 = {"matched": True, "match_type": "code",
+           "matching_events": [{"text": "error A"}],
+           "codes": ["ERR001"], "exceptions": [], "tags": set()}
+    m2 = {"matched": True, "match_type": "code",
+           "matching_events": [{"text": "error B"}],
+           "codes": ["ERR001"], "exceptions": [], "tags": set()}
+    assert claude_cache_key("ERR001", m1) != claude_cache_key("ERR001", m2)
+
+
+def test_claude_cache_key_different_tags():
+    """Different tags produce different keys."""
+    base = {"matched": True, "match_type": "code",
+            "matching_events": [{"text": "same"}],
+            "codes": ["ERR001"], "exceptions": []}
+    m1 = {**base, "tags": {"SSL"}}
+    m2 = {**base, "tags": {"OOM/GC"}}
+    assert claude_cache_key("ERR001", m1) != claude_cache_key("ERR001", m2)
+
+
+def test_claude_cache_key_no_secrets():
+    """Cache key does not contain raw event text (only a hash digest)."""
+    secret_text = "password=supersecret123"
+    match = {"matched": True, "match_type": "text",
+             "matching_events": [{"text": secret_text}],
+             "codes": [], "exceptions": [], "tags": set()}
+    key = claude_cache_key("test", match)
+    assert "supersecret123" not in key
+    assert "password" not in key
