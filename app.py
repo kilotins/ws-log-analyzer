@@ -12,8 +12,9 @@ from wslog import (
     parse_file, summarize, render_markdown_report, render_json_report,
     render_pdf_report, per_file_summary, time_histogram, render_histogram,
     pick_samples, likely_causes, suggested_splunk_queries, hung_thread_drilldown,
+    precompute_analysis,
     match_user_query, build_claude_prompt, claude_cache_key,
-    incident_timeline, SWEDISH_CHEF_STYLE,
+    incident_timeline, SWEDISH_CHEF_STYLE, ask_gemini,
 )
 
 _APP_DIR = Path(__file__).parent
@@ -49,6 +50,7 @@ log.info("startup Application started")
 
 CACHE_FILE = CACHE_DIR / "claude_responses.json"
 HISTORY_FILE = CACHE_DIR / "claude_history.json"
+GEMINI_HISTORY_FILE = CACHE_DIR / "gemini_history.json"
 
 
 MAX_CACHE_ENTRIES = 100
@@ -94,6 +96,15 @@ def _save_history(history):
     # Keep only the most recent entries
     _save_json_file(HISTORY_FILE, history[-MAX_HISTORY_ENTRIES:])
 
+
+def _load_gemini_history():
+    data = _load_json_file(GEMINI_HISTORY_FILE, [])
+    return data if isinstance(data, list) else []
+
+
+def _save_gemini_history(history):
+    _save_json_file(GEMINI_HISTORY_FILE, history[-MAX_HISTORY_ENTRIES:])
+
 # --- Session state defaults ---
 _STATE_DEFAULTS = {
     "analysis": None,           # dict with all analysis results
@@ -104,7 +115,12 @@ _STATE_DEFAULTS = {
     "selected_code": None,      # code selected via any action button
     "selected_action": None,    # "copy" | "claude" | "splunk"
     "api_key": "",              # Anthropic API key (entered via sidebar)
-    "debug_payload": False,     # Show Claude API request/response payloads
+    "gemini_api_key": "",        # Google Gemini API key
+    "gemini_answer": None,       # last Gemini response
+    "gemini_query_label": None,  # query that produced the Gemini answer
+    "gemini_cache": {},          # cache key -> response text
+    "gemini_history": [],        # list of {query, answer, timestamp}
+    "debug_payload": False,     # Show AI API request/response payloads
     "swedish_chef": False,      # Swedish Chef response style
     "rt_enabled": False,        # Realtime log monitoring toggle
     "rt_running": False,        # Monitoring is actively polling
@@ -124,6 +140,8 @@ if st.session_state.rt_buffer is None:
 # Load persisted history on fresh session
 if not st.session_state.claude_history:
     st.session_state.claude_history = _load_history()
+if not st.session_state.gemini_history:
+    st.session_state.gemini_history = _load_gemini_history()
 
 
 def get_report_history(limit=20):
@@ -141,11 +159,13 @@ def _on_code_action(code, action):
     st.session_state.selected_action = action
     if action == "claude":
         st.session_state._ask_claude_pending = True
+    elif action == "gemini":
+        st.session_state._ask_gemini_pending = True
 
 
 def render_code_row(code, count):
     """Render a message code row with count and action buttons."""
-    cols = st.columns([3, 1])
+    cols = st.columns([3, 1, 1])
     with cols[0]:
         st.text(f"  {count:>4}  {code}")
     with cols[1]:
@@ -154,6 +174,11 @@ def render_code_row(code, count):
                   key=f"ask_{code}",
                   on_click=_on_code_action, args=(code, "claude"),
                   help=f"Ask {'zee Chef' if _chef else 'Claude'} about {code}")
+    with cols[2]:
+        st.button("Ask Gemini",
+                  key=f"ask_gemini_{code}",
+                  on_click=_on_code_action, args=(code, "gemini"),
+                  help=f"Ask Gemini about {code}")
 
 
 def render_summary(s, error_count, file_count, file_summary):
@@ -399,158 +424,289 @@ def _on_ask_claude_click():
     st.session_state._ask_claude_pending = True
 
 
-def render_ask_claude(events):
-    """Render Ask Claude input, API call, and response history."""
-    _chef = st.session_state.get("swedish_chef", False)
-    user_query = st.text_input(
-        "Ask zee Chef about un error code, excepshun, or troubleshooting questshun"
-        if _chef else
-        "Ask Claude about an error code, exception, or troubleshooting question",
-        placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
-        key="claude_query_input",
-    )
+def _on_ask_gemini_click():
+    """Callback: mark that the user clicked Ask Gemini."""
+    st.session_state._ask_gemini_pending = True
 
-    st.button("Analyze with zee Swedish Chef" if _chef else "Analyze with Claude",
-              type="primary",
-              on_click=_on_ask_claude_click,
-              disabled=not user_query)
 
-    # Check if the button was clicked (set by on_click callback on previous rerun)
-    pending = st.session_state.pop("_ask_claude_pending", False)
+def build_ai_request_context(user_query, events, provider="claude"):
+    """Compute match, cache key, and prompt for an AI analysis request."""
+    match = match_user_query(user_query, events)
+    cache_key = claude_cache_key(user_query, match)
+    if st.session_state.swedish_chef:
+        cache_key += ":swedish_chef"
+    if provider == "gemini":
+        cache_key = "gemini:" + cache_key
+    style = SWEDISH_CHEF_STYLE if st.session_state.swedish_chef else None
+    prompt = build_claude_prompt(user_query, match, style=style)
+    skills = prompt.get("skills", [])
+    if skills:
+        log.info("skills %s selected skills: %s", provider, ", ".join(skills))
+    return match, cache_key, prompt
 
-    if user_query and pending:
-        log.info("claude Ask Claude request: %s", user_query[:100])
+
+def _lookup_cache(cache_key, session_cache, provider_label, user_query):
+    """Check session cache then file cache. Returns cached value or None."""
+    log.info("cache %s looking up key: %s", provider_label, cache_key[:80])
+    cached = session_cache.get(cache_key)
+    if cached:
+        log.info("cache %s session cache HIT for: %s", provider_label, user_query[:60])
+        return cached
+    file_cache = _load_file_cache()
+    cached = file_cache.get(cache_key)
+    if cached:
+        log.info("cache %s file cache HIT for: %s", provider_label, user_query[:60])
+        session_cache[cache_key] = cached
+        return cached
+    log.info("cache %s MISS for: %s", provider_label, user_query[:60])
+    return None
+
+
+def _store_cache(cache_key, answer, session_cache):
+    """Store answer in both session and file cache."""
+    session_cache[cache_key] = answer
+    file_cache = _load_file_cache()
+    file_cache[cache_key] = answer
+    _save_file_cache(file_cache)
+
+
+def run_claude_analysis(user_query, events, processing_container):
+    """Run Claude API analysis with caching. Renders status into processing_container."""
+    log.info("claude Ask Claude request: %s", user_query[:100])
+    with processing_container:
         status = st.status("Analyzing with Claude...", expanded=True)
-        match = match_user_query(user_query, events)
-        cache_key = claude_cache_key(user_query, match)
-        if st.session_state.swedish_chef:
-            cache_key += ":swedish_chef"
+    match, cache_key, prompt = build_ai_request_context(user_query, events, "claude")
 
-        # Check session cache, then file cache
-        log.info("cache Looking up key: %s", cache_key[:80])
-        cached = st.session_state.claude_cache.get(cache_key)
-        if cached:
-            log.info("cache Session cache HIT for: %s", user_query[:60])
-        if not cached:
-            file_cache = _load_file_cache()
-            cached = file_cache.get(cache_key)
-            if cached:
-                log.info("cache File cache HIT for: %s", user_query[:60])
-                # Promote to session cache for faster subsequent lookups
-                st.session_state.claude_cache[cache_key] = cached
-        if not cached:
-            log.info("cache MISS for: %s", user_query[:60])
+    cached = _lookup_cache(cache_key, st.session_state.claude_cache, "Claude", user_query)
 
-        def _record_answer(answer, from_cache=False):
-            """Store answer in state and append to history."""
-            st.session_state.claude_answer = answer
-            st.session_state.claude_query_label = user_query
-            splunk_queries = _extract_splunk_from_response(answer)
-            entry = {
-                "query": user_query,
-                "answer": answer,
-                "splunk_queries": splunk_queries,
-                "timestamp": datetime.now().strftime("%H:%M:%S"),
-            }
-            hist = st.session_state.claude_history
-            if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
-                hist.append(entry)
-                _save_history(hist)
+    def _record_answer(answer):
+        st.session_state.claude_answer = answer
+        st.session_state.claude_query_label = user_query
+        splunk_queries = _extract_splunk_from_response(answer)
+        entry = {
+            "query": user_query,
+            "answer": answer,
+            "splunk_queries": splunk_queries,
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+        }
+        hist = st.session_state.claude_history
+        if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
+            hist.append(entry)
+            _save_history(hist)
 
-        if cached:
-            _record_answer(cached, from_cache=True)
-            status.update(label="Using cached Claude response", state="complete")
-        else:
-            if match["matched"]:
-                status.write(f"Found {len(match['matching_events'])} matching event(s) "
-                             f"(match type: {match['match_type']})")
-            else:
-                status.write("No exact match — sending general question to Claude.")
+    if cached:
+        _record_answer(cached)
+        status.update(label="Using cached Claude response", state="complete")
+        return
 
-            if not st.session_state.api_key:
-                status.update(label="No API key set", state="error")
-                st.error("Enter your Anthropic API key in the sidebar.")
-                return
+    if match["matched"]:
+        status.write(f"Found {len(match['matching_events'])} matching event(s) "
+                     f"(match type: {match['match_type']})")
+    else:
+        status.write("No exact match — sending general question to Claude.")
 
-            try:
-                from anthropic import Anthropic
-            except ImportError:
-                status.update(label="Missing package", state="error")
-                st.error("The `anthropic` package is not installed. "
-                         "Install with: `pip install anthropic`")
-                return
+    if not st.session_state.api_key:
+        status.update(label="No API key set", state="error")
+        st.error("Enter your Anthropic API key in the sidebar.")
+        return
 
-            log.info("cache Cache miss — calling Claude API for: %s", user_query[:60])
-            style = SWEDISH_CHEF_STYLE if st.session_state.swedish_chef else None
-            prompt = build_claude_prompt(user_query, match, style=style)
-            request_payload = {
-                "model": "claude-sonnet-4-6",
-                "max_tokens": 2048,
-                "system": prompt["system"],
-                "messages": [{"role": "user", "content": prompt["user"]}],
-            }
-            if st.session_state.debug_payload:
-                with st.expander("Request payload", expanded=False):
-                    import json as _json
-                    st.code(_json.dumps(request_payload, indent=2), language="json")
+    try:
+        from anthropic import Anthropic
+    except ImportError:
+        status.update(label="Missing package", state="error")
+        st.error("The `anthropic` package is not installed. "
+                 "Install with: `pip install anthropic`")
+        return
 
-            status.write("Calling Claude API...")
-            try:
-                client = Anthropic(api_key=st.session_state.api_key)
-                message = client.messages.create(**request_payload)
-                if not message.content:
-                    log.warning("claude Claude returned empty response for: %s", user_query[:60])
-                    status.update(label="Empty response from Claude", state="error")
-                    return
-                answer = message.content[0].text
-                log.info("claude Claude response received (%d chars) for: %s",
-                         len(answer), user_query[:60])
-                if st.session_state.debug_payload:
-                    with st.expander("Response payload", expanded=False):
-                        st.code(answer, language="markdown")
-                _record_answer(answer)
-                st.session_state.claude_cache[cache_key] = answer
-                file_cache = _load_file_cache()
-                file_cache[cache_key] = answer
-                _save_file_cache(file_cache)
-                status.update(label="Claude analysis complete", state="complete")
-            except Exception as ex:
-                log.error("claude Claude API error: %s", ex)
-                if st.session_state.debug_payload:
-                    with st.expander("Error details", expanded=True):
-                        st.code(str(ex), language="text")
-                status.update(label=f"Claude API error: {ex}", state="error")
-                return
+    log.info("cache Cache miss — calling Claude API for: %s", user_query[:60])
+    request_payload = {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 2048,
+        "system": prompt["system"],
+        "messages": [{"role": "user", "content": prompt["user"]}],
+    }
+    if st.session_state.debug_payload:
+        with st.expander("Request payload", expanded=False):
+            import json as _json
+            st.code(_json.dumps(request_payload, indent=2), language="json")
 
-    # Show persisted Claude answer
-    if st.session_state.claude_answer:
+    status.write("Calling Claude API...")
+    try:
+        client = Anthropic(api_key=st.session_state.api_key)
+        message = client.messages.create(**request_payload)
+        if not message.content:
+            log.warning("claude Claude returned empty response for: %s", user_query[:60])
+            status.update(label="Empty response from Claude", state="error")
+            return
+        answer = message.content[0].text
+        log.info("claude Claude response received (%d chars) for: %s",
+                 len(answer), user_query[:60])
+        if st.session_state.debug_payload:
+            with st.expander("Response payload", expanded=False):
+                st.code(answer, language="markdown")
+        _record_answer(answer)
+        _store_cache(cache_key, answer, st.session_state.claude_cache)
+        status.update(label="Claude analysis complete", state="complete")
+    except Exception as ex:
+        log.error("claude Claude API error: %s", ex)
+        if st.session_state.debug_payload:
+            with st.expander("Error details", expanded=True):
+                st.code(str(ex), language="text")
+        status.update(label=f"Claude API error: {ex}", state="error")
+
+
+def run_gemini_analysis(user_query, events, processing_container):
+    """Run Gemini API analysis with caching. Renders status into processing_container."""
+    log.info("gemini Ask Gemini request: %s", user_query[:100])
+    with processing_container:
+        gemini_status = st.status("Analyzing with Gemini...", expanded=True)
+    match, cache_key, prompt = build_ai_request_context(user_query, events, "gemini")
+
+    cached = _lookup_cache(cache_key, st.session_state.gemini_cache, "Gemini", user_query)
+
+    def _record_gemini_answer(answer):
+        st.session_state.gemini_answer = answer
+        st.session_state.gemini_query_label = user_query
+        entry = {
+            "query": user_query,
+            "answer": answer,
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+        }
+        hist = st.session_state.gemini_history
+        if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
+            hist.append(entry)
+            _save_gemini_history(hist)
+
+    if cached:
+        _record_gemini_answer(cached)
+        gemini_status.update(label="Using cached Gemini response", state="complete")
+        return
+
+    gemini_key = st.session_state.gemini_api_key
+    if not gemini_key:
+        gemini_status.update(label="No Gemini API key set", state="error")
+        st.error("Enter your Gemini API key in the sidebar or set GEMINI_API_KEY env var.")
+        return
+
+    if st.session_state.debug_payload:
+        with st.expander("Gemini request payload", expanded=False):
+            import json as _json
+            st.code(f"[SYSTEM]\n{prompt['system']}\n\n[USER]\n{prompt['user']}", language="text")
+
+    gemini_status.write("Calling Gemini API...")
+    try:
+        answer = ask_gemini(prompt["user"], api_key=gemini_key, system=prompt["system"])
+        if not answer:
+            log.warning("gemini Gemini returned empty response for: %s", user_query[:60])
+            gemini_status.update(label="Empty response from Gemini", state="error")
+            return
+        log.info("gemini Gemini response received (%d chars) for: %s",
+                 len(answer), user_query[:60])
+        if st.session_state.debug_payload:
+            with st.expander("Gemini response payload", expanded=False):
+                st.code(answer, language="markdown")
+        _record_gemini_answer(answer)
+        _store_cache(cache_key, answer, st.session_state.gemini_cache)
+        gemini_status.update(label="Gemini analysis complete", state="complete")
+    except Exception as ex:
+        log.error("gemini Gemini API error: %s", ex)
+        if st.session_state.debug_payload:
+            with st.expander("Gemini error details", expanded=True):
+                st.code(str(ex), language="text")
+        gemini_status.update(label=f"Gemini API error: {ex}", state="error")
+
+
+def render_current_ai_analyses():
+    """Render expanders for current Claude and Gemini results."""
+    _has_claude = bool(st.session_state.claude_answer)
+    _has_gemini = bool(st.session_state.gemini_answer)
+    if not _has_claude and not _has_gemini:
+        return
+
+    _expand_claude = _has_claude and not _has_gemini
+    _expand_gemini = _has_gemini and not _has_claude
+    if _has_claude and _has_gemini:
+        _expand_claude = False
+        _expand_gemini = True
+
+    st.markdown("---")
+    st.subheader("Current AI analyses")
+
+    if _has_claude:
         label = st.session_state.claude_query_label or "query"
-        st.markdown("---")
-        if st.session_state.swedish_chef:
-            _render_chef_sound_button()
-            st.markdown(
-                '<span style="font-size:1.4em;font-weight:bold">'
-                f'Zee Swedish Chef\'s analysis of {label} — Bork bork bork!</span>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.subheader(f"Claude analysis for {label}")
-        _render_claude_response(st.session_state.claude_answer)
+        expander_title = f"🍳 Zee Chef's analysis — {label}" if st.session_state.swedish_chef else f"Claude analysis — {label}"
+        with st.expander(expander_title, expanded=_expand_claude):
+            if st.session_state.swedish_chef:
+                _render_chef_sound_button()
+            _render_claude_response(st.session_state.claude_answer)
 
-    # Show previous Claude queries (if more than just the current one)
-    history = st.session_state.claude_history
-    if len(history) > 1:
+    if _has_gemini:
+        label = st.session_state.gemini_query_label or "query"
+        with st.expander(f"Gemini analysis — {label}", expanded=_expand_gemini):
+            st.markdown(st.session_state.gemini_answer)
+
+
+def render_ai_history():
+    """Render previous query history for Claude and Gemini."""
+    claude_history = st.session_state.claude_history
+    if len(claude_history) > 1:
         st.markdown("---")
         if st.session_state.swedish_chef:
             st.subheader("Previoos queries from zee Chef")
         else:
             st.subheader("Previous Claude queries")
-        for h_idx, entry in enumerate(reversed(history[:-1])):
-            hist_label = f"{entry['query']} ({entry['timestamp']})"
+        for h_idx, entry in enumerate(reversed(claude_history[:-1])):
+            hist_label = f"Claude — {entry['query']} ({entry['timestamp']})"
             with st.expander(hist_label):
                 if st.session_state.swedish_chef:
                     _render_chef_sound_button()
                 _render_claude_response(entry["answer"])
+
+    gemini_history = st.session_state.gemini_history
+    if len(gemini_history) > 1:
+        st.markdown("---")
+        st.subheader("Previous Gemini queries")
+        for g_idx, entry in enumerate(reversed(gemini_history[:-1])):
+            hist_label = f"Gemini — {entry['query']} ({entry['timestamp']})"
+            with st.expander(hist_label):
+                st.markdown(entry["answer"])
+
+
+def render_ask_claude(events):
+    """Render AI analysis input, API calls, and response history."""
+    _chef = st.session_state.get("swedish_chef", False)
+    user_query = st.text_input(
+        "Ask zee Chef about un error code, excepshun, or troubleshooting questshun"
+        if _chef else
+        "Ask an AI assistant about an error code, exception, or troubleshooting question",
+        placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
+        key="claude_query_input",
+    )
+
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        st.button("Analyze with zee Swedish Chef" if _chef else "Analyze with Claude",
+                  type="primary",
+                  on_click=_on_ask_claude_click,
+                  disabled=not user_query)
+    with btn_col2:
+        st.button("Analyze with Gemini",
+                  on_click=_on_ask_gemini_click,
+                  disabled=not user_query)
+
+    pending = st.session_state.pop("_ask_claude_pending", False)
+    gemini_pending = st.session_state.pop("_ask_gemini_pending", False)
+
+    processing_container = st.container()
+
+    if user_query and pending:
+        run_claude_analysis(user_query, events, processing_container)
+
+    if user_query and gemini_pending:
+        run_gemini_analysis(user_query, events, processing_container)
+
+    render_current_ai_analyses()
+    render_ai_history()
 
 
 def _render_splunk_query(sq, idx):
@@ -788,7 +944,7 @@ def render_report_sections(a):
         with st.expander(f"Likely Causes & Fixes ({len(a['causes'])} detected)"):
             render_likely_causes(a["causes"])
 
-    _chef_lbl = "Ask zee Swedish Chef" if st.session_state.swedish_chef else "Ask Claude"
+    _chef_lbl = "Ask zee Swedish Chef for help" if st.session_state.swedish_chef else "Ask AI for help"
     with st.expander(_chef_lbl, expanded=True):
         render_ask_claude(a["events"])
 
@@ -876,11 +1032,26 @@ with st.sidebar:
     else:
         st.caption("Enter your key to enable Ask Claude")
 
+    import os as _os
+    _gemini_env_key = _os.environ.get("GEMINI_API_KEY", "")
+    gemini_key = st.text_input(
+        "Gemini API Key",
+        value=st.session_state.gemini_api_key or _gemini_env_key,
+        type="password",
+        placeholder="AIza...",
+        help="Required for Ask Gemini. Get a key at aistudio.google.com/apikey",
+    )
+    st.session_state.gemini_api_key = gemini_key
+    if gemini_key:
+        st.success("Gemini API key set")
+    else:
+        st.caption("Enter your key or set GEMINI_API_KEY env var")
+
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
-        "Enable Ask Claude payload",
+        "Enable AI debug payloads",
         value=st.session_state.debug_payload,
-        help="Show request/response payloads for Claude API calls",
+        help="Show request/response payloads for Claude and Gemini API calls",
     )
     st.session_state.swedish_chef = st.toggle(
         "Swedish Chef mode 🍳",
@@ -889,15 +1060,20 @@ with st.sidebar:
     )
     if st.session_state.swedish_chef:
         st.caption("Swedish Chef mode is enabled. Bork bork bork!")
-    if st.button("Clear Claude cache", help="Clear cached Claude responses and history"):
+    if st.button("Clear AI cache", help="Clear cached Claude/Gemini responses and history"):
         st.session_state.claude_cache = {}
         st.session_state.claude_answer = None
         st.session_state.claude_query_label = None
         st.session_state.claude_history = []
+        st.session_state.gemini_cache = {}
+        st.session_state.gemini_answer = None
+        st.session_state.gemini_query_label = None
+        st.session_state.gemini_history = []
         if CACHE_FILE.exists():
             CACHE_FILE.unlink()
         _save_history([])
-        log.info("cache Cleared all Claude caches")
+        _save_gemini_history([])
+        log.info("cache Cleared all AI caches")
         st.success("Cache cleared")
 
     st.markdown("---")
@@ -968,10 +1144,26 @@ def _highlight_line(line):
     return _LEVEL_HIGHLIGHT_RE.sub(_color_match, line.replace("<", "&lt;").replace(">", "&gt;"))
 
 
+def _is_safe_rt_path(filepath):
+    """Check if a realtime monitor path is safe (only .log/.gz files)."""
+    if not filepath:
+        return False
+    p = Path(filepath).resolve()
+    # Only allow log-like file extensions
+    if p.suffix.lower() not in (".log", ".gz", ".txt", ".out"):
+        return False
+    # Block obvious sensitive paths
+    _blocked = {"/etc", "/private/etc", "/var/run", "/proc", "/sys", "/dev"}
+    for blocked in _blocked:
+        if str(p).startswith(blocked + "/") or str(p) == blocked:
+            return False
+    return True
+
+
 def _rt_poll():
     """Read new lines from the monitored file and append to buffer."""
     filepath = st.session_state.rt_file
-    if not filepath:
+    if not filepath or not _is_safe_rt_path(filepath):
         return
     p = Path(filepath)
     try:
@@ -1120,17 +1312,18 @@ with tab_analyze:
         if not all_events:
             st.error("No events parsed. Are the files empty or in an unsupported format?")
         else:
-            s = summarize(all_events, top_n)
+            pa = precompute_analysis(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+            s = pa["summary"]
             error_count = sum(1 for e in all_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
-            file_summary = per_file_summary(all_events)
-            causes = likely_causes(all_events)
-            hist = time_histogram(all_events, bucket_minutes=hist_minutes)
-            splunk = suggested_splunk_queries(s, causes, hist)
-            hung = hung_thread_drilldown(all_events)
-            samples = pick_samples(all_events, samples_n)
-            report_md = render_markdown_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
-            report_json = render_json_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
-            report_pdf = render_pdf_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+            file_summary = pa["file_summary"]
+            causes = pa["causes"]
+            hist = pa["hist"]
+            splunk = pa["splunk"]
+            hung = pa["hung"]
+            samples = pa["samples"]
+            report_md = render_markdown_report(all_events, _analysis=pa)
+            report_json = render_json_report(all_events, _analysis=pa)
+            report_pdf = render_pdf_report(all_events, _analysis=pa)
             report_name = f"report_{ts}.md"
             (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
 

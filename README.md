@@ -13,7 +13,7 @@ CLI tool and Streamlit web GUI that analyzes WebSphere / Java logs and generates
 - **Timeline histogram** — configurable bucket size, error overlay
 - **Secret redaction** — bearer tokens, passwords, API keys, JWTs, connection strings
 - **Reports** — Markdown, JSON, and PDF output
-- **AI analysis** — optional Claude integration for root-cause suggestions (CLI and GUI)
+- **AI analysis** — optional Claude and Gemini integration for root-cause suggestions (CLI and GUI)
 - **Prompt injection protection** — system/user prompt separation, XML delimiters, input sanitization
 
 ## CLI Usage
@@ -67,9 +67,13 @@ Open http://localhost:8501.
 
 - **Analyze tab** — upload `.log` / `.gz` files, configure settings, click Analyze
 - **Collapsible sections** — Summary, Likely Causes & Fixes, Splunk Searches, Hung Threads, Timeline, Event Samples
+- **Incident timeline** — groups errors into time-windowed incidents for faster triage
 - **Ask Claude** — enter an error code or question, get AI-powered analysis with Splunk suggestions
-- **API key in sidebar** — enter your Anthropic API key (or set `ANTHROPIC_API_KEY` env var)
-- **Response caching** — repeated queries return instantly (session + file-based cache)
+- **Ask Gemini** — Google Gemini AI analysis alongside Claude
+- **Dual AI caching** — repeated queries return instantly for both providers (session + file-based cache)
+- **Realtime log monitoring** — tail a log file and see new events as they arrive
+- **Swedish Chef mode** — novelty mode with sound clips and Muppet-style translated responses
+- **API keys in sidebar** — Anthropic and Gemini keys (or `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` env vars)
 - **Download reports** — Markdown, JSON, and PDF
 - **History tab** — browse and download previous reports, clear history
 
@@ -82,14 +86,17 @@ pip install -e .
 # With GUI
 pip install -e ".[gui]"
 
-# With AI analysis
+# With Claude AI analysis
 pip install -e ".[claude]"
+
+# With Gemini AI analysis
+pip install -e ".[gemini]"
 
 # With tests
 pip install -e ".[test]"
 
 # Everything
-pip install -e ".[gui,claude,test]"
+pip install -e ".[gui,claude,gemini,test]"
 ```
 
 ## Tests
@@ -98,4 +105,22 @@ pip install -e ".[gui,claude,test]"
 pytest
 ```
 
-145 tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, and report generation.
+177+ tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, Gemini integration, skill auto-selection, and report generation.
+
+## Gemini Setup
+
+1. Install the dependency:
+
+```bash
+pip install -e ".[gemini]"
+```
+
+2. Set your API key:
+
+```bash
+export GEMINI_API_KEY="your_api_key_here"
+```
+
+Or enter the key directly in the Streamlit sidebar under "Gemini API Key".
+
+3. In the GUI, click **Ask Gemini** next to the existing **Analyze with Claude** button to get Gemini's analysis of the same query.

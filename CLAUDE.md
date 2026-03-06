@@ -15,39 +15,13 @@ WebSphere/Java log analyzer that parses log files, extracts events with metadata
 - **Language**: Python 3.9+ (stdlib only for core — zero required deps)
 - **CLI**: argparse
 - **GUI**: Streamlit (optional)
-- **AI**: Anthropic SDK (optional, `--claude` flag)
+- **AI**: Anthropic SDK + Google Gemini SDK (optional)
 - **Tests**: pytest
 
 ## Project Structure
 
-```
-ws-log-analyzer/
-├── wslog.py           # Core engine + CLI (~480 lines, all logic here)
-├── app.py             # Streamlit web GUI (~140 lines, thin UI layer)
-├── tests/
-│   └── test_wslog.py  # pytest tests
-├── pyproject.toml     # Package config with optional deps
-├── ARCHITECTURE.md    # Detailed architecture docs
-├── uploads/           # Uploaded files (runtime, gitignored)
-└── reports/           # Generated reports (runtime, gitignored)
-```
-
-## Quick Start
-
-```bash
-# CLI usage
-./wslog.py SystemOut.log
-./wslog.py SystemOut.log --top 20 --samples 10 --format json
-./wslog.py SystemOut.log --claude  # AI root-cause analysis
-
-# GUI
-pip install -e ".[gui]"
-streamlit run app.py
-
-# Tests
-pip install -e ".[test]"
-pytest
-```
+See [ARCHITECTURE.md](ARCHITECTURE.md) for full project structure, data flow, and function tables.
+See [README.md](README.md) for installation, CLI options, and usage.
 
 ## Skills
 
@@ -57,11 +31,21 @@ pytest
 | **UI** | `.claude/skills/streamlit-patterns.md` — session state, callbacks, widget gotchas, file structure |
 | **AI** | `.claude/skills/claude-integration.md` — prompt structure, security, caching, API key storage |
 | **Testing** | `.claude/skills/testing.md` — pytest, Playwright e2e, Streamlit DOM gotchas |
+| **WAS Codes** | `skills/message-codes.md` — WAS message code prefixes and high-impact codes |
+| **Stacktraces** | `skills/stacktrace-analysis.md` — Java stacktrace reading, common exceptions |
+| **Threads** | `skills/thread-correlation.md` — Thread naming, hung thread patterns |
+| **Splunk** | `skills/splunk-query.md` — Ready-made Splunk queries for WAS |
+| **Startup** | `skills/websphere-startup.md` — Startup sequence, failure patterns |
+| **Servlets** | `skills/servlet-errors.md` — SRVE codes, servlet lifecycle |
+| **Liberty** | `skills/liberty-analysis.md` — Liberty-specific patterns, MicroProfile |
+| **Deploy** | `skills/deployment-analysis.md` — Deploy lifecycle, rollback indicators |
+| **Security** | `skills/security-analysis.md` — Auth failures, SSL, brute force detection |
+| **Noise** | `skills/log-noise-filter.md` — Safe-to-ignore patterns, noise heuristics |
 
 ## Critical Gotchas
 
 - **Single-file core**: All parsing/analysis logic is in `wslog.py` — `app.py` only imports from it
-- **No required deps**: Core runs on stdlib only. `anthropic`, `streamlit`, `pytest` are optional
+- **No required deps**: Core runs on stdlib only. `anthropic`, `google-generativeai`, `streamlit`, `pytest` are optional
 - **Event boundary heuristic**: New events start at timestamps, but stacktraces and `Caused by:` lines are kept with their parent event
 - **Secret redaction**: Runs on all event text before output — never expose raw log content
 - **WAS severity precedence**: Single-letter WAS codes (I/A/W/E/O/F/R/D) take priority over keyword-level matching
