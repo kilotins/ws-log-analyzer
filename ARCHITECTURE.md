@@ -2,10 +2,10 @@
 
 ```
 ws-log-analyzer/
-├── wslog.py              # Core engine + CLI (~1380 lines, all logic here)
-├── app.py                # Streamlit web GUI (~1420 lines)
+├── wslog.py              # Core engine + CLI (~1395 lines, all logic here)
+├── app.py                # Streamlit web GUI (~1455 lines)
 ├── tests/
-│   └── test_wslog.py     # 177+ pytest tests
+│   └── test_wslog.py     # 237 pytest tests
 ├── skills/               # Domain knowledge (10 files: message-codes, stacktrace-analysis, etc.)
 ├── .claude/
 │   └── skills/
@@ -19,10 +19,11 @@ ws-log-analyzer/
 ├── README.md
 ├── uploads/              # Uploaded files (runtime, gitignored)
 ├── reports/              # Generated reports (runtime, gitignored)
-└── cache/                # Claude response cache + history (runtime, gitignored)
+├── scripts/              # Audit automation tooling (run_audit.py, compare_audits.py)
+└── cache/                # AI response cache + history (runtime, gitignored)
 ```
 
-## `wslog.py` — Core Engine + CLI (~1380 lines)
+## `wslog.py` — Core Engine + CLI (~1395 lines)
 
 The entire analysis pipeline lives in one file with no required dependencies (stdlib only). It breaks down into four layers:
 
@@ -92,7 +93,7 @@ Functions that consume parsed events to produce insights:
 
 `main()` wires argparse to the pipeline. Supports multi-file input with progress output, markdown/JSON output, and optional `--claude` integration (lazy-imports `anthropic`).
 
-## `app.py` — Streamlit GUI (~1420 lines)
+## `app.py` — Streamlit GUI (~1455 lines)
 
 UI layer that imports from `wslog.py`. No analysis logic lives here.
 
@@ -140,7 +141,7 @@ Key pattern: analysis runs only on "Analyze" button click, stores everything in 
 
 Two-layer cache for AI responses (Claude and Gemini share the same mechanism):
 1. **Session cache** (`claude_cache` / `gemini_cache`) — fast in-memory lookup
-2. **File cache** (`cache/claude_responses.json`) — persists between sessions, max 100 entries
+2. **File cache** (`cache/ai_responses.json`) — persists between sessions, max 100 entries
 
 Gemini cache keys are prefixed with `"gemini:"` to avoid collisions.
 Claude query history stored in `cache/claude_history.json` (max 50 entries), loaded on fresh session.
