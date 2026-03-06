@@ -518,11 +518,17 @@ def main():
         if not path.exists():
             print(f"Skip (not found): {path}", file=sys.stderr)
             continue
-        all_events.extend(parse_file(path, args.max_lines))
+        file_events = parse_file(path, args.max_lines)
+        if not args.quiet:
+            print(f"  {path.name}: {len(file_events)} events", file=sys.stderr)
+        all_events.extend(file_events)
 
     if not all_events:
         print("No events parsed. Are the files empty or binary/scanned?", file=sys.stderr)
         sys.exit(2)
+
+    if not args.quiet and len(args.paths) > 1:
+        print(f"  Combined: {len(all_events)} events from {len(args.paths)} files", file=sys.stderr)
 
     out_path = Path(args.out)
     # Default extension based on format if user didn't specify --out
