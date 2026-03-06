@@ -10,7 +10,8 @@ from wslog import (
     extract_ts, redact, parse_file, summarize, bucket_tags,
     time_histogram, render_histogram, pick_samples, per_file_summary,
     classify_event, _parse_ts_parts, render_markdown_report, render_json_report,
-    likely_causes, suggested_splunk_queries,
+    likely_causes, suggested_splunk_queries, hung_thread_drilldown,
+    _extract_hung_thread_name, _extract_stack_sample,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -986,3 +987,170 @@ def test_splunk_in_json_report():
     data = json.loads(report)
     assert "splunk_queries" in data
     assert len(data["splunk_queries"]) >= 1
+
+
+# --- Hung thread drilldown ---
+
+HUNG_THREAD_LOG_WEBCONTAINER = """\
+[10/12/15 21:22:04:257 CEST] 00000150 ThreadMonitor W   WSVR0605W: Thread "WebContainer : 5" (00000150) has been active for 612015 milliseconds and may be hung. There is/are 1 thread(s) in total in the server that may be hung.
+\tat com.ibm.ws.webcontainer.servlet.ServletWrapper.handleRequest(ServletWrapper.java:776)
+\tat com.ibm.ws.webcontainer.webapp.WebApp.handleRequest(WebApp.java:3941)
+\tat com.ibm.ws.webcontainer.channel.WCChannelLink.ready(WCChannelLink.java:200)
+[10/12/15 21:32:04:500 CEST] 00000150 ThreadMonitor W   WSVR0605W: Thread "WebContainer : 5" (00000150) has been active for 1212015 milliseconds and may be hung. There is/are 2 thread(s) in total in the server that may be hung.
+\tat com.ibm.ws.webcontainer.servlet.ServletWrapper.handleRequest(ServletWrapper.java:776)
+[10/12/15 21:32:05:000 CEST] 00000160 ThreadMonitor W   WSVR0605W: Thread "WebContainer : 8" (00000160) has been active for 600123 milliseconds and may be hung.
+\tat com.example.service.SlowService.process(SlowService.java:42)
+\tat com.example.web.ApiServlet.doGet(ApiServlet.java:118)
+"""
+
+HUNG_THREAD_LOG_LIBERTY = """\
+[10/12/15 21:22:04:257 CEST] 00000170 com.ibm.ws.kernel.launch.internal.FrameworkManager E   CWWKE0701E: A task that was submitted to the Default Executor-thread-42 has been running for 601234 milliseconds. This task might be hung.
+\tat com.example.batch.LongRunningJob.execute(LongRunningJob.java:55)
+\tat com.ibm.ws.threading.internal.ExecutorServiceImpl$RunnableWrapper.run(ExecutorServiceImpl.java:237)
+"""
+
+HUNG_THREAD_LOG_QUOTED = """\
+[10/12/15 21:22:04:257 CEST] 00000180 ThreadMonitor W   WSVR0605W: Thread "ORB.thread.pool : 3" (00000180) has been active for 700000 milliseconds and may be hung.
+"""
+
+
+@pytest.fixture
+def hung_webcontainer_log(tmp_path):
+    p = tmp_path / "hung_wc.log"
+    p.write_text(HUNG_THREAD_LOG_WEBCONTAINER)
+    return p
+
+
+@pytest.fixture
+def hung_liberty_log(tmp_path):
+    p = tmp_path / "hung_liberty.log"
+    p.write_text(HUNG_THREAD_LOG_LIBERTY)
+    return p
+
+
+@pytest.fixture
+def hung_quoted_log(tmp_path):
+    p = tmp_path / "hung_quoted.log"
+    p.write_text(HUNG_THREAD_LOG_QUOTED)
+    return p
+
+
+def test_extract_hung_thread_name_webcontainer():
+    text = 'WSVR0605W: Thread "WebContainer : 5" (00000150) has been active'
+    assert _extract_hung_thread_name(text) == "WebContainer : 5"
+
+
+def test_extract_hung_thread_name_liberty():
+    text = "submitted to the Default Executor-thread-42 has been running"
+    assert _extract_hung_thread_name(text) == "Default Executor-thread-42"
+
+
+def test_extract_hung_thread_name_quoted():
+    text = 'WSVR0605W: Thread "ORB.thread.pool : 3" (00000180) has been active'
+    assert _extract_hung_thread_name(text) == "ORB.thread.pool : 3"
+
+
+def test_extract_hung_thread_name_none():
+    assert _extract_hung_thread_name("normal log line without thread info") is None
+
+
+def test_extract_stack_sample():
+    text = (
+        "WSVR0605W: Thread hung\n"
+        "\tat com.example.Foo.bar(Foo.java:10)\n"
+        "\tat com.example.Baz.qux(Baz.java:20)\n"
+        "\tat com.example.Main.run(Main.java:5)\n"
+    )
+    lines = _extract_stack_sample(text, max_lines=2)
+    assert len(lines) == 2
+    assert "com.example.Foo.bar" in lines[0]
+
+
+def test_extract_stack_sample_empty():
+    assert _extract_stack_sample("no stack trace here") == []
+
+
+def test_hung_thread_drilldown_webcontainer(hung_webcontainer_log):
+    """Should detect WebContainer threads with counts, timestamps, and stacks."""
+    events = parse_file(hung_webcontainer_log)
+    drilldown = hung_thread_drilldown(events)
+    assert len(drilldown) == 2
+
+    # WebContainer : 5 appears twice, should be first (sorted by count)
+    wc5 = drilldown[0]
+    assert wc5["thread_name"] == "WebContainer : 5"
+    assert wc5["count"] == 2
+    assert wc5["first_ts"] == "10/12/15 21:22:04:257"
+    assert wc5["last_ts"] == "10/12/15 21:32:04:500"
+    assert "00000150" in wc5["hex_ids"]
+    assert len(wc5["stack_sample"]) >= 1
+    assert "ServletWrapper" in wc5["stack_sample"][0]
+    assert "index=APP" in wc5["splunk_query"]
+    assert "WebContainer : 5" in wc5["splunk_query"]
+
+    # WebContainer : 8 appears once
+    wc8 = drilldown[1]
+    assert wc8["thread_name"] == "WebContainer : 8"
+    assert wc8["count"] == 1
+    assert "00000160" in wc8["hex_ids"]
+    assert any("SlowService" in line for line in wc8["stack_sample"])
+
+
+def test_hung_thread_drilldown_liberty(hung_liberty_log):
+    """Should detect Liberty Default Executor threads."""
+    events = parse_file(hung_liberty_log)
+    drilldown = hung_thread_drilldown(events)
+    assert len(drilldown) == 1
+    assert drilldown[0]["thread_name"] == "Default Executor-thread-42"
+    assert drilldown[0]["count"] == 1
+    assert any("LongRunningJob" in line for line in drilldown[0]["stack_sample"])
+
+
+def test_hung_thread_drilldown_quoted_name(hung_quoted_log):
+    """Should extract quoted thread names like ORB.thread.pool."""
+    events = parse_file(hung_quoted_log)
+    drilldown = hung_thread_drilldown(events)
+    assert len(drilldown) == 1
+    assert drilldown[0]["thread_name"] == "ORB.thread.pool : 3"
+
+
+def test_hung_thread_drilldown_no_hung_threads():
+    """Should return empty list when no hung threads detected."""
+    events = [_make_event("INFO: Normal application startup")]
+    assert hung_thread_drilldown(events) == []
+
+
+def test_hung_thread_drilldown_fallback_to_hex_id():
+    """Should fall back to hex thread ID when no thread name is extractable."""
+    events = [_make_event("WSVR0605W: stuck thread detected")]
+    events[0]["thread_id"] = "0000abcd"
+    drilldown = hung_thread_drilldown(events)
+    assert len(drilldown) == 1
+    assert drilldown[0]["thread_name"] == "0x0000abcd"
+
+
+def test_hung_thread_drilldown_in_markdown_report(hung_webcontainer_log):
+    events = parse_file(hung_webcontainer_log)
+    report = render_markdown_report(events, top_n=5, samples_n=5)
+    assert "## Hung Thread Drilldown" in report
+    assert "WebContainer : 5" in report
+    assert "WebContainer : 8" in report
+    assert "ServletWrapper" in report
+    assert "index=APP" in report
+
+
+def test_hung_thread_drilldown_in_json_report(hung_webcontainer_log):
+    events = parse_file(hung_webcontainer_log)
+    report = render_json_report(events, top_n=5, samples_n=5)
+    data = json.loads(report)
+    assert "hung_thread_drilldown" in data
+    assert len(data["hung_thread_drilldown"]) == 2
+    names = [t["thread_name"] for t in data["hung_thread_drilldown"]]
+    assert "WebContainer : 5" in names
+    assert "WebContainer : 8" in names
+
+
+def test_hung_thread_drilldown_not_in_report_when_none():
+    events = [_make_event("INFO: all good")]
+    report = render_markdown_report(events, top_n=5, samples_n=5)
+    assert "## Hung Thread Drilldown" not in report
