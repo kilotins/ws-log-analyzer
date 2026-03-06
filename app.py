@@ -15,11 +15,16 @@ REPORTS_DIR = Path("reports")
 UPLOADS_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
 
-# Session state for pre-populating Ask Claude input
-if "prefill_claude_query" not in st.session_state:
-    st.session_state.prefill_claude_query = ""
-if "splunk_display" not in st.session_state:
-    st.session_state.splunk_display = None
+# --- Session state defaults ---
+_STATE_DEFAULTS = {
+    "analysis": None,           # dict with all analysis results
+    "claude_answer": None,      # last Claude response
+    "selected_code": None,      # code selected via any action button
+    "selected_action": None,    # "copy" | "claude" | "splunk"
+}
+for key, default in _STATE_DEFAULTS.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 
 def get_report_history(limit=20):
@@ -28,28 +33,49 @@ def get_report_history(limit=20):
     return reports[:limit]
 
 
+# --- Section renderers ---
+
+def _on_code_action(code, action):
+    """Callback for code row buttons. Sets state without triggering extra reruns."""
+    st.session_state.selected_code = code
+    st.session_state.selected_action = action
+
+
 def render_code_row(code, count):
     """Render a message code row with count and action buttons."""
     cols = st.columns([3, 1, 1, 1])
     with cols[0]:
         st.text(f"  {count:>4}  {code}")
     with cols[1]:
-        if st.button("Copy", key=f"copy_{code}", help=f"Copy {code}"):
-            st.session_state[f"copied_{code}"] = True
-        if st.session_state.get(f"copied_{code}"):
-            st.caption("Copied")
-            # Use st.code as a copyable element since clipboard API needs JS
-            st.code(code, language=None)
-            st.session_state[f"copied_{code}"] = False
+        st.button("Copy", key=f"copy_{code}",
+                  on_click=_on_code_action, args=(code, "copy"),
+                  help=f"Copy {code}")
     with cols[2]:
-        if st.button("Ask Claude", key=f"ask_{code}", help=f"Ask Claude about {code}"):
-            st.session_state.prefill_claude_query = code
-            st.rerun()
+        st.button("Ask Claude", key=f"ask_{code}",
+                  on_click=_on_code_action, args=(code, "claude"),
+                  help=f"Ask Claude about {code}")
     with cols[3]:
-        if st.button("Splunk", key=f"splunk_{code}", help=f"Splunk search for {code}"):
-            st.session_state.splunk_display = code
-        if st.session_state.get("splunk_display") == code:
-            st.code(f'{_SPLUNK_PREFIX} "{code}"', language="spl")
+        st.button("Splunk", key=f"splunk_{code}",
+                  on_click=_on_code_action, args=(code, "splunk"),
+                  help=f"Splunk search for {code}")
+
+
+def render_code_action_panel():
+    """Render the result of the last code button action, below the summary."""
+    code = st.session_state.selected_code
+    action = st.session_state.selected_action
+    if not code or not action:
+        return
+
+    if action == "copy":
+        st.info(f"Code **{code}** ready to copy:")
+        st.code(code, language=None)
+    elif action == "splunk":
+        query = f'{_SPLUNK_PREFIX} "{code}"'
+        st.info(f"Splunk search for **{code}**:")
+        st.code(query, language="spl")
+    elif action == "claude":
+        st.info(f"Code **{code}** loaded into Ask Claude below.")
 
 
 def render_summary(s, error_count, file_count, file_summary):
@@ -87,6 +113,9 @@ def render_summary(s, error_count, file_count, file_summary):
         st.subheader("Signal Tags")
         for tag, count in s["tags"]:
             st.text(f"  {count:>4}  {tag}")
+
+    # Show action result below the summary
+    render_code_action_panel()
 
 
 def render_likely_causes(causes):
@@ -132,9 +161,8 @@ def render_hung_threads(hung):
         st.code(t["splunk_query"], language="spl")
 
 
-def render_timeline(events, hist_minutes):
+def render_timeline(hist):
     """Render timeline histogram."""
-    hist = time_histogram(events, bucket_minutes=hist_minutes)
     if hist:
         lines = render_histogram(hist)
         st.code("\n".join(lines))
@@ -142,9 +170,8 @@ def render_timeline(events, hist_minutes):
         st.caption("No timestamped events.")
 
 
-def render_samples(events, samples_n):
+def render_samples(samples):
     """Render sample events."""
-    samples = pick_samples(events, samples_n)
     if not samples:
         st.caption("No events to display.")
         return
@@ -167,6 +194,101 @@ def render_samples(events, samples_n):
         if parts:
             st.text("  " + " | ".join(parts))
         st.code(e["text"][:4000], language="text")
+
+
+def render_report_sections(a):
+    """Render all report sections from persisted analysis dict."""
+    st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
+               f"Report saved as `{a['report_name']}`.")
+
+    dl1, dl2 = st.columns(2)
+    with dl1:
+        st.download_button(
+            label="Download Markdown",
+            data=a["report_md"],
+            file_name=a["report_name"],
+            mime="text/markdown",
+        )
+    with dl2:
+        st.download_button(
+            label="Download JSON",
+            data=a["report_json"],
+            file_name=a["report_name"].replace(".md", ".json"),
+            mime="application/json",
+        )
+
+    st.markdown("---")
+
+    with st.expander("Summary", expanded=True):
+        render_summary(a["summary"], a["error_count"], a["file_count"], a["file_summary"])
+
+    with st.expander(f"Likely Causes & Fixes ({len(a['causes'])} detected)"):
+        render_likely_causes(a["causes"])
+
+    with st.expander(f"Suggested Splunk Searches ({len(a['splunk'])} queries)"):
+        render_splunk_section(a["splunk"])
+
+    with st.expander(f"Hung Thread Analysis ({len(a['hung'])} threads)"):
+        render_hung_threads(a["hung"])
+
+    with st.expander("Timeline"):
+        render_timeline(a["hist"])
+
+    with st.expander(f"Event Samples ({len(a['samples'])} shown)"):
+        render_samples(a["samples"])
+
+
+def render_ask_claude(events):
+    """Render the Ask Claude section. Uses events from session state."""
+    st.markdown("---")
+    st.subheader("Ask Claude")
+
+    # Pre-fill from code button action (consumed once via default_value)
+    default_query = ""
+    if st.session_state.selected_action == "claude" and st.session_state.selected_code:
+        default_query = st.session_state.selected_code
+
+    user_query = st.text_input(
+        "Enter an error code, exception name, or troubleshooting question",
+        value=default_query,
+        placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
+    )
+
+    if user_query and st.button("Analyze with Claude", type="secondary"):
+        match = match_user_query(user_query, events)
+        prompt = build_claude_prompt(user_query, match)
+
+        if match["matched"]:
+            st.info(f"Found {len(match['matching_events'])} matching event(s) "
+                    f"(match type: {match['match_type']})")
+        else:
+            st.warning("No exact match in current log — sending general question to Claude.")
+
+        try:
+            from anthropic import Anthropic
+        except ImportError:
+            st.error("The `anthropic` package is not installed. "
+                     "Install with: `pip install anthropic`")
+            return
+
+        with st.spinner("Asking Claude..."):
+            try:
+                client = Anthropic()
+                message = client.messages.create(
+                    model="claude-sonnet-4-6",
+                    max_tokens=2048,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                st.session_state.claude_answer = message.content[0].text
+            except Exception as ex:
+                st.error(f"Claude API error: {ex}")
+                st.caption("Tip: ensure ANTHROPIC_API_KEY is set in your environment.")
+                return
+
+    # Show persisted Claude answer across reruns
+    if st.session_state.claude_answer:
+        with st.expander("Claude's Analysis", expanded=True):
+            st.markdown(st.session_state.claude_answer)
 
 
 # --- Streamlit UI ---
@@ -192,133 +314,68 @@ with tab_analyze:
     with col3:
         hist_minutes = st.number_input("Histogram bucket (min)", min_value=1, max_value=60, value=1)
 
-    if uploaded_files:
-        if st.button("Analyze", type="primary"):
-            ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            all_events = []
+    # --- Run analysis (only on button click) ---
+    if uploaded_files and st.button("Analyze", type="primary"):
+        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        all_events = []
 
-            for uploaded in uploaded_files:
-                upload_name = f"{ts}_{uploaded.name}"
-                upload_path = UPLOADS_DIR / upload_name
-                upload_path.write_bytes(uploaded.getvalue())
+        for uploaded in uploaded_files:
+            upload_name = f"{ts}_{uploaded.name}"
+            upload_path = UPLOADS_DIR / upload_name
+            upload_path.write_bytes(uploaded.getvalue())
 
-                with st.spinner(f"Parsing {uploaded.name}..."):
-                    try:
-                        events = parse_file(upload_path)
-                        all_events.extend(events)
-                    except Exception as ex:
-                        st.error(f"Failed to parse {uploaded.name}: {ex}")
+            with st.spinner(f"Parsing {uploaded.name}..."):
+                try:
+                    events = parse_file(upload_path)
+                    all_events.extend(events)
+                except Exception as ex:
+                    st.error(f"Failed to parse {uploaded.name}: {ex}")
 
-            if not all_events:
-                st.error("No events parsed. Are the files empty or in an unsupported format?")
-            else:
-                # Generate full reports for download
-                report = render_markdown_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
-                json_report = render_json_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+        if not all_events:
+            st.error("No events parsed. Are the files empty or in an unsupported format?")
+        else:
+            s = summarize(all_events, top_n)
+            error_count = sum(1 for e in all_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
+            file_summary = per_file_summary(all_events)
+            causes = likely_causes(all_events)
+            hist = time_histogram(all_events, bucket_minutes=hist_minutes)
+            splunk = suggested_splunk_queries(s, causes, hist)
+            hung = hung_thread_drilldown(all_events)
+            samples = pick_samples(all_events, samples_n)
+            report_md = render_markdown_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+            report_json = render_json_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+            report_name = f"report_{ts}.md"
+            (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
 
-                # Save report
-                report_name = f"report_{ts}.md"
-                report_path = REPORTS_DIR / report_name
-                report_path.write_text(report, encoding="utf-8")
+            # Persist everything in session state
+            st.session_state.analysis = {
+                "events": all_events,
+                "summary": s,
+                "error_count": error_count,
+                "file_count": len(uploaded_files),
+                "file_summary": file_summary,
+                "causes": causes,
+                "hist": hist,
+                "splunk": splunk,
+                "hung": hung,
+                "samples": samples,
+                "total_events": len(all_events),
+                "report_md": report_md,
+                "report_json": report_json,
+                "report_name": report_name,
+            }
+            # Clear previous actions on new analysis
+            st.session_state.claude_answer = None
+            st.session_state.selected_code = None
+            st.session_state.selected_action = None
 
-                st.success(f"Parsed {len(all_events)} events from {len(uploaded_files)} file(s). Report saved as `{report_name}`.")
-
-                dl1, dl2 = st.columns(2)
-                with dl1:
-                    st.download_button(
-                        label="Download Markdown",
-                        data=report,
-                        file_name=report_name,
-                        mime="text/markdown",
-                    )
-                with dl2:
-                    st.download_button(
-                        label="Download JSON",
-                        data=json_report,
-                        file_name=report_name.replace(".md", ".json"),
-                        mime="application/json",
-                    )
-
-                st.markdown("---")
-
-                # Compute data for sections
-                s = summarize(all_events, top_n)
-                error_count = sum(1 for e in all_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
-                file_summary = per_file_summary(all_events)
-                causes = likely_causes(all_events)
-                hist = time_histogram(all_events, bucket_minutes=hist_minutes)
-                splunk = suggested_splunk_queries(s, causes, hist)
-                hung = hung_thread_drilldown(all_events)
-
-                # Summary — expanded by default
-                with st.expander("Summary", expanded=True):
-                    render_summary(s, error_count, len(uploaded_files), file_summary)
-
-                # Likely Causes — collapsed
-                with st.expander(f"Likely Causes & Fixes ({len(causes)} detected)"):
-                    render_likely_causes(causes)
-
-                # Splunk searches — collapsed
-                with st.expander(f"Suggested Splunk Searches ({len(splunk)} queries)"):
-                    render_splunk_section(splunk)
-
-                # Hung threads — collapsed
-                with st.expander(f"Hung Thread Analysis ({len(hung)} threads)"):
-                    render_hung_threads(hung)
-
-                # Timeline — collapsed
-                with st.expander("Timeline"):
-                    render_timeline(all_events, hist_minutes)
-
-                # Sample events — collapsed
-                with st.expander(f"Event Samples ({samples_n} max)"):
-                    render_samples(all_events, samples_n)
-
-                # Ask Claude section
-                st.markdown("---")
-                st.subheader("Ask Claude")
-
-                # Use prefilled value from code buttons, then clear it
-                prefill = st.session_state.pop("prefill_claude_query", "")
-                user_query = st.text_input(
-                    "Enter an error code, exception name, or troubleshooting question",
-                    value=prefill,
-                    placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
-                    key="claude_query",
-                )
-                if user_query and st.button("Analyze with Claude", type="secondary"):
-                    match = match_user_query(user_query, all_events)
-                    prompt = build_claude_prompt(user_query, match)
-
-                    if match["matched"]:
-                        st.info(f"Found {len(match['matching_events'])} matching event(s) "
-                                f"(match type: {match['match_type']})")
-                    else:
-                        st.warning("No exact match in current log — sending general question to Claude.")
-
-                    try:
-                        from anthropic import Anthropic
-                    except ImportError:
-                        st.error("The `anthropic` package is not installed. "
-                                 "Install with: `pip install anthropic`")
-                        st.stop()
-
-                    with st.spinner("Asking Claude..."):
-                        try:
-                            client = Anthropic()
-                            message = client.messages.create(
-                                model="claude-sonnet-4-6",
-                                max_tokens=2048,
-                                messages=[{"role": "user", "content": prompt}],
-                            )
-                            answer = message.content[0].text
-                        except Exception as ex:
-                            st.error(f"Claude API error: {ex}")
-                            st.caption("Tip: ensure ANTHROPIC_API_KEY is set in your environment.")
-                            st.stop()
-
-                    with st.expander("Claude's Analysis", expanded=True):
-                        st.markdown(answer)
+    # --- Render results from session state (survives reruns) ---
+    a = st.session_state.analysis
+    if a is not None:
+        render_report_sections(a)
+        render_ask_claude(a["events"])
+    elif not uploaded_files:
+        st.info("Upload one or more log files to get started.")
 
 with tab_history:
     reports = get_report_history()
