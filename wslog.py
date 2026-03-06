@@ -304,6 +304,87 @@ def per_file_summary(events):
     return [(f, files[f]["total"], files[f]["errors"]) for f in sorted(files)]
 
 
+_HEURISTICS = [
+    {
+        "id": "ssl-trust",
+        "title": "SSL / TLS Trust Failure",
+        "match": re.compile(
+            r'CertPathBuilderException|SSLHandshakeException|PKIX path building failed'
+            r'|CWPKI0022E|CWPKI0033E',
+            re.IGNORECASE,
+        ),
+        "cause": "The JVM does not trust the remote certificate (self-signed, expired, or missing intermediate CA).",
+        "fixes": [
+            "Import the remote certificate into the WAS truststore (retrieveSigners / wsadmin).",
+            "Check certificate expiry with: keytool -list -v -keystore trust.p12.",
+            "If a recent cert renewal happened, the old CA chain may still be cached — restart the server.",
+        ],
+    },
+    {
+        "id": "db-pool",
+        "title": "JDBC / Connection-Pool Exhaustion",
+        "match": re.compile(
+            r'J2CA0045E|J2CA0079E|pool.*exhaust|Timeout waiting for idle object'
+            r'|ConnectionWaitTimeout|connection pool',
+            re.IGNORECASE,
+        ),
+        "cause": "All connections in the JDBC pool are in use; new requests block until timeout.",
+        "fixes": [
+            "Check for long-running queries or uncommitted transactions holding connections.",
+            "Increase maxConnections / connectionTimeout in the data-source config if load is legitimate.",
+            "Look for connection leaks: code paths that obtain a connection but skip close() on exception.",
+        ],
+    },
+    {
+        "id": "hung-threads",
+        "title": "Hung / Stuck Threads",
+        "match": re.compile(
+            r'WSVR0605W|WSVR0606W|ThreadMonitor|hung.thread|stuck.thread'
+            r'|CWWKE0701E|CWWKE0700W',
+            re.IGNORECASE,
+        ),
+        "cause": "One or more threads have been active longer than the configured threshold (default 600 s).",
+        "fixes": [
+            "Capture a thread dump (kill -3 or wsadmin) to identify what the thread is waiting on.",
+            "Common culprits: slow external service calls, database locks, infinite loops.",
+            "If the threshold is too aggressive for batch workloads, increase com.ibm.websphere.threadmonitor.threshold.",
+        ],
+    },
+    {
+        "id": "oom-gc",
+        "title": "OutOfMemoryError / GC Pressure",
+        "match": re.compile(
+            r'OutOfMemoryError|Java heap space|GC overhead limit exceeded'
+            r'|allocation failure|Metaspace',
+            re.IGNORECASE,
+        ),
+        "cause": "The JVM heap (or metaspace) is exhausted — objects cannot be allocated.",
+        "fixes": [
+            "Collect a heap dump (-XX:+HeapDumpOnOutOfMemoryError) and analyze with Eclipse MAT.",
+            "Check for memory leaks: growing collections, unclosed streams, or class-loader leaks after redeploys.",
+            "Increase -Xmx / -XX:MaxMetaspaceSize only after ruling out leaks.",
+        ],
+    },
+]
+
+
+def likely_causes(events):
+    """Return list of {id, title, count, cause, fixes} for detected heuristic patterns."""
+    results = []
+    for h in _HEURISTICS:
+        count = sum(1 for e in events if h["match"].search(e.get("text", "")))
+        if count:
+            results.append({
+                "id": h["id"],
+                "title": h["title"],
+                "count": count,
+                "cause": h["cause"],
+                "fixes": list(h["fixes"]),
+            })
+    results.sort(key=lambda r: -r["count"])
+    return results
+
+
 def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
     """Generate a JSON triage report string from parsed events."""
     s = summarize(events, top_n)
@@ -317,6 +398,7 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
         "codes": dict(s["codes"]),
         "exceptions": dict(s["exceptions"]),
         "tags": dict(s["tags"]),
+        "likely_causes": likely_causes(events),
         "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
         "samples": [
             {
@@ -368,6 +450,20 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
     md.append("## Signal Tags")
     md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
     md.append("")
+    causes = likely_causes(events)
+    if causes:
+        md.append("## Likely Causes & Fixes")
+        md.append("")
+        for c in causes:
+            md.append(f"### {c['title']} ({c['count']} event{'s' if c['count'] != 1 else ''})")
+            md.append("")
+            md.append(f"**Likely cause:** {c['cause']}")
+            md.append("")
+            md.append("**Suggested fixes:**")
+            for fix in c["fixes"]:
+                md.append(f"- {fix}")
+            md.append("")
+
     md.append("## Timeline (events per minute)")
     md.append("")
     md.append("```")
