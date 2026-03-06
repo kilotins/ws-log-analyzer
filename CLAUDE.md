@@ -54,6 +54,9 @@ pytest
 | Category | Skill |
 |----------|-------|
 | **Domain** | `.claude/skills/ws-log-parsing.yaml` — event boundaries, signal tags, extending the analyzer |
+| **UI** | `.claude/skills/streamlit-patterns.md` — session state, callbacks, widget gotchas, file structure |
+| **AI** | `.claude/skills/claude-integration.md` — prompt structure, security, caching, API key storage |
+| **Testing** | `.claude/skills/testing.md` — pytest, Playwright e2e, Streamlit DOM gotchas |
 
 ## Critical Gotchas
 
