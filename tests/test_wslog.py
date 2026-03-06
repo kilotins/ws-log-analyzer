@@ -10,6 +10,7 @@ from wslog import (
     extract_ts, redact, parse_file, summarize, bucket_tags,
     time_histogram, render_histogram, pick_samples, per_file_summary,
     classify_event, _parse_ts_parts, render_markdown_report, render_json_report,
+    likely_causes,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -627,3 +628,158 @@ def test_render_json_report_sample_text_truncation():
     report = render_json_report(events, top_n=5, samples_n=5)
     data = json.loads(report)
     assert len(data["samples"][0]["text"]) == 4000
+
+
+# --- Likely causes heuristics ---
+
+def _make_event(text):
+    """Helper to build a minimal event dict for heuristic tests."""
+    return {
+        "level": "ERROR", "code": None, "exception": None,
+        "root_cause": None, "tags": [], "ts": "10/12/15 21:22:04:257",
+        "file": "test.log", "text": text, "thread_id": "00000001",
+    }
+
+
+def test_likely_causes_ssl_certpath():
+    events = [_make_event("PKIX path building failed: CertPathBuilderException")]
+    causes = likely_causes(events)
+    assert len(causes) == 1
+    assert causes[0]["id"] == "ssl-trust"
+    assert causes[0]["count"] == 1
+
+
+def test_likely_causes_ssl_handshake():
+    events = [_make_event("javax.net.ssl.SSLHandshakeException: handshake failure")]
+    causes = likely_causes(events)
+    ids = [c["id"] for c in causes]
+    assert "ssl-trust" in ids
+
+
+def test_likely_causes_ssl_cwpki():
+    events = [_make_event("CWPKI0022E: SSL HANDSHAKE FAILURE")]
+    causes = likely_causes(events)
+    ids = [c["id"] for c in causes]
+    assert "ssl-trust" in ids
+
+
+def test_likely_causes_db_pool_j2ca():
+    events = [_make_event("J2CA0045E: Connection not available from pool")]
+    causes = likely_causes(events)
+    assert len(causes) == 1
+    assert causes[0]["id"] == "db-pool"
+
+
+def test_likely_causes_db_pool_timeout():
+    events = [_make_event("Timeout waiting for idle object in connection pool")]
+    causes = likely_causes(events)
+    ids = [c["id"] for c in causes]
+    assert "db-pool" in ids
+
+
+def test_likely_causes_db_pool_exhausted():
+    events = [_make_event("JDBC pool exhausted, no connections available")]
+    causes = likely_causes(events)
+    ids = [c["id"] for c in causes]
+    assert "db-pool" in ids
+
+
+def test_likely_causes_hung_threads_wsvr0605():
+    events = [_make_event("WSVR0605W: Thread stuck for 600 seconds")]
+    causes = likely_causes(events)
+    assert len(causes) == 1
+    assert causes[0]["id"] == "hung-threads"
+
+
+def test_likely_causes_hung_threads_threadmonitor():
+    events = [_make_event("ThreadMonitor W   WSVR0605W: Thread is hung")]
+    causes = likely_causes(events)
+    ids = [c["id"] for c in causes]
+    assert "hung-threads" in ids
+
+
+def test_likely_causes_hung_threads_liberty():
+    events = [_make_event("CWWKE0701E: A task has been running on thread for 600 seconds")]
+    causes = likely_causes(events)
+    ids = [c["id"] for c in causes]
+    assert "hung-threads" in ids
+
+
+def test_likely_causes_oom_heap():
+    events = [_make_event("java.lang.OutOfMemoryError: Java heap space")]
+    causes = likely_causes(events)
+    assert len(causes) == 1
+    assert causes[0]["id"] == "oom-gc"
+
+
+def test_likely_causes_oom_gc_overhead():
+    events = [_make_event("java.lang.OutOfMemoryError: GC overhead limit exceeded")]
+    causes = likely_causes(events)
+    ids = [c["id"] for c in causes]
+    assert "oom-gc" in ids
+
+
+def test_likely_causes_oom_metaspace():
+    events = [_make_event("java.lang.OutOfMemoryError: Metaspace")]
+    causes = likely_causes(events)
+    ids = [c["id"] for c in causes]
+    assert "oom-gc" in ids
+
+
+def test_likely_causes_multiple_patterns():
+    """Multiple different issues should produce multiple causes, sorted by count."""
+    events = [
+        _make_event("PKIX path building failed"),
+        _make_event("SSLHandshakeException: trust failure"),
+        _make_event("OutOfMemoryError: Java heap space"),
+    ]
+    causes = likely_causes(events)
+    assert len(causes) == 2
+    assert causes[0]["id"] == "ssl-trust"  # 2 events
+    assert causes[0]["count"] == 2
+    assert causes[1]["id"] == "oom-gc"  # 1 event
+    assert causes[1]["count"] == 1
+
+
+def test_likely_causes_none_detected():
+    events = [_make_event("INFO: Normal application startup complete")]
+    causes = likely_causes(events)
+    assert causes == []
+
+
+def test_likely_causes_has_fixes():
+    """Each cause should include at least one fix suggestion."""
+    events = [
+        _make_event("OutOfMemoryError: Java heap space"),
+        _make_event("WSVR0605W: Thread hung"),
+        _make_event("SSLHandshakeException"),
+        _make_event("J2CA0045E: pool exhausted"),
+    ]
+    causes = likely_causes(events)
+    assert len(causes) == 4
+    for c in causes:
+        assert len(c["fixes"]) >= 1
+        assert c["cause"]
+
+
+def test_likely_causes_in_markdown_report():
+    events = [_make_event("PKIX path building failed: CertPathBuilderException")]
+    report = render_markdown_report(events, top_n=5, samples_n=5)
+    assert "## Likely Causes & Fixes" in report
+    assert "SSL / TLS Trust Failure" in report
+    assert "truststore" in report
+
+
+def test_likely_causes_in_json_report():
+    events = [_make_event("OutOfMemoryError: Java heap space")]
+    report = render_json_report(events, top_n=5, samples_n=5)
+    data = json.loads(report)
+    assert "likely_causes" in data
+    assert len(data["likely_causes"]) == 1
+    assert data["likely_causes"][0]["id"] == "oom-gc"
+
+
+def test_likely_causes_not_in_report_when_none():
+    events = [_make_event("INFO: everything is fine")]
+    report = render_markdown_report(events, top_n=5, samples_n=5)
+    assert "## Likely Causes & Fixes" not in report
