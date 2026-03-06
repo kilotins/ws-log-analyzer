@@ -1,0 +1,12 @@
+[10/12/15 21:22:04:257 CEST] 0000004e SystemOut     O Starting application server
+[10/12/15 21:22:05:100 CEST] 0000004e WebContainer  I SRVE0242I: [app] [/app] Servlet initialized
+[10/12/15 21:22:06:300 CEST] 00000052 WebContainer  E SRVE0293E: Servlet Error
+  javax.servlet.ServletException: Something went wrong
+    at com.ibm.ws.webcontainer.webapp.WebApp.handleException(WebApp.java:123)
+    at com.ibm.ws.webcontainer.webapp.WebApp.sendError(WebApp.java:456)
+  Caused by: java.lang.NullPointerException
+    at com.example.MyServlet.doGet(MyServlet.java:42)
+[10/12/15 21:22:07:500 CEST] 00000053 WebContainer  W SRVE8094W: WARNING: Cannot set header
+[10/12/15 21:22:08:200 CEST] 00000054 SystemOut     E SESN0066E: Session error occurred
+  java.lang.IllegalStateException: Session is invalid
+    at com.ibm.ws.session.SessionData.getAttributeNames(SessionData.java:99)
