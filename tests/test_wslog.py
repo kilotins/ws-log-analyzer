@@ -1425,3 +1425,79 @@ def test_claude_cache_key_no_secrets():
     key = claude_cache_key("test", match)
     assert "supersecret123" not in key
     assert "password" not in key
+
+
+# --- parse_ts_datetime tests ---
+
+from wslog import parse_ts_datetime, incident_timeline
+
+
+def test_parse_ts_datetime_was_classic():
+    dt = parse_ts_datetime("10/12/15 21:22:04:257")
+    assert dt is not None
+    assert dt.hour == 21
+    assert dt.minute == 22
+    assert dt.second == 4
+
+
+def test_parse_ts_datetime_iso():
+    dt = parse_ts_datetime("2025-03-05T12:34:56.789")
+    assert dt is not None
+    assert dt.year == 2025
+    assert dt.hour == 12
+    assert dt.minute == 34
+
+
+def test_parse_ts_datetime_iso_no_millis():
+    dt = parse_ts_datetime("2025-03-05 12:34:56")
+    assert dt is not None
+    assert dt.second == 56
+
+
+def test_parse_ts_datetime_invalid():
+    assert parse_ts_datetime(None) is None
+    assert parse_ts_datetime("") is None
+    assert parse_ts_datetime("not a timestamp") is None
+
+
+# --- incident_timeline tests ---
+
+
+def test_incident_timeline_basic():
+    events = [
+        {"level": "INFO", "ts": "10/12/15 21:22:00:000", "code": None,
+         "exception": None, "thread_id": None, "tags": [], "text": "startup"},
+        {"level": "ERROR", "ts": "10/12/15 21:22:04:257", "code": "SRVE0293E",
+         "exception": "java.lang.NullPointerException", "thread_id": "0000004e",
+         "tags": [], "text": "error happened"},
+        {"level": "INFO", "ts": "10/12/15 21:22:10:000", "code": None,
+         "exception": None, "thread_id": None, "tags": [], "text": "after error"},
+    ]
+    itl = incident_timeline(events, window_seconds=30)
+    assert itl is not None
+    assert itl["trigger_event"]["code"] == "SRVE0293E"
+    assert len(itl["window_events"]) == 3  # all within 30s
+
+
+def test_incident_timeline_no_errors():
+    events = [
+        {"level": "INFO", "ts": "10/12/15 21:22:00:000", "code": None,
+         "exception": None, "thread_id": None, "tags": [], "text": "ok"},
+    ]
+    assert incident_timeline(events) is None
+
+
+def test_incident_timeline_window_filters():
+    events = [
+        {"level": "INFO", "ts": "10/12/15 21:20:00:000", "code": None,
+         "exception": None, "thread_id": None, "tags": [], "text": "too early"},
+        {"level": "ERROR", "ts": "10/12/15 21:22:04:257", "code": "ERR001E",
+         "exception": None, "thread_id": None, "tags": [], "text": "trigger"},
+        {"level": "INFO", "ts": "10/12/15 21:22:30:000", "code": None,
+         "exception": None, "thread_id": None, "tags": [], "text": "within window"},
+        {"level": "INFO", "ts": "10/12/15 21:25:00:000", "code": None,
+         "exception": None, "thread_id": None, "tags": [], "text": "too late"},
+    ]
+    itl = incident_timeline(events, window_seconds=30)
+    assert itl is not None
+    assert len(itl["window_events"]) == 2  # trigger + within window
