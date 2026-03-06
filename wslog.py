@@ -37,7 +37,17 @@ STACK_LINE_RE = re.compile(r'^\s+at\s+[\w.$]+\(.*\)$')
 CAUSED_BY_RE = re.compile(r'^\s*Caused by:\s+(?P<cause>.+)$')
 
 OOM_RE = re.compile(r'OutOfMemoryError|Java heap space|GC overhead limit exceeded', re.IGNORECASE)
-HUNG_THREAD_RE = re.compile(r'hung thread|ThreadMonitor|WSVR0605|stuck thread', re.IGNORECASE)
+HUNG_THREAD_RE = re.compile(r'hung thread|ThreadMonitor|WSVR0605|stuck thread|CWWKE0701E', re.IGNORECASE)
+
+# Hung thread drilldown: extract thread name from WAS ThreadMonitor messages
+# Patterns: "WebContainer : 5", "Default Executor-thread-42", thread name in quotes
+HUNG_THREAD_NAME_RE = re.compile(
+    r'(?:[Tt]hread\s+["\']([^"\']+)["\'])'          # Thread "ThreadName" or thread 'ThreadName'
+    r'|(?:[Tt]hread\s+(WebContainer\s*:\s*\d+))'    # thread WebContainer : 5
+    r'|(?:the\s+(Default Executor-thread-\d+))'     # Liberty: submitted to the Default Executor-thread-42
+    r'|(?:[Tt]hread\s+(Default Executor-thread-\d+))',  # Liberty alt: thread Default Executor-thread-42
+    re.IGNORECASE,
+)
 DB_POOL_RE = re.compile(r'connection pool|J2CA|pool.*exhaust|Timeout waiting for idle object', re.IGNORECASE)
 SSL_RE = re.compile(r'SSLHandshakeException|handshake_failure|PKIX path building failed|unable to find valid certification path', re.IGNORECASE)
 HTTP_RE = re.compile(r'\b(4\d\d|5\d\d)\b.*\b(HTTP|SRVE)\b', re.IGNORECASE)
@@ -388,6 +398,77 @@ def likely_causes(events):
 _SPLUNK_PREFIX = 'index=APP sourcetype=WAS'
 
 
+def _extract_hung_thread_name(text):
+    """Extract thread name from a hung-thread event. Returns name or None."""
+    m = HUNG_THREAD_NAME_RE.search(text)
+    if m:
+        return next((g for g in m.groups() if g is not None), None)
+    return None
+
+
+def _extract_stack_sample(text, max_lines=5):
+    """Extract up to max_lines of stack trace from event text."""
+    lines = []
+    for line in text.splitlines():
+        if STACK_LINE_RE.match(line) or CAUSED_BY_RE.match(line):
+            lines.append(line.strip())
+            if len(lines) >= max_lines:
+                break
+    return lines
+
+
+def hung_thread_drilldown(events):
+    """Analyze hung/stuck thread events. Returns list of thread info dicts sorted by count."""
+    threads = {}  # thread_name -> {count, first_ts, last_ts, hex_ids, stack_sample}
+
+    for e in events:
+        text = e.get("text", "")
+        if not HUNG_THREAD_RE.search(text):
+            continue
+
+        thread_name = _extract_hung_thread_name(text)
+        if not thread_name:
+            # Fall back to hex thread id
+            thread_name = f"0x{e['thread_id']}" if e.get("thread_id") else "unknown"
+
+        ts = e.get("ts")
+
+        if thread_name not in threads:
+            threads[thread_name] = {
+                "thread_name": thread_name,
+                "count": 0,
+                "first_ts": ts,
+                "last_ts": ts,
+                "hex_ids": set(),
+                "stack_sample": [],
+            }
+
+        info = threads[thread_name]
+        info["count"] += 1
+        if ts:
+            if not info["first_ts"]:
+                info["first_ts"] = ts
+            info["last_ts"] = ts
+        if e.get("thread_id"):
+            info["hex_ids"].add(e["thread_id"])
+        if not info["stack_sample"]:
+            info["stack_sample"] = _extract_stack_sample(text)
+
+    results = []
+    for info in threads.values():
+        results.append({
+            "thread_name": info["thread_name"],
+            "count": info["count"],
+            "first_ts": info["first_ts"],
+            "last_ts": info["last_ts"],
+            "hex_ids": sorted(info["hex_ids"]),
+            "stack_sample": info["stack_sample"],
+            "splunk_query": f'{_SPLUNK_PREFIX} "{info["thread_name"]}"',
+        })
+    results.sort(key=lambda r: -r["count"])
+    return results
+
+
 def suggested_splunk_queries(summary, causes, hist):
     """Generate Splunk query strings based on detected issues. Returns list of {description, query}."""
     queries = []
@@ -468,6 +549,7 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
         "tags": dict(s["tags"]),
         "likely_causes": likely_causes(events),
         "splunk_queries": suggested_splunk_queries(s, likely_causes(events), hist),
+        "hung_thread_drilldown": hung_thread_drilldown(events),
         "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
         "samples": [
             {
@@ -541,6 +623,36 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
             md.append(f"**{sq['description']}**")
             md.append(f"```")
             md.append(sq["query"])
+            md.append(f"```")
+            md.append("")
+
+    hung = hung_thread_drilldown(events)
+    if hung:
+        md.append("## Hung Thread Drilldown")
+        md.append("")
+        for t in hung:
+            label = f"### {t['thread_name']} ({t['count']} occurrence{'s' if t['count'] != 1 else ''})"
+            md.append(label)
+            md.append("")
+            ts_parts = []
+            if t["first_ts"]:
+                ts_parts.append(f"First: {t['first_ts']}")
+            if t["last_ts"] and t["last_ts"] != t["first_ts"]:
+                ts_parts.append(f"Last: {t['last_ts']}")
+            if t["hex_ids"]:
+                ts_parts.append(f"Thread IDs: {', '.join('0x' + h for h in t['hex_ids'])}")
+            if ts_parts:
+                md.append(f"- {' | '.join(ts_parts)}")
+                md.append("")
+            if t["stack_sample"]:
+                md.append("**Stack sample:**")
+                md.append("```")
+                md += t["stack_sample"]
+                md.append("```")
+                md.append("")
+            md.append("**Splunk query:**")
+            md.append(f"```")
+            md.append(t["splunk_query"])
             md.append(f"```")
             md.append("")
 
