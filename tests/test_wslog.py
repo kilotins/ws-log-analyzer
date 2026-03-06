@@ -12,6 +12,7 @@ from wslog import (
     classify_event, _parse_ts_parts, render_markdown_report, render_json_report,
     likely_causes, suggested_splunk_queries, hung_thread_drilldown,
     _extract_hung_thread_name, _extract_stack_sample,
+    match_user_query, build_claude_prompt, _truncate_event_text,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -1154,3 +1155,169 @@ def test_hung_thread_drilldown_not_in_report_when_none():
     events = [_make_event("INFO: all good")]
     report = render_markdown_report(events, top_n=5, samples_n=5)
     assert "## Hung Thread Drilldown" not in report
+
+
+# --- Ask Claude: match_user_query ---
+
+def _make_classified_event(text, code=None, exception=None, tags=None):
+    """Helper for match/prompt tests with full event dict."""
+    return {
+        "level": "ERROR", "code": code, "exception": exception,
+        "root_cause": None, "tags": tags or [], "ts": "10/12/15 21:22:04:257",
+        "file": "test.log", "text": text, "thread_id": "00000001",
+    }
+
+
+def test_match_user_query_by_code():
+    events = [
+        _make_classified_event("CWPKI0022E: SSL failure", code="CWPKI0022E", tags=["SSL/TLS"]),
+        _make_classified_event("INFO: normal", code="ARFM5007I"),
+    ]
+    result = match_user_query("CWPKI0022E", events)
+    assert result["matched"] is True
+    assert result["match_type"] == "code"
+    assert "CWPKI0022E" in result["codes"]
+    assert "SSL/TLS" in result["tags"]
+
+
+def test_match_user_query_by_exception():
+    events = [
+        _make_classified_event(
+            "javax.net.ssl.SSLHandshakeException: PKIX failure",
+            exception="javax.net.ssl.SSLHandshakeException", tags=["SSL/TLS"],
+        ),
+    ]
+    result = match_user_query("SSLHandshakeException", events)
+    assert result["matched"] is True
+    assert result["match_type"] == "exception"
+    assert any("SSLHandshakeException" in e for e in result["exceptions"])
+
+
+def test_match_user_query_by_free_text():
+    events = [
+        _make_classified_event("Connection pool exhausted, 0 available", code="J2CA0045E"),
+    ]
+    result = match_user_query("pool exhausted", events)
+    assert result["matched"] is True
+    assert result["match_type"] == "text"
+    assert "J2CA0045E" in result["codes"]
+
+
+def test_match_user_query_no_match():
+    events = [_make_classified_event("INFO: normal startup")]
+    result = match_user_query("XYZZY9999X", events)
+    assert result["matched"] is False
+    assert result["match_type"] is None
+    assert result["matching_events"] == []
+
+
+def test_match_user_query_max_3_events():
+    events = [_make_classified_event(f"ERROR {i}", code="ERR0001E") for i in range(10)]
+    result = match_user_query("ERR0001E", events)
+    assert len(result["matching_events"]) <= 3
+
+
+def test_match_user_query_case_insensitive():
+    events = [
+        _make_classified_event("SSLHandshakeException", exception="javax.net.ssl.SSLHandshakeException"),
+    ]
+    result = match_user_query("sslhandshakeexception", events)
+    assert result["matched"] is True
+
+
+# --- Ask Claude: build_claude_prompt ---
+
+def test_build_claude_prompt_with_match():
+    match = {
+        "matched": True,
+        "match_type": "code",
+        "matching_events": [
+            _make_classified_event("CWPKI0022E: SSL HANDSHAKE FAILURE", code="CWPKI0022E"),
+        ],
+        "codes": ["CWPKI0022E"],
+        "exceptions": [],
+        "tags": {"SSL/TLS"},
+    }
+    prompt = build_claude_prompt("CWPKI0022E", match)
+    assert "CWPKI0022E" in prompt
+    assert "SSL/TLS" in prompt
+    assert "sanitized" in prompt.lower()
+    assert "secrets" in prompt.lower()
+    assert "What this usually means" in prompt
+
+
+def test_build_claude_prompt_no_match():
+    match = {
+        "matched": False,
+        "match_type": None,
+        "matching_events": [],
+        "codes": [],
+        "exceptions": [],
+        "tags": set(),
+    }
+    prompt = build_claude_prompt("why is my app slow", match)
+    assert "No exact match" in prompt
+    assert "why is my app slow" in prompt
+    assert "What this usually means" in prompt
+
+
+def test_build_claude_prompt_never_requests_secrets():
+    match = {
+        "matched": True,
+        "match_type": "code",
+        "matching_events": [_make_classified_event("password=s3cret api_key=xyz")],
+        "codes": [], "exceptions": [], "tags": set(),
+    }
+    prompt = build_claude_prompt("test", match)
+    assert "Do NOT request secrets" in prompt
+
+
+def test_build_claude_prompt_truncates_long_events():
+    long_text = "\n".join(f"line {i}: some log content here" for i in range(100))
+    match = {
+        "matched": True,
+        "match_type": "text",
+        "matching_events": [_make_classified_event(long_text)],
+        "codes": [], "exceptions": [], "tags": set(),
+    }
+    prompt = build_claude_prompt("test", match)
+    assert "[truncated]" in prompt
+
+
+def test_build_claude_prompt_max_2_event_excerpts():
+    events = [_make_classified_event(f"event {i}") for i in range(5)]
+    match = {
+        "matched": True,
+        "match_type": "text",
+        "matching_events": events,
+        "codes": [], "exceptions": [], "tags": set(),
+    }
+    prompt = build_claude_prompt("test", match)
+    assert prompt.count("Matching event") == 2
+
+
+# --- _truncate_event_text ---
+
+def test_truncate_event_text_short():
+    text = "line 1\nline 2\nline 3"
+    assert _truncate_event_text(text, max_lines=10) == text
+
+
+def test_truncate_event_text_long():
+    text = "\n".join(f"line {i}" for i in range(50))
+    result = _truncate_event_text(text, max_lines=5)
+    assert result.count("\n") == 5  # 5 lines + truncation marker
+    assert "[truncated]" in result
+
+
+# --- Sanitization in prompts ---
+
+def test_prompt_uses_already_redacted_text(tmp_path):
+    """Events from parse_file are redacted; prompt should contain redacted text."""
+    log = tmp_path / "secret.log"
+    log.write_text("[10/12/15 21:22:04:257 CEST] 00000001 Comp E   ERR0001E: password=s3cret123\n")
+    events = parse_file(log)
+    match = match_user_query("ERR0001E", events)
+    prompt = build_claude_prompt("ERR0001E", match)
+    assert "s3cret123" not in prompt
+    assert "[REDACTED]" in prompt
