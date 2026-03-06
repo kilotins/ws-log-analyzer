@@ -4,6 +4,7 @@ import logging.handlers
 import os
 import re as _re
 import streamlit as st
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from wslog import (
     render_pdf_report, per_file_summary, time_histogram, render_histogram,
     pick_samples, likely_causes, suggested_splunk_queries, hung_thread_drilldown,
     match_user_query, build_claude_prompt, claude_cache_key,
+    incident_timeline,
 )
 
 _APP_DIR = Path(__file__).parent
@@ -103,10 +105,20 @@ _STATE_DEFAULTS = {
     "selected_action": None,    # "copy" | "claude" | "splunk"
     "api_key": "",              # Anthropic API key (entered via sidebar)
     "debug_payload": False,     # Show Claude API request/response payloads
+    "rt_enabled": False,        # Realtime log monitoring toggle
+    "rt_running": False,        # Monitoring is actively polling
+    "rt_paused": False,         # Monitoring is paused (keep offset)
+    "rt_file": "",              # Path to monitored file
+    "rt_offset": 0,             # Current file read offset (bytes)
+    "rt_buffer": None,          # deque of recent lines (set in init)
 }
+_RT_BUFFER_SIZE = 300
+
 for key, default in _STATE_DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = default
+if st.session_state.rt_buffer is None:
+    st.session_state.rt_buffer = deque(maxlen=_RT_BUFFER_SIZE)
 
 # Load persisted history on fresh session
 if not st.session_state.claude_history:
@@ -472,6 +484,115 @@ def render_timeline(hist):
         st.caption("No timestamped events.")
 
 
+def render_incident_timeline(itl):
+    """Render an incident timeline using Plotly."""
+    if not itl:
+        st.caption("No error events with timestamps found.")
+        return
+
+    import plotly.graph_objects as go
+
+    trigger = itl["trigger_event"]
+    trigger_dt = itl["trigger_dt"]
+    window_events = itl["window_events"]
+
+    # Build data for the chart
+    times = []
+    labels = []
+    colors = []
+    sizes = []
+    hovers = []
+
+    level_colors = {
+        "FATAL": "#dc3545",
+        "ERROR": "#dc3545",
+        "SEVERE": "#dc3545",
+        "WARNING": "#ffc107",
+        "WARN": "#ffc107",
+        "INFO": "#0d6efd",
+        "AUDIT": "#6c757d",
+        "DEBUG": "#adb5bd",
+    }
+
+    for w in window_events:
+        e = w["event"]
+        dt = w["dt"]
+        level = e.get("level") or "UNKNOWN"
+        is_trigger = (e is trigger)
+
+        times.append(dt)
+        code_label = e.get("code") or ""
+        exc_label = (e.get("exception") or "").rsplit(".", 1)[-1] if e.get("exception") else ""
+        label = f"{level} {code_label} {exc_label}".strip()
+        labels.append(label)
+        colors.append(level_colors.get(level, "#6c757d"))
+        sizes.append(16 if is_trigger else 9)
+
+        offset = w["offset_seconds"]
+        sign = "+" if offset >= 0 else ""
+        hover = (
+            f"<b>{level}</b> {sign}{offset:.1f}s<br>"
+            f"Time: {dt.strftime('%H:%M:%S.%f')[:-3]}<br>"
+        )
+        if code_label:
+            hover += f"Code: {code_label}<br>"
+        if exc_label:
+            hover += f"Exception: {exc_label}<br>"
+        if e.get("thread_id"):
+            hover += f"Thread: 0x{e['thread_id']}<br>"
+        text_preview = (e.get("text") or "")[:120].replace("<", "&lt;")
+        if text_preview:
+            hover += f"<br>{text_preview}..."
+        hovers.append(hover)
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=times,
+        y=labels,
+        mode="markers",
+        marker=dict(color=colors, size=sizes, line=dict(width=1, color="white")),
+        hovertext=hovers,
+        hoverinfo="text",
+    ))
+
+    # Mark the trigger event with a vertical line
+    fig.add_shape(
+        type="line",
+        x0=trigger_dt, x1=trigger_dt,
+        y0=0, y1=1,
+        yref="paper",
+        line=dict(dash="dash", color="#dc3545", width=1),
+    )
+    fig.add_annotation(
+        x=trigger_dt, y=1, yref="paper",
+        text="First error", showarrow=False,
+        font=dict(color="#dc3545", size=11),
+        yshift=10,
+    )
+
+    fig.update_layout(
+        title=None,
+        xaxis_title="Time",
+        yaxis_title=None,
+        height=max(250, len(set(labels)) * 35 + 100),
+        margin=dict(l=10, r=10, t=30, b=40),
+        showlegend=False,
+        xaxis=dict(type="date"),
+        yaxis=dict(autorange="reversed"),
+    )
+
+    trigger_code = trigger.get("code") or ""
+    trigger_exc = (trigger.get("exception") or "").rsplit(".", 1)[-1]
+    trigger_label = f"{trigger.get('level')} {trigger_code} {trigger_exc}".strip()
+    st.caption(
+        f"Showing {len(window_events)} events within "
+        f"±{itl['window_seconds']}s of first error: "
+        f"**{trigger_label}** at {trigger_dt.strftime('%H:%M:%S.%f')[:-3]}"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
 def render_samples(samples):
     """Render sample events."""
     if not samples:
@@ -553,6 +674,14 @@ def render_report_sections(a):
     with st.expander("Timeline"):
         render_timeline(a["hist"])
 
+    itl = a.get("incident_timeline")
+    itl_label = "Incident Timeline"
+    if itl:
+        n = len(itl["window_events"])
+        itl_label += f" ({n} events around first error)"
+    with st.expander(itl_label):
+        render_incident_timeline(itl)
+
     with st.expander(f"Event Samples ({len(a['samples'])} shown)"):
         render_samples(a["samples"])
 
@@ -631,6 +760,185 @@ with st.sidebar:
         log.info("cache Cleared all Claude caches")
         st.success("Cache cleared")
 
+    st.markdown("---")
+    st.subheader("Realtime monitoring")
+    st.session_state.rt_enabled = st.toggle(
+        "Enable realtime log monitoring",
+        value=st.session_state.rt_enabled,
+        help="Monitor a local log file in real time (tail -f style)",
+    )
+    if st.session_state.rt_enabled:
+        rt_file = st.text_input(
+            "Log file path",
+            value=st.session_state.rt_file,
+            placeholder="/var/log/websphere/SystemOut.log",
+        )
+        st.session_state.rt_file = rt_file
+
+        # Quick pick: scan for .log files in common locations
+        scan_dirs = [
+            _APP_DIR,
+            UPLOADS_DIR,
+            Path.cwd(),
+            Path.home(),
+            Path("/opt/IBM/WebSphere/AppServer/profiles"),
+            Path("/var/log"),
+        ]
+        found_logs = []
+        for d in scan_dirs:
+            try:
+                if d.is_dir():
+                    for f in sorted(d.glob("*.log"))[:10]:
+                        if f.is_file() and str(f) not in found_logs:
+                            found_logs.append(str(f))
+            except (OSError, PermissionError):
+                continue
+        if found_logs:
+            pick = st.selectbox(
+                "Or pick a detected log file",
+                options=[""] + found_logs,
+                format_func=lambda x: "— select —" if x == "" else Path(x).name + f"  ({x})",
+                key="rt_file_pick",
+            )
+            if pick and pick != st.session_state.rt_file:
+                st.session_state.rt_file = pick
+                st.rerun()
+        else:
+            st.caption("No .log files found in common locations.")
+
+
+# --- Realtime log monitoring ---
+
+_LEVEL_COLORS = {
+    "FATAL": "#dc3545", "ERROR": "#dc3545", "SEVERE": "#dc3545",
+    "WARNING": "#ffc107", "WARN": "#ffc107",
+    "INFO": "#0d6efd", "DEBUG": "#adb5bd",
+}
+_LEVEL_HIGHLIGHT_RE = _re.compile(
+    r'\b(FATAL|ERROR|SEVERE|WARNING|WARN|INFO|DEBUG)\b'
+)
+
+
+def _highlight_line(line):
+    """Return a line with HTML color spans for log levels."""
+    def _color_match(m):
+        lvl = m.group(1)
+        color = _LEVEL_COLORS.get(lvl, "inherit")
+        return f'<span style="color:{color};font-weight:bold">{lvl}</span>'
+    return _LEVEL_HIGHLIGHT_RE.sub(_color_match, line.replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def _rt_poll():
+    """Read new lines from the monitored file and append to buffer."""
+    filepath = st.session_state.rt_file
+    if not filepath:
+        return
+    p = Path(filepath)
+    try:
+        if not p.exists() or not p.is_file():
+            return
+        size = p.stat().st_size
+        offset = st.session_state.rt_offset
+        # File was truncated/rotated — reset
+        if size < offset:
+            st.session_state.rt_offset = 0
+            offset = 0
+        if size == offset:
+            return  # no new data
+        with p.open("r", errors="ignore") as f:
+            f.seek(offset)
+            new_data = f.read(64 * 1024)  # read up to 64KB at a time
+            st.session_state.rt_offset = f.tell()
+        for line in new_data.splitlines():
+            if line.strip():
+                st.session_state.rt_buffer.append(line)
+    except (OSError, PermissionError) as ex:
+        st.session_state.rt_buffer.append(f"[monitoring error: {ex}]")
+        log.warning("realtime File read error: %s", ex)
+
+
+@st.fragment(run_every=2)
+def _rt_live_view():
+    """Fragment that polls and renders the live log stream."""
+    ss = st.session_state
+    if not ss.rt_enabled:
+        return
+
+    filepath = ss.rt_file
+    running = ss.rt_running
+    paused = ss.rt_paused
+
+    # Status indicator
+    if not filepath:
+        st.info("Enter a log file path in the sidebar to start monitoring.")
+        return
+    if not running:
+        st.caption("Monitoring stopped.")
+    elif paused:
+        st.warning("Monitoring paused")
+    else:
+        # Active polling
+        _rt_poll()
+        p = Path(filepath)
+        if p.exists():
+            st.success(f"Monitoring **{p.name}** — {len(ss.rt_buffer)} lines in buffer")
+        else:
+            st.error(f"File not found: {filepath}")
+
+    # Control buttons
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1:
+        if st.button("Start", disabled=running and not paused, key="rt_start"):
+            ss.rt_running = True
+            ss.rt_paused = False
+            # Seek to end of file on fresh start
+            p = Path(filepath)
+            if p.exists():
+                ss.rt_offset = p.stat().st_size
+            log.info("realtime Started monitoring %s", filepath)
+            st.rerun()
+    with c2:
+        if st.button("Pause", disabled=not running or paused, key="rt_pause"):
+            ss.rt_paused = True
+            log.info("realtime Paused monitoring")
+            st.rerun()
+    with c3:
+        if st.button("Resume", disabled=not paused, key="rt_resume"):
+            ss.rt_paused = False
+            log.info("realtime Resumed monitoring")
+            st.rerun()
+    with c4:
+        if st.button("Stop", disabled=not running, key="rt_stop"):
+            ss.rt_running = False
+            ss.rt_paused = False
+            log.info("realtime Stopped monitoring")
+            st.rerun()
+    with c5:
+        if st.button("Clear", key="rt_clear"):
+            ss.rt_buffer.clear()
+            st.rerun()
+
+    # Render buffer
+    buf = ss.rt_buffer
+    if buf:
+        highlighted = "<br>".join(_highlight_line(line) for line in buf)
+        st.markdown(
+            f'<div style="font-family:monospace;font-size:12px;'
+            f'background:#0e1117;color:#fafafa;padding:12px;'
+            f'border-radius:4px;max-height:500px;overflow-y:auto;'
+            f'white-space:pre-wrap;line-height:1.5">'
+            f'{highlighted}</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.caption("Buffer empty. New lines will appear here when the file is written to.")
+
+
+# --- Realtime section (above tabs, always visible when enabled) ---
+if st.session_state.rt_enabled:
+    with st.expander("Realtime Log Monitor", expanded=st.session_state.rt_running):
+        _rt_live_view()
+
 tab_analyze, tab_history = st.tabs(["Analyze", "History"])
 
 with tab_analyze:
@@ -695,6 +1003,8 @@ with tab_analyze:
             log.info("analysis Report saved: %s", report_name)
 
             # Persist everything in session state
+            itl = incident_timeline(all_events)
+
             st.session_state.analysis = {
                 "events": all_events,
                 "summary": s,
@@ -706,6 +1016,7 @@ with tab_analyze:
                 "splunk": splunk,
                 "hung": hung,
                 "samples": samples,
+                "incident_timeline": itl,
                 "total_events": len(all_events),
                 "report_md": report_md,
                 "report_json": report_json,

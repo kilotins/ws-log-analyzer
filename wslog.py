@@ -226,6 +226,80 @@ def summarize(events, top_n):
         "tags": top(by_tag),
     }
 
+def parse_ts_datetime(ts):
+    """Parse a timestamp string into a datetime object. Returns None on failure."""
+    from datetime import datetime
+    if not ts:
+        return None
+    try:
+        # WAS classic: "10/12/15 21:22:04:257"
+        for fmt in ("%m/%d/%y %H:%M:%S:%f", "%m/%d/%Y %H:%M:%S:%f"):
+            try:
+                return datetime.strptime(ts, fmt)
+            except ValueError:
+                continue
+        # ISO: "2025-03-05T12:34:56.789" or "2025-03-05 12:34:56.789"
+        normalized = ts.replace("T", " ").replace(",", ".")
+        for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+            try:
+                return datetime.strptime(normalized, fmt)
+            except ValueError:
+                continue
+    except Exception:
+        pass
+    return None
+
+
+def incident_timeline(events, window_seconds=30):
+    """Build an incident timeline around the first error.
+
+    Returns dict with:
+      - trigger_event: the first error event
+      - trigger_dt: datetime of the trigger
+      - window_events: list of {event, dt, offset_seconds} within +/- window
+      - window_seconds: the window used
+    Returns None if no error events with timestamps exist.
+    """
+    from datetime import timedelta
+
+    # Find first error event with a parseable timestamp
+    trigger = None
+    trigger_dt = None
+    for e in events:
+        if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
+            dt = parse_ts_datetime(e.get("ts"))
+            if dt:
+                trigger = e
+                trigger_dt = dt
+                break
+
+    if not trigger:
+        return None
+
+    window = timedelta(seconds=window_seconds)
+    window_events = []
+    for e in events:
+        dt = parse_ts_datetime(e.get("ts"))
+        if not dt:
+            continue
+        offset = (dt - trigger_dt).total_seconds()
+        if -window_seconds <= offset <= window_seconds:
+            window_events.append({
+                "event": e,
+                "dt": dt,
+                "offset_seconds": offset,
+            })
+
+    window_events.sort(key=lambda w: w["dt"])
+
+    return {
+        "trigger_event": trigger,
+        "trigger_dt": trigger_dt,
+        "window_events": window_events,
+        "window_seconds": window_seconds,
+    }
+
+
 def _parse_ts_parts(ts):
     """Extract (date_str, hour, minute) from a timestamp string. Returns None on failure."""
     try:
