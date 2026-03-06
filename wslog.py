@@ -52,10 +52,17 @@ DB_POOL_RE = re.compile(r'connection pool|J2CA|pool.*exhaust|Timeout waiting for
 SSL_RE = re.compile(r'SSLHandshakeException|handshake_failure|PKIX path building failed|unable to find valid certification path', re.IGNORECASE)
 HTTP_RE = re.compile(r'\b(4\d\d|5\d\d)\b.*\b(HTTP|SRVE)\b', re.IGNORECASE)
 
-# Basic secret-ish redaction
+# Secret redaction patterns
 SECRET_REPLACERS = [
-    (re.compile(r'(?i)\b(authorization:\s*bearer)\s+[A-Za-z0-9._-]+\b'), r'\1 [REDACTED]'),
-    (re.compile(r'(?i)\b(api[_-]?key|token|secret|password)\b\s*[:=]\s*\S+'), r'\1=[REDACTED]'),
+    (re.compile(r'(?i)\b(authorization:\s*bearer)\s+[A-Za-z0-9._\-/+=]+'), r'\1 [REDACTED]'),
+    # key=value (unquoted)
+    (re.compile(r'(?i)\b(api[_-]?key|token|secret|password|passwd|credential)\b\s*[:=]\s*(\S+)'), r'\1=[REDACTED]'),
+    # JSON: "key": "value"
+    (re.compile(r'(?i)("(?:api[_-]?key|token|secret|password|passwd|credential)")\s*:\s*"[^"]*"'), r'\1: "[REDACTED]"'),
+    # Connection strings with password
+    (re.compile(r'(?i)(password|pwd)\s*=\s*[^;,\s]+'), r'\1=[REDACTED]'),
+    # JWT-like tokens (three base64 segments separated by dots)
+    (re.compile(r'\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'), '[REDACTED_JWT]'),
 ]
 
 def open_text(path: Path):
@@ -181,15 +188,16 @@ def parse_file(path: Path, max_lines: int = None):
             if ts and not seen_first_ts:
                 seen_first_ts = True
 
+            # If we hit blank line after a stacktrace, flush before appending
+            if not line.strip() and current and has_stacktrace:
+                flush()
+                continue
+
             current.append(line)
 
             # Track stacktrace state
             if STACK_LINE_RE.match(line) or CAUSED_BY_RE.match(line):
                 has_stacktrace = True
-
-            # If we hit blank line after a stacktrace, flush
-            if not line.strip() and current and has_stacktrace:
-                flush()
 
     flush()
     return events
@@ -247,8 +255,10 @@ def time_histogram(events, bucket_minutes=1):
         date_part, h, m = parsed
         date_key = date_part or "_"
         dates_seen.add(date_key)
-        floored = (m // bucket_minutes) * bucket_minutes
-        key = f"{date_key} {h:02d}:{floored:02d}"
+        total_minutes = h * 60 + m
+        floored = (total_minutes // bucket_minutes) * bucket_minutes
+        bh, bm = divmod(floored, 60)
+        key = f"{date_key} {bh:02d}:{bm:02d}"
         if key not in buckets:
             buckets[key] = {"total": 0, "errors": 0}
         buckets[key]["total"] += 1
@@ -258,8 +268,13 @@ def time_histogram(events, bucket_minutes=1):
     if not buckets:
         return []
 
+    # Remove undated bucket if real dates exist (prevents collision)
+    real_dates = dates_seen - {"_"}
+    if real_dates and "_" in dates_seen:
+        buckets = {k: v for k, v in buckets.items() if not k.startswith("_ ")}
+
     # If single date, strip the date prefix from keys
-    if len(dates_seen) == 1:
+    if len(dates_seen - {"_"}) <= 1:
         buckets = {k.split(" ", 1)[1]: v for k, v in buckets.items()}
 
     return [(k, buckets[k]["total"], buckets[k]["errors"]) for k in sorted(buckets)]
@@ -294,7 +309,7 @@ def pick_samples(events, n):
         s = 0
         if e["level"] in ("FATAL",): s += 4
         if e["level"] in ("ERROR", "SEVERE"): s += 3
-        if e["level"] in ("WARNING",): s += 1
+        if e["level"] in ("WARNING", "WARN"): s += 1
         if e["exception"]: s += 2
         if e["code"]: s += 1
         if e["tags"]: s += 1
@@ -540,6 +555,7 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
     samples = pick_samples(events, samples_n)
     hist = time_histogram(events, bucket_minutes=hist_minutes)
     file_summary = per_file_summary(events)
+    causes = likely_causes(events)
     data = {
         "files": [{"file": f, "events": t, "errors": e} for f, t, e in file_summary],
         "total_events": s["total_events"],
@@ -547,8 +563,8 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
         "codes": dict(s["codes"]),
         "exceptions": dict(s["exceptions"]),
         "tags": dict(s["tags"]),
-        "likely_causes": likely_causes(events),
-        "splunk_queries": suggested_splunk_queries(s, likely_causes(events), hist),
+        "likely_causes": causes,
+        "splunk_queries": suggested_splunk_queries(s, causes, hist),
         "hung_thread_drilldown": hung_thread_drilldown(events),
         "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
         "samples": [
@@ -851,7 +867,7 @@ def match_user_query(query, events):
       - matching_events: list of matching event dicts (max 3)
       - codes: list of matched WAS codes
       - exceptions: list of matched exception names
-      - tags: set of tags from matching events
+      - tags: sorted list of tags from matching events
     """
     query_upper = query.strip().upper()
     query_lower = query.strip().lower()
@@ -862,7 +878,7 @@ def match_user_query(query, events):
         "matching_events": [],
         "codes": [],
         "exceptions": [],
-        "tags": set(),
+        "tags": [],
     }
 
     # Try code match first (e.g. SRVE0293E, J2CA0045E)
@@ -874,7 +890,7 @@ def match_user_query(query, events):
             result["match_type"] = "code"
             result["matching_events"] = matched[:3]
             result["codes"] = list({e["code"] for e in matched})
-            result["tags"] = {tag for e in matched for tag in e.get("tags", [])}
+            result["tags"] = sorted({tag for e in matched for tag in e.get("tags", [])})
             result["exceptions"] = list({e["exception"] for e in matched if e.get("exception")})
             return result
 
@@ -886,7 +902,7 @@ def match_user_query(query, events):
         result["matching_events"] = exc_matches[:3]
         result["exceptions"] = list({e["exception"] for e in exc_matches})
         result["codes"] = list({e["code"] for e in exc_matches if e.get("code")})
-        result["tags"] = {tag for e in exc_matches for tag in e.get("tags", [])}
+        result["tags"] = sorted({tag for e in exc_matches for tag in e.get("tags", [])})
         return result
 
     # Free-text search in event text
@@ -897,7 +913,7 @@ def match_user_query(query, events):
         result["matching_events"] = text_matches[:3]
         result["codes"] = list({e["code"] for e in text_matches if e.get("code")})
         result["exceptions"] = list({e["exception"] for e in text_matches if e.get("exception")})
-        result["tags"] = {tag for e in text_matches for tag in e.get("tags", [])}
+        result["tags"] = sorted({tag for e in text_matches for tag in e.get("tags", [])})
         return result
 
     return result
