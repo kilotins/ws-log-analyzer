@@ -1,0 +1,74 @@
+name: ws-log-parsing
+description: Patterns for parsing WebSphere/Java logs - event boundaries, signal detection, and extending the analyzer.
+version: 1.0.0
+tags: [domain, websphere, log-parsing]
+
+instructions: |
+  # WebSphere Log Parsing Patterns
+
+  ## Architecture
+
+  All logic lives in `wslog.py`. Three layers:
+  1. **Regex layer** (module-level compiled patterns) — timestamp, level, codes, exceptions, signals
+  2. **Parsing layer** (`parse_file()`) — splits log into events, classifies each
+  3. **Reporting layer** (`summarize()`, `render_*_report()`) — aggregates and formats
+
+  `app.py` is a thin Streamlit UI that only imports from `wslog.py`. Never add logic to `app.py`.
+
+  ## Event Boundary Heuristic
+
+  This is the trickiest part of the parser. A new event starts when:
+  - A timestamp is found on the line, AND
+  - There are already accumulated lines (`current` is non-empty), AND
+  - The line is NOT a stacktrace continuation (`at com.ibm...`) or `Caused by:`
+
+  Stacktraces and `Caused by:` chains MUST stay with their parent event.
+  A blank line after a stacktrace triggers a flush.
+
+  **Common mistake**: Breaking the stacktrace grouping by treating every timestamped line as a new event.
+
+  ## Adding a New Signal Tag
+
+  To detect a new pattern (e.g., ClassLoader issues):
+
+  1. Add a compiled regex at module level:
+     ```python
+     CLASSLOADER_RE = re.compile(r'ClassNotFoundException|NoClassDefFoundError|LinkageError', re.IGNORECASE)
+     ```
+
+  2. Add detection in `bucket_tags()`:
+     ```python
+     if CLASSLOADER_RE.search(text): tags.add("ClassLoader")
+     ```
+
+  3. Add test in `tests/test_wslog.py`:
+     ```python
+     def test_bucket_tags_classloader():
+         tags = bucket_tags("java.lang.ClassNotFoundException: com.example.Missing")
+         assert "ClassLoader" in tags
+     ```
+
+  That's it. The tag flows through summarize(), reports, and the GUI automatically.
+
+  ## WAS Severity Precedence
+
+  WebSphere uses single-letter severity codes (I/A/W/E/O/F/R/D) after the thread ID.
+  These are authoritative and take priority over keyword matching (ERROR, WARNING, etc.)
+  in the message body.
+
+  Only fall back to keyword matching for non-WAS log formats (e.g., plain Java logs).
+
+  ## Secret Redaction
+
+  `redact()` runs on ALL event text before it enters the event list.
+  Patterns: bearer tokens, passwords, API keys, tokens, secrets.
+
+  **Rule**: Never output raw log text without redaction. The `parse_file()` pipeline
+  calls `redact()` in the `flush()` closure before appending events.
+
+  ## Testing Conventions
+
+  - Use string constants (SAMPLE_LOG, STACKTRACE_LOG, etc.) as fixtures, not real log files
+  - Use `tmp_path` fixture for file-based tests
+  - Test regexes directly for pattern matching, use `parse_file()` for integration tests
+  - Every new signal tag needs a test in `test_bucket_tags_*`

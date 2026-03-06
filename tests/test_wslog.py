@@ -493,3 +493,137 @@ def test_pick_samples_warning_over_info():
     ]
     samples = pick_samples(events, n=2)
     assert samples[0]["level"] == "WARNING"
+
+
+# --- GZ file support ---
+
+def test_parse_gz_file(tmp_path):
+    """Parsing a .gz compressed log should produce the same events as plain text."""
+    import gzip as gz_mod
+    content = SAMPLE_LOG.encode("utf-8")
+    gz_path = tmp_path / "test.log.gz"
+    with gz_mod.open(gz_path, "wb") as f:
+        f.write(content)
+    events = parse_file(gz_path)
+    assert len(events) == 5
+    levels = [e["level"] for e in events]
+    assert levels.count("ERROR") == 1
+
+
+# --- Additional redaction tests ---
+
+def test_redact_api_key():
+    s = "api_key=sk-abc123def456"
+    result = redact(s)
+    assert "sk-abc123def456" not in result
+    assert "[REDACTED]" in result
+
+
+def test_redact_token():
+    s = "token=eyJhbGciOi.stuff.here"
+    result = redact(s)
+    assert "eyJhbGciOi" not in result
+
+
+def test_redact_secret():
+    s = "secret=my_super_secret_value"
+    result = redact(s)
+    assert "my_super_secret_value" not in result
+
+
+# --- Edge cases for parse_file ---
+
+def test_parse_empty_file(tmp_path):
+    """Empty file should return no events."""
+    p = tmp_path / "empty.log"
+    p.write_text("")
+    events = parse_file(p)
+    assert events == []
+
+
+def test_parse_file_with_max_lines(sample_log):
+    """max_lines should limit how many lines are read."""
+    events_all = parse_file(sample_log)
+    events_limited = parse_file(sample_log, max_lines=2)
+    assert len(events_limited) < len(events_all)
+
+
+def test_parse_only_preamble(tmp_path):
+    """File with only preamble (no timestamps) should return no events."""
+    p = tmp_path / "preamble_only.log"
+    p.write_text("Just some text\nwithout any timestamps\nat all\n")
+    events = parse_file(p)
+    assert events == []
+
+
+# --- Stacktrace keeps parent event ---
+
+def test_stacktrace_kept_with_parent(stacktrace_log):
+    """Stacktrace lines and Caused by should be part of the parent event."""
+    events = parse_file(stacktrace_log)
+    error_events = [e for e in events if e["level"] == "ERROR"]
+    assert len(error_events) == 1
+    assert "at com.ibm.ws.security" in error_events[0]["text"]
+    assert "Caused by:" in error_events[0]["text"]
+
+
+# --- Signal tag combinations ---
+
+def test_bucket_tags_db_pool():
+    tags = bucket_tags("Timeout waiting for idle object in connection pool")
+    assert "DB/Pool" in tags
+
+
+def test_bucket_tags_http():
+    tags = bucket_tags("500 Internal Server Error HTTP/1.1 SRVE0260E")
+    assert "HTTP" in tags
+
+
+def test_bucket_tags_multiple():
+    """A single log line can have multiple signal tags."""
+    text = "OutOfMemoryError during SSL handshake SSLHandshakeException"
+    tags = bucket_tags(text)
+    assert "OOM/GC" in tags
+    assert "SSL/TLS" in tags
+
+
+# --- Classify event edge cases ---
+
+def test_classify_event_fallback_to_keyword_level():
+    """When no WAS single-letter level, fall back to keyword matching."""
+    text = "2025-03-05 12:00:00:000 ERROR something went wrong"
+    meta = classify_event(text)
+    assert meta["level"] == "ERROR"
+
+
+def test_classify_event_no_level():
+    """Lines with no level indicator should return None for level."""
+    text = "just some random text without any level"
+    meta = classify_event(text)
+    assert meta["level"] is None
+
+
+# --- Render reports with edge cases ---
+
+def test_render_markdown_report_no_exceptions():
+    """Report should handle events with no exceptions gracefully."""
+    events = [{
+        "level": "INFO", "code": "TEST0001I", "exception": None,
+        "root_cause": None, "tags": [], "ts": "10/12/15 21:22:04:257",
+        "file": "test.log", "text": "Normal info message", "thread_id": "00000001",
+    }]
+    report = render_markdown_report(events, top_n=5, samples_n=5)
+    assert "_(none detected)_" in report
+    assert "## Top Levels" in report
+
+
+def test_render_json_report_sample_text_truncation():
+    """Sample text longer than 4000 chars should be truncated in JSON."""
+    events = [{
+        "level": "ERROR", "code": "ERR0001E", "exception": "java.lang.RuntimeException",
+        "root_cause": None, "tags": [], "ts": "10/12/15 21:22:04:257",
+        "file": "test.log", "text": "X" * 5000, "thread_id": "00000001",
+    }]
+    report = render_json_report(events, top_n=5, samples_n=5)
+    data = json.loads(report)
+    assert len(data["samples"][0]["text"]) == 4000
