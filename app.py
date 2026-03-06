@@ -1,30 +1,79 @@
 """Streamlit GUI for the WebSphere Log Analyzer."""
+import os
+import re as _re
 import streamlit as st
 from datetime import datetime
 from pathlib import Path
 
 from wslog import (
     parse_file, summarize, render_markdown_report, render_json_report,
-    per_file_summary, time_histogram, render_histogram, pick_samples,
-    likely_causes, suggested_splunk_queries, hung_thread_drilldown,
-    match_user_query, build_claude_prompt, _SPLUNK_PREFIX,
+    render_pdf_report, per_file_summary, time_histogram, render_histogram,
+    pick_samples, likely_causes, suggested_splunk_queries, hung_thread_drilldown,
+    match_user_query, build_claude_prompt, claude_cache_key,
 )
 
 UPLOADS_DIR = Path("uploads")
 REPORTS_DIR = Path("reports")
+CACHE_DIR = Path("cache")
 UPLOADS_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
+CACHE_DIR.mkdir(exist_ok=True)
+
+CACHE_FILE = CACHE_DIR / "claude_responses.json"
+HISTORY_FILE = CACHE_DIR / "claude_history.json"
+
+
+def _load_json_file(path):
+    """Load a JSON file, returning empty dict/list on error."""
+    if path.exists():
+        try:
+            import json
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {} if "responses" in path.name else []
+
+
+def _save_json_file(path, data):
+    """Save data as JSON."""
+    import json
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _load_file_cache():
+    return _load_json_file(CACHE_FILE)
+
+
+def _save_file_cache(cache):
+    _save_json_file(CACHE_FILE, cache)
+
+
+def _load_history():
+    data = _load_json_file(HISTORY_FILE)
+    return data if isinstance(data, list) else []
+
+
+def _save_history(history):
+    _save_json_file(HISTORY_FILE, history)
 
 # --- Session state defaults ---
 _STATE_DEFAULTS = {
     "analysis": None,           # dict with all analysis results
     "claude_answer": None,      # last Claude response
+    "claude_query_label": None, # query that produced the Claude answer
+    "claude_cache": {},         # cache key -> response text
+    "claude_history": [],       # list of {query, answer, splunk_queries, timestamp}
     "selected_code": None,      # code selected via any action button
     "selected_action": None,    # "copy" | "claude" | "splunk"
+    "api_key": "",              # Anthropic API key (entered via sidebar)
 }
 for key, default in _STATE_DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = default
+
+# Load persisted history on fresh session
+if not st.session_state.claude_history:
+    st.session_state.claude_history = _load_history()
 
 
 def get_report_history(limit=20):
@@ -43,7 +92,7 @@ def _on_code_action(code, action):
 
 def render_code_row(code, count):
     """Render a message code row with count and action buttons."""
-    cols = st.columns([3, 1, 1, 1])
+    cols = st.columns([3, 1, 1])
     with cols[0]:
         st.text(f"  {count:>4}  {code}")
     with cols[1]:
@@ -54,10 +103,6 @@ def render_code_row(code, count):
         st.button("Ask Claude", key=f"ask_{code}",
                   on_click=_on_code_action, args=(code, "claude"),
                   help=f"Ask Claude about {code}")
-    with cols[3]:
-        st.button("Splunk", key=f"splunk_{code}",
-                  on_click=_on_code_action, args=(code, "splunk"),
-                  help=f"Splunk search for {code}")
 
 
 def render_code_action_panel():
@@ -70,12 +115,8 @@ def render_code_action_panel():
     if action == "copy":
         st.info(f"Code **{code}** ready to copy:")
         st.code(code, language=None)
-    elif action == "splunk":
-        query = f'{_SPLUNK_PREFIX} "{code}"'
-        st.info(f"Splunk search for **{code}**:")
-        st.code(query, language="spl")
     elif action == "claude":
-        st.info(f"Code **{code}** loaded into Ask Claude below.")
+        st.info(f"Code **{code}** loaded — open Likely Causes & Fixes to ask Claude.")
 
 
 def render_summary(s, error_count, file_count, file_summary):
@@ -118,26 +159,236 @@ def render_summary(s, error_count, file_count, file_summary):
     render_code_action_panel()
 
 
-def render_likely_causes(causes):
-    """Render likely causes and fixes section."""
-    if not causes:
+def _looks_like_splunk(code):
+    """Heuristic: does this code block look like a Splunk query?"""
+    lower = code.lower()
+    return any(kw in lower for kw in ("index=", "sourcetype=", "| timechart", "| stats",
+                                       "| table", "| where", "| eval"))
+
+
+def _split_combined_splunk(code):
+    """Split a code block containing multiple -- separated Splunk queries.
+
+    Returns list of {description, query} dicts. If no -- separators found,
+    returns a single entry.
+    """
+    # Split on lines starting with "-- "
+    chunks = _re.split(r'^-- +', code, flags=_re.MULTILINE)
+    if len(chunks) <= 1:
+        return [{"description": "Splunk query", "query": code.strip()}]
+
+    results = []
+    for chunk in chunks:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        lines = chunk.split("\n", 1)
+        desc = lines[0].strip()
+        query = lines[1].strip() if len(lines) > 1 else ""
+        if query and _looks_like_splunk(query):
+            results.append({"description": desc, "query": query})
+    return results
+
+
+def _extract_splunk_from_response(text):
+    """Extract Splunk queries from a Claude response.
+
+    Returns list of {description, query} dicts.
+    """
+    results = []
+    parts = _re.split(r'(```[^\n]*\n.*?\n```)', text, flags=_re.DOTALL)
+    for i, part in enumerate(parts):
+        code_match = _re.match(r'```(\w*)\n(.*?)\n```$', part, flags=_re.DOTALL)
+        if not code_match:
+            continue
+        lang = code_match.group(1).lower()
+        code = code_match.group(2).strip()
+        if lang in ("spl", "splunk", "") and _looks_like_splunk(code):
+            # Split combined queries (-- separated) into individual entries
+            split = _split_combined_splunk(code)
+            if len(split) > 1:
+                results.extend(split)
+            else:
+                # Single query — use preceding text as description
+                desc = ""
+                if i > 0:
+                    prev = parts[i - 1].strip()
+                    for line in reversed(prev.splitlines()):
+                        line = line.strip().strip("*").strip("#").strip()
+                        if line:
+                            desc = line
+                            break
+                results.append({"description": desc or "Splunk query", "query": code})
+    return results
+
+
+def _render_claude_response(text):
+    """Render Claude response with separate copyable blocks for each Splunk query."""
+    parts = _re.split(r'(```[^\n]*\n.*?\n```)', text, flags=_re.DOTALL)
+    for part in parts:
+        code_match = _re.match(r'```(\w*)\n(.*?)\n```$', part, flags=_re.DOTALL)
+        if code_match:
+            lang = code_match.group(1).lower()
+            code = code_match.group(2).strip()
+            if lang in ("spl", "splunk", "") and _looks_like_splunk(code):
+                # Split combined queries (-- separated) into individual cards
+                queries = _split_combined_splunk(code)
+                if len(queries) > 1:
+                    for sq in queries:
+                        st.markdown(f"**{sq['description']}**")
+                        st.code(sq["query"], language="spl")
+                else:
+                    st.code(code, language="spl")
+            else:
+                st.code(code, language=lang or None)
+        else:
+            stripped = part.strip()
+            if stripped:
+                st.markdown(stripped)
+
+
+def render_likely_causes(causes, events):
+    """Render likely causes, Ask Claude input, and Claude answer."""
+    if causes:
+        for c in causes:
+            st.markdown(f"**{c['title']}** ({c['count']} event{'s' if c['count'] != 1 else ''})")
+            st.markdown(f"*Likely cause:* {c['cause']}")
+            for fix in c["fixes"]:
+                st.markdown(f"- {fix}")
+    else:
         st.caption("No known issue patterns detected.")
-        return
-    for c in causes:
-        st.markdown(f"**{c['title']}** ({c['count']} event{'s' if c['count'] != 1 else ''})")
-        st.markdown(f"*Likely cause:* {c['cause']}")
-        for fix in c["fixes"]:
-            st.markdown(f"- {fix}")
+
+    # --- Ask Claude subsection ---
+    st.markdown("---")
+
+    # Pre-fill from code button action
+    default_query = ""
+    if st.session_state.selected_action == "claude" and st.session_state.selected_code:
+        default_query = st.session_state.selected_code
+
+    user_query = st.text_input(
+        "Ask Claude about an error code, exception, or troubleshooting question",
+        value=default_query,
+        placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
+    )
+
+    if user_query and st.button("Analyze with Claude", type="secondary"):
+        match = match_user_query(user_query, events)
+        cache_key = claude_cache_key(user_query, match)
+
+        # Check session cache, then file cache
+        cached = st.session_state.claude_cache.get(cache_key)
+        if not cached:
+            file_cache = _load_file_cache()
+            cached = file_cache.get(cache_key)
+
+        def _record_answer(answer, from_cache=False):
+            """Store answer in state and append to history."""
+            st.session_state.claude_answer = answer
+            st.session_state.claude_query_label = user_query
+            splunk_queries = _extract_splunk_from_response(answer)
+            entry = {
+                "query": user_query,
+                "answer": answer,
+                "splunk_queries": splunk_queries,
+                "timestamp": datetime.now().strftime("%H:%M:%S"),
+            }
+            # Avoid duplicate consecutive entries
+            hist = st.session_state.claude_history
+            if not hist or hist[-1]["query"] != user_query or not from_cache:
+                hist.append(entry)
+                # Persist to file
+                _save_history(hist)
+
+        if cached:
+            _record_answer(cached, from_cache=True)
+            st.success("Using cached Claude response")
+        else:
+            if match["matched"]:
+                st.info(f"Found {len(match['matching_events'])} matching event(s) "
+                        f"(match type: {match['match_type']})")
+            else:
+                st.warning("No exact match in current log — sending general question to Claude.")
+
+            if not st.session_state.api_key:
+                st.error("No API key set. Enter your Anthropic API key in the sidebar.")
+                return
+
+            try:
+                from anthropic import Anthropic
+            except ImportError:
+                st.error("The `anthropic` package is not installed. "
+                         "Install with: `pip install anthropic`")
+                return
+
+            prompt = build_claude_prompt(user_query, match)
+            with st.spinner("Asking Claude..."):
+                try:
+                    client = Anthropic(api_key=st.session_state.api_key)
+                    message = client.messages.create(
+                        model="claude-sonnet-4-6",
+                        max_tokens=2048,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    answer = message.content[0].text
+                    _record_answer(answer)
+                    # Store in caches
+                    st.session_state.claude_cache[cache_key] = answer
+                    file_cache = _load_file_cache()
+                    file_cache[cache_key] = answer
+                    _save_file_cache(file_cache)
+                except Exception as ex:
+                    st.error(f"Claude API error: {ex}")
+                    st.caption("Tip: ensure ANTHROPIC_API_KEY is set in your environment.")
+                    return
+
+    # Show persisted Claude answer
+    if st.session_state.claude_answer:
+        label = st.session_state.claude_query_label or "query"
+        st.markdown("---")
+        st.subheader(f"Claude analysis for {label}")
+        _render_claude_response(st.session_state.claude_answer)
+
+    # Show previous Claude queries (if more than just the current one)
+    history = st.session_state.claude_history
+    if len(history) > 1:
+        st.markdown("---")
+        st.subheader("Previous Claude queries")
+        # Show all except the last (which is the current answer shown above)
+        for h_idx, entry in enumerate(reversed(history[:-1])):
+            with st.expander(f"{entry['query']} ({entry['timestamp']})"):
+                _render_claude_response(entry["answer"])
+
+
+def _render_splunk_query(sq, idx):
+    """Render a single Splunk query as a numbered card."""
+    st.markdown(f"**{idx}. {sq['description']}**")
+    st.code(sq["query"], language="spl")
 
 
 def render_splunk_section(splunk):
-    """Render suggested Splunk searches."""
-    if not splunk:
-        st.caption("No Splunk queries generated.")
-        return
-    for sq in splunk:
-        st.markdown(f"**{sq['description']}**")
-        st.code(sq["query"], language="spl")
+    """Render baseline Splunk searches + Claude-enhanced searches from history."""
+    # --- Baseline searches ---
+    st.subheader("Baseline searches")
+    if splunk:
+        for idx, sq in enumerate(splunk, 1):
+            _render_splunk_query(sq, idx)
+    else:
+        st.caption("No baseline Splunk queries generated.")
+
+    # --- Claude-enhanced searches ---
+    history = st.session_state.claude_history
+    entries_with_splunk = [e for e in history if e.get("splunk_queries")]
+    if entries_with_splunk:
+        st.markdown("---")
+        st.subheader("Claude-enhanced searches")
+        for h_idx, entry in enumerate(entries_with_splunk):
+            st.markdown(f"***{entry['query']}** ({entry['timestamp']})*")
+            for q_idx, sq in enumerate(entry["splunk_queries"], 1):
+                _render_splunk_query(sq, q_idx)
+    else:
+        st.markdown("---")
+        st.caption("Run Ask Claude to get context-aware Splunk searches.")
 
 
 def render_hung_threads(hung):
@@ -201,7 +452,7 @@ def render_report_sections(a):
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
                f"Report saved as `{a['report_name']}`.")
 
-    dl1, dl2 = st.columns(2)
+    dl1, dl2, dl3 = st.columns(3)
     with dl1:
         st.download_button(
             label="Download Markdown",
@@ -216,6 +467,13 @@ def render_report_sections(a):
             file_name=a["report_name"].replace(".md", ".json"),
             mime="application/json",
         )
+    with dl3:
+        st.download_button(
+            label="Download PDF",
+            data=a["report_pdf"],
+            file_name=a["report_name"].replace(".md", ".pdf"),
+            mime="application/pdf",
+        )
 
     st.markdown("---")
 
@@ -223,9 +481,15 @@ def render_report_sections(a):
         render_summary(a["summary"], a["error_count"], a["file_count"], a["file_summary"])
 
     with st.expander(f"Likely Causes & Fixes ({len(a['causes'])} detected)"):
-        render_likely_causes(a["causes"])
+        render_likely_causes(a["causes"], a["events"])
 
-    with st.expander(f"Suggested Splunk Searches ({len(a['splunk'])} queries)"):
+    claude_splunk_count = sum(len(e.get("splunk_queries", []))
+                               for e in st.session_state.claude_history)
+    splunk_label = f"Suggested Splunk Searches ({len(a['splunk'])} baseline"
+    if claude_splunk_count:
+        splunk_label += f" + {claude_splunk_count} Claude"
+    splunk_label += ")"
+    with st.expander(splunk_label):
         render_splunk_section(a["splunk"])
 
     with st.expander(f"Hung Thread Analysis ({len(a['hung'])} threads)"):
@@ -238,63 +502,27 @@ def render_report_sections(a):
         render_samples(a["samples"])
 
 
-def render_ask_claude(events):
-    """Render the Ask Claude section. Uses events from session state."""
-    st.markdown("---")
-    st.subheader("Ask Claude")
-
-    # Pre-fill from code button action (consumed once via default_value)
-    default_query = ""
-    if st.session_state.selected_action == "claude" and st.session_state.selected_code:
-        default_query = st.session_state.selected_code
-
-    user_query = st.text_input(
-        "Enter an error code, exception name, or troubleshooting question",
-        value=default_query,
-        placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
-    )
-
-    if user_query and st.button("Analyze with Claude", type="secondary"):
-        match = match_user_query(user_query, events)
-        prompt = build_claude_prompt(user_query, match)
-
-        if match["matched"]:
-            st.info(f"Found {len(match['matching_events'])} matching event(s) "
-                    f"(match type: {match['match_type']})")
-        else:
-            st.warning("No exact match in current log — sending general question to Claude.")
-
-        try:
-            from anthropic import Anthropic
-        except ImportError:
-            st.error("The `anthropic` package is not installed. "
-                     "Install with: `pip install anthropic`")
-            return
-
-        with st.spinner("Asking Claude..."):
-            try:
-                client = Anthropic()
-                message = client.messages.create(
-                    model="claude-sonnet-4-6",
-                    max_tokens=2048,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                st.session_state.claude_answer = message.content[0].text
-            except Exception as ex:
-                st.error(f"Claude API error: {ex}")
-                st.caption("Tip: ensure ANTHROPIC_API_KEY is set in your environment.")
-                return
-
-    # Show persisted Claude answer across reruns
-    if st.session_state.claude_answer:
-        with st.expander("Claude's Analysis", expanded=True):
-            st.markdown(st.session_state.claude_answer)
-
-
 # --- Streamlit UI ---
 
 st.set_page_config(page_title="WS Log Analyzer", page_icon="📋", layout="wide")
 st.title("WebSphere Log Analyzer")
+
+# --- Sidebar: API key ---
+with st.sidebar:
+    st.header("Settings")
+    env_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    api_key = st.text_input(
+        "Anthropic API Key",
+        value=st.session_state.api_key or env_key,
+        type="password",
+        placeholder="sk-ant-...",
+        help="Required for Ask Claude. Get a key at console.anthropic.com/settings/keys",
+    )
+    st.session_state.api_key = api_key
+    if api_key:
+        st.success("API key set")
+    else:
+        st.caption("Enter your key to enable Ask Claude")
 
 tab_analyze, tab_history = st.tabs(["Analyze", "History"])
 
@@ -344,6 +572,7 @@ with tab_analyze:
             samples = pick_samples(all_events, samples_n)
             report_md = render_markdown_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
             report_json = render_json_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+            report_pdf = render_pdf_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
             report_name = f"report_{ts}.md"
             (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
 
@@ -362,10 +591,14 @@ with tab_analyze:
                 "total_events": len(all_events),
                 "report_md": report_md,
                 "report_json": report_json,
+                "report_pdf": report_pdf,
                 "report_name": report_name,
             }
             # Clear previous actions on new analysis
             st.session_state.claude_answer = None
+            st.session_state.claude_query_label = None
+            st.session_state.claude_cache = {}
+            st.session_state.claude_history = []
             st.session_state.selected_code = None
             st.session_state.selected_action = None
 
@@ -373,7 +606,6 @@ with tab_analyze:
     a = st.session_state.analysis
     if a is not None:
         render_report_sections(a)
-        render_ask_claude(a["events"])
     elif not uploaded_files:
         st.info("Upload one or more log files to get started.")
 
@@ -382,6 +614,11 @@ with tab_history:
     if not reports:
         st.info("No reports yet. Upload a log file in the Analyze tab to get started.")
     else:
+        if st.button("Clear history", type="secondary",
+                      help="Delete all saved reports"):
+            for rpath in reports:
+                rpath.unlink(missing_ok=True)
+            st.rerun()
         for rpath in reports:
             content = rpath.read_text(encoding="utf-8")
             col_name, col_dl = st.columns([4, 1])

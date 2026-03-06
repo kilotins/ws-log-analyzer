@@ -690,6 +690,158 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
     return "\n".join(md)
 
 
+def render_pdf_report(events, top_n=10, samples_n=5, hist_minutes=1):
+    """Generate a PDF triage report and return the bytes."""
+    from fpdf import FPDF
+
+    s = summarize(events, top_n)
+    samples = pick_samples(events, samples_n)
+    hist = time_histogram(events, bucket_minutes=hist_minutes)
+    file_summary = per_file_summary(events)
+    causes = likely_causes(events)
+    splunk = suggested_splunk_queries(s, causes, hist)
+    hung = hung_thread_drilldown(events)
+
+    def _latin1_safe(text):
+        """Replace characters that can't be encoded in latin-1."""
+        return text.encode("latin-1", errors="replace").decode("latin-1")
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Title
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "WebSphere/Java Log Triage Report", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(4)
+
+    def heading(text, size=13):
+        pdf.set_font("Helvetica", "B", size)
+        pdf.cell(0, 8, _latin1_safe(text), new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+
+    def body(text):
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_x(pdf.l_margin)
+        pdf.multi_cell(0, 5, _latin1_safe(text))
+
+    def mono(text):
+        pdf.set_font("Courier", "", 7)
+        pdf.set_x(pdf.l_margin)
+        safe = _latin1_safe(text[:4000])
+        max_chars = 110
+        wrapped = []
+        for line in safe.split("\n"):
+            while len(line) > max_chars:
+                wrapped.append(line[:max_chars])
+                line = line[max_chars:]
+            wrapped.append(line)
+        pdf.multi_cell(0, 3.5, "\n".join(wrapped))
+        pdf.ln(2)
+
+    # Summary
+    body(f"Files: {len(file_summary)}  |  Parsed events: {s['total_events']}")
+    pdf.ln(4)
+
+    if len(file_summary) > 1:
+        heading("Per-File Breakdown")
+        for fname, total, errors in file_summary:
+            err_note = f" ({errors} errors)" if errors else ""
+            body(f"  {Path(fname).name}: {total} events{err_note}")
+        pdf.ln(2)
+
+    heading("Top Levels")
+    for k, v in s["levels"]:
+        body(f"  {k}: {v}")
+    pdf.ln(2)
+
+    heading("Top WebSphere/Liberty Codes")
+    if s["codes"]:
+        for k, v in s["codes"]:
+            body(f"  {k}: {v}")
+    else:
+        body("  (none detected)")
+    pdf.ln(2)
+
+    heading("Top Exceptions/Errors")
+    if s["exceptions"]:
+        for k, v in s["exceptions"]:
+            body(f"  {k}: {v}")
+    else:
+        body("  (none detected)")
+    pdf.ln(2)
+
+    heading("Signal Tags")
+    if s["tags"]:
+        for k, v in s["tags"]:
+            body(f"  {k}: {v}")
+    else:
+        body("  (none detected)")
+    pdf.ln(2)
+
+    def bold_line(text):
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_x(pdf.l_margin)
+        pdf.multi_cell(0, 5, _latin1_safe(text))
+
+    if causes:
+        heading("Likely Causes & Fixes")
+        for c in causes:
+            bold_line(f"{c['title']} ({c['count']} event{'s' if c['count'] != 1 else ''})")
+            body(f"Likely cause: {c['cause']}")
+            for fix in c["fixes"]:
+                body(f"  - {fix}")
+            pdf.ln(2)
+
+    if splunk:
+        heading("Suggested Splunk Searches")
+        for sq in splunk:
+            bold_line(sq["description"])
+            mono(sq["query"])
+
+    if hung:
+        heading("Hung Thread Drilldown")
+        for t in hung:
+            bold_line(f"{t['thread_name']} ({t['count']} occurrence{'s' if t['count'] != 1 else ''})")
+            ts_parts = []
+            if t["first_ts"]:
+                ts_parts.append(f"First: {t['first_ts']}")
+            if t["last_ts"] and t["last_ts"] != t["first_ts"]:
+                ts_parts.append(f"Last: {t['last_ts']}")
+            if ts_parts:
+                body(" | ".join(ts_parts))
+            if t["stack_sample"]:
+                mono("\n".join(t["stack_sample"]))
+            mono(t["splunk_query"])
+
+    heading("Timeline (events per minute)")
+    hist_lines = render_histogram(hist)
+    mono("\n".join(hist_lines))
+
+    heading("Sample Events (sanitized)")
+    for idx, e in enumerate(samples, start=1):
+        header = f"{idx}. {e['level'] or 'UNKNOWN'}"
+        if e["code"]:
+            header += f" {e['code']}"
+        if e["exception"]:
+            header += f" -- {e['exception']}"
+        if e["ts"]:
+            header += f" ({e['ts']})"
+        bold_line(header)
+        parts = []
+        if e["tags"]:
+            parts.append(f"Tags: {', '.join(e['tags'])}")
+        if e["thread_id"]:
+            parts.append(f"Thread: 0x{e['thread_id']}")
+        if e["root_cause"] and e["root_cause"] != e["exception"]:
+            parts.append(f"Root cause: {e['root_cause']}")
+        if parts:
+            body(" | ".join(parts))
+        mono(e["text"][:4000])
+
+    return bytes(pdf.output())
+
+
 def match_user_query(query, events):
     """Match a user query (error code, exception, or free text) against parsed events.
 
@@ -771,7 +923,7 @@ def build_claude_prompt(user_query, match_result):
         "1. **What this usually means**",
         "2. **Most likely causes**",
         "3. **What to check next** (specific steps)",
-        "4. **Suggested Splunk searches** (use index=APP sourcetype=WAS as placeholder)",
+        "4. **Suggested Splunk searches** — put EACH query in its own separate ```spl code block with a short description above it. Use index=APP sourcetype=WAS as placeholder.",
         "5. **Confidence / limitations** (what you're less sure about)",
         "",
         "Do NOT request secrets, credentials, or raw log files from the user.",
@@ -802,6 +954,27 @@ def build_claude_prompt(user_query, match_result):
         parts.append("")
 
     return "\n".join(parts)
+
+
+def claude_cache_key(user_query, match_result):
+    """Generate a stable cache key for a Claude query + match context.
+
+    Based on the user input, matched codes/exceptions/tags, and a
+    digest of matched event excerpts.  Never includes raw unsanitized data
+    (event text is already redacted by parse_file).
+    """
+    import hashlib
+    parts = [user_query.strip().lower()]
+    parts.append(",".join(sorted(match_result.get("codes") or [])))
+    parts.append(",".join(sorted(match_result.get("exceptions") or [])))
+    tags = match_result.get("tags") or set()
+    parts.append(",".join(sorted(tags)))
+    # Include a digest of matched event excerpts so context changes invalidate cache
+    excerpts = []
+    for ev in match_result.get("matching_events", [])[:2]:
+        excerpts.append(_truncate_event_text(ev.get("text", ""), max_lines=10))
+    parts.append(hashlib.sha256("\n".join(excerpts).encode()).hexdigest()[:16])
+    return "|".join(parts)
 
 
 def main():
