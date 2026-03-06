@@ -1,4 +1,6 @@
 """Streamlit GUI for the WebSphere Log Analyzer."""
+import logging
+import logging.handlers
 import os
 import re as _re
 import streamlit as st
@@ -16,9 +18,32 @@ _APP_DIR = Path(__file__).parent
 UPLOADS_DIR = _APP_DIR / "uploads"
 REPORTS_DIR = _APP_DIR / "reports"
 CACHE_DIR = _APP_DIR / "cache"
+LOGS_DIR = _APP_DIR / "logs"
 UPLOADS_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
 CACHE_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(exist_ok=True)
+
+LOG_FILE = LOGS_DIR / "app.log"
+
+def _setup_logging():
+    """Configure application logging with rotating file handler."""
+    logger = logging.getLogger("wslog_app")
+    if logger.handlers:
+        return logger
+    logger.setLevel(logging.DEBUG)
+    handler = logging.handlers.RotatingFileHandler(
+        LOG_FILE, maxBytes=1_000_000, backupCount=3, encoding="utf-8",
+    )
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s %(levelname)-5s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
+    logger.addHandler(handler)
+    return logger
+
+log = _setup_logging()
+log.info("startup Application started")
 
 CACHE_FILE = CACHE_DIR / "claude_responses.json"
 HISTORY_FILE = CACHE_DIR / "claude_history.json"
@@ -77,6 +102,7 @@ _STATE_DEFAULTS = {
     "selected_code": None,      # code selected via any action button
     "selected_action": None,    # "copy" | "claude" | "splunk"
     "api_key": "",              # Anthropic API key (entered via sidebar)
+    "debug_payload": False,     # Show Claude API request/response payloads
 }
 for key, default in _STATE_DEFAULTS.items():
     if key not in st.session_state:
@@ -96,38 +122,23 @@ def get_report_history(limit=20):
 # --- Section renderers ---
 
 def _on_code_action(code, action):
-    """Callback for code row buttons. Sets state without triggering extra reruns."""
+    """Callback for code row buttons. Populates the Ask Claude input field."""
+    st.session_state.claude_query_input = code
     st.session_state.selected_code = code
     st.session_state.selected_action = action
+    if action == "claude":
+        st.session_state._ask_claude_pending = True
 
 
 def render_code_row(code, count):
     """Render a message code row with count and action buttons."""
-    cols = st.columns([3, 1, 1])
+    cols = st.columns([3, 1])
     with cols[0]:
         st.text(f"  {count:>4}  {code}")
     with cols[1]:
-        st.button("Copy", key=f"copy_{code}",
-                  on_click=_on_code_action, args=(code, "copy"),
-                  help=f"Copy {code}")
-    with cols[2]:
         st.button("Ask Claude", key=f"ask_{code}",
                   on_click=_on_code_action, args=(code, "claude"),
                   help=f"Ask Claude about {code}")
-
-
-def render_code_action_panel():
-    """Render the result of the last code button action, below the summary."""
-    code = st.session_state.selected_code
-    action = st.session_state.selected_action
-    if not code or not action:
-        return
-
-    if action == "copy":
-        st.info(f"Code **{code}** ready to copy:")
-        st.code(code, language=None)
-    elif action == "claude":
-        st.info(f"Code **{code}** loaded — open Likely Causes & Fixes to ask Claude.")
 
 
 def render_summary(s, error_count, file_count, file_summary):
@@ -165,9 +176,6 @@ def render_summary(s, error_count, file_count, file_summary):
         st.subheader("Signal Tags")
         for tag, count in s["tags"]:
             st.text(f"  {count:>4}  {tag}")
-
-    # Show action result below the summary
-    render_code_action_panel()
 
 
 def _looks_like_splunk(code):
@@ -258,8 +266,8 @@ def _render_claude_response(text):
                 st.markdown(stripped)
 
 
-def render_likely_causes(causes, events):
-    """Render likely causes, Ask Claude input, and Claude answer."""
+def render_likely_causes(causes):
+    """Render likely causes section."""
     if causes:
         for c in causes:
             st.markdown(f"**{c['title']}** ({c['count']} event{'s' if c['count'] != 1 else ''})")
@@ -269,30 +277,42 @@ def render_likely_causes(causes, events):
     else:
         st.caption("No known issue patterns detected.")
 
-    # --- Ask Claude subsection ---
-    st.markdown("---")
 
-    # Pre-fill from code button action (consume once)
-    default_query = ""
-    if st.session_state.selected_action == "claude" and st.session_state.selected_code:
-        default_query = st.session_state.selected_code
-        st.session_state.selected_action = None
+def _on_ask_claude_click():
+    """Callback: mark that the user clicked Analyze with Claude."""
+    st.session_state._ask_claude_pending = True
 
+
+def render_ask_claude(events):
+    """Render Ask Claude input, API call, and response history."""
     user_query = st.text_input(
         "Ask Claude about an error code, exception, or troubleshooting question",
-        value=default_query,
         placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
+        key="claude_query_input",
     )
 
-    if user_query and st.button("Analyze with Claude", type="secondary"):
+    st.button("Analyze with Claude", type="primary",
+              on_click=_on_ask_claude_click,
+              disabled=not user_query)
+
+    # Check if the button was clicked (set by on_click callback on previous rerun)
+    pending = st.session_state.pop("_ask_claude_pending", False)
+
+    if user_query and pending:
+        log.info("claude Ask Claude request: %s", user_query[:100])
+        status = st.status("Analyzing with Claude...", expanded=True)
         match = match_user_query(user_query, events)
         cache_key = claude_cache_key(user_query, match)
 
         # Check session cache, then file cache
         cached = st.session_state.claude_cache.get(cache_key)
+        if cached:
+            log.info("cache Session cache hit for query: %s", user_query[:60])
         if not cached:
             file_cache = _load_file_cache()
             cached = file_cache.get(cache_key)
+            if cached:
+                log.info("cache File cache hit for query: %s", user_query[:60])
 
         def _record_answer(answer, from_cache=False):
             """Store answer in state and append to history."""
@@ -305,7 +325,6 @@ def render_likely_causes(causes, events):
                 "splunk_queries": splunk_queries,
                 "timestamp": datetime.now().strftime("%H:%M:%S"),
             }
-            # Avoid duplicate entries for same query
             hist = st.session_state.claude_history
             if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
                 hist.append(entry)
@@ -313,49 +332,67 @@ def render_likely_causes(causes, events):
 
         if cached:
             _record_answer(cached, from_cache=True)
-            st.success("Using cached Claude response")
+            status.update(label="Using cached Claude response", state="complete")
         else:
             if match["matched"]:
-                st.info(f"Found {len(match['matching_events'])} matching event(s) "
-                        f"(match type: {match['match_type']})")
+                status.write(f"Found {len(match['matching_events'])} matching event(s) "
+                             f"(match type: {match['match_type']})")
             else:
-                st.warning("No exact match in current log — sending general question to Claude.")
+                status.write("No exact match — sending general question to Claude.")
 
             if not st.session_state.api_key:
-                st.error("No API key set. Enter your Anthropic API key in the sidebar.")
+                status.update(label="No API key set", state="error")
+                st.error("Enter your Anthropic API key in the sidebar.")
                 return
 
             try:
                 from anthropic import Anthropic
             except ImportError:
+                status.update(label="Missing package", state="error")
                 st.error("The `anthropic` package is not installed. "
                          "Install with: `pip install anthropic`")
                 return
 
+            log.info("cache Cache miss — calling Claude API for: %s", user_query[:60])
             prompt = build_claude_prompt(user_query, match)
-            with st.spinner("Asking Claude..."):
-                try:
-                    client = Anthropic(api_key=st.session_state.api_key)
-                    message = client.messages.create(
-                        model="claude-sonnet-4-6",
-                        max_tokens=2048,
-                        system=prompt["system"],
-                        messages=[{"role": "user", "content": prompt["user"]}],
-                    )
-                    if not message.content:
-                        st.warning("Claude returned an empty response.")
-                        return
-                    answer = message.content[0].text
-                    _record_answer(answer)
-                    # Store in caches
-                    st.session_state.claude_cache[cache_key] = answer
-                    file_cache = _load_file_cache()
-                    file_cache[cache_key] = answer
-                    _save_file_cache(file_cache)
-                except Exception as ex:
-                    st.error(f"Claude API error: {ex}")
-                    st.caption("Tip: ensure ANTHROPIC_API_KEY is set in your environment.")
+            request_payload = {
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 2048,
+                "system": prompt["system"],
+                "messages": [{"role": "user", "content": prompt["user"]}],
+            }
+            if st.session_state.debug_payload:
+                with st.expander("Request payload", expanded=False):
+                    import json as _json
+                    st.code(_json.dumps(request_payload, indent=2), language="json")
+
+            status.write("Calling Claude API...")
+            try:
+                client = Anthropic(api_key=st.session_state.api_key)
+                message = client.messages.create(**request_payload)
+                if not message.content:
+                    log.warning("claude Claude returned empty response for: %s", user_query[:60])
+                    status.update(label="Empty response from Claude", state="error")
                     return
+                answer = message.content[0].text
+                log.info("claude Claude response received (%d chars) for: %s",
+                         len(answer), user_query[:60])
+                if st.session_state.debug_payload:
+                    with st.expander("Response payload", expanded=False):
+                        st.code(answer, language="markdown")
+                _record_answer(answer)
+                st.session_state.claude_cache[cache_key] = answer
+                file_cache = _load_file_cache()
+                file_cache[cache_key] = answer
+                _save_file_cache(file_cache)
+                status.update(label="Claude analysis complete", state="complete")
+            except Exception as ex:
+                log.error("claude Claude API error: %s", ex)
+                if st.session_state.debug_payload:
+                    with st.expander("Error details", expanded=True):
+                        st.code(str(ex), language="text")
+                status.update(label=f"Claude API error: {ex}", state="error")
+                return
 
     # Show persisted Claude answer
     if st.session_state.claude_answer:
@@ -369,7 +406,6 @@ def render_likely_causes(causes, events):
     if len(history) > 1:
         st.markdown("---")
         st.subheader("Previous Claude queries")
-        # Show all except the last (which is the current answer shown above)
         for h_idx, entry in enumerate(reversed(history[:-1])):
             with st.expander(f"{entry['query']} ({entry['timestamp']})"):
                 _render_claude_response(entry["answer"])
@@ -495,8 +531,12 @@ def render_report_sections(a):
     with st.expander("Summary", expanded=True):
         render_summary(a["summary"], a["error_count"], a["file_count"], a["file_summary"])
 
-    with st.expander(f"Likely Causes & Fixes ({len(a['causes'])} detected)"):
-        render_likely_causes(a["causes"], a["events"])
+    if a["causes"]:
+        with st.expander(f"Likely Causes & Fixes ({len(a['causes'])} detected)"):
+            render_likely_causes(a["causes"])
+
+    with st.expander("Ask Claude", expanded=True):
+        render_ask_claude(a["events"])
 
     claude_splunk_count = sum(len(e.get("splunk_queries", []))
                                for e in st.session_state.claude_history)
@@ -523,21 +563,73 @@ st.set_page_config(page_title="WS Log Analyzer", page_icon="📋", layout="wide"
 st.title("WebSphere Log Analyzer")
 
 # --- Sidebar: API key ---
+_KEYRING_SERVICE = "ws-log-analyzer"
+_KEYRING_USERNAME = "anthropic_api_key"
+
+
+def _load_saved_api_key():
+    """Load API key from macOS Keychain, env var, or empty string."""
+    try:
+        import keyring
+        stored = keyring.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+        if stored:
+            return stored
+    except Exception:
+        pass
+    return os.environ.get("ANTHROPIC_API_KEY", "")
+
+
+def _save_api_key(key):
+    """Store API key in macOS Keychain."""
+    try:
+        import keyring
+        if key:
+            keyring.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, key)
+            log.info("settings API key saved to system keychain")
+        else:
+            keyring.delete_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+            log.info("settings API key removed from system keychain")
+    except Exception as ex:
+        log.warning("settings Could not save API key to keychain: %s", ex)
+
+
+# Initialize from saved key on first load
+if not st.session_state.api_key:
+    st.session_state.api_key = _load_saved_api_key()
+
 with st.sidebar:
     st.header("Settings")
-    env_key = os.environ.get("ANTHROPIC_API_KEY", "")
     api_key = st.text_input(
         "Anthropic API Key",
-        value=st.session_state.api_key or env_key,
+        value=st.session_state.api_key,
         type="password",
         placeholder="sk-ant-...",
         help="Required for Ask Claude. Get a key at console.anthropic.com/settings/keys",
     )
+    if api_key != st.session_state.api_key:
+        _save_api_key(api_key)
     st.session_state.api_key = api_key
     if api_key:
         st.success("API key set")
     else:
         st.caption("Enter your key to enable Ask Claude")
+
+    st.markdown("---")
+    st.session_state.debug_payload = st.toggle(
+        "Enable Ask Claude payload",
+        value=st.session_state.debug_payload,
+        help="Show request/response payloads for Claude API calls",
+    )
+    if st.button("Clear Claude cache", help="Clear cached Claude responses and history"):
+        st.session_state.claude_cache = {}
+        st.session_state.claude_answer = None
+        st.session_state.claude_query_label = None
+        st.session_state.claude_history = []
+        if CACHE_FILE.exists():
+            CACHE_FILE.unlink()
+        _save_history([])
+        log.info("cache Cleared all Claude caches")
+        st.success("Cache cleared")
 
 tab_analyze, tab_history = st.tabs(["Analyze", "History"])
 
@@ -566,12 +658,15 @@ with tab_analyze:
             upload_name = f"{ts}_{uploaded.name}"
             upload_path = UPLOADS_DIR / upload_name
             upload_path.write_bytes(uploaded.getvalue())
+            log.info("upload File uploaded: %s (%d bytes)", uploaded.name, len(uploaded.getvalue()))
 
             with st.spinner(f"Parsing {uploaded.name}..."):
                 try:
                     events = parse_file(upload_path)
                     all_events.extend(events)
+                    log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
                 except Exception as ex:
+                    log.error("analysis Failed to parse %s: %s", uploaded.name, ex)
                     st.error(f"Failed to parse {uploaded.name}: {ex}")
 
         if not all_events:
@@ -590,6 +685,14 @@ with tab_analyze:
             report_pdf = render_pdf_report(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
             report_name = f"report_{ts}.md"
             (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
+
+            log.info("analysis Analysis complete: %d events, %d errors, %d causes, %d hung threads",
+                     len(all_events), error_count, len(causes), len(hung))
+            if s["codes"]:
+                log.info("analysis Top codes: %s", ", ".join(f"{c}({n})" for c, n in s["codes"][:5]))
+            if s["exceptions"]:
+                log.info("analysis Top exceptions: %s", ", ".join(f"{e}({n})" for e, n in s["exceptions"][:5]))
+            log.info("analysis Report saved: %s", report_name)
 
             # Persist everything in session state
             st.session_state.analysis = {
@@ -635,6 +738,7 @@ with tab_history:
     else:
         if st.button("Clear history", type="secondary",
                       help="Delete all saved reports"):
+            log.info("history Cleared %d report(s)", len(reports))
             for rpath in reports:
                 rpath.unlink(missing_ok=True)
             st.rerun()
@@ -652,3 +756,24 @@ with tab_history:
                     mime="text/markdown",
                     key=f"dl_{rpath.name}",
                 )
+
+# --- Application Log ---
+st.markdown("---")
+with st.expander("Application Log"):
+    _log_level_filter = st.selectbox(
+        "Filter by level",
+        ["ALL", "INFO", "WARNING", "ERROR"],
+        key="log_level_filter",
+    )
+    if LOG_FILE.exists():
+        _raw_lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()
+        if _log_level_filter != "ALL":
+            _raw_lines = [l for l in _raw_lines if f" {_log_level_filter:<5s}" in l
+                          or f" {_log_level_filter} " in l]
+        _display_lines = _raw_lines[-100:]
+        if _display_lines:
+            st.code("\n".join(_display_lines), language="log")
+        else:
+            st.caption("No matching log entries.")
+    else:
+        st.caption("No application log yet.")
