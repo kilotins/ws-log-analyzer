@@ -385,6 +385,74 @@ def likely_causes(events):
     return results
 
 
+_SPLUNK_PREFIX = 'index=APP sourcetype=WAS'
+
+
+def suggested_splunk_queries(summary, causes, hist):
+    """Generate Splunk query strings based on detected issues. Returns list of {description, query}."""
+    queries = []
+
+    # Generic: all errors
+    queries.append({
+        "description": "All errors and severe events",
+        "query": f'{_SPLUNK_PREFIX} (ERROR OR SEVERE OR FATAL)',
+    })
+
+    # Exception-based queries (top 3)
+    for exc_name, count in summary.get("exceptions", [])[:3]:
+        short = exc_name.rsplit(".", 1)[-1]
+        queries.append({
+            "description": f"Events matching {short} ({count} seen)",
+            "query": f'{_SPLUNK_PREFIX} "{short}"',
+        })
+
+    # Code-based queries (top 3, grouped by prefix)
+    seen_prefixes = set()
+    for code, count in summary.get("codes", [])[:5]:
+        prefix = re.match(r'[A-Z]+', code)
+        if prefix:
+            p = prefix.group()
+            if p not in seen_prefixes and len(seen_prefixes) < 3:
+                seen_prefixes.add(p)
+                queries.append({
+                    "description": f"All {p}* message codes",
+                    "query": f'{_SPLUNK_PREFIX} "{p}*"',
+                })
+
+    # Tag-based targeted queries
+    tag_queries = {
+        "SSL/TLS": {
+            "description": "SSL/TLS handshake failures",
+            "query": f'{_SPLUNK_PREFIX} (SSLHandshakeException OR "PKIX path building failed" OR CWPKI*)',
+        },
+        "OOM/GC": {
+            "description": "OutOfMemory and GC pressure events",
+            "query": f'{_SPLUNK_PREFIX} (OutOfMemoryError OR "GC overhead limit exceeded" OR "Java heap space")',
+        },
+        "DB/Pool": {
+            "description": "Connection pool exhaustion",
+            "query": f'{_SPLUNK_PREFIX} (J2CA* OR "pool exhausted" OR "ConnectionWaitTimeout")',
+        },
+        "HungThreads": {
+            "description": "Hung/stuck thread detections",
+            "query": f'{_SPLUNK_PREFIX} (WSVR0605W OR WSVR0606W OR ThreadMonitor OR CWWKE0701E)',
+        },
+    }
+    for tag, _ in summary.get("tags", []):
+        if tag in tag_queries and tag_queries[tag] not in queries:
+            queries.append(tag_queries[tag])
+
+    # Spike query: errors over time (if timeline has data)
+    if hist:
+        queries.append({
+            "description": "Error spike timeline (adjust span to match your bucket size)",
+            "query": f'{_SPLUNK_PREFIX} (ERROR OR SEVERE OR FATAL) | timechart span=1m count by sourcetype',
+        })
+
+    # Cap at 8
+    return queries[:8]
+
+
 def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
     """Generate a JSON triage report string from parsed events."""
     s = summarize(events, top_n)
@@ -399,6 +467,7 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
         "exceptions": dict(s["exceptions"]),
         "tags": dict(s["tags"]),
         "likely_causes": likely_causes(events),
+        "splunk_queries": suggested_splunk_queries(s, likely_causes(events), hist),
         "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
         "samples": [
             {
@@ -462,6 +531,17 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
             md.append("**Suggested fixes:**")
             for fix in c["fixes"]:
                 md.append(f"- {fix}")
+            md.append("")
+
+    splunk = suggested_splunk_queries(s, causes, hist)
+    if splunk:
+        md.append("## Suggested Splunk Searches")
+        md.append("")
+        for sq in splunk:
+            md.append(f"**{sq['description']}**")
+            md.append(f"```")
+            md.append(sq["query"])
+            md.append(f"```")
             md.append("")
 
     md.append("## Timeline (events per minute)")
