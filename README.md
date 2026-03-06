@@ -105,7 +105,7 @@ pip install -e ".[gui,claude,gemini,test]"
 pytest
 ```
 
-177+ tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, Gemini integration, skill auto-selection, and report generation.
+237 tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, Gemini integration, skill auto-selection, and report generation.
 
 ## Gemini Setup
 

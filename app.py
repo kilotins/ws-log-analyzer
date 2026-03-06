@@ -1,4 +1,5 @@
 """Streamlit GUI for the WebSphere Log Analyzer."""
+import html
 import logging
 import logging.handlers
 import os
@@ -48,7 +49,11 @@ def _setup_logging():
 log = _setup_logging()
 log.info("startup Application started")
 
-CACHE_FILE = CACHE_DIR / "claude_responses.json"
+CACHE_FILE = CACHE_DIR / "ai_responses.json"
+# Migrate old cache file name
+_old_cache = CACHE_DIR / "claude_responses.json"
+if _old_cache.exists() and not (CACHE_DIR / "ai_responses.json").exists():
+    _old_cache.rename(CACHE_FILE)
 HISTORY_FILE = CACHE_DIR / "claude_history.json"
 GEMINI_HISTORY_FILE = CACHE_DIR / "gemini_history.json"
 
@@ -532,7 +537,7 @@ def run_claude_analysis(user_query, events, processing_container):
 
     status.write("Calling Claude API...")
     try:
-        client = Anthropic(api_key=st.session_state.api_key)
+        client = Anthropic(api_key=st.session_state.api_key, timeout=30.0)
         message = client.messages.create(**request_payload)
         if not message.content:
             log.warning("claude Claude returned empty response for: %s", user_query[:60])
@@ -983,10 +988,11 @@ st.title("WebSphere Log Analyzer")
 # --- Sidebar: API key ---
 _KEYRING_SERVICE = "ws-log-analyzer"
 _KEYRING_USERNAME = "anthropic_api_key"
+_KEYRING_GEMINI_USERNAME = "gemini_api_key"
 
 
 def _load_saved_api_key():
-    """Load API key from macOS Keychain, env var, or empty string."""
+    """Load Claude API key from macOS Keychain, env var, or empty string."""
     try:
         import keyring
         stored = keyring.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
@@ -998,7 +1004,7 @@ def _load_saved_api_key():
 
 
 def _save_api_key(key):
-    """Store API key in macOS Keychain."""
+    """Store Claude API key in macOS Keychain."""
     try:
         import keyring
         if key:
@@ -1009,6 +1015,32 @@ def _save_api_key(key):
             log.info("settings API key removed from system keychain")
     except Exception as ex:
         log.warning("settings Could not save API key to keychain: %s", ex)
+
+
+def _load_saved_gemini_key():
+    """Load Gemini API key from macOS Keychain, env var, or empty string."""
+    try:
+        import keyring
+        stored = keyring.get_password(_KEYRING_SERVICE, _KEYRING_GEMINI_USERNAME)
+        if stored:
+            return stored
+    except Exception:
+        pass
+    return os.environ.get("GEMINI_API_KEY", "")
+
+
+def _save_gemini_key(key):
+    """Store Gemini API key in macOS Keychain."""
+    try:
+        import keyring
+        if key:
+            keyring.set_password(_KEYRING_SERVICE, _KEYRING_GEMINI_USERNAME, key)
+            log.info("settings Gemini API key saved to system keychain")
+        else:
+            keyring.delete_password(_KEYRING_SERVICE, _KEYRING_GEMINI_USERNAME)
+            log.info("settings Gemini API key removed from system keychain")
+    except Exception as ex:
+        log.warning("settings Could not save Gemini API key to keychain: %s", ex)
 
 
 # Initialize from saved key on first load
@@ -1032,15 +1064,17 @@ with st.sidebar:
     else:
         st.caption("Enter your key to enable Ask Claude")
 
-    import os as _os
-    _gemini_env_key = _os.environ.get("GEMINI_API_KEY", "")
+    if not st.session_state.gemini_api_key:
+        st.session_state.gemini_api_key = _load_saved_gemini_key()
     gemini_key = st.text_input(
         "Gemini API Key",
-        value=st.session_state.gemini_api_key or _gemini_env_key,
+        value=st.session_state.gemini_api_key,
         type="password",
         placeholder="AIza...",
         help="Required for Ask Gemini. Get a key at aistudio.google.com/apikey",
     )
+    if gemini_key != st.session_state.gemini_api_key:
+        _save_gemini_key(gemini_key)
     st.session_state.gemini_api_key = gemini_key
     if gemini_key:
         st.success("Gemini API key set")
@@ -1141,7 +1175,7 @@ def _highlight_line(line):
         lvl = m.group(1)
         color = _LEVEL_COLORS.get(lvl, "inherit")
         return f'<span style="color:{color};font-weight:bold">{lvl}</span>'
-    return _LEVEL_HIGHLIGHT_RE.sub(_color_match, line.replace("<", "&lt;").replace(">", "&gt;"))
+    return _LEVEL_HIGHLIGHT_RE.sub(_color_match, html.escape(line, quote=True))
 
 
 def _is_safe_rt_path(filepath):

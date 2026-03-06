@@ -13,3 +13,4 @@ test = ["pytest>=7"]
 
 [project.scripts]
 wslog = "wslog:main"
+wslog-report = "report_renderer:main"

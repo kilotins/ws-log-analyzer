@@ -15,7 +15,7 @@
 - Every new signal tag needs a `test_bucket_tags_*` test
 - Every new function in `wslog.py` needs tests
 
-Current count: 177+ tests.
+Current count: 237 tests.
 
 ## E2E Tests (test_app_e2e.py)
 

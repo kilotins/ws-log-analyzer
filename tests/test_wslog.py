@@ -1797,7 +1797,7 @@ def test_ask_gemini_calls_api_correctly(monkeypatch):
         def __init__(self, name, **kwargs):
             calls["model_name"] = name
             calls["model_kwargs"] = kwargs
-        def generate_content(self, prompt):
+        def generate_content(self, prompt, **kwargs):
             calls["prompt"] = prompt
             resp = types.SimpleNamespace(text="mock response")
             return resp
@@ -1834,7 +1834,7 @@ def test_ask_gemini_no_system_instruction(monkeypatch):
     class MockModel:
         def __init__(self, name, **kwargs):
             calls["model_kwargs"] = kwargs
-        def generate_content(self, prompt):
+        def generate_content(self, prompt, **kwargs):
             return types.SimpleNamespace(text="ok")
 
     mock_genai.GenerativeModel = MockModel
