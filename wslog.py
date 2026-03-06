@@ -1039,11 +1039,22 @@ def _sanitize_prompt_input(text):
     return escape(text)
 
 
-def build_claude_prompt(user_query, match_result):
+SWEDISH_CHEF_STYLE = (
+    "\n\nIMPORTANT STYLE INSTRUCTION: Write your entire response in a playful "
+    "Swedish Chef-inspired style (like the Muppets character). Use light "
+    "Swedish Chef-isms (e.g. 'Bork bork bork!', 'zee', 'und', 'de') but keep "
+    "the content accurate, structured, and readable. The 5-section structure "
+    "must be preserved exactly. Technical terms, code, Splunk queries, and "
+    "file paths must remain correct and unmodified."
+)
+
+
+def build_claude_prompt(user_query, match_result, style=None):
     """Build a sanitized prompt for Claude based on user query and match results.
 
     Returns a dict with 'system' and 'user' keys.
     All event text is already redacted by parse_file().
+    style: optional style modifier string to append to system prompt.
     """
     safe_query = _sanitize_prompt_input(user_query)
 
@@ -1072,27 +1083,26 @@ def build_claude_prompt(user_query, match_result):
         parts.append("No exact match was found in the current log. Provide general guidance.")
         parts.append("")
 
-    return {"system": CLAUDE_SYSTEM_PROMPT, "user": "\n".join(parts)}
+    system = CLAUDE_SYSTEM_PROMPT
+    if style:
+        system += style
+    return {"system": system, "user": "\n".join(parts)}
 
 
 def claude_cache_key(user_query, match_result):
     """Generate a stable cache key for a Claude query + match context.
 
-    Based on the user input, matched codes/exceptions/tags, and a
-    digest of matched event excerpts.  Never includes raw unsanitized data
-    (event text is already redacted by parse_file).
+    Based on the user input, matched codes/exceptions/tags, and match type.
+    Intentionally does NOT include event text hashes — the same query with
+    the same structural match should return the cached response regardless
+    of minor text variations between log parses.
     """
-    import hashlib
     parts = [user_query.strip().lower()]
     parts.append(",".join(sorted(match_result.get("codes") or [])))
     parts.append(",".join(sorted(match_result.get("exceptions") or [])))
     tags = match_result.get("tags") or []
     parts.append(",".join(sorted(tags)))
-    # Include a digest of matched event excerpts so context changes invalidate cache
-    excerpts = []
-    for ev in match_result.get("matching_events", [])[:2]:
-        excerpts.append(_truncate_event_text(ev.get("text", ""), max_lines=10))
-    parts.append(hashlib.sha256("\n".join(excerpts).encode()).hexdigest()[:16])
+    parts.append(match_result.get("match_type") or "none")
     return "|".join(parts)
 
 

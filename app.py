@@ -13,7 +13,7 @@ from wslog import (
     render_pdf_report, per_file_summary, time_histogram, render_histogram,
     pick_samples, likely_causes, suggested_splunk_queries, hung_thread_drilldown,
     match_user_query, build_claude_prompt, claude_cache_key,
-    incident_timeline,
+    incident_timeline, SWEDISH_CHEF_STYLE,
 )
 
 _APP_DIR = Path(__file__).parent
@@ -105,6 +105,7 @@ _STATE_DEFAULTS = {
     "selected_action": None,    # "copy" | "claude" | "splunk"
     "api_key": "",              # Anthropic API key (entered via sidebar)
     "debug_payload": False,     # Show Claude API request/response payloads
+    "swedish_chef": False,      # Swedish Chef response style
     "rt_enabled": False,        # Realtime log monitoring toggle
     "rt_running": False,        # Monitoring is actively polling
     "rt_paused": False,         # Monitoring is paused (keep offset)
@@ -148,9 +149,11 @@ def render_code_row(code, count):
     with cols[0]:
         st.text(f"  {count:>4}  {code}")
     with cols[1]:
-        st.button("Ask Claude", key=f"ask_{code}",
+        _chef = st.session_state.get("swedish_chef", False)
+        st.button("Ask zee Chef" if _chef else "Ask Claude",
+                  key=f"ask_{code}",
                   on_click=_on_code_action, args=(code, "claude"),
-                  help=f"Ask Claude about {code}")
+                  help=f"Ask {'zee Chef' if _chef else 'Claude'} about {code}")
 
 
 def render_summary(s, error_count, file_count, file_summary):
@@ -253,6 +256,107 @@ def _extract_splunk_from_response(text):
     return results
 
 
+_CHEF_SOUNDS_DIR = _APP_DIR / "assets" / "chef"
+_CHEF_IMAGE = _APP_DIR / "assets" / "chef" / "The_Swedish_Chef.jpg"
+
+
+def _get_all_chef_sounds_b64():
+    """Return all Chef sound clips as a list of base64 data URIs."""
+    import base64
+    if not _CHEF_SOUNDS_DIR.is_dir():
+        return []
+    clips = sorted(_CHEF_SOUNDS_DIR.glob("*.mp3"))
+    results = []
+    for clip in clips:
+        data = clip.read_bytes()
+        b64 = base64.b64encode(data).decode()
+        results.append(f"data:audio/mpeg;base64,{b64}")
+    return results
+
+
+def _get_chef_image_b64():
+    """Return the Chef image as a base64 data URI, or None."""
+    import base64
+    if not _CHEF_IMAGE.is_file():
+        return None
+    data = _CHEF_IMAGE.read_bytes()
+    ext = _CHEF_IMAGE.suffix.lower().lstrip(".")
+    mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "gif": "gif", "webp": "webp"}.get(ext, "jpeg")
+    b64 = base64.b64encode(data).decode()
+    return f"data:image/{mime};base64,{b64}"
+
+
+def _render_chef_sound_button():
+    """Render a clickable Swedish Chef image that plays a random sound clip.
+
+    All clips are embedded as a JS array so randomization happens
+    client-side on each click — not at render time.
+    """
+    chef_img = _get_chef_image_b64()
+    chef_sounds = _get_all_chef_sounds_b64()
+    if not chef_img or not chef_sounds:
+        return
+
+    import json as _json
+    sounds_js = _json.dumps(chef_sounds)
+
+    import streamlit.components.v1 as components
+    components.html(f"""
+    <div style="display:inline-block">
+      <button id="chef-btn" onclick="playChef()" title="Bork bork bork!"
+        style="background:none;border:2px solid #555;border-radius:12px;
+               padding:6px;cursor:pointer;transition:all 0.3s;
+               display:flex;align-items:center;gap:8px">
+        <img id="chef-img" src="{chef_img}"
+             style="width:60px;height:60px;border-radius:8px;object-fit:cover;
+                    transition:transform 0.3s"
+             onmouseover="this.style.transform='scale(1.1) rotate(-5deg)'"
+             onmouseout="if(!playing)this.style.transform='scale(1)'" />
+        <span style="font-size:13px;color:inherit;text-align:left;line-height:1.3"
+              id="chef-label">Let zee Chef<br>explain zee problem!</span>
+      </button>
+    </div>
+    <script>
+      const chefSounds = {sounds_js};
+      let playing = false;
+      let currentAudio = null;
+      let lastIdx = -1;
+      function playChef() {{
+        if (playing && currentAudio) {{
+          currentAudio.pause();
+          currentAudio = null;
+          playing = false;
+          document.getElementById('chef-img').style.transform = 'scale(1)';
+          document.getElementById('chef-label').innerHTML = 'Let zee Chef<br>explain zee problem!';
+          document.getElementById('chef-btn').style.borderColor = '#555';
+          return;
+        }}
+        // Pick a random clip, avoid repeating the same one twice in a row
+        let idx = Math.floor(Math.random() * chefSounds.length);
+        if (chefSounds.length > 1 && idx === lastIdx) {{
+          idx = (idx + 1) % chefSounds.length;
+        }}
+        lastIdx = idx;
+        const audio = new Audio(chefSounds[idx]);
+        audio.volume = 0.7;
+        currentAudio = audio;
+        playing = true;
+        document.getElementById('chef-img').style.transform = 'scale(1.1) rotate(-5deg)';
+        document.getElementById('chef-label').innerHTML = 'Bork bork bork!<br><small>Click to stop</small>';
+        document.getElementById('chef-btn').style.borderColor = '#dc3545';
+        audio.onended = () => {{
+          playing = false;
+          currentAudio = null;
+          document.getElementById('chef-img').style.transform = 'scale(1)';
+          document.getElementById('chef-label').innerHTML = 'Let zee Chef<br>explain zee problem!';
+          document.getElementById('chef-btn').style.borderColor = '#555';
+        }};
+        audio.play();
+      }}
+    </script>
+    """, height=85)
+
+
 def _render_claude_response(text):
     """Render Claude response with separate copyable blocks for each Splunk query."""
     parts = _re.split(r'(```[^\n]*\n.*?\n```)', text, flags=_re.DOTALL)
@@ -297,13 +401,17 @@ def _on_ask_claude_click():
 
 def render_ask_claude(events):
     """Render Ask Claude input, API call, and response history."""
+    _chef = st.session_state.get("swedish_chef", False)
     user_query = st.text_input(
+        "Ask zee Chef about un error code, excepshun, or troubleshooting questshun"
+        if _chef else
         "Ask Claude about an error code, exception, or troubleshooting question",
         placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
         key="claude_query_input",
     )
 
-    st.button("Analyze with Claude", type="primary",
+    st.button("Analyze with zee Swedish Chef" if _chef else "Analyze with Claude",
+              type="primary",
               on_click=_on_ask_claude_click,
               disabled=not user_query)
 
@@ -315,16 +423,23 @@ def render_ask_claude(events):
         status = st.status("Analyzing with Claude...", expanded=True)
         match = match_user_query(user_query, events)
         cache_key = claude_cache_key(user_query, match)
+        if st.session_state.swedish_chef:
+            cache_key += ":swedish_chef"
 
         # Check session cache, then file cache
+        log.info("cache Looking up key: %s", cache_key[:80])
         cached = st.session_state.claude_cache.get(cache_key)
         if cached:
-            log.info("cache Session cache hit for query: %s", user_query[:60])
+            log.info("cache Session cache HIT for: %s", user_query[:60])
         if not cached:
             file_cache = _load_file_cache()
             cached = file_cache.get(cache_key)
             if cached:
-                log.info("cache File cache hit for query: %s", user_query[:60])
+                log.info("cache File cache HIT for: %s", user_query[:60])
+                # Promote to session cache for faster subsequent lookups
+                st.session_state.claude_cache[cache_key] = cached
+        if not cached:
+            log.info("cache MISS for: %s", user_query[:60])
 
         def _record_answer(answer, from_cache=False):
             """Store answer in state and append to history."""
@@ -366,7 +481,8 @@ def render_ask_claude(events):
                 return
 
             log.info("cache Cache miss — calling Claude API for: %s", user_query[:60])
-            prompt = build_claude_prompt(user_query, match)
+            style = SWEDISH_CHEF_STYLE if st.session_state.swedish_chef else None
+            prompt = build_claude_prompt(user_query, match, style=style)
             request_payload = {
                 "model": "claude-sonnet-4-6",
                 "max_tokens": 2048,
@@ -410,16 +526,30 @@ def render_ask_claude(events):
     if st.session_state.claude_answer:
         label = st.session_state.claude_query_label or "query"
         st.markdown("---")
-        st.subheader(f"Claude analysis for {label}")
+        if st.session_state.swedish_chef:
+            _render_chef_sound_button()
+            st.markdown(
+                '<span style="font-size:1.4em;font-weight:bold">'
+                f'Zee Swedish Chef\'s analysis of {label} — Bork bork bork!</span>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.subheader(f"Claude analysis for {label}")
         _render_claude_response(st.session_state.claude_answer)
 
     # Show previous Claude queries (if more than just the current one)
     history = st.session_state.claude_history
     if len(history) > 1:
         st.markdown("---")
-        st.subheader("Previous Claude queries")
+        if st.session_state.swedish_chef:
+            st.subheader("Previoos queries from zee Chef")
+        else:
+            st.subheader("Previous Claude queries")
         for h_idx, entry in enumerate(reversed(history[:-1])):
-            with st.expander(f"{entry['query']} ({entry['timestamp']})"):
+            hist_label = f"{entry['query']} ({entry['timestamp']})"
+            with st.expander(hist_label):
+                if st.session_state.swedish_chef:
+                    _render_chef_sound_button()
                 _render_claude_response(entry["answer"])
 
 
@@ -451,7 +581,9 @@ def render_splunk_section(splunk):
                 _render_splunk_query(sq, q_idx)
     else:
         st.markdown("---")
-        st.caption("Run Ask Claude to get context-aware Splunk searches.")
+        st.caption("Run Ask zee Chef to get context-aware Splunk searches."
+                   if st.session_state.swedish_chef else
+                   "Run Ask Claude to get context-aware Splunk searches.")
 
 
 def render_hung_threads(hung):
@@ -656,7 +788,8 @@ def render_report_sections(a):
         with st.expander(f"Likely Causes & Fixes ({len(a['causes'])} detected)"):
             render_likely_causes(a["causes"])
 
-    with st.expander("Ask Claude", expanded=True):
+    _chef_lbl = "Ask zee Swedish Chef" if st.session_state.swedish_chef else "Ask Claude"
+    with st.expander(_chef_lbl, expanded=True):
         render_ask_claude(a["events"])
 
     claude_splunk_count = sum(len(e.get("splunk_queries", []))
@@ -749,6 +882,13 @@ with st.sidebar:
         value=st.session_state.debug_payload,
         help="Show request/response payloads for Claude API calls",
     )
+    st.session_state.swedish_chef = st.toggle(
+        "Swedish Chef mode 🍳",
+        value=st.session_state.swedish_chef,
+        help="Claude responds in Swedish Chef style. Bork bork bork!",
+    )
+    if st.session_state.swedish_chef:
+        st.caption("Swedish Chef mode is enabled. Bork bork bork!")
     if st.button("Clear Claude cache", help="Clear cached Claude responses and history"):
         st.session_state.claude_cache = {}
         st.session_state.claude_answer = None
@@ -1023,16 +1163,12 @@ with tab_analyze:
                 "report_pdf": report_pdf,
                 "report_name": report_name,
             }
-            # Clear previous actions on new analysis
+            # Clear previous actions on new analysis (keep file cache for repeat queries)
             st.session_state.claude_answer = None
             st.session_state.claude_query_label = None
-            st.session_state.claude_cache = {}
             st.session_state.claude_history = []
             st.session_state.selected_code = None
             st.session_state.selected_action = None
-            # Sync to disk
-            if CACHE_FILE.exists():
-                CACHE_FILE.unlink()
             _save_history([])
 
     # --- Render results from session state (survives reruns) ---

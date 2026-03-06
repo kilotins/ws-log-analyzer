@@ -1395,15 +1395,15 @@ def test_claude_cache_key_different_query():
     assert k1 != k2
 
 
-def test_claude_cache_key_different_context():
-    """Same query but different matched events produces different key."""
+def test_claude_cache_key_stable_across_event_text():
+    """Same query + codes should produce same key regardless of event text."""
     m1 = {"matched": True, "match_type": "code",
            "matching_events": [{"text": "error A"}],
            "codes": ["ERR001"], "exceptions": [], "tags": set()}
     m2 = {"matched": True, "match_type": "code",
            "matching_events": [{"text": "error B"}],
            "codes": ["ERR001"], "exceptions": [], "tags": set()}
-    assert claude_cache_key("ERR001", m1) != claude_cache_key("ERR001", m2)
+    assert claude_cache_key("ERR001", m1) == claude_cache_key("ERR001", m2)
 
 
 def test_claude_cache_key_different_tags():
