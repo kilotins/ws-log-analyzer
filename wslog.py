@@ -636,13 +636,34 @@ def suggested_splunk_queries(summary, causes, hist):
     return queries[:8]
 
 
-def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
-    """Generate a JSON triage report string from parsed events."""
+def precompute_analysis(events, top_n=10, samples_n=5, hist_minutes=1):
+    """Compute all shared analysis data once. Returns a dict."""
     s = summarize(events, top_n)
     samples = pick_samples(events, samples_n)
     hist = time_histogram(events, bucket_minutes=hist_minutes)
     file_summary = per_file_summary(events)
     causes = likely_causes(events)
+    splunk = suggested_splunk_queries(s, causes, hist)
+    hung = hung_thread_drilldown(events)
+    return {
+        "summary": s,
+        "samples": samples,
+        "hist": hist,
+        "file_summary": file_summary,
+        "causes": causes,
+        "splunk": splunk,
+        "hung": hung,
+    }
+
+
+def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=None):
+    """Generate a JSON triage report string from parsed events."""
+    a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
+    s = a["summary"]
+    samples = a["samples"]
+    hist = a["hist"]
+    file_summary = a["file_summary"]
+    causes = a["causes"]
     data = {
         "files": [{"file": f, "events": t, "errors": e} for f, t, e in file_summary],
         "total_events": s["total_events"],
@@ -651,8 +672,8 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
         "exceptions": dict(s["exceptions"]),
         "tags": dict(s["tags"]),
         "likely_causes": causes,
-        "splunk_queries": suggested_splunk_queries(s, causes, hist),
-        "hung_thread_drilldown": hung_thread_drilldown(events),
+        "splunk_queries": a["splunk"],
+        "hung_thread_drilldown": a["hung"],
         "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
         "samples": [
             {
@@ -671,12 +692,13 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1):
     return json.dumps(data, indent=2)
 
 
-def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
+def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=None):
     """Generate a complete markdown triage report from parsed events."""
-    s = summarize(events, top_n)
-    samples = pick_samples(events, samples_n)
-    hist = time_histogram(events, bucket_minutes=hist_minutes)
-    file_summary = per_file_summary(events)
+    a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
+    s = a["summary"]
+    samples = a["samples"]
+    hist = a["hist"]
+    file_summary = a["file_summary"]
 
     md = []
     md.append("# WebSphere/Java Log Triage Report")
@@ -704,7 +726,7 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
     md.append("## Signal Tags")
     md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
     md.append("")
-    causes = likely_causes(events)
+    causes = a["causes"]
     if causes:
         md.append("## Likely Causes & Fixes")
         md.append("")
@@ -718,7 +740,7 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
                 md.append(f"- {fix}")
             md.append("")
 
-    splunk = suggested_splunk_queries(s, causes, hist)
+    splunk = a["splunk"]
     if splunk:
         md.append("## Suggested Splunk Searches")
         md.append("")
@@ -729,7 +751,7 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
             md.append(f"```")
             md.append("")
 
-    hung = hung_thread_drilldown(events)
+    hung = a["hung"]
     if hung:
         md.append("## Hung Thread Drilldown")
         md.append("")
@@ -793,17 +815,18 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
     return "\n".join(md)
 
 
-def render_pdf_report(events, top_n=10, samples_n=5, hist_minutes=1):
+def render_pdf_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=None):
     """Generate a PDF triage report and return the bytes."""
     from fpdf import FPDF
 
-    s = summarize(events, top_n)
-    samples = pick_samples(events, samples_n)
-    hist = time_histogram(events, bucket_minutes=hist_minutes)
-    file_summary = per_file_summary(events)
-    causes = likely_causes(events)
-    splunk = suggested_splunk_queries(s, causes, hist)
-    hung = hung_thread_drilldown(events)
+    a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
+    s = a["summary"]
+    samples = a["samples"]
+    hist = a["hist"]
+    file_summary = a["file_summary"]
+    causes = a["causes"]
+    splunk = a["splunk"]
+    hung = a["hung"]
 
     def _latin1_safe(text):
         """Replace characters that can't be encoded in latin-1."""
@@ -1034,7 +1057,7 @@ def _sanitize_prompt_input(text):
     """Remove XML-like tags and escape XML entities in untrusted input."""
     from xml.sax.saxutils import escape
     # Strip delimiter tags that could break prompt structure
-    text = re.sub(r'</?(?:user_query|log_excerpt|context|system|instructions|report)[^>]*>', '', text)
+    text = re.sub(r'</?(?:user_query|log_excerpt|context|system|system_instruction|instructions|report|domain_knowledge)[^>]*>', '', text)
     # Escape XML entities to prevent &lt;system&gt; style attacks
     return escape(text)
 
@@ -1047,6 +1070,128 @@ SWEDISH_CHEF_STYLE = (
     "must be preserved exactly. Technical terms, code, Splunk queries, and "
     "file paths must remain correct and unmodified."
 )
+
+
+_SKILLS_DIR = Path(__file__).parent / "skills"
+
+_SKILL_TAG_MAP = {
+    "OOM/GC":      ["stacktrace-analysis.md"],
+    "HungThreads": ["thread-correlation.md", "stacktrace-analysis.md"],
+    "DB/Pool":     ["message-codes.md", "splunk-query.md"],
+    "SSL/TLS":     ["security-analysis.md", "splunk-query.md"],
+    "HTTP":        ["servlet-errors.md", "message-codes.md"],
+}
+
+_SKILL_CODE_PREFIX_MAP = {
+    "SRVE":  ["message-codes.md", "servlet-errors.md", "splunk-query.md"],
+    "CWWK":  ["liberty-analysis.md", "message-codes.md"],
+    "CWPKI": ["security-analysis.md", "splunk-query.md"],
+    "WSVR":  ["websphere-startup.md", "thread-correlation.md"],
+    "DSRA":  ["message-codes.md", "splunk-query.md"],
+    "DCSV":  ["log-noise-filter.md"],
+    "HMGR":  ["log-noise-filter.md"],
+    "WTRN":  ["message-codes.md"],
+    "J2CA":  ["message-codes.md"],
+    "CWWKZ": ["deployment-analysis.md"],
+    "CWWKF": ["liberty-analysis.md"],
+    "SESN":  ["message-codes.md", "servlet-errors.md"],
+}
+
+_SKILL_EXCEPTION_MAP = {
+    "ssl":              ["security-analysis.md", "splunk-query.md"],
+    "certificate":      ["security-analysis.md", "splunk-query.md"],
+    "certpath":         ["security-analysis.md", "splunk-query.md"],
+    "pkix":             ["security-analysis.md", "splunk-query.md"],
+    "ltpa":             ["security-analysis.md"],
+    "outofmemory":      ["stacktrace-analysis.md"],
+    "stackoverflow":    ["stacktrace-analysis.md"],
+    "nullpointer":      ["stacktrace-analysis.md"],
+    "classnotfound":    ["stacktrace-analysis.md", "deployment-analysis.md"],
+    "noclassdeffound":  ["stacktrace-analysis.md", "deployment-analysis.md"],
+    "sqlexception":     ["message-codes.md"],
+    "connectexception": ["message-codes.md"],
+    "servlet":          ["servlet-errors.md"],
+}
+
+_SKILL_QUERY_KEYWORDS = {
+    "liberty":    ["liberty-analysis.md"],
+    "startup":    ["websphere-startup.md"],
+    "deploy":     ["deployment-analysis.md"],
+    "noise":      ["log-noise-filter.md"],
+    "splunk":     ["splunk-query.md"],
+    "thread":     ["thread-correlation.md", "stacktrace-analysis.md"],
+    "hung":       ["thread-correlation.md", "stacktrace-analysis.md"],
+    "security":   ["security-analysis.md"],
+    "auth":       ["security-analysis.md"],
+    "login":      ["security-analysis.md"],
+    "servlet":    ["servlet-errors.md"],
+    "stacktrace": ["stacktrace-analysis.md"],
+    "pkix":       ["security-analysis.md", "splunk-query.md"],
+    "certificate":["security-analysis.md"],
+}
+
+MAX_SKILLS = 3
+
+
+def select_skills(match_result, user_query=""):
+    """Select relevant domain skill filenames based on match context and query.
+
+    Returns a deduplicated list of skill filenames (max MAX_SKILLS).
+    Falls back to ['message-codes.md'] if nothing matches.
+    """
+    selected = []
+
+    # Tags
+    for tag in match_result.get("tags") or []:
+        selected.extend(_SKILL_TAG_MAP.get(tag, []))
+
+    # Code prefixes — match longest prefix first
+    for code in match_result.get("codes") or []:
+        prefix = re.match(r'[A-Z]+', code)
+        if prefix:
+            pfx = prefix.group()
+            # Try progressively shorter prefixes (CWWKS -> CWWK -> CWW -> ...)
+            for end in range(len(pfx), 2, -1):
+                if pfx[:end] in _SKILL_CODE_PREFIX_MAP:
+                    selected.extend(_SKILL_CODE_PREFIX_MAP[pfx[:end]])
+                    break
+
+    # Exceptions
+    for exc in match_result.get("exceptions") or []:
+        exc_lower = exc.lower()
+        for keyword, skills in _SKILL_EXCEPTION_MAP.items():
+            if keyword in exc_lower:
+                selected.extend(skills)
+
+    # Query keywords
+    query_lower = user_query.lower()
+    for keyword, skills in _SKILL_QUERY_KEYWORDS.items():
+        if keyword in query_lower:
+            selected.extend(skills)
+
+    # Deduplicate preserving order
+    seen = set()
+    unique = []
+    for s in selected:
+        if s not in seen:
+            seen.add(s)
+            unique.append(s)
+
+    if not unique:
+        unique = ["message-codes.md"]
+
+    return unique[:MAX_SKILLS]
+
+
+def load_skill_content(filenames):
+    """Load and concatenate skill file contents. Skips missing files."""
+    sections = []
+    for fn in filenames:
+        path = _SKILLS_DIR / fn
+        if path.is_file():
+            content = path.read_text(encoding="utf-8").strip()
+            sections.append(f"--- {fn} ---\n{content}")
+    return "\n\n".join(sections)
 
 
 def build_claude_prompt(user_query, match_result, style=None):
@@ -1083,10 +1228,23 @@ def build_claude_prompt(user_query, match_result, style=None):
         parts.append("No exact match was found in the current log. Provide general guidance.")
         parts.append("")
 
+    # Select and inject domain knowledge skills
+    skill_files = select_skills(match_result, user_query)
+    skill_content = load_skill_content(skill_files)
+
     system = CLAUDE_SYSTEM_PROMPT
+    if skill_content:
+        system += (
+            "\n\n<domain_knowledge>\n"
+            "The following domain reference material is relevant to this query. "
+            "Use it to inform your analysis.\n\n"
+            f"{skill_content}\n"
+            "</domain_knowledge>"
+        )
+        print(f"[skills] Selected: {', '.join(skill_files)}", file=sys.stderr)
     if style:
         system += style
-    return {"system": system, "user": "\n".join(parts)}
+    return {"system": system, "user": "\n".join(parts), "skills": skill_files}
 
 
 def claude_cache_key(user_query, match_result):
@@ -1104,6 +1262,34 @@ def claude_cache_key(user_query, match_result):
     parts.append(",".join(sorted(tags)))
     parts.append(match_result.get("match_type") or "none")
     return "|".join(parts)
+
+
+def ask_gemini(prompt: str, api_key: str = "", system: str = "") -> str:
+    """Send a prompt to Google Gemini and return the text response.
+
+    Args:
+        prompt: The user content to send.
+        api_key: Gemini API key. Falls back to GEMINI_API_KEY env var.
+        system: System instruction (kept separate from user content).
+    """
+    import os
+    key = api_key or os.environ.get("GEMINI_API_KEY", "")
+    if not key:
+        raise ValueError("GEMINI_API_KEY environment variable is not set.")
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        raise ImportError(
+            "The `google-generativeai` package is not installed. "
+            "Install with: pip install google-generativeai"
+        )
+    genai.configure(api_key=key)
+    model_kwargs = {}
+    if system:
+        model_kwargs["system_instruction"] = system
+    model = genai.GenerativeModel("gemini-2.5-flash", **model_kwargs)
+    response = model.generate_content(prompt)
+    return response.text
 
 
 def main():

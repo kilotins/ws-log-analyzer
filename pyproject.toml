@@ -7,6 +7,7 @@ dependencies = []
 
 [project.optional-dependencies]
 claude = ["anthropic>=0.40"]
+gemini = ["google-generativeai>=0.5"]
 gui = ["streamlit>=1.30"]
 test = ["pytest>=7"]
 
