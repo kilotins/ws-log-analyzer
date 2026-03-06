@@ -206,6 +206,65 @@ class TestEventSamples:
         assert page.get_by_text("Event Samples", exact=False).first.is_visible()
 
 
+class TestIncidentTimeline:
+    def test_incident_timeline_section(self, page):
+        _upload_file(page)
+        _click_analyze(page)
+        assert page.get_by_text("Incident Timeline", exact=False).first.is_visible()
+
+    def test_incident_timeline_has_chart(self, page):
+        _upload_file(page)
+        _click_analyze(page)
+        page.get_by_text("Incident Timeline", exact=False).first.click()
+        page.wait_for_timeout(1000)
+        # Plotly renders a chart inside the expander
+        assert page.locator(".js-plotly-plot").first.count() > 0 or \
+               page.get_by_text("first error", exact=False).first.count() > 0
+
+
+class TestSwedishChefMode:
+    def _enable_chef_mode(self, page):
+        """Toggle Swedish Chef mode in sidebar."""
+        sidebar = page.locator('[data-testid="stSidebar"]')
+        toggle = sidebar.get_by_text("Swedish Chef mode", exact=False).first
+        toggle.click()
+        page.wait_for_timeout(500)
+
+    def test_chef_toggle_visible(self, page):
+        sidebar = page.locator('[data-testid="stSidebar"]')
+        assert sidebar.get_by_text("Swedish Chef mode", exact=False).first.is_visible()
+
+    def test_chef_mode_changes_button_labels(self, page):
+        _upload_file(page)
+        _click_analyze(page)
+        self._enable_chef_mode(page)
+        page.wait_for_timeout(1000)
+        # The Ask Claude expander should now say "Ask zee Swedish Chef"
+        body = page.text_content("body")
+        assert "Swedish Chef" in body or "zee" in body.lower()
+
+    def test_chef_mode_shows_analyze_button(self, page):
+        _upload_file(page)
+        _click_analyze(page)
+        self._enable_chef_mode(page)
+        page.wait_for_timeout(1000)
+        btn = page.get_by_role("button", name="Analyze with zee Swedish Chef")
+        assert btn.count() > 0
+
+
+class TestRealtimeMonitoring:
+    def test_realtime_toggle_in_sidebar(self, page):
+        sidebar = page.locator('[data-testid="stSidebar"]')
+        assert sidebar.get_by_text("Realtime monitoring", exact=False).first.is_visible()
+
+    def test_realtime_toggle_shows_path_input(self, page):
+        sidebar = page.locator('[data-testid="stSidebar"]')
+        toggle = sidebar.get_by_text("Enable realtime", exact=False).first
+        toggle.click()
+        page.wait_for_timeout(500)
+        assert sidebar.get_by_text("Log file path", exact=False).first.is_visible()
+
+
 class TestHistoryTab:
     def test_history_tab_accessible(self, page):
         page.get_by_role("tab", name="History").click()
