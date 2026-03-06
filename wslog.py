@@ -690,6 +690,120 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1):
     return "\n".join(md)
 
 
+def match_user_query(query, events):
+    """Match a user query (error code, exception, or free text) against parsed events.
+
+    Returns dict with:
+      - matched: bool
+      - match_type: 'code' | 'exception' | 'text' | None
+      - matching_events: list of matching event dicts (max 3)
+      - codes: list of matched WAS codes
+      - exceptions: list of matched exception names
+      - tags: set of tags from matching events
+    """
+    query_upper = query.strip().upper()
+    query_lower = query.strip().lower()
+
+    result = {
+        "matched": False,
+        "match_type": None,
+        "matching_events": [],
+        "codes": [],
+        "exceptions": [],
+        "tags": set(),
+    }
+
+    # Try code match first (e.g. SRVE0293E, J2CA0045E)
+    code_match = WAS_CODE_RE.match(query.strip())
+    if code_match:
+        matched = [e for e in events if e.get("code") and query_upper in e["code"].upper()]
+        if matched:
+            result["matched"] = True
+            result["match_type"] = "code"
+            result["matching_events"] = matched[:3]
+            result["codes"] = list({e["code"] for e in matched})
+            result["tags"] = {tag for e in matched for tag in e.get("tags", [])}
+            result["exceptions"] = list({e["exception"] for e in matched if e.get("exception")})
+            return result
+
+    # Try exception match
+    exc_matches = [e for e in events if e.get("exception") and query_lower in e["exception"].lower()]
+    if exc_matches:
+        result["matched"] = True
+        result["match_type"] = "exception"
+        result["matching_events"] = exc_matches[:3]
+        result["exceptions"] = list({e["exception"] for e in exc_matches})
+        result["codes"] = list({e["code"] for e in exc_matches if e.get("code")})
+        result["tags"] = {tag for e in exc_matches for tag in e.get("tags", [])}
+        return result
+
+    # Free-text search in event text
+    text_matches = [e for e in events if query_lower in e.get("text", "").lower()]
+    if text_matches:
+        result["matched"] = True
+        result["match_type"] = "text"
+        result["matching_events"] = text_matches[:3]
+        result["codes"] = list({e["code"] for e in text_matches if e.get("code")})
+        result["exceptions"] = list({e["exception"] for e in text_matches if e.get("exception")})
+        result["tags"] = {tag for e in text_matches for tag in e.get("tags", [])}
+        return result
+
+    return result
+
+
+def _truncate_event_text(text, max_lines=25):
+    """Truncate event text to max_lines for prompt inclusion."""
+    lines = text.splitlines()
+    if len(lines) <= max_lines:
+        return text
+    return "\n".join(lines[:max_lines]) + "\n...[truncated]..."
+
+
+def build_claude_prompt(user_query, match_result):
+    """Build a sanitized prompt for Claude based on user query and match results.
+
+    Returns the prompt string. All event text is already redacted by parse_file().
+    """
+    parts = [
+        "You are a senior Java/WebSphere operations engineer.",
+        "A user is troubleshooting a WebSphere application server issue.",
+        "Answer concisely. Structure your response as:",
+        "1. **What this usually means**",
+        "2. **Most likely causes**",
+        "3. **What to check next** (specific steps)",
+        "4. **Suggested Splunk searches** (use index=APP sourcetype=WAS as placeholder)",
+        "5. **Confidence / limitations** (what you're less sure about)",
+        "",
+        "Do NOT request secrets, credentials, or raw log files from the user.",
+        "",
+    ]
+
+    parts.append(f"User question: {user_query}")
+    parts.append("")
+
+    if match_result["matched"]:
+        parts.append("Context from the analyzed log file (sanitized):")
+        if match_result["codes"]:
+            parts.append(f"- Matching WAS codes: {', '.join(match_result['codes'])}")
+        if match_result["exceptions"]:
+            parts.append(f"- Matching exceptions: {', '.join(match_result['exceptions'])}")
+        if match_result["tags"]:
+            parts.append(f"- Signal tags: {', '.join(sorted(match_result['tags']))}")
+        parts.append("")
+
+        for i, event in enumerate(match_result["matching_events"][:2], 1):
+            parts.append(f"--- Matching event {i} (sanitized excerpt) ---")
+            parts.append(_truncate_event_text(event.get("text", ""), max_lines=25))
+            parts.append("---")
+            parts.append("")
+    else:
+        parts.append("Note: No exact match was found for this query in the current log analysis results.")
+        parts.append("Please provide general WebSphere/Java troubleshooting guidance based on the user's question.")
+        parts.append("")
+
+    return "\n".join(parts)
+
+
 def main():
     ap = argparse.ArgumentParser(description="WebSphere/Java log analyzer (quick triage).")
     ap.add_argument("paths", nargs="+", help="Log files (supports .gz). Globs allowed by shell.")
