@@ -12,9 +12,10 @@ from wslog import (
     match_user_query, build_claude_prompt, claude_cache_key,
 )
 
-UPLOADS_DIR = Path("uploads")
-REPORTS_DIR = Path("reports")
-CACHE_DIR = Path("cache")
+_APP_DIR = Path(__file__).parent
+UPLOADS_DIR = _APP_DIR / "uploads"
+REPORTS_DIR = _APP_DIR / "reports"
+CACHE_DIR = _APP_DIR / "cache"
 UPLOADS_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
 CACHE_DIR.mkdir(exist_ok=True)
@@ -23,15 +24,19 @@ CACHE_FILE = CACHE_DIR / "claude_responses.json"
 HISTORY_FILE = CACHE_DIR / "claude_history.json"
 
 
-def _load_json_file(path):
-    """Load a JSON file, returning empty dict/list on error."""
+MAX_CACHE_ENTRIES = 100
+MAX_HISTORY_ENTRIES = 50
+
+
+def _load_json_file(path, default):
+    """Load a JSON file, returning default on error."""
     if path.exists():
         try:
             import json
             return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             pass
-    return {} if "responses" in path.name else []
+    return default
 
 
 def _save_json_file(path, data):
@@ -41,20 +46,26 @@ def _save_json_file(path, data):
 
 
 def _load_file_cache():
-    return _load_json_file(CACHE_FILE)
+    return _load_json_file(CACHE_FILE, {})
 
 
 def _save_file_cache(cache):
+    # Evict oldest entries if over limit
+    if len(cache) > MAX_CACHE_ENTRIES:
+        keys = list(cache.keys())
+        for k in keys[:len(keys) - MAX_CACHE_ENTRIES]:
+            del cache[k]
     _save_json_file(CACHE_FILE, cache)
 
 
 def _load_history():
-    data = _load_json_file(HISTORY_FILE)
+    data = _load_json_file(HISTORY_FILE, [])
     return data if isinstance(data, list) else []
 
 
 def _save_history(history):
-    _save_json_file(HISTORY_FILE, history)
+    # Keep only the most recent entries
+    _save_json_file(HISTORY_FILE, history[-MAX_HISTORY_ENTRIES:])
 
 # --- Session state defaults ---
 _STATE_DEFAULTS = {
@@ -261,10 +272,11 @@ def render_likely_causes(causes, events):
     # --- Ask Claude subsection ---
     st.markdown("---")
 
-    # Pre-fill from code button action
+    # Pre-fill from code button action (consume once)
     default_query = ""
     if st.session_state.selected_action == "claude" and st.session_state.selected_code:
         default_query = st.session_state.selected_code
+        st.session_state.selected_action = None
 
     user_query = st.text_input(
         "Ask Claude about an error code, exception, or troubleshooting question",
@@ -293,11 +305,10 @@ def render_likely_causes(causes, events):
                 "splunk_queries": splunk_queries,
                 "timestamp": datetime.now().strftime("%H:%M:%S"),
             }
-            # Avoid duplicate consecutive entries
+            # Avoid duplicate entries for same query
             hist = st.session_state.claude_history
-            if not hist or hist[-1]["query"] != user_query or not from_cache:
+            if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
                 hist.append(entry)
-                # Persist to file
                 _save_history(hist)
 
         if cached:
@@ -330,6 +341,9 @@ def render_likely_causes(causes, events):
                         max_tokens=2048,
                         messages=[{"role": "user", "content": prompt}],
                     )
+                    if not message.content:
+                        st.warning("Claude returned an empty response.")
+                        return
                     answer = message.content[0].text
                     _record_answer(answer)
                     # Store in caches
@@ -601,6 +615,10 @@ with tab_analyze:
             st.session_state.claude_history = []
             st.session_state.selected_code = None
             st.session_state.selected_action = None
+            # Sync to disk
+            if CACHE_FILE.exists():
+                CACHE_FILE.unlink()
+            _save_history([])
 
     # --- Render results from session state (survives reruns) ---
     a = st.session_state.analysis
