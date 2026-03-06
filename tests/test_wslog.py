@@ -779,6 +779,95 @@ def test_likely_causes_in_json_report():
     assert data["likely_causes"][0]["id"] == "oom-gc"
 
 
+# --- Multi-file combined analysis ---
+
+SECOND_LOG = """\
+[10/13/15 08:00:01:000 CEST] 00000200 AppServer     I   WSVR0001I: Server open for e-business
+[10/13/15 08:00:02:000 CEST] 00000201 DataSource    E   J2CA0045E: Connection not available from pool
+[10/13/15 08:00:03:000 CEST] 00000202 WebContainer  W   SRVE0255W: request timeout
+"""
+
+
+@pytest.fixture
+def second_log(tmp_path):
+    p = tmp_path / "second.log"
+    p.write_text(SECOND_LOG)
+    return p
+
+
+def test_multi_file_combined_events(sample_log, second_log):
+    """Events from multiple files should be combined."""
+    events = parse_file(sample_log) + parse_file(second_log)
+    assert len(events) == 8  # 5 from sample + 3 from second
+
+
+def test_multi_file_per_file_summary(sample_log, second_log):
+    """Per-file summary should list each file with correct counts."""
+    events = parse_file(sample_log) + parse_file(second_log)
+    fs = per_file_summary(events)
+    assert len(fs) == 2
+    by_file = {Path(f).name: (t, e) for f, t, e in fs}
+    assert by_file["test.log"] == (5, 1)
+    assert by_file["second.log"] == (3, 1)
+
+
+def test_multi_file_combined_summarize(sample_log, second_log):
+    """Summarize should aggregate across all files."""
+    events = parse_file(sample_log) + parse_file(second_log)
+    s = summarize(events, top_n=10)
+    assert s["total_events"] == 8
+    level_dict = dict(s["levels"])
+    assert level_dict["INFO"] == 4  # 3 from sample + 1 from second
+    assert level_dict["ERROR"] == 2  # 1 from each
+
+
+def test_multi_file_markdown_report_shows_breakdown(sample_log, second_log):
+    """Markdown report should include per-file breakdown when multiple files."""
+    events = parse_file(sample_log) + parse_file(second_log)
+    report = render_markdown_report(events, top_n=5, samples_n=3)
+    assert "## Per-File Breakdown" in report
+    assert "Files: 2" in report
+    assert "8" in report  # total events
+
+
+def test_multi_file_json_report_has_files(sample_log, second_log):
+    """JSON report should list each file with event counts."""
+    events = parse_file(sample_log) + parse_file(second_log)
+    report = render_json_report(events, top_n=5, samples_n=3)
+    data = json.loads(report)
+    assert len(data["files"]) == 2
+    assert data["total_events"] == 8
+    file_events = {Path(f["file"]).name: f["events"] for f in data["files"]}
+    assert file_events["test.log"] == 5
+    assert file_events["second.log"] == 3
+
+
+def test_multi_file_cli_output(sample_log, second_log, tmp_path):
+    """CLI should report per-file counts and combined total."""
+    out = tmp_path / "report.md"
+    result = subprocess.run(
+        [sys.executable, "wslog.py", str(sample_log), str(second_log), "--out", str(out)],
+        capture_output=True, text=True,
+        cwd=os.path.dirname(os.path.dirname(__file__)),
+    )
+    assert result.returncode == 0
+    assert "test.log: 5 events" in result.stderr
+    assert "second.log: 3 events" in result.stderr
+    assert "Combined: 8 events from 2 files" in result.stderr
+    report = out.read_text()
+    assert "Files: 2" in report
+    assert "Per-File Breakdown" in report
+
+
+def test_multi_file_signals_combined(sample_log, second_log):
+    """Signal tags should aggregate across files."""
+    events = parse_file(sample_log) + parse_file(second_log)
+    s = summarize(events, top_n=10)
+    tag_dict = dict(s["tags"])
+    assert "SSL/TLS" in tag_dict  # from sample_log
+    assert "DB/Pool" in tag_dict  # from second_log
+
+
 def test_likely_causes_not_in_report_when_none():
     events = [_make_event("INFO: everything is fine")]
     report = render_markdown_report(events, top_n=5, samples_n=5)
