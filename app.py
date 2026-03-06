@@ -339,7 +339,8 @@ def render_likely_causes(causes, events):
                     message = client.messages.create(
                         model="claude-sonnet-4-6",
                         max_tokens=2048,
-                        messages=[{"role": "user", "content": prompt}],
+                        system=prompt["system"],
+                        messages=[{"role": "user", "content": prompt["user"]}],
                     )
                     if not message.content:
                         st.warning("Claude returned an empty response.")
