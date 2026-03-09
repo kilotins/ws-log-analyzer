@@ -325,3 +325,9 @@ index=websphere "af type="
 4. **If young GC pauses are long**: Nursery/young gen too large, reduce `-Xmn` or let GC auto-size
 5. **Consider collector change**: G1GC or ZGC for latency-sensitive workloads
 6. **Correlate**: Match GC pause timestamps with WSVR0605W to confirm GC is causing hung threads
+
+## See Also
+
+- [thread-correlation.md](thread-correlation.md) — Hung threads caused by GC pauses
+- [stacktrace-analysis.md](stacktrace-analysis.md) — OutOfMemoryError stacktraces and heap analysis
+- [log-noise-filter.md](log-noise-filter.md) — Filtering verbose GC noise from actionable errors

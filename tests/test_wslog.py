@@ -7,7 +7,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from wslog import (
-    extract_ts, redact, parse_file, summarize, bucket_tags,
+    extract_ts, redact, parse_file, parse_file_iter, summarize, bucket_tags,
     time_histogram, render_histogram, pick_samples, per_file_summary,
     classify_event, _parse_ts_parts, render_markdown_report, render_json_report,
     render_pdf_report, likely_causes, suggested_splunk_queries, hung_thread_drilldown,
@@ -15,7 +15,7 @@ from wslog import (
     match_user_query, build_claude_prompt, claude_cache_key, _truncate_event_text, _sanitize_prompt_input,
     select_skills, load_skill_content, MAX_SKILLS, precompute_analysis,
     render_csv_report, render_xml_report,
-    estimate_tokens, _load_heuristics_from_yaml,
+    estimate_tokens, _load_heuristics_from_yaml, _discover_skills,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -2449,6 +2449,57 @@ def test_redact_multiword_stops_at_comma():
     assert "safe" in result
 
 
+# ── 14.5: Azure SAS token and Authorization Digest redaction ─────────
+
+def test_redact_azure_sas_token():
+    """Azure SAS token signature should be redacted."""
+    text = "https://myaccount.blob.core.windows.net/container/blob?sv=2021-06-08&sig=abc123DEF456%2Bxyz%3D&se=2025-01-01"
+    result = redact(text)
+    assert "abc123DEF456" not in result
+    assert "sig=***REDACTED***" in result
+    assert "sv=2021-06-08" in result  # non-secret param preserved
+
+
+def test_redact_azure_sas_case_insensitive():
+    """Azure SAS redaction should be case-insensitive."""
+    text = "url?SIG=MySecretSignature123"
+    result = redact(text)
+    assert "MySecretSignature123" not in result
+    assert "***REDACTED***" in result
+
+
+def test_redact_authorization_digest():
+    """Authorization Digest header should be redacted."""
+    text = 'Authorization: Digest username="admin",realm="test",nonce="abc123",response="def456"'
+    result = redact(text)
+    assert "username=" not in result
+    assert "Authorization: Digest ***REDACTED***" in result
+
+
+def test_redact_authorization_digest_case_insensitive():
+    """Authorization Digest redaction should be case-insensitive."""
+    text = "authorization: digest abc123secret"
+    result = redact(text)
+    assert "abc123secret" not in result
+    assert "***REDACTED***" in result
+
+
+def test_redact_azure_sas_preserves_surrounding():
+    """Azure SAS redaction should preserve surrounding text."""
+    text = "Connecting to storage sig=SECRETVALUE&timeout=30"
+    result = redact(text)
+    assert "SECRETVALUE" not in result
+    assert "Connecting to storage" in result
+
+
+def test_redact_authorization_digest_preserves_surrounding():
+    """Digest auth redaction should preserve surrounding log text."""
+    text = "[2025-01-01 12:00:00] Request header: Authorization: Digest credentials123 -- response 401"
+    result = redact(text)
+    assert "credentials123" not in result
+    assert "[2025-01-01 12:00:00]" in result
+
+
 # ── 11.2: SHA-256 cache keys ─────────────────────────────────────────
 
 def test_claude_cache_key_is_sha256_hex():
@@ -2549,3 +2600,163 @@ def test_load_heuristics_from_yaml_patterns_are_compiled():
         assert isinstance(entry["match"], _re.Pattern), (
             f"'match' is not a compiled regex: {type(entry['match'])}"
         )
+
+
+# --- 17.1 Streaming parser parse_file_iter ---
+
+class TestParseFileIter:
+    """Tests for the streaming generator-based parser."""
+
+    def test_parse_file_iter_yields_same_as_parse_file(self, tmp_path):
+        """parse_file_iter should yield the exact same events as parse_file."""
+        content = SAMPLE_LOG
+        p = tmp_path / "sample.log"
+        p.write_text(content)
+        expected = parse_file(p)
+        from_iter = list(parse_file_iter(p))
+        assert len(from_iter) == len(expected)
+        for a, b in zip(from_iter, expected):
+            assert a == b
+
+    def test_parse_file_iter_with_stacktrace(self, tmp_path):
+        """parse_file_iter should handle stacktraces identically to parse_file."""
+        p = tmp_path / "stack.log"
+        p.write_text(STACKTRACE_LOG)
+        expected = parse_file(p)
+        from_iter = list(parse_file_iter(p))
+        assert len(from_iter) == len(expected)
+        for a, b in zip(from_iter, expected):
+            assert a == b
+
+    def test_parse_file_iter_with_preamble(self, tmp_path):
+        """parse_file_iter should skip preamble lines like parse_file."""
+        p = tmp_path / "preamble.log"
+        p.write_text(PREAMBLE_LOG)
+        expected = parse_file(p)
+        from_iter = list(parse_file_iter(p))
+        assert len(from_iter) == len(expected)
+        for a, b in zip(from_iter, expected):
+            assert a == b
+
+    def test_parse_file_iter_with_max_lines(self, tmp_path):
+        """parse_file_iter should respect max_lines parameter."""
+        p = tmp_path / "sample.log"
+        p.write_text(SAMPLE_LOG)
+        expected = parse_file(p, max_lines=3)
+        from_iter = list(parse_file_iter(p, max_lines=3))
+        assert len(from_iter) == len(expected)
+        for a, b in zip(from_iter, expected):
+            assert a == b
+
+    def test_parse_file_iter_empty_file(self, tmp_path):
+        """parse_file_iter should yield nothing for an empty file."""
+        p = tmp_path / "empty.log"
+        p.write_text("")
+        assert list(parse_file_iter(p)) == []
+
+    def test_parse_file_iter_is_generator(self, tmp_path):
+        """parse_file_iter should return a generator, not a list."""
+        import types
+        p = tmp_path / "sample.log"
+        p.write_text(SAMPLE_LOG)
+        result = parse_file_iter(p)
+        assert isinstance(result, types.GeneratorType)
+
+
+# --- 17.2 MAX_UPLOAD_MB constant ---
+
+def test_max_upload_mb_constant_exists():
+    """MAX_UPLOAD_MB should be defined in app_constants."""
+    from app_constants import MAX_UPLOAD_MB
+    assert isinstance(MAX_UPLOAD_MB, int)
+    assert MAX_UPLOAD_MB == 200
+
+
+# --- 17.3 likely_causes pre-filtering regression test ---
+
+def test_likely_causes_prefiltering_regression():
+    """Verify likely_causes returns same results with pre-filtering optimization."""
+    events = [
+        {"text": "CWPKI0022E: SSL HANDSHAKE FAILURE: PKIX path building failed: java.security.cert.CertPathBuilderException"},
+        {"text": "J2CA0045E: Connection pool exhausted for datasource jdbc/myDS"},
+        {"text": "WSVR0605W: Thread WebContainer : 5 has been active for 623,456 milliseconds"},
+        {"text": "OutOfMemoryError: Java heap space"},
+        {"text": "ARFM5007I: config loaded"},  # should not match any heuristic
+    ]
+    results = likely_causes(events)
+    # Should detect SSL, DB pool, hung threads, OOM
+    ids = {r["id"] for r in results}
+    assert "ssl-trust" in ids
+    assert "db-pool" in ids
+    assert "hung-threads" in ids
+    assert "oom-gc" in ids
+    # Each should have count == 1
+    for r in results:
+        assert r["count"] == 1
+    # INFO event should not trigger any heuristic
+    assert len(results) == 4
+
+
+def test_likely_causes_prefiltering_no_false_negatives():
+    """Every heuristic that would match must still be found after pre-filtering."""
+    # Test with events that match multiple heuristics
+    events = [
+        {"text": "SSLHandshakeException: PKIX path building failed"},
+        {"text": "Timeout waiting for idle object in connection pool"},
+        {"text": "ThreadMonitor: hung thread detected"},
+        {"text": "GC overhead limit exceeded"},
+        {"text": "SESN0066E: Session invalidated"},
+        {"text": "ClassNotFoundException: com.example.MyClass"},
+        {"text": "DSRA0010E: Cannot get a connection from data source"},
+        {"text": "SRVE0293E: Servlet Error"},
+        {"text": "CWWKZ0002E: Application failed to start"},
+        {"text": "WTRN0006W: Transaction timed out"},
+        {"text": "Authorization denied for user"},
+        {"text": "CWNEN1001E: JNDI lookup not found"},
+        {"text": "Address already in use on port 9443"},
+        {"text": "CWWKS3005E: LDAP connection failed"},
+        {"text": "CWPKI0033E: Certificate expired"},
+        {"text": "CWWKG0028A: Config error in xml"},
+        {"text": "CWWKZ0014W: context root conflict"},
+    ]
+    results = likely_causes(events)
+    ids = {r["id"] for r in results}
+    # All 17 heuristics should match
+    expected_ids = {
+        "ssl-trust", "db-pool", "hung-threads", "oom-gc", "session-error",
+        "classloader", "datasource-down", "servlet-error", "deploy-fail",
+        "transaction-timeout", "authz-denied", "jndi-lookup-fail",
+        "port-bind-fail", "ldap-connection-fail", "cert-expiry",
+        "config-error", "context-root-conflict",
+    }
+    assert ids == expected_ids
+
+
+# --- 17.4 Dynamic skill discovery ---
+
+def test_discover_skills_returns_md_files():
+    """_discover_skills should return a list of .md filenames from the skills/ directory."""
+    result = _discover_skills()
+    assert isinstance(result, list)
+    assert len(result) > 0
+    for name in result:
+        assert name.endswith(".md"), f"Expected .md file, got: {name}"
+
+
+def test_discover_skills_includes_known_files():
+    """Known skill files should be present in discovery results."""
+    result = _discover_skills()
+    assert "message-codes.md" in result
+    assert "stacktrace-analysis.md" in result
+    assert "thread-correlation.md" in result
+
+
+def test_select_skills_filters_nonexistent():
+    """select_skills should filter out skill filenames that don't exist on disk."""
+    # A query that would match via keyword but the result is validated against disk
+    match_result = {"tags": ["OOM/GC"], "codes": [], "exceptions": []}
+    skills = select_skills(match_result)
+    # All returned skills should actually exist
+    from wslog import _SKILLS_DIR
+    for s in skills:
+        assert (_SKILLS_DIR / s).is_file(), f"Returned skill does not exist: {s}"

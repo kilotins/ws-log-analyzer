@@ -131,3 +131,9 @@ Assign a noise score (0.0 = pure signal, 1.0 = pure noise) to each event:
 | On never-filter list | score = 0.0 |
 
 Events with score > 0.7 are candidates for filtering. Always review before permanently suppressing.
+
+## See Also
+
+- [message-codes.md](message-codes.md) — Identifying safe-to-ignore I-suffix codes
+- [splunk-query.md](splunk-query.md) — Splunk queries to measure noise ratios
+- [gc-performance.md](gc-performance.md) — Filtering verbose GC log noise

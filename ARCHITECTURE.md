@@ -2,14 +2,15 @@
 
 ```
 ws-log-analyzer/
-├── wslog.py              # Core engine + CLI (~1733 lines, all logic here)
-├── app.py                # Streamlit GUI entry point (646 lines)
-├── app_ai.py             # AI provider orchestration (655 lines)
-├── app_render.py         # Report rendering UI (510 lines)
-├── app_audit.py          # Audit report generation (292 lines)
-├── app_realtime.py       # Realtime log monitoring (150 lines)
+├── wslog.py              # Core engine + CLI (~1759 lines, all logic here)
+├── app.py                # Streamlit GUI entry point (~658 lines)
+├── app_ai.py             # AI provider orchestration (~665 lines)
+├── app_render.py         # Report rendering UI (~503 lines)
+├── app_audit.py          # Audit report generation (~381 lines)
+├── app_realtime.py       # Realtime log monitoring (~154 lines)
+├── app_constants.py      # Shared constants (29 lines)
 ├── tests/
-│   ├── test_wslog.py     # 299 pytest unit tests for core engine
+│   ├── test_wslog.py     # 306 pytest unit tests for core engine
 │   ├── test_app_helpers.py  # 92 pytest unit tests for app helpers
 │   └── test_app_e2e.py   # 27 Playwright end-to-end tests
 ├── skills/               # Domain knowledge (10 files: message-codes, stacktrace-analysis, etc.)
@@ -29,7 +30,7 @@ ws-log-analyzer/
 └── cache/                # AI response cache + history (runtime, gitignored)
 ```
 
-## `wslog.py` — Core Engine + CLI (~1733 lines)
+## `wslog.py` — Core Engine + CLI (~1759 lines)
 
 The entire analysis pipeline lives in one file with no required dependencies (stdlib only). It breaks down into four layers:
 
@@ -102,7 +103,7 @@ Functions that consume parsed events to produce insights:
 
 ## `app.py` — Streamlit GUI (split across modules)
 
-UI layer that imports from `wslog.py`. No analysis logic lives here. The GUI is split into modules: `app.py` (646 lines, entry point and layout), `app_ai.py` (655 lines, AI provider orchestration), `app_render.py` (510 lines, report rendering), `app_audit.py` (292 lines, audit report generation), and `app_realtime.py` (150 lines, realtime log monitoring).
+UI layer that imports from `wslog.py`. No analysis logic lives here. The GUI is split into modules: `app.py` (~658 lines, entry point and layout), `app_ai.py` (~665 lines, AI provider orchestration), `app_render.py` (~503 lines, report rendering), `app_audit.py` (~381 lines, audit report generation), `app_realtime.py` (~154 lines, realtime log monitoring), and `app_constants.py` (29 lines, shared constants).
 
 ### Key GUI Features
 

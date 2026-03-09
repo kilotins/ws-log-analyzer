@@ -26,3 +26,6 @@ AI_RATE_LIMIT_SECONDS = 2.0
 
 # Maximum characters of event text shown in reports
 MAX_EVENT_TEXT = 4000
+
+# Hard upload size limit (MB) — files exceeding this are rejected
+MAX_UPLOAD_MB = 200

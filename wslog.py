@@ -77,6 +77,10 @@ SECRET_REPLACERS = [
     (re.compile(r'(?i)(authorization:\s*basic\s+)[A-Za-z0-9+/=]+'), r'\1***REDACTED***'),
     # PEM private key blocks
     (re.compile(r'-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |DSA )?PRIVATE KEY-----'), '***PEM_KEY_REDACTED***'),
+    # Azure SAS token signatures
+    (re.compile(r'(?i)(sig=)[A-Za-z0-9%+/=]+'), r'\1***REDACTED***'),
+    # Authorization Digest header
+    (re.compile(r'(?i)(authorization:\s*digest\s+)\S+'), r'\1***REDACTED***'),
 ]
 
 def open_text(path: Path) -> IO[str]:
@@ -165,34 +169,27 @@ def classify_event(text: str) -> dict[str, object]:
     }
 
 
-def parse_file(path: Path, max_lines: int | None = None) -> list[dict[str, object]]:
-    events = []
+def parse_file_iter(path: Path, max_lines: int | None = None):
+    """Generator-based parser that yields event dicts one at a time.
+
+    Uses the same logic as parse_file() (flush, classify_event, stacktrace
+    handling) but yields instead of accumulating, so arbitrarily large files
+    can be processed without holding all events in memory.
+    """
     current = []
     current_meta = {"file": str(path), "first_ts": None}
     has_stacktrace = False
     seen_first_ts = False
 
-    def flush():
-        nonlocal current, current_meta, has_stacktrace
-        if not current:
-            return
-        # Skip preamble block (lines before first timestamp in the file)
-        if not seen_first_ts:
-            current = []
-            current_meta = {"file": str(path), "first_ts": None}
-            has_stacktrace = False
-            return
-
+    def _build_event():
+        """Build an event dict from the current accumulator (non-destructive)."""
         text = "\n".join(current)
         text = redact(text)
         meta = classify_event(text)
         meta["file"] = current_meta["file"]
         meta["ts"] = current_meta["first_ts"]
         meta["text"] = text
-        events.append(meta)
-        current = []
-        current_meta = {"file": str(path), "first_ts": None}
-        has_stacktrace = False
+        return meta
 
     with open_text(path) as f:
         for i, line in enumerate(f, start=1):
@@ -203,7 +200,12 @@ def parse_file(path: Path, max_lines: int | None = None) -> list[dict[str, objec
 
             # Heuristic: new event starts when a timestamp appears AND we are not inside a stacktrace block
             if ts and current and not STACK_LINE_RE.match(line) and not CAUSED_BY_RE.match(line):
-                flush()
+                if seen_first_ts:
+                    yield _build_event()
+                current = []
+                current_meta = {"file": str(path), "first_ts": None}
+                has_stacktrace = False
+
             if ts and current_meta["first_ts"] is None:
                 current_meta["first_ts"] = ts
             if ts and not seen_first_ts:
@@ -211,7 +213,11 @@ def parse_file(path: Path, max_lines: int | None = None) -> list[dict[str, objec
 
             # If we hit blank line after a stacktrace, flush before appending
             if not line.strip() and current and has_stacktrace:
-                flush()
+                if seen_first_ts:
+                    yield _build_event()
+                current = []
+                current_meta = {"file": str(path), "first_ts": None}
+                has_stacktrace = False
                 continue
 
             current.append(line)
@@ -220,8 +226,17 @@ def parse_file(path: Path, max_lines: int | None = None) -> list[dict[str, objec
             if STACK_LINE_RE.match(line) or CAUSED_BY_RE.match(line):
                 has_stacktrace = True
 
-    flush()
-    return events
+    # Flush remaining
+    if current and seen_first_ts:
+        yield _build_event()
+
+
+def parse_file(path: Path, max_lines: int | None = None) -> list[dict[str, object]]:
+    """Parse a log file and return a list of event dicts.
+
+    Delegates to parse_file_iter() internally.
+    """
+    return list(parse_file_iter(path, max_lines=max_lines))
 
 def summarize(events: list[dict], top_n: int) -> dict[str, object]:
     by_level = Counter(e["level"] or "UNKNOWN" for e in events)
@@ -717,10 +732,61 @@ _HEURISTICS_INLINE = [
 _HEURISTICS = _load_heuristics_from_yaml() or _HEURISTICS_INLINE
 
 
+def _heuristic_keywords(h: dict) -> list[str]:
+    """Extract quick-check keywords from a heuristic's regex pattern.
+
+    Returns lowercase substrings that can be used for a fast 'in' check
+    before running the full regex.  Only literal fragments of 4+ chars
+    are considered (no regex metacharacters).
+    """
+    pattern = h["match"].pattern
+    # Split on regex alternation and extract plain-text fragments
+    parts = re.split(r'[|()\\.\[\]*+?{}^$]', pattern)
+    keywords = [p.strip().lower() for p in parts if len(p.strip()) >= 4 and p.strip().isalnum()]
+    # Also include fragments with spaces/hyphens (e.g. "hung thread")
+    parts2 = re.split(r'[|()\\*+?{}^$\[\]]', pattern)
+    for p in parts2:
+        p = p.strip().lower()
+        if len(p) >= 4 and all(c.isalnum() or c in ' .-_' for c in p):
+            if p not in keywords:
+                keywords.append(p)
+    return keywords
+
+
 def likely_causes(events: list[dict]) -> list[dict[str, object]]:
-    """Return list of {id, title, count, cause, fixes} for detected heuristic patterns."""
-    results = []
+    """Return list of {id, title, count, cause, fixes} for detected heuristic patterns.
+
+    Uses a two-pass approach for performance:
+    1. First pass: scan all event texts to build a set of candidate heuristic
+       indices using cheap keyword checks (O(n) string 'in' tests).
+    2. Second pass: only run the full regex for candidate heuristics, reducing
+       from O(n * H) to O(n * k) where k << H.
+    """
+    # Build keyword index for each heuristic
+    h_keywords = []
     for h in _HEURISTICS:
+        h_keywords.append(_heuristic_keywords(h))
+
+    # First pass: find candidate heuristics via keyword pre-filter
+    candidates = set()
+    for e in events:
+        text_lower = e.get("text", "").lower()
+        for idx, kws in enumerate(h_keywords):
+            if idx in candidates:
+                continue
+            # If any keyword appears in the text, this heuristic is a candidate
+            for kw in kws:
+                if kw in text_lower:
+                    candidates.add(idx)
+                    break
+        # Early exit: all heuristics are candidates
+        if len(candidates) == len(_HEURISTICS):
+            break
+
+    # Second pass: count matches only for candidate heuristics
+    results = []
+    for idx in candidates:
+        h = _HEURISTICS[idx]
         count = sum(1 for e in events if h["match"].search(e.get("text", "")))
         if count:
             results.append({
@@ -1480,11 +1546,19 @@ _SKILL_QUERY_KEYWORDS = {
 }
 
 
+def _discover_skills() -> list[str]:
+    """Scan the skills/ directory and return a sorted list of available .md filenames."""
+    if not _SKILLS_DIR.is_dir():
+        return []
+    return sorted(f.name for f in _SKILLS_DIR.iterdir() if f.is_file() and f.suffix == ".md")
+
+
 def select_skills(match_result: dict, user_query: str = "") -> list[str]:
     """Select relevant domain skill filenames based on match context and query.
 
     Returns a deduplicated list of skill filenames (max MAX_SKILLS).
     Falls back to ['message-codes.md'] if nothing matches.
+    Validates that returned filenames actually exist in the skills/ directory.
     """
     selected = []
 
@@ -1524,8 +1598,12 @@ def select_skills(match_result: dict, user_query: str = "") -> list[str]:
             seen.add(s)
             unique.append(s)
 
+    # Validate that selected skill files actually exist on disk
+    available = set(_discover_skills())
+    unique = [s for s in unique if s in available]
+
     if not unique:
-        unique = ["message-codes.md"]
+        unique = ["message-codes.md"] if "message-codes.md" in available else []
 
     return unique[:MAX_SKILLS]
 

@@ -157,3 +157,9 @@ Key sections:
 4. If most WAITING → resource exhaustion (DB pool, external service)
 5. If most RUNNABLE at same line → CPU bottleneck in application code
 6. Short-term: restart server. Long-term: fix the root cause identified above
+
+## See Also
+
+- [gc-performance.md](gc-performance.md) — GC pauses causing hung thread alerts
+- [stacktrace-analysis.md](stacktrace-analysis.md) — Reading thread dump stacktraces
+- [splunk-query.md](splunk-query.md) — Splunk queries for hung thread patterns

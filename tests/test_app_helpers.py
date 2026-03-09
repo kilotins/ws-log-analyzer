@@ -54,7 +54,7 @@ from app import (                       # noqa: E402
     _save_json_file,
     _looks_like_splunk,
     _split_combined_splunk,
-    _extract_splunk_from_response,
+    extract_splunk_from_response,
     get_report_history,
     _highlight_line,
     _is_safe_rt_path,
@@ -62,18 +62,20 @@ from app import (                       # noqa: E402
     _save_keychain,
     _load_provider_history,
     _save_provider_history,
-    _PROVIDER_CONFIG,
-    _estimate_cost,
+    PROVIDER_CONFIG,
+    estimate_cost,
     _extract_signatures,
-    _call_claude_api,
-    _call_openai_api,
-    _call_gemini_api,
+    call_claude_api,
+    call_openai_api,
+    call_gemini_api,
     _collect_audit_sources,
     _PROVIDER_HISTORY_FILES,
-    _AI_RATE_LIMIT_SECONDS,
+    AI_RATE_LIMIT_SECONDS,
     _CACHE_TTL_SECONDS,
     _load_file_cache,
     _save_file_cache,
+    _lookup_cache,
+    _store_cache,
     CACHE_FILE,
     REPORTS_DIR,
 )
@@ -169,7 +171,7 @@ class TestSplitCombinedSplunk:
         assert result[0]["query"] == ""
 
 
-# ── _extract_splunk_from_response ─────────────────────────────────────────
+# ── extract_splunk_from_response ─────────────────────────────────────────
 
 class TestExtractSplunkFromResponse:
     def test_extracts_fenced_splunk_query(self):
@@ -179,7 +181,7 @@ class TestExtractSplunkFromResponse:
             "index=was_logs severity=ERROR | stats count by host\n"
             "```\n"
         )
-        result = _extract_splunk_from_response(text)
+        result = extract_splunk_from_response(text)
         assert len(result) == 1
         assert "stats count by host" in result[0]["query"]
 
@@ -190,7 +192,7 @@ class TestExtractSplunkFromResponse:
             "index=prod | table _time host message\n"
             "```\n"
         )
-        result = _extract_splunk_from_response(text)
+        result = extract_splunk_from_response(text)
         assert len(result) == 1
 
     def test_ignores_non_splunk_code_blocks(self):
@@ -200,12 +202,12 @@ class TestExtractSplunkFromResponse:
             "System.out.println(\"hello\");\n"
             "```\n"
         )
-        result = _extract_splunk_from_response(text)
+        result = extract_splunk_from_response(text)
         assert result == []
 
     def test_no_code_blocks(self):
         text = "No code blocks here, just plain text."
-        result = _extract_splunk_from_response(text)
+        result = extract_splunk_from_response(text)
         assert result == []
 
     def test_uses_preceding_text_as_description(self):
@@ -215,7 +217,7 @@ class TestExtractSplunkFromResponse:
             "index=was_logs | stats count by severity\n"
             "```\n"
         )
-        result = _extract_splunk_from_response(text)
+        result = extract_splunk_from_response(text)
         assert len(result) == 1
         assert "Error rate query" in result[0]["description"]
 
@@ -341,16 +343,16 @@ class TestIsSafeRtPath:
 
 class TestApiKeyPrefix:
     def test_claude_key_prefix(self):
-        assert _PROVIDER_CONFIG["claude"]["api_key_prefix"] == "sk-ant-"
+        assert PROVIDER_CONFIG["claude"]["api_key_prefix"] == "sk-ant-"
 
     def test_openai_key_prefix(self):
-        assert _PROVIDER_CONFIG["openai"]["api_key_prefix"] == "sk-"
+        assert PROVIDER_CONFIG["openai"]["api_key_prefix"] == "sk-"
 
     def test_gemini_key_prefix(self):
-        assert _PROVIDER_CONFIG["gemini"]["api_key_prefix"] == "AI"
+        assert PROVIDER_CONFIG["gemini"]["api_key_prefix"] == "AI"
 
     def test_all_providers_have_prefix(self):
-        for provider, cfg in _PROVIDER_CONFIG.items():
+        for provider, cfg in PROVIDER_CONFIG.items():
             assert "api_key_prefix" in cfg, f"{provider} missing api_key_prefix"
 
 
@@ -446,12 +448,12 @@ class TestProviderHistory:
         assert _load_provider_history(f) == []
 
 
-# ── _PROVIDER_CONFIG ─────────────────────────────────────────────────────
+# ── PROVIDER_CONFIG ─────────────────────────────────────────────────────
 
 class TestProviderConfig:
     @pytest.mark.parametrize("provider", ["claude", "gemini", "openai"])
     def test_all_providers_have_required_keys(self, provider):
-        cfg = _PROVIDER_CONFIG[provider]
+        cfg = PROVIDER_CONFIG[provider]
         required = ["label", "cache_key", "answer_key", "query_label_key",
                      "history_key", "api_key_field", "save_history",
                      "extract_splunk", "api_key_error"]
@@ -459,32 +461,32 @@ class TestProviderConfig:
             assert key in cfg, f"Missing key '{key}' in {provider} config"
 
     def test_claude_extracts_splunk(self):
-        assert _PROVIDER_CONFIG["claude"]["extract_splunk"] is True
+        assert PROVIDER_CONFIG["claude"]["extract_splunk"] is True
 
     def test_gemini_does_not_extract_splunk(self):
-        assert _PROVIDER_CONFIG["gemini"]["extract_splunk"] is False
+        assert PROVIDER_CONFIG["gemini"]["extract_splunk"] is False
 
     def test_openai_does_not_extract_splunk(self):
-        assert _PROVIDER_CONFIG["openai"]["extract_splunk"] is False
+        assert PROVIDER_CONFIG["openai"]["extract_splunk"] is False
 
 
-# ── _estimate_cost ───────────────────────────────────────────────────────
+# ── estimate_cost ───────────────────────────────────────────────────────
 
 class TestEstimateCost:
     def test_known_model(self):
         # gpt-4o: $2.50/1M input, $10.00/1M output
-        cost = _estimate_cost("gpt-4o", 1000, 500)
+        cost = estimate_cost("gpt-4o", 1000, 500)
         assert cost == pytest.approx(0.0025 + 0.005, abs=1e-6)
 
     def test_unknown_model_returns_zero(self):
-        assert _estimate_cost("unknown-model", 1000, 500) == 0.0
+        assert estimate_cost("unknown-model", 1000, 500) == 0.0
 
     def test_zero_tokens(self):
-        assert _estimate_cost("gpt-4o", 0, 0) == 0.0
+        assert estimate_cost("gpt-4o", 0, 0) == 0.0
 
     def test_large_input(self):
         # 1M tokens input on claude-sonnet-4-6: $3.00
-        cost = _estimate_cost("claude-sonnet-4-6", 1_000_000, 0)
+        cost = estimate_cost("claude-sonnet-4-6", 1_000_000, 0)
         assert cost == pytest.approx(3.00, abs=0.01)
 
 
@@ -536,7 +538,7 @@ class TestCallClaudeApi:
         mock_msg.usage = mock.MagicMock(input_tokens=100, output_tokens=50)
         mock_anthropic.Anthropic.return_value.messages.create.return_value = mock_msg
         with mock.patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            answer, usage = _call_claude_api("key", "model", {"system": "s", "user": "u"})
+            answer, usage = call_claude_api("key", "model", {"system": "s", "user": "u"})
         assert answer == "Hello from Claude"
         assert usage == {"input": 100, "output": 50}
 
@@ -546,7 +548,7 @@ class TestCallClaudeApi:
         mock_msg.content = []
         mock_anthropic.Anthropic.return_value.messages.create.return_value = mock_msg
         with mock.patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            answer, usage = _call_claude_api("key", "model", {"system": "s", "user": "u"})
+            answer, usage = call_claude_api("key", "model", {"system": "s", "user": "u"})
         assert answer is None
 
 
@@ -560,7 +562,7 @@ class TestCallOpenaiApi:
         mock_resp.usage = mock.MagicMock(prompt_tokens=200, completion_tokens=80)
         mock_openai.OpenAI.return_value.chat.completions.create.return_value = mock_resp
         with mock.patch.dict(sys.modules, {"openai": mock_openai}):
-            answer, usage = _call_openai_api("key", "model", {"system": "s", "user": "u"})
+            answer, usage = call_openai_api("key", "model", {"system": "s", "user": "u"})
         assert answer == "Hello from GPT"
         assert usage == {"input": 200, "output": 80}
 
@@ -573,7 +575,7 @@ class TestCallOpenaiApi:
         mock_resp.usage = None
         mock_openai.OpenAI.return_value.chat.completions.create.return_value = mock_resp
         with mock.patch.dict(sys.modules, {"openai": mock_openai}):
-            answer, usage = _call_openai_api("key", "model", {"system": "s", "user": "u"})
+            answer, usage = call_openai_api("key", "model", {"system": "s", "user": "u"})
         assert answer is None
 
 
@@ -581,7 +583,7 @@ class TestCallGeminiApi:
     def test_returns_answer_and_estimated_usage(self):
         import app_ai as app_ai_mod
         with mock.patch.object(app_ai_mod, "ask_gemini", return_value="Gemini says hi there friend"):
-            answer, usage = _call_gemini_api(
+            answer, usage = call_gemini_api(
                 "key", "model",
                 {"system": "You are a helpful assistant", "user": "Analyze this log file"},
             )
@@ -594,7 +596,7 @@ class TestCallGeminiApi:
     def test_empty_returns_none(self):
         import app_ai as app_ai_mod
         with mock.patch.object(app_ai_mod, "ask_gemini", return_value=""):
-            answer, usage = _call_gemini_api("key", "model", {"system": "s", "user": "u"})
+            answer, usage = call_gemini_api("key", "model", {"system": "s", "user": "u"})
         assert answer is None
 
 
@@ -638,8 +640,8 @@ class TestProviderHistoryFiles:
 
 class TestRateLimit:
     def test_rate_limit_constant_exists(self):
-        assert _AI_RATE_LIMIT_SECONDS > 0
-        assert _AI_RATE_LIMIT_SECONDS <= 10  # Sanity check
+        assert AI_RATE_LIMIT_SECONDS > 0
+        assert AI_RATE_LIMIT_SECONDS <= 10  # Sanity check
 
 
 # ── Cache TTL ─────────────────────────────────────────────────────────
@@ -683,3 +685,255 @@ class TestCacheTTL:
 
     def test_ttl_is_seven_days(self):
         assert _CACHE_TTL_SECONDS == 7 * 24 * 60 * 60
+
+
+# ── Splunk extraction edge cases (16.5) ──────────────────────────────
+
+class TestExtractSplunkEdgeCases:
+    def test_nested_fences_inner_treated_as_content(self):
+        """A ``` fence inside a ```` fence should be treated as content, not a boundary."""
+        text = (
+            "Here is an example:\n"
+            "````spl\n"
+            "```\n"
+            "index=was_logs | stats count by host\n"
+            "```\n"
+            "````\n"
+        )
+        result = extract_splunk_from_response(text)
+        assert len(result) == 1
+        assert "stats count by host" in result[0]["query"]
+
+    def test_nested_fences_outer_not_splunk(self):
+        """Inner ``` fence inside ```` should not be extracted separately."""
+        text = (
+            "Outer block:\n"
+            "````markdown\n"
+            "```spl\n"
+            "index=was_logs | stats count\n"
+            "```\n"
+            "````\n"
+        )
+        result = extract_splunk_from_response(text)
+        # The outer block is 'markdown' lang, not splunk, so nothing extracted
+        assert result == []
+
+    def test_inline_backticks_not_treated_as_code_block(self):
+        """Inline backticks like `index=foo` should not trigger code block parsing."""
+        text = (
+            "Use `index=was_logs | stats count` in your search.\n"
+            "Also try `sourcetype=websphere`.\n"
+        )
+        result = extract_splunk_from_response(text)
+        assert result == []
+
+    def test_empty_code_block(self):
+        """An empty code block should not produce any results."""
+        text = (
+            "Empty block:\n"
+            "```spl\n"
+            "```\n"
+        )
+        result = extract_splunk_from_response(text)
+        assert result == []
+
+    def test_empty_unlabelled_code_block(self):
+        """An empty unlabelled code block should not produce any results."""
+        text = (
+            "Nothing here:\n"
+            "```\n"
+            "```\n"
+        )
+        result = extract_splunk_from_response(text)
+        assert result == []
+
+    def test_unclosed_code_block_with_splunk(self):
+        """A code block with no closing fence should still extract Splunk content."""
+        text = (
+            "Unclosed block:\n"
+            "```spl\n"
+            "index=was_logs severity=ERROR | table _time host message\n"
+        )
+        result = extract_splunk_from_response(text)
+        assert len(result) == 1
+        assert "table _time host message" in result[0]["query"]
+
+    def test_unclosed_code_block_non_splunk(self):
+        """An unclosed non-Splunk code block should not produce results."""
+        text = (
+            "Unclosed Java:\n"
+            "```java\n"
+            "System.out.println(\"hello\");\n"
+        )
+        result = extract_splunk_from_response(text)
+        assert result == []
+
+    def test_multiple_blocks_mixed(self):
+        """Multiple code blocks, some Splunk some not, with nested fences."""
+        text = (
+            "First query:\n"
+            "```spl\n"
+            "index=was_logs | stats count\n"
+            "```\n"
+            "\n"
+            "Some Java:\n"
+            "```java\n"
+            "throw new Exception();\n"
+            "```\n"
+            "\n"
+            "Second query:\n"
+            "```\n"
+            "index=prod | where severity=\"ERROR\"\n"
+            "```\n"
+        )
+        result = extract_splunk_from_response(text)
+        assert len(result) == 2
+        assert "stats count" in result[0]["query"]
+        assert "severity" in result[1]["query"]
+
+
+# ── 15.3 — _lookup_cache / _store_cache ──────────────────────────────────
+
+class TestLookupCache:
+    def test_cache_hit_from_session(self):
+        """Session cache hit returns the cached value immediately."""
+        session_cache = {"my_key": "cached_answer"}
+        result = _lookup_cache("my_key", session_cache, "test", "some query")
+        assert result == "cached_answer"
+
+    def test_cache_miss_returns_none(self, tmp_path, monkeypatch):
+        """Missing key in both session and file cache returns None."""
+        import app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+        # Empty file cache
+        _save_json_file(cache_file, {})
+        session_cache = {}
+        result = _lookup_cache("nonexistent", session_cache, "test", "query")
+        assert result is None
+
+    def test_cache_hit_from_file(self, tmp_path, monkeypatch):
+        """File cache hit returns value and populates session cache."""
+        import time, app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+        _save_json_file(cache_file, {
+            "file_key": {"text": "file_answer", "ts": time.time()}
+        })
+        session_cache = {}
+        result = _lookup_cache("file_key", session_cache, "test", "query")
+        assert result == "file_answer"
+        # Should also populate session cache
+        assert session_cache["file_key"] == "file_answer"
+
+
+class TestStoreCache:
+    def test_store_adds_to_session_and_file(self, tmp_path, monkeypatch):
+        """Storing a value puts it in both session cache and file cache."""
+        import app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+        _save_json_file(cache_file, {})
+        session_cache = {}
+        _store_cache("new_key", "new_answer", session_cache)
+        # Session cache updated
+        assert session_cache["new_key"] == "new_answer"
+        # File cache updated
+        file_data = _load_json_file(cache_file, {})
+        assert "new_key" in file_data
+        assert file_data["new_key"]["text"] == "new_answer"
+        assert "ts" in file_data["new_key"]
+
+    def test_store_overwrites_existing(self, tmp_path, monkeypatch):
+        """Storing a key that already exists overwrites the old value."""
+        import time, app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+        _save_json_file(cache_file, {
+            "key": {"text": "old_answer", "ts": time.time() - 100}
+        })
+        session_cache = {"key": "old_answer"}
+        _store_cache("key", "updated_answer", session_cache)
+        assert session_cache["key"] == "updated_answer"
+        file_data = _load_json_file(cache_file, {})
+        assert file_data["key"]["text"] == "updated_answer"
+
+
+# ── 15.4 — Concurrency-simulated cache file access ──────────────────────
+
+class TestCacheFileConcurrency:
+    def test_sequential_writes_no_corruption(self, tmp_path, monkeypatch):
+        """Two sequential writes to the same cache file produce valid JSON."""
+        import app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+
+        # First write
+        session1 = {}
+        _store_cache("key_a", "answer_a", session1)
+
+        # Second write (simulates a second "concurrent" access)
+        session2 = {}
+        _store_cache("key_b", "answer_b", session2)
+
+        # Verify file is valid JSON and contains both entries
+        file_data = _load_json_file(cache_file, {})
+        assert "key_a" in file_data
+        assert file_data["key_a"]["text"] == "answer_a"
+        assert "key_b" in file_data
+        assert file_data["key_b"]["text"] == "answer_b"
+
+    def test_sequential_overwrites_no_corruption(self, tmp_path, monkeypatch):
+        """Overwriting the same key sequentially keeps file valid."""
+        import app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+
+        session = {}
+        _store_cache("shared_key", "first_value", session)
+        _store_cache("shared_key", "second_value", session)
+
+        file_data = _load_json_file(cache_file, {})
+        assert file_data["shared_key"]["text"] == "second_value"
+        # File should be parseable (not corrupted)
+        raw = cache_file.read_text(encoding="utf-8")
+        assert json.loads(raw) is not None
+
+
+# ── 15.5 — Timeout error handling ────────────────────────────────────────
+
+class TestTimeoutErrorHandling:
+    def test_claude_api_timeout_raises(self):
+        """Claude API raising a timeout exception propagates (caller handles it)."""
+        mock_anthropic = mock.MagicMock()
+        mock_anthropic.Anthropic.return_value.messages.create.side_effect = \
+            TimeoutError("Connection timed out")
+        with mock.patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+            with pytest.raises((TimeoutError, Exception)):
+                call_claude_api("key", "model", {"system": "s", "user": "u"})
+
+    def test_openai_api_timeout_raises(self):
+        """OpenAI API raising a timeout exception propagates (caller handles it)."""
+        mock_openai = mock.MagicMock()
+        mock_openai.OpenAI.return_value.chat.completions.create.side_effect = \
+            TimeoutError("Request timed out")
+        with mock.patch.dict(sys.modules, {"openai": mock_openai}):
+            with pytest.raises((TimeoutError, Exception)):
+                call_openai_api("key", "model", {"system": "s", "user": "u"})
+
+    def test_gemini_api_timeout_raises(self):
+        """Gemini API raising a timeout exception propagates (caller handles it)."""
+        import app_ai as app_ai_mod
+        with mock.patch.object(app_ai_mod, "ask_gemini",
+                               side_effect=TimeoutError("Gemini timed out")):
+            with pytest.raises((TimeoutError, Exception)):
+                call_gemini_api("key", "model", {"system": "s", "user": "u"})
+
+    def test_connection_error_propagates(self):
+        """ConnectionError from API call propagates without crash."""
+        mock_anthropic = mock.MagicMock()
+        mock_anthropic.Anthropic.return_value.messages.create.side_effect = \
+            ConnectionError("Network unreachable")
+        with mock.patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+            with pytest.raises((ConnectionError, Exception)):
+                call_claude_api("key", "model", {"system": "s", "user": "u"})

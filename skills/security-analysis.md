@@ -166,3 +166,9 @@ Distinguish from user attacks:
 3. Renew from CA, import with `keytool -import`
 4. Restart affected servers (certs are cached in memory)
 5. Verify with `openssl s_client -connect host:port`
+
+## See Also
+
+- [message-codes.md](message-codes.md) — CWPKI and SECJ security-related message codes
+- [splunk-query.md](splunk-query.md) — Splunk queries for brute force and auth failure detection
+- [liberty-analysis.md](liberty-analysis.md) — Liberty-specific security features and MicroProfile JWT

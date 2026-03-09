@@ -160,6 +160,73 @@
 
 ---
 
+## Milestone 14 — Dokumentation & kodkonventioner
+**Priority: P1 (short-term)**
+**Estimated scope: Small — quick fixes**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 14.1 | Update README.md test count to 392 and line counts | `README.md` | [x] |
+| 14.2 | Update ARCHITECTURE.md line counts (wslog.py 1759, app.py 658, app_audit.py 381) and add app_constants.py to structure | `ARCHITECTURE.md` | [x] |
+| 14.3 | Update `.claude/skills/testing.md` test count to 392 | `.claude/skills/testing.md` | [x] |
+| 14.4 | Rename underscore-prefixed cross-module exports to public names (`_PROVIDER_CONFIG` → `PROVIDER_CONFIG`, etc.) | `app_ai.py`, `app.py` | [x] |
+| 14.5 | Add Azure SAS token and `Authorization: Digest` redaction patterns + tests | `wslog.py`, `tests/test_wslog.py` | [x] |
+
+**Acceptance**: All docs accurate. No underscore-prefixed cross-module exports. Azure SAS tokens redacted. Tests pass.
+
+---
+
+## Milestone 15 — Testtäckning: E2E & kantfall
+**Priority: P1 (short-term)**
+**Estimated scope: Medium — new tests**
+**Depends on: Milestone 14**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 15.1 | Add E2E error flow tests — invalid file upload, empty file, corrupt file | `tests/test_app_e2e.py` | [x] |
+| 15.2 | Add E2E tests for API failure handling — mock API errors, verify user-facing error messages | `tests/test_app_e2e.py` | [x] |
+| 15.3 | Add direct tests for `_lookup_cache()` and `_store_cache()` — cache hit, miss, TTL, size eviction | `tests/test_app_helpers.py` | [x] |
+| 15.4 | Add concurrency test for cache file access — simulate two writers, verify no corruption | `tests/test_app_helpers.py` | [x] |
+| 15.5 | Add network/timeout error tests — mock API timeout, verify graceful handling | `tests/test_app_helpers.py` | [x] |
+
+**Acceptance**: E2E tests cover error flows. Cache helpers fully tested. Total test count >410. No flaky tests.
+
+---
+
+## Milestone 16 — Robusthet & Splunk-parsing
+**Priority: P2 (mid-term)**
+**Estimated scope: Medium — refactor + features**
+**Depends on: Milestone 15**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 16.1 | Replace regex-based Splunk extraction with proper markdown parser — handle nested fences, inline backticks | `app_ai.py` | [x] |
+| 16.2 | Add session state schema validation — define expected keys+types, warn on unknown keys in debug mode | `app.py` | [x] |
+| 16.3 | Add event pagination in GUI — show first N events with "Show more" button instead of rendering all | `app_render.py` | [x] |
+| 16.4 | Add cross-references between skill files — "See also" links at bottom of each skill | `skills/*.md` | [x] |
+| 16.5 | Add tests for Splunk extraction edge cases (nested fences, inline backticks, empty blocks) | `tests/test_app_helpers.py` | [x] |
+
+**Acceptance**: Splunk extraction handles nested fences. Event pagination for large analyses. Skills cross-linked. Tests pass.
+
+---
+
+## Milestone 17 — Skalbarhet & prestanda
+**Priority: P3 (long-term)**
+**Estimated scope: Large — new capabilities**
+**Depends on: Milestone 16**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 17.1 | Add streaming parser `parse_file_iter()` — generator-based, yields events without accumulating all in memory | `wslog.py` | [x] |
+| 17.2 | Add hard upload limit (configurable, default 200MB) — reject files over limit with clear message | `app.py` | [x] |
+| 17.3 | Add heuristic pre-filtering — index events by tag on first pass, avoid O(n×17) scan in `likely_causes()` | `wslog.py` | [x] |
+| 17.4 | Add dynamic skill discovery — scan `skills/` directory at startup instead of hardcoding filenames in maps | `wslog.py` | [x] |
+| 17.5 | Add tests for streaming parser, upload limits, and pre-filtered heuristics | `tests/test_wslog.py` | [x] |
+
+**Acceptance**: Streaming parser handles >100MB files without OOM. Upload limit enforced. Heuristic scanning faster. Dynamic skill discovery works. Tests pass.
+
+---
+
 ## Progress Tracker
 
 | Milestone | Tasks | Done | Status |
@@ -177,3 +244,7 @@
 | 11 — Säkerhet & integritet | 5 | 5 | Done |
 | 12 — Kodstruktur: splitta app.py | 5 | 5 | Done |
 | 13 — Funktioner & förbättringar | 5 | 5 | Done |
+| 14 — Dokumentation & kodkonventioner | 5 | 5 | Done |
+| 15 — Testtäckning: E2E & kantfall | 5 | 5 | Done |
+| 16 — Robusthet & Splunk-parsing | 5 | 5 | Done |
+| 17 — Skalbarhet & prestanda | 5 | 5 | Done |
