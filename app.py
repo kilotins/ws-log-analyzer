@@ -1427,29 +1427,21 @@ def _rt_poll():
         log.warning("realtime File read error: %s", ex)
 
 
+
 @st.fragment(run_every=2)
-def _rt_status_panel(filepath: str, running: bool, paused: bool) -> bool:
-    """Show realtime monitor status. Returns False if monitoring should not continue."""
-    if not filepath:
-        st.info("Enter a log file path above to start monitoring.")
-        return False
-    if not running:
-        st.caption("Monitoring stopped.")
-    elif paused:
-        st.warning("Monitoring paused")
-    else:
-        _rt_poll()
-        p = Path(filepath)
-        if p.exists():
-            st.success(f"Monitoring **{p.name}** — {len(st.session_state.rt_buffer)} lines in buffer")
-        else:
-            st.error(f"File not found: {filepath}")
-    return True
-
-
-def _rt_controls(filepath: str, running: bool, paused: bool) -> None:
-    """Render Start/Pause/Resume/Stop/Clear control buttons."""
+def _rt_live_view():
+    """Fragment that renders controls, polls, and shows the live log buffer."""
     ss = st.session_state
+    filepath = ss.rt_file
+
+    # Status
+    if not filepath:
+        st.info("Enter a log file path or select a detected file above to start monitoring.")
+        return
+
+    # Controls — read state fresh each render
+    running = ss.rt_running
+    paused = ss.rt_paused
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         if st.button("Start", disabled=running and not paused, key="rt_start"):
@@ -1459,32 +1451,42 @@ def _rt_controls(filepath: str, running: bool, paused: bool) -> None:
             if p.exists():
                 ss.rt_offset = p.stat().st_size
             log.info("realtime Started monitoring %s", filepath)
-            st.rerun()
     with c2:
         if st.button("Pause", disabled=not running or paused, key="rt_pause"):
             ss.rt_paused = True
             log.info("realtime Paused monitoring")
-            st.rerun()
     with c3:
         if st.button("Resume", disabled=not paused, key="rt_resume"):
             ss.rt_paused = False
             log.info("realtime Resumed monitoring")
-            st.rerun()
     with c4:
         if st.button("Stop", disabled=not running, key="rt_stop"):
             ss.rt_running = False
             ss.rt_paused = False
             log.info("realtime Stopped monitoring")
-            st.rerun()
     with c5:
         if st.button("Clear", key="rt_clear"):
             ss.rt_buffer.clear()
-            st.rerun()
 
+    # Re-read state after button clicks
+    running = ss.rt_running
+    paused = ss.rt_paused
 
-def _rt_render_buffer() -> None:
-    """Render the log buffer as highlighted HTML."""
-    buf = st.session_state.rt_buffer
+    # Status message
+    if not running:
+        st.caption("Monitoring stopped. Press **Start** to begin.")
+    elif paused:
+        st.warning("Monitoring paused")
+    else:
+        _rt_poll()
+        p = Path(filepath)
+        if p.exists():
+            st.success(f"Monitoring **{p.name}** — {len(ss.rt_buffer)} lines in buffer")
+        else:
+            st.error(f"File not found: {filepath}")
+
+    # Render buffer
+    buf = ss.rt_buffer
     if buf:
         highlighted = "<br>".join(_highlight_line(line) for line in buf)
         st.markdown(
@@ -1495,22 +1497,8 @@ def _rt_render_buffer() -> None:
             f'{highlighted}</div>',
             unsafe_allow_html=True,
         )
-    else:
-        st.caption("Buffer empty. New lines will appear here when the file is written to.")
-
-
-def _rt_live_view():
-    """Fragment that polls and renders the live log stream."""
-    ss = st.session_state
-    if not ss.rt_enabled:
-        return
-    filepath = ss.rt_file
-    running = ss.rt_running
-    paused = ss.rt_paused
-    if not _rt_status_panel(filepath, running, paused):
-        return
-    _rt_controls(filepath, running, paused)
-    _rt_render_buffer()
+    elif running:
+        st.caption("Waiting for new log lines...")
 
 
 tab_analyze, tab_realtime, tab_history, tab_audit, tab_applog = st.tabs(
@@ -1624,7 +1612,24 @@ with tab_analyze:
 
 with tab_realtime:
     st.session_state.rt_enabled = True  # always enabled when on this tab
-    _col_path, _col_pick = st.columns([2, 1])
+
+    # --- File selection ---
+    _scan_dirs = [
+        _APP_DIR, UPLOADS_DIR, Path.cwd(), Path.home(),
+        Path("/opt/IBM/WebSphere/AppServer/profiles"),
+        Path("/var/log"),
+    ]
+    _found_logs: list[str] = []
+    for _d in _scan_dirs:
+        try:
+            if _d.is_dir():
+                for _f in sorted(_d.glob("*.log"))[:10]:
+                    if _f.is_file() and str(_f) not in _found_logs:
+                        _found_logs.append(str(_f))
+        except (OSError, PermissionError):
+            continue
+
+    _col_path, _col_pick = st.columns(2)
     with _col_path:
         _rt_path = st.text_input(
             "Log file path",
@@ -1635,32 +1640,17 @@ with tab_realtime:
         if _rt_path != st.session_state.rt_file:
             st.session_state.rt_file = _rt_path
     with _col_pick:
-        _scan_dirs = [
-            _APP_DIR, UPLOADS_DIR, Path.cwd(), Path.home(),
-            Path("/opt/IBM/WebSphere/AppServer/profiles"),
-            Path("/var/log"),
-        ]
-        _found_logs: list[str] = []
-        for _d in _scan_dirs:
-            try:
-                if _d.is_dir():
-                    for _f in sorted(_d.glob("*.log"))[:10]:
-                        if _f.is_file() and str(_f) not in _found_logs:
-                            _found_logs.append(str(_f))
-            except (OSError, PermissionError):
-                continue
         if _found_logs:
             _pick = st.selectbox(
                 "Or pick a detected log file",
                 options=[""] + _found_logs,
-                format_func=lambda x: "— select —" if x == "" else Path(x).name,
+                format_func=lambda x: "— select —" if x == "" else Path(x).name + f"  ({x})",
                 key="rt_file_pick_tab",
             )
             if _pick and _pick != st.session_state.rt_file:
                 st.session_state.rt_file = _pick
                 st.rerun()
-        else:
-            st.caption("No .log files found.")
+
     _rt_live_view()
 
 with tab_history:
