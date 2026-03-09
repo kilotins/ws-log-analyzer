@@ -44,11 +44,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 3.1 | Streaming Claude responses — use `client.messages.stream()` and render tokens incrementally | `app.py` | [ ] |
-| 3.2 | Streaming OpenAI responses — use `stream=True` in `chat.completions.create()` | `app.py` | [ ] |
-| 3.3 | Cost tracking — log input/output tokens and estimated cost per API call in the UI | `app.py` | [ ] |
-| 3.4 | Smarter compact mode for audit — send function signatures + docstrings only (not full source) for large files | `app.py` | [ ] |
-| 3.5 | Audit comparison in GUI — surface `compare_audits.py` delta reports in the Audit tab | `app.py`, `scripts/` | [ ] |
+| 3.1 | Streaming Claude responses — use `client.messages.stream()` and render tokens incrementally | `app.py` | [x] |
+| 3.2 | Streaming OpenAI responses — use `stream=True` in `chat.completions.create()` | `app.py` | [x] |
+| 3.3 | Cost tracking — log input/output tokens and estimated cost per API call in the UI | `app.py` | [x] |
+| 3.4 | Smarter compact mode for audit — send function signatures + docstrings only (not full source) for large files | `app.py` | [x] |
+| 3.5 | Audit comparison in GUI — surface `compare_audits.py` delta reports in the Audit tab | `app.py`, `scripts/` | [x] |
 
 **Acceptance**: AI responses stream visibly. Token count + cost shown after each call. Audit tab shows delta between runs.
 
@@ -76,5 +76,5 @@
 |-----------|-------|------|--------|
 | 1 — Buggfixar & hygien | 5 | 5 | Done |
 | 2 — DRY AI-funktioner | 5 | 5 | Done |
-| 3 — Streaming & UX | 5 | 0 | Not started |
+| 3 — Streaming & UX | 5 | 5 | Done |
 | 4 — Kvalitet & polish | 5 | 0 | Not started |

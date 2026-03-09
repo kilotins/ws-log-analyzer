@@ -531,36 +531,95 @@ _PROVIDER_CONFIG = {
 }
 
 
-def _call_claude_api(api_key, model_id, prompt):
-    """Make the actual Claude API call. Returns answer text or raises."""
+# Approximate cost per 1M tokens (input, output) in USD
+_TOKEN_COSTS = {
+    "claude-sonnet-4-6": (3.00, 15.00),
+    "claude-haiku-4-5-20251001": (0.80, 4.00),
+    "claude-opus-4-6": (15.00, 75.00),
+    "gemini-2.5-flash": (0.15, 0.60),
+    "gemini-2.5-flash-preview-05-20": (0.15, 0.60),
+    "gemini-2.5-pro-preview-06-05": (1.25, 10.00),
+    "gpt-4o": (2.50, 10.00),
+    "gpt-4o-mini": (0.15, 0.60),
+    "o3": (10.00, 40.00),
+    "o4-mini": (1.10, 4.40),
+}
+
+
+def _estimate_cost(model_id, input_tokens, output_tokens):
+    """Estimate cost in USD given model and token counts."""
+    costs = _TOKEN_COSTS.get(model_id, (0, 0))
+    return (input_tokens * costs[0] + output_tokens * costs[1]) / 1_000_000
+
+
+def _call_claude_api(api_key, model_id, prompt, stream_placeholder=None):
+    """Make the actual Claude API call with optional streaming. Returns (answer, usage_dict)."""
     try:
         from anthropic import Anthropic
     except ImportError:
         raise ImportError("The `anthropic` package is not installed. Install with: `pip install anthropic`")
-    client = Anthropic(api_key=api_key, timeout=30.0)
+    client = Anthropic(api_key=api_key, timeout=120.0)
+
+    if stream_placeholder:
+        chunks = []
+        with client.messages.stream(
+            model=model_id, max_tokens=2048,
+            system=prompt["system"],
+            messages=[{"role": "user", "content": prompt["user"]}],
+        ) as stream:
+            for text in stream.text_stream:
+                chunks.append(text)
+                stream_placeholder.markdown("".join(chunks) + "...")
+            final = stream.get_final_message()
+        answer = "".join(chunks)
+        usage = {"input": final.usage.input_tokens, "output": final.usage.output_tokens} if final and final.usage else {}
+        return (answer or None, usage)
+
     message = client.messages.create(
         model=model_id, max_tokens=2048,
         system=prompt["system"],
         messages=[{"role": "user", "content": prompt["user"]}],
     )
     if not message.content:
-        return None
-    return message.content[0].text
+        return (None, {})
+    usage = {"input": message.usage.input_tokens, "output": message.usage.output_tokens} if message.usage else {}
+    return (message.content[0].text, usage)
 
 
-def _call_gemini_api(api_key, model_id, prompt):
-    """Make the actual Gemini API call. Returns answer text or raises."""
+def _call_gemini_api(api_key, model_id, prompt, stream_placeholder=None):
+    """Make the actual Gemini API call. Returns (answer, usage_dict). Streaming not supported."""
     answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id)
-    return answer or None
+    return (answer or None, {})
 
 
-def _call_openai_api(api_key, model_id, prompt):
-    """Make the actual OpenAI API call. Returns answer text or raises."""
+def _call_openai_api(api_key, model_id, prompt, stream_placeholder=None):
+    """Make the actual OpenAI API call with optional streaming. Returns (answer, usage_dict)."""
     try:
         from openai import OpenAI
     except ImportError:
         raise ImportError("The `openai` package is not installed. Install with: `pip install openai`")
-    client = OpenAI(api_key=api_key, timeout=60.0)
+    client = OpenAI(api_key=api_key, timeout=120.0)
+
+    if stream_placeholder:
+        chunks = []
+        response = client.chat.completions.create(
+            model=model_id, max_completion_tokens=2048, stream=True,
+            stream_options={"include_usage": True},
+            messages=[
+                {"role": "system", "content": prompt["system"]},
+                {"role": "user", "content": prompt["user"]},
+            ],
+        )
+        usage = {}
+        for chunk in response:
+            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                chunks.append(chunk.choices[0].delta.content)
+                stream_placeholder.markdown("".join(chunks) + "...")
+            if chunk.usage:
+                usage = {"input": chunk.usage.prompt_tokens, "output": chunk.usage.completion_tokens}
+        answer = "".join(chunks)
+        return (answer or None, usage)
+
     response = client.chat.completions.create(
         model=model_id, max_completion_tokens=2048,
         messages=[
@@ -569,7 +628,10 @@ def _call_openai_api(api_key, model_id, prompt):
         ],
     )
     answer = response.choices[0].message.content
-    return answer or None
+    usage = {}
+    if response.usage:
+        usage = {"input": response.usage.prompt_tokens, "output": response.usage.completion_tokens}
+    return (answer or None, usage)
 
 
 _API_CALLERS = {
@@ -632,9 +694,10 @@ def _run_ai_analysis(provider, model_id, user_query, events, processing_containe
 
     log.info("cache Cache miss — calling %s API for: %s", label, user_query[:60])
     status.write(f"Calling {label} API...")
+    stream_placeholder = st.empty()  # for streaming text display
     try:
         caller = _API_CALLERS[provider]
-        answer = caller(api_key, model_id, prompt)
+        answer, usage = caller(api_key, model_id, prompt, stream_placeholder=stream_placeholder)
         if not answer:
             log.warning("%s %s returned empty response for: %s", provider, label, user_query[:60])
             status.update(label=f"Empty response from {label}", state="error")
@@ -644,9 +707,18 @@ def _run_ai_analysis(provider, model_id, user_query, events, processing_containe
         if st.session_state.debug_payload:
             with st.expander(f"{label} response payload", expanded=False):
                 st.code(answer, language="markdown")
+        stream_placeholder.empty()  # clear streaming display
         _record_answer(answer)
         _store_cache(cache_key, answer, session_cache)
-        status.update(label=f"{label} analysis complete", state="complete")
+        # Display token usage and cost
+        cost_info = ""
+        if usage:
+            inp = usage.get("input", 0)
+            out = usage.get("output", 0)
+            cost = _estimate_cost(model_id, inp, out)
+            cost_info = f" — {inp:,}+{out:,} tokens (~${cost:.4f})"
+            log.info("%s tokens: %d in / %d out, est cost: $%.4f", label, inp, out, cost)
+        status.update(label=f"{label} analysis complete{cost_info}", state="complete")
     except ImportError as ex:
         status.update(label="Missing package", state="error")
         st.error(str(ex))
@@ -1627,8 +1699,48 @@ Start the report with: # Technical Audit Report — WS Log Analyzer
 
 _COMPACT_MAX_LINES = 250  # Max lines per file in compact mode
 
+
+def _extract_signatures(content):
+    """Extract function/class signatures and docstrings from Python source for compact audit."""
+    lines = content.splitlines()
+    result = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.lstrip()
+        # Keep imports, constants, class/function defs
+        if (stripped.startswith(("import ", "from ", "class ", "def "))
+                or (stripped and not stripped.startswith("#") and "=" in stripped.split("#")[0]
+                    and not stripped.startswith(" ") and not stripped.startswith("\t"))):
+            result.append(line)
+            # If it's a def/class, grab the docstring
+            if stripped.startswith(("def ", "class ")):
+                i += 1
+                # Multi-line signature
+                while i < len(lines) and not lines[i].rstrip().endswith(":"):
+                    result.append(lines[i])
+                    i += 1
+                if i < len(lines):
+                    result.append(lines[i])
+                    i += 1
+                # Docstring
+                if i < len(lines) and '"""' in lines[i]:
+                    result.append(lines[i])
+                    if lines[i].count('"""') < 2:  # multi-line docstring
+                        i += 1
+                        while i < len(lines) and '"""' not in lines[i]:
+                            result.append(lines[i])
+                            i += 1
+                        if i < len(lines):
+                            result.append(lines[i])
+                    i += 1
+                    continue
+        i += 1
+    return "\n".join(result)
+
+
 def _collect_audit_sources(compact=False):
-    """Collect source files for auditing. Compact mode sends fewer/smaller files."""
+    """Collect source files for auditing. Compact mode sends signatures + docstrings."""
     file_list = _AUDIT_FILES_COMPACT if compact else _AUDIT_FILES_FULL
     file_contents = []
     for rel in file_list:
@@ -1637,7 +1749,13 @@ def _collect_audit_sources(compact=False):
             content = path.read_text(encoding="utf-8", errors="replace")
             all_lines = content.splitlines()
             total = len(all_lines)
-            if compact and total > _COMPACT_MAX_LINES:
+            if compact and total > _COMPACT_MAX_LINES and rel.endswith(".py"):
+                sig_content = _extract_signatures(content)
+                sig_lines = len(sig_content.splitlines())
+                file_contents.append(
+                    f"--- {rel} ({total} lines, showing {sig_lines} signature lines) ---\n{sig_content}"
+                )
+            elif compact and total > _COMPACT_MAX_LINES:
                 content = "\n".join(all_lines[:_COMPACT_MAX_LINES])
                 file_contents.append(f"--- {rel} ({total} lines, showing first {_COMPACT_MAX_LINES}) ---\n{content}")
             else:
@@ -1740,12 +1858,44 @@ def _run_audit(model_label):
     md_path = _APP_DIR / "AUDIT_REPORT.md"
     md_path.write_text(audit_md, encoding="utf-8")
 
+    # Version the report and generate delta if previous exists
+    _delta_md = None
+    try:
+        reports_dir = _APP_DIR / "reports"
+        reports_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+        versioned = reports_dir / f"AUDIT_{timestamp}.md"
+        versioned.write_text(audit_md, encoding="utf-8")
+        log.info("audit Versioned report: %s", versioned.name)
+
+        # Find previous versioned report
+        import re as _re_mod
+        pattern = _re_mod.compile(r'^AUDIT_\d{4}-\d{2}-\d{2}_\d{4}\.md$')
+        all_reports = sorted(p for p in reports_dir.iterdir() if pattern.match(p.name))
+        previous = None
+        for r in all_reports:
+            if r != versioned:
+                previous = r
+        if previous:
+            sys.path.insert(0, str(_APP_DIR / "scripts"))
+            from compare_audits import compare_audits, render_delta
+            results = compare_audits(previous, versioned)
+            _delta_md = render_delta(results, previous.name, versioned.name)
+            delta_path = reports_dir / f"DELTA_AUDIT_{timestamp}.md"
+            delta_path.write_text(_delta_md, encoding="utf-8")
+            log.info("audit Delta report: %s", delta_path.name)
+    except Exception as ex:
+        log.warning("audit Could not generate delta: %s", ex)
+
     # Convert to HTML
     audit_html = render_html(audit_md, title="Technical Audit Report — WS Log Analyzer")
     html_path = _APP_DIR / "AUDIT_REPORT.html"
     html_path.write_text(audit_html, encoding="utf-8")
 
     log.info("audit Audit report generated with %s: %s", model_label, html_path)
+    # Store delta for display
+    if _delta_md:
+        st.session_state._audit_delta = _delta_md
     return audit_html
 
 
@@ -1788,6 +1938,12 @@ with tab_audit:
                 log.error("audit Audit failed: %s", ex)
                 _audit_status.update(label="Audit failed", state="error")
                 st.error(f"Audit failed: {ex}")
+
+    # Show delta comparison if available
+    _delta = getattr(st.session_state, "_audit_delta", None)
+    if _delta:
+        with st.expander("Changes since last audit", expanded=True):
+            st.markdown(_delta)
 
     if _audit_html_path.is_file():
         _audit_html = _audit_html_path.read_text(encoding="utf-8")
