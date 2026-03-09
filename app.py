@@ -177,40 +177,21 @@ def get_report_history(limit=20):
 
 # --- Section renderers ---
 
-def _on_code_action(code, action):
-    """Callback for code row buttons. Populates the Ask Claude input field."""
+def _on_copy_code(code):
+    """Copy an error code into the AI query input field."""
     st.session_state.claude_query_input = code
-    st.session_state.selected_code = code
-    st.session_state.selected_action = action
-    if action == "claude":
-        st.session_state._ask_claude_pending = True
-    elif action == "gemini":
-        st.session_state._ask_gemini_pending = True
-    elif action == "openai":
-        st.session_state._ask_openai_pending = True
 
 
 def render_code_row(code, count):
-    """Render a message code row with count and action buttons."""
-    cols = st.columns([3, 1, 1, 1])
+    """Render a message code row with count and a copy-to-query button."""
+    cols = st.columns([3, 1])
     with cols[0]:
         st.text(f"  {count:>4}  {code}")
     with cols[1]:
-        _chef = st.session_state.get("swedish_chef", False)
-        st.button("Ask zee Chef" if _chef else "Ask Claude",
+        st.button("Ask AI",
                   key=f"ask_{code}",
-                  on_click=_on_code_action, args=(code, "claude"),
-                  help=f"Ask {'zee Chef' if _chef else 'Claude'} about {code}")
-    with cols[2]:
-        st.button("Ask Gemini",
-                  key=f"ask_gemini_{code}",
-                  on_click=_on_code_action, args=(code, "gemini"),
-                  help=f"Ask Gemini about {code}")
-    with cols[3]:
-        st.button("Ask GPT",
-                  key=f"ask_openai_{code}",
-                  on_click=_on_code_action, args=(code, "openai"),
-                  help=f"Ask GPT about {code}")
+                  on_click=_on_copy_code, args=(code,),
+                  help=f"Copy {code} to the AI query field below")
 
 
 def render_summary(s, error_count, file_count, file_summary):
