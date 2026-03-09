@@ -1527,11 +1527,14 @@ with tab_analyze:
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        top_n = st.number_input("Top-N items", min_value=1, max_value=50, value=10)
+        top_n = st.number_input("Top-N items", min_value=1, max_value=50, value=10,
+                                help="Number of top exceptions, message codes, and signal tags shown in the summary.")
     with col2:
-        samples_n = st.number_input("Sample events", min_value=1, max_value=20, value=5)
+        samples_n = st.number_input("Sample events", min_value=1, max_value=20, value=5,
+                                    help="Number of representative sample events shown per error category.")
     with col3:
-        hist_minutes = st.number_input("Histogram bucket (min)", min_value=1, max_value=60, value=1)
+        hist_minutes = st.number_input("Histogram bucket (min)", min_value=1, max_value=60, value=1,
+                                       help="Time resolution for the timeline histogram. Lower values give more detail, higher values give a broader overview.")
 
     # --- Run analysis (only on button click) ---
     if uploaded_files and st.button("Analyze", type="primary"):
