@@ -268,6 +268,7 @@ def extract_splunk_from_response(text):
                 block_lines = []
                 block_lang = ""
                 fence_len = 0
+                preceding_text = []
             else:
                 # Nested fence (shorter than opening) — treat as content
                 block_lines.append(line)
@@ -694,6 +695,12 @@ def render_ai_history():
                 st.markdown(entry["answer"])
 
 
+def render_ai_responses():
+    """Render current AI analyses and history outside expanders for proper scrolling."""
+    render_current_ai_analyses()
+    render_ai_history()
+
+
 def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
     """Render AI analysis input, API calls, and response history."""
     user_query = st.text_input(
@@ -750,5 +757,5 @@ def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
         run_openai_analysis(user_query, events, processing_container,
                            log=log, lookup_cache=lookup_cache, store_cache=store_cache)
 
-    render_current_ai_analyses()
-    render_ai_history()
+    # AI responses are rendered by render_ai_responses() outside the expander
+    # to avoid scrolling issues with long content inside expanders.

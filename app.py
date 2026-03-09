@@ -216,6 +216,8 @@ _STATE_DEFAULTS = {
     "rt_file": "",
     "rt_offset": 0,
     "rt_buffer": None,
+    "_samples_show_all": False,
+    "_samples_total": 0,
 }
 
 _EXPECTED_STATE_KEYS = set(_STATE_DEFAULTS.keys())
@@ -442,7 +444,7 @@ with tab_analyze:
                                        help="Time resolution for the timeline histogram.")
 
     if uploaded_files and st.button("Analyze", type="primary"):
-        total_size = sum(len(f.getvalue()) for f in uploaded_files)
+        total_size = sum(f.size for f in uploaded_files)
         _over_limit = total_size > MAX_UPLOAD_MB * 1024 * 1024
         if _over_limit:
             st.error(f"Total upload size ({total_size / 1024 / 1024:.1f} MB) exceeds the {MAX_UPLOAD_MB} MB limit. Please upload smaller files.")
