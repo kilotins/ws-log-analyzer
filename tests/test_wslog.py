@@ -1852,6 +1852,142 @@ def test_ask_gemini_no_system_instruction(monkeypatch):
     monkeypatch.delitem(sys.modules, "google.generativeai", raising=False)
 
 
+# ---------------------------------------------------------------------------
+# Performance tests for large log files
+# ---------------------------------------------------------------------------
+
+import tempfile
+import time
+
+
+def test_parse_large_file_performance():
+    """Parse a 100k-line WAS log file and verify it completes without error."""
+    lines = []
+    for i in range(100_000):
+        if i % 500 == 0:
+            level, code = "E", "SRVE0255E"
+            text = f"SRVE0255E: Error on line {i}\njava.lang.NullPointerException: simulated\n\tat com.example.Foo.bar(Foo.java:{i})"
+        elif i % 200 == 0:
+            level, code = "W", "XJMS0022W"
+            text = f"XJMS0022W: Warning message {i}"
+        else:
+            level, code = "O", ""
+            text = f"Some log message {i}"
+        lines.append(
+            f"[03/09/26 12:00:{i % 60:02d}:000 EST] 00000001 SystemOut     {level}   {code + ': ' if code else ''}{text}"
+        )
+    content = "\n".join(lines) + "\n"
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".log", delete=False) as f:
+        f.write(content)
+        tmp_path = f.name
+
+    try:
+        t0 = time.time()
+        events = parse_file(Path(tmp_path))
+        elapsed = time.time() - t0
+        # Should return a reasonable number of events (at least a few hundred)
+        assert len(events) > 100, f"Expected many events, got {len(events)}"
+        # Just log timing — no assertion on speed
+        print(f"Parsed 100k lines in {elapsed:.2f}s -> {len(events)} events")
+    finally:
+        import os
+        os.unlink(tmp_path)
+
+
+def test_summarize_large_event_list():
+    """Summarize 50k synthetic events and verify output structure."""
+    events = []
+    levels = ["INFO", "WARNING", "ERROR"]
+    for i in range(50_000):
+        events.append({
+            "ts": f"2026-03-09 12:{(i // 3600) % 24:02d}:{(i // 60) % 60:02d}",
+            "level": levels[i % 3],
+            "code": f"TEST{i % 100:04d}I" if i % 5 == 0 else None,
+            "exception": "NullPointerException" if i % 1000 == 0 else None,
+            "tags": ["DB/Pool"] if i % 2000 == 0 else [],
+            "text": f"Synthetic event {i}",
+            "thread_id": f"{i % 50:08x}",
+            "root_cause": None,
+        })
+
+    s = summarize(events, top_n=10)
+    assert s["total_events"] == 50_000
+    assert "levels" in s
+    assert "codes" in s
+    assert len(s["codes"]) <= 10
+
+
+def test_time_histogram_many_events():
+    """Create 10k events with varied timestamps and verify histogram output."""
+    events = []
+    for i in range(10_000):
+        hour = i % 24
+        minute = (i * 7) % 60
+        events.append({
+            "ts": f"2026-03-09 {hour:02d}:{minute:02d}:00",
+            "level": "ERROR" if i % 100 == 0 else "INFO",
+            "code": None,
+            "exception": None,
+            "tags": [],
+            "text": f"Event {i}",
+            "thread_id": "00000001",
+            "root_cause": None,
+        })
+
+    hist = time_histogram(events)
+    assert len(hist) > 0, "Histogram should have at least one bucket"
+    # Each entry is (bucket_label, total, error_count)
+    for label, total, err_count in hist:
+        assert total > 0
+
+
+# ---------------------------------------------------------------------------
+# API error handling tests
+# ---------------------------------------------------------------------------
+
+def test_ask_gemini_missing_key(monkeypatch):
+    """ask_gemini raises ValueError when no API key is provided."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    from wslog import ask_gemini
+    with pytest.raises(ValueError):
+        ask_gemini("test", api_key="", system="")
+
+
+def test_ask_gemini_import_error(monkeypatch):
+    """ask_gemini raises ImportError with helpful message when google-generativeai is missing."""
+    import builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "google.generativeai":
+            raise ImportError("No module named 'google.generativeai'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+    from wslog import ask_gemini
+    with pytest.raises(ImportError, match="google-generativeai"):
+        ask_gemini("test", api_key="fake-key", system="")
+
+
+def test_build_claude_prompt_empty_query():
+    """build_claude_prompt with empty query still returns valid dict with system and user keys."""
+    empty_match = {
+        "matched": False,
+        "codes": [],
+        "exceptions": [],
+        "tags": [],
+        "matching_events": [],
+        "match_type": None,
+    }
+    result = build_claude_prompt("", empty_match)
+    assert isinstance(result, dict)
+    assert "system" in result
+    assert "user" in result
+    assert isinstance(result["system"], str)
+    assert isinstance(result["user"], str)
+
+
 # --- select_skills full mapping coverage ---
 
 @pytest.mark.parametrize("tag,expected_skill", [
