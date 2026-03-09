@@ -1355,51 +1355,6 @@ with st.sidebar:
         log.info("cache Cleared all AI caches")
         st.success("Cache cleared")
 
-    st.markdown("---")
-    st.subheader("Realtime monitoring")
-    st.session_state.rt_enabled = st.toggle(
-        "Enable realtime log monitoring",
-        value=st.session_state.rt_enabled,
-        help="Monitor a local log file in real time (tail -f style)",
-    )
-    if st.session_state.rt_enabled:
-        rt_file = st.text_input(
-            "Log file path",
-            value=st.session_state.rt_file,
-            placeholder="/var/log/websphere/SystemOut.log",
-        )
-        st.session_state.rt_file = rt_file
-
-        # Quick pick: scan for .log files in common locations
-        scan_dirs = [
-            _APP_DIR,
-            UPLOADS_DIR,
-            Path.cwd(),
-            Path.home(),
-            Path("/opt/IBM/WebSphere/AppServer/profiles"),
-            Path("/var/log"),
-        ]
-        found_logs = []
-        for d in scan_dirs:
-            try:
-                if d.is_dir():
-                    for f in sorted(d.glob("*.log"))[:10]:
-                        if f.is_file() and str(f) not in found_logs:
-                            found_logs.append(str(f))
-            except (OSError, PermissionError):
-                continue
-        if found_logs:
-            pick = st.selectbox(
-                "Or pick a detected log file",
-                options=[""] + found_logs,
-                format_func=lambda x: "— select —" if x == "" else Path(x).name + f"  ({x})",
-                key="rt_file_pick",
-            )
-            if pick and pick != st.session_state.rt_file:
-                st.session_state.rt_file = pick
-                st.rerun()
-        else:
-            st.caption("No .log files found in common locations.")
 
 
 # --- Realtime log monitoring ---
@@ -1476,7 +1431,7 @@ def _rt_poll():
 def _rt_status_panel(filepath: str, running: bool, paused: bool) -> bool:
     """Show realtime monitor status. Returns False if monitoring should not continue."""
     if not filepath:
-        st.info("Enter a log file path in the sidebar to start monitoring.")
+        st.info("Enter a log file path above to start monitoring.")
         return False
     if not running:
         st.caption("Monitoring stopped.")
@@ -1558,12 +1513,9 @@ def _rt_live_view():
     _rt_render_buffer()
 
 
-# --- Realtime section (above tabs, always visible when enabled) ---
-if st.session_state.rt_enabled:
-    with st.expander("Realtime Log Monitor", expanded=st.session_state.rt_running):
-        _rt_live_view()
-
-tab_analyze, tab_history, tab_audit, tab_applog = st.tabs(["Analyze", "History", "Audit Report", "Application Log"])
+tab_analyze, tab_realtime, tab_history, tab_audit, tab_applog = st.tabs(
+    ["Analyze", "Realtime Console", "History", "Audit Report", "Application Log"]
+)
 
 with tab_analyze:
     uploaded_files = st.file_uploader(
@@ -1666,6 +1618,47 @@ with tab_analyze:
         render_report_sections(a)
     elif not uploaded_files:
         st.info("Upload one or more log files to get started.")
+
+with tab_realtime:
+    st.session_state.rt_enabled = True  # always enabled when on this tab
+    _col_path, _col_pick = st.columns([2, 1])
+    with _col_path:
+        _rt_path = st.text_input(
+            "Log file path",
+            value=st.session_state.rt_file,
+            placeholder="/var/log/websphere/SystemOut.log",
+            key="rt_file_tab",
+        )
+        if _rt_path != st.session_state.rt_file:
+            st.session_state.rt_file = _rt_path
+    with _col_pick:
+        _scan_dirs = [
+            _APP_DIR, UPLOADS_DIR, Path.cwd(), Path.home(),
+            Path("/opt/IBM/WebSphere/AppServer/profiles"),
+            Path("/var/log"),
+        ]
+        _found_logs: list[str] = []
+        for _d in _scan_dirs:
+            try:
+                if _d.is_dir():
+                    for _f in sorted(_d.glob("*.log"))[:10]:
+                        if _f.is_file() and str(_f) not in _found_logs:
+                            _found_logs.append(str(_f))
+            except (OSError, PermissionError):
+                continue
+        if _found_logs:
+            _pick = st.selectbox(
+                "Or pick a detected log file",
+                options=[""] + _found_logs,
+                format_func=lambda x: "— select —" if x == "" else Path(x).name,
+                key="rt_file_pick_tab",
+            )
+            if _pick and _pick != st.session_state.rt_file:
+                st.session_state.rt_file = _pick
+                st.rerun()
+        else:
+            st.caption("No .log files found.")
+    _rt_live_view()
 
 with tab_history:
     reports = get_report_history()
