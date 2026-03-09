@@ -121,6 +121,7 @@ _STATE_DEFAULTS = {
     "selected_action": None,    # "copy" | "claude" | "splunk"
     "api_key": "",              # Anthropic API key (entered via sidebar)
     "gemini_api_key": "",        # Google Gemini API key
+    "openai_api_key": "",        # OpenAI API key
     "gemini_answer": None,       # last Gemini response
     "gemini_query_label": None,  # query that produced the Gemini answer
     "gemini_cache": {},          # cache key -> response text
@@ -865,7 +866,7 @@ def render_incident_timeline(itl):
     )
 
     fig.update_layout(
-        title=None,
+        title="",
         xaxis_title="Time",
         yaxis_title=None,
         height=max(250, len(set(labels)) * 35 + 100),
@@ -989,58 +990,57 @@ st.title("WebSphere Log Analyzer")
 _KEYRING_SERVICE = "ws-log-analyzer"
 _KEYRING_USERNAME = "anthropic_api_key"
 _KEYRING_GEMINI_USERNAME = "gemini_api_key"
+_KEYRING_OPENAI_USERNAME = "openai_api_key"
+
+
+def _load_keychain(username, env_var):
+    """Load an API key from macOS Keychain, falling back to env var or empty string."""
+    try:
+        import keyring
+        stored = keyring.get_password(_KEYRING_SERVICE, username)
+        if stored:
+            return stored
+    except Exception:
+        pass
+    return os.environ.get(env_var, "")
+
+
+def _save_keychain(username, key, label="API"):
+    """Store or remove an API key in macOS Keychain."""
+    try:
+        import keyring
+        if key:
+            keyring.set_password(_KEYRING_SERVICE, username, key)
+            log.info("settings %s key saved to system keychain", label)
+        else:
+            keyring.delete_password(_KEYRING_SERVICE, username)
+            log.info("settings %s key removed from system keychain", label)
+    except Exception as ex:
+        log.warning("settings Could not save %s key to keychain: %s", label, ex)
 
 
 def _load_saved_api_key():
-    """Load Claude API key from macOS Keychain, env var, or empty string."""
-    try:
-        import keyring
-        stored = keyring.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
-        if stored:
-            return stored
-    except Exception:
-        pass
-    return os.environ.get("ANTHROPIC_API_KEY", "")
+    return _load_keychain(_KEYRING_USERNAME, "ANTHROPIC_API_KEY")
 
 
 def _save_api_key(key):
-    """Store Claude API key in macOS Keychain."""
-    try:
-        import keyring
-        if key:
-            keyring.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, key)
-            log.info("settings API key saved to system keychain")
-        else:
-            keyring.delete_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
-            log.info("settings API key removed from system keychain")
-    except Exception as ex:
-        log.warning("settings Could not save API key to keychain: %s", ex)
+    _save_keychain(_KEYRING_USERNAME, key, "Claude")
 
 
 def _load_saved_gemini_key():
-    """Load Gemini API key from macOS Keychain, env var, or empty string."""
-    try:
-        import keyring
-        stored = keyring.get_password(_KEYRING_SERVICE, _KEYRING_GEMINI_USERNAME)
-        if stored:
-            return stored
-    except Exception:
-        pass
-    return os.environ.get("GEMINI_API_KEY", "")
+    return _load_keychain(_KEYRING_GEMINI_USERNAME, "GEMINI_API_KEY")
 
 
 def _save_gemini_key(key):
-    """Store Gemini API key in macOS Keychain."""
-    try:
-        import keyring
-        if key:
-            keyring.set_password(_KEYRING_SERVICE, _KEYRING_GEMINI_USERNAME, key)
-            log.info("settings Gemini API key saved to system keychain")
-        else:
-            keyring.delete_password(_KEYRING_SERVICE, _KEYRING_GEMINI_USERNAME)
-            log.info("settings Gemini API key removed from system keychain")
-    except Exception as ex:
-        log.warning("settings Could not save Gemini API key to keychain: %s", ex)
+    _save_keychain(_KEYRING_GEMINI_USERNAME, key, "Gemini")
+
+
+def _load_saved_openai_key():
+    return _load_keychain(_KEYRING_OPENAI_USERNAME, "OPENAI_API_KEY")
+
+
+def _save_openai_key(key):
+    _save_keychain(_KEYRING_OPENAI_USERNAME, key, "OpenAI")
 
 
 # Initialize from saved key on first load
@@ -1080,6 +1080,23 @@ with st.sidebar:
         st.success("Gemini API key set")
     else:
         st.caption("Enter your key or set GEMINI_API_KEY env var")
+
+    if not st.session_state.openai_api_key:
+        st.session_state.openai_api_key = _load_saved_openai_key()
+    openai_key = st.text_input(
+        "OpenAI API Key",
+        value=st.session_state.openai_api_key,
+        type="password",
+        placeholder="sk-...",
+        help="Required for OpenAI models. Get a key at platform.openai.com/api-keys",
+    )
+    if openai_key != st.session_state.openai_api_key:
+        _save_openai_key(openai_key)
+    st.session_state.openai_api_key = openai_key
+    if openai_key:
+        st.success("OpenAI API key set")
+    else:
+        st.caption("Enter your key or set OPENAI_API_KEY env var")
 
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
@@ -1305,7 +1322,7 @@ if st.session_state.rt_enabled:
     with st.expander("Realtime Log Monitor", expanded=st.session_state.rt_running):
         _rt_live_view()
 
-tab_analyze, tab_history = st.tabs(["Analyze", "History"])
+tab_analyze, tab_history, tab_audit, tab_applog = st.tabs(["Analyze", "History", "Audit Report", "Application Log"])
 
 with tab_analyze:
     uploaded_files = st.file_uploader(
@@ -1431,9 +1448,250 @@ with tab_history:
                     key=f"dl_{rpath.name}",
                 )
 
-# --- Application Log ---
-st.markdown("---")
-with st.expander("Application Log"):
+_AUDIT_LIGHT_CSS = """
+<style>
+:root {
+  --bg-primary: #ffffff !important;
+  --bg-secondary: #f6f8fa !important;
+  --bg-tertiary: #f0f2f5 !important;
+  --bg-hover: #e8eaed !important;
+  --border: #d0d7de !important;
+  --border-strong: #bbc0c7 !important;
+  --text-primary: #1f2328 !important;
+  --text-secondary: #2d333b !important;
+  --text-muted: #656d76 !important;
+  --text-heading: #1f2328 !important;
+  --accent: #0969da !important;
+  --green: #1a7f37 !important;
+  --green-bg: #dafbe1 !important;
+  --yellow: #9a6700 !important;
+  --yellow-bg: #fff8c5 !important;
+  --red: #cf222e !important;
+  --red-bg: #ffebe9 !important;
+  --blue: #0969da !important;
+  --blue-bg: #ddf4ff !important;
+  --purple: #8250df !important;
+  --purple-bg: #fbefff !important;
+}
+body { background: #ffffff !important; color: #2d333b !important; }
+nav { display: none !important; }
+.layout { display: block !important; }
+main { max-width: 800px !important; margin: 0 !important; padding: 20px !important; }
+</style>
+"""
+
+_AUDIT_FILES_FULL = ["wslog.py", "app.py", "tests/test_wslog.py", "CLAUDE.md", "ARCHITECTURE.md"]
+_AUDIT_FILES_COMPACT = ["wslog.py", "app.py", "CLAUDE.md"]  # For models with low TPM limits
+_AUDIT_SKILL_DIRS = ["skills", ".claude/skills"]
+
+_AUDIT_MODELS = {
+    "Claude Sonnet 4.6 (~$0.20)": {"provider": "claude", "id": "claude-sonnet-4-6", "max_tokens": 8192, "compact": True},
+    "Claude Opus 4.6 (~$1.00)": {"provider": "claude", "id": "claude-opus-4-6", "max_tokens": 8192},
+    "Claude Haiku 4.5 (~$0.05)": {"provider": "claude", "id": "claude-haiku-4-5-20251001", "max_tokens": 8192, "compact": True},
+    "Gemini 2.5 Pro (~$0.15)": {"provider": "gemini", "id": "gemini-2.5-pro-preview-06-05", "max_tokens": 8192},
+    "Gemini 2.5 Flash (~$0.03)": {"provider": "gemini", "id": "gemini-2.5-flash-preview-05-20", "max_tokens": 8192},
+    "GPT-4o (~$0.15)": {"provider": "openai", "id": "gpt-4o", "max_tokens": 8192, "compact": True},
+    "GPT-4o mini (~$0.02)": {"provider": "openai", "id": "gpt-4o-mini", "max_tokens": 8192, "compact": True},
+    "o3 (~$0.60)": {"provider": "openai", "id": "o3", "max_tokens": 8192, "compact": True},
+    "o4-mini (~$0.07)": {"provider": "openai", "id": "o4-mini", "max_tokens": 8192, "compact": True},
+}
+
+_AUDIT_SYSTEM_PROMPT = """\
+You are a senior software engineer performing a technical audit of a Python project.
+Produce a structured Markdown report with these sections:
+1. Executive Summary (strengths, key findings)
+2. Repository Overview (file counts, line counts)
+3. Documentation Audit (accuracy, completeness)
+4. Skills System Analysis (coverage, gaps)
+5. Code Review Findings (bugs, style, security)
+6. AI Integration Review (prompt safety, caching)
+7. Test Coverage Analysis (coverage, gaps)
+8. Refactoring Opportunities
+9. Feature Opportunities
+10. Prioritized Improvement Plan
+
+For each section, assign a grade: A, A-, B+, B, B-, C+, C, or lower.
+Include an overall grade at the top. Use this format for grades:
+**Grade: X/10** (or letter grade)
+
+Mark fixed issues with ~~strikethrough~~ ✅ Fixed.
+Be specific — reference file names, line numbers, and function names.
+Start the report with: # Technical Audit Report — WS Log Analyzer
+"""
+
+
+_COMPACT_MAX_LINES = 250  # Max lines per file in compact mode
+
+def _collect_audit_sources(compact=False):
+    """Collect source files for auditing. Compact mode sends fewer/smaller files."""
+    file_list = _AUDIT_FILES_COMPACT if compact else _AUDIT_FILES_FULL
+    file_contents = []
+    for rel in file_list:
+        path = _APP_DIR / rel
+        if path.is_file():
+            content = path.read_text(encoding="utf-8", errors="replace")
+            all_lines = content.splitlines()
+            total = len(all_lines)
+            if compact and total > _COMPACT_MAX_LINES:
+                content = "\n".join(all_lines[:_COMPACT_MAX_LINES])
+                file_contents.append(f"--- {rel} ({total} lines, showing first {_COMPACT_MAX_LINES}) ---\n{content}")
+            else:
+                file_contents.append(f"--- {rel} ({total} lines) ---\n{content}")
+
+    # In compact mode, only include skill filenames (not full content)
+    if compact:
+        skill_names = []
+        for skill_dir in _AUDIT_SKILL_DIRS:
+            sdir = _APP_DIR / skill_dir
+            if sdir.is_dir():
+                for sf in sorted(sdir.glob("*.md")) + sorted(sdir.glob("*.yaml")):
+                    skill_names.append(str(sf.relative_to(_APP_DIR)))
+        if skill_names:
+            file_contents.append(f"--- Skills files (names only) ---\n" + "\n".join(skill_names))
+    else:
+        for skill_dir in _AUDIT_SKILL_DIRS:
+            sdir = _APP_DIR / skill_dir
+            if sdir.is_dir():
+                for sf in sorted(sdir.glob("*.md")) + sorted(sdir.glob("*.yaml")):
+                    content = sf.read_text(encoding="utf-8", errors="replace")
+                    rel_path = sf.relative_to(_APP_DIR)
+                    file_contents.append(f"--- {rel_path} ({len(content.splitlines())} lines) ---\n{content}")
+
+    return "Perform a full technical audit of the following codebase.\n\n" + "\n\n".join(file_contents)
+
+
+def _run_audit_claude(api_key, model_id, max_tokens, compact=False):
+    """Run audit via Claude API."""
+    from anthropic import Anthropic
+    client = Anthropic(api_key=api_key, timeout=300.0)
+    message = client.messages.create(
+        model=model_id,
+        max_tokens=max_tokens,
+        system=_AUDIT_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": _collect_audit_sources(compact=compact)}],
+    )
+    return message.content[0].text
+
+
+def _run_audit_gemini(api_key, model_id, compact=False):
+    """Run audit via Gemini API."""
+    return ask_gemini(
+        _collect_audit_sources(compact=compact),
+        api_key=api_key,
+        system=_AUDIT_SYSTEM_PROMPT,
+        model=model_id,
+    )
+
+
+def _run_audit_openai(api_key, model_id, max_tokens, compact=False):
+    """Run audit via OpenAI API."""
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ImportError("The openai package is not installed. Install with: pip install openai")
+    client = OpenAI(api_key=api_key, timeout=300.0)
+    response = client.chat.completions.create(
+        model=model_id,
+        max_completion_tokens=max_tokens,
+        messages=[
+            {"role": "system", "content": _AUDIT_SYSTEM_PROMPT},
+            {"role": "user", "content": _collect_audit_sources(compact=compact)},
+        ],
+    )
+    return response.choices[0].message.content
+
+
+def _run_audit(model_label):
+    """Run a full audit and regenerate the HTML report."""
+    from report_renderer import render_html
+
+    model_info = _AUDIT_MODELS[model_label]
+    provider = model_info["provider"]
+    compact = model_info.get("compact", False)
+
+    if provider == "claude":
+        if not st.session_state.api_key:
+            raise ValueError("Enter your Anthropic API key in the sidebar first.")
+        audit_md = _run_audit_claude(
+            st.session_state.api_key, model_info["id"], model_info["max_tokens"], compact=compact
+        )
+    elif provider == "gemini":
+        gemini_key = st.session_state.gemini_api_key
+        if not gemini_key:
+            raise ValueError("Enter your Gemini API key in the sidebar first.")
+        audit_md = _run_audit_gemini(gemini_key, model_info["id"], compact=compact)
+    else:
+        openai_key = st.session_state.openai_api_key
+        if not openai_key:
+            raise ValueError("Enter your OpenAI API key in the sidebar first.")
+        audit_md = _run_audit_openai(
+            openai_key, model_info["id"], model_info["max_tokens"], compact=compact
+        )
+
+    if not audit_md:
+        raise ValueError("Model returned an empty response.")
+
+    # Save markdown
+    md_path = _APP_DIR / "AUDIT_REPORT.md"
+    md_path.write_text(audit_md, encoding="utf-8")
+
+    # Convert to HTML
+    audit_html = render_html(audit_md, title="Technical Audit Report — WS Log Analyzer")
+    html_path = _APP_DIR / "AUDIT_REPORT.html"
+    html_path.write_text(audit_html, encoding="utf-8")
+
+    log.info("audit Audit report generated with %s: %s", model_label, html_path)
+    return audit_html
+
+
+with tab_audit:
+    _audit_html_path = _APP_DIR / "AUDIT_REPORT.html"
+
+    col_model, col_run, col_dl = st.columns([2, 1, 1])
+    with col_model:
+        _audit_model = st.selectbox(
+            "Model",
+            list(_AUDIT_MODELS.keys()),
+            key="audit_model",
+            label_visibility="collapsed",
+        )
+    with col_run:
+        _run_clicked = st.button("Run Audit", type="primary",
+                                 help="Analyze the codebase and generate a fresh audit report")
+    with col_dl:
+        if _audit_html_path.is_file():
+            _existing_html = _audit_html_path.read_text(encoding="utf-8")
+            st.download_button(
+                label="Download HTML",
+                data=_existing_html,
+                file_name="AUDIT_REPORT.html",
+                mime="text/html",
+                key="dl_audit_report",
+            )
+
+    if _run_clicked:
+        _provider = _AUDIT_MODELS[_audit_model]["provider"]
+        _model_id = _AUDIT_MODELS[_audit_model]["id"]
+        with st.status(f"Running audit with {_model_id}...", expanded=True) as _audit_status:
+            _audit_status.write("Reading source files...")
+            try:
+                _audit_status.write(f"Sending to {_provider.title()} for analysis (this may take a minute)...")
+                _fresh_html = _run_audit(_audit_model)
+                _audit_status.update(label="Audit complete!", state="complete")
+                st.rerun()
+            except Exception as ex:
+                log.error("audit Audit failed: %s", ex)
+                _audit_status.update(label="Audit failed", state="error")
+                st.error(f"Audit failed: {ex}")
+
+    if _audit_html_path.is_file():
+        _audit_html = _audit_html_path.read_text(encoding="utf-8")
+        _audit_styled = _audit_html.replace("</head>", _AUDIT_LIGHT_CSS + "</head>")
+        st.components.v1.html(_audit_styled, height=2000, scrolling=True)
+    else:
+        st.info("No audit report yet. Click **Run Audit** to generate one.")
+
+with tab_applog:
     _log_level_filter = st.selectbox(
         "Filter by level",
         ["ALL", "INFO", "WARNING", "ERROR"],

@@ -7,6 +7,10 @@ from collections import Counter
 from pathlib import Path
 import sys
 
+# --- Constants ---
+MAX_EVENT_TEXT = 4000  # Max characters of event text in reports
+MAX_SKILLS = 3         # Max domain skills injected into AI prompts
+
 # --- Common patterns (WebSphere / Java-ish) ---
 TS_PATTERNS = [
     # WebSphere classic: [10/12/15 21:22:04:257 CEST]
@@ -477,6 +481,201 @@ _HEURISTICS = [
             "Increase -Xmx / -XX:MaxMetaspaceSize only after ruling out leaks.",
         ],
     },
+    {
+        "id": "session-error",
+        "title": "HTTP Session Failure",
+        "match": re.compile(
+            r'SESN0066E|SESN0008E|SESN0306E|Session.*invalid'
+            r'|NotSerializableException.*[Ss]ession',
+            re.IGNORECASE,
+        ),
+        "cause": "HTTP sessions are being invalidated, failing to replicate, or contain non-serializable objects.",
+        "fixes": [
+            "Ensure all objects stored in the session implement java.io.Serializable.",
+            "Check session timeout settings — short timeouts cause unexpected invalidation under load.",
+            "For replication failures, verify the DRS transport is healthy across cluster members.",
+        ],
+    },
+    {
+        "id": "classloader",
+        "title": "ClassLoader / Linking Error",
+        "match": re.compile(
+            r'ClassNotFoundException|NoClassDefFoundError|LinkageError'
+            r'|ClassCastException.*proxy|CWWKL0007W',
+            re.IGNORECASE,
+        ),
+        "cause": "A required class cannot be found or loaded — typically a missing JAR, classloader policy mismatch, or stale deploy.",
+        "fixes": [
+            "Verify the missing class is in the app's WEB-INF/lib or a shared library.",
+            "Check classloader policy (PARENT_FIRST vs PARENT_LAST) — mixing can cause LinkageError.",
+            "After redeploys, restart the server to clear stale classloader references.",
+        ],
+    },
+    {
+        "id": "datasource-down",
+        "title": "DataSource / Database Unreachable",
+        "match": re.compile(
+            r'DSRA0010E|DSRA0080E|DSRA8040I|Cannot get a connection'
+            r'|SocketTimeoutException.*jcc|Communication link failure',
+            re.IGNORECASE,
+        ),
+        "cause": "The database is unreachable or rejecting connections — network issue, DB down, or credentials expired.",
+        "fixes": [
+            "Test connectivity to the DB host/port from the WAS server (telnet / nc).",
+            "Check DB listener status and max_connections on the database side.",
+            "Review recent password rotations — update the J2C authentication alias if credentials changed.",
+        ],
+    },
+    {
+        "id": "servlet-error",
+        "title": "Servlet Runtime Error",
+        "match": re.compile(
+            r'SRVE0293E|SRVE0315E|SRVE0777E|StackOverflowError'
+            r'|Connection reset.*SocketException',
+            re.IGNORECASE,
+        ),
+        "cause": "A servlet threw an unhandled exception or the client disconnected mid-response.",
+        "fixes": [
+            "Check the root exception in the stack trace — NullPointerException and StackOverflowError are the most common.",
+            "For StackOverflowError, look for recursive calls and increase -Xss if the recursion is intentional.",
+            "Connection reset errors are usually harmless client disconnects — suppress with response.isCommitted() checks.",
+        ],
+    },
+    {
+        "id": "deploy-fail",
+        "title": "Application Deployment Failure",
+        "match": re.compile(
+            r'CWWKZ0002E|CWWKZ0013E|CWWKZ0060E|ADMA0004E'
+            r'|failed to start|Initialization failed',
+            re.IGNORECASE,
+        ),
+        "cause": "An application failed to start or deploy — missing dependencies, config errors, or port conflicts.",
+        "fixes": [
+            "Check for NameNotFoundException — a required JNDI resource (DataSource, JMS queue) may not be configured.",
+            "Review the full startup exception chain for the root cause.",
+            "Verify the application's deployment descriptor (web.xml / server.xml) is valid.",
+        ],
+    },
+    {
+        "id": "transaction-timeout",
+        "title": "Transaction Timeout or Rollback",
+        "match": re.compile(
+            r'WTRN0006W|WTRN0074W|WTRN0062E|StaleConnectionException'
+            r'|totalTranLifetime|transaction.*timed?\s*out',
+            re.IGNORECASE,
+        ),
+        "cause": "A transaction exceeded the configured timeout or a connection was invalidated mid-transaction.",
+        "fixes": [
+            "Review the transaction timeout setting (totalTranLifetimeTimeout in tWAS or transactionTimeout in Liberty).",
+            "Identify the slow query or service call holding the transaction open — add query logging or APM.",
+            "For legitimate batch operations, increase the timeout; otherwise fix the underlying bottleneck.",
+        ],
+    },
+    {
+        "id": "authz-denied",
+        "title": "Authorization / Access Denied",
+        "match": re.compile(
+            r'CWWKS9104A|CWWKS1100A.*[Ll]ocked|[Aa]uthorization.*denied'
+            r'|not\s+authorized|403.*[Ff]orbidden',
+            re.IGNORECASE,
+        ),
+        "cause": "A user authenticated successfully but lacks the required role or permissions to access the resource.",
+        "fixes": [
+            "Verify role mappings in application-bnd.xml (tWAS) or server.xml (Liberty) match declared roles.",
+            "Check if the user's LDAP/registry group membership has changed.",
+            "Review security constraints in web.xml — ensure the required role name is correct.",
+        ],
+    },
+    {
+        "id": "jndi-lookup-fail",
+        "title": "JNDI Lookup Failed",
+        "match": re.compile(
+            r'CWNEN1001E|NameNotFoundException|JNDI.*not found'
+            r'|InitialContext.*failed',
+            re.IGNORECASE,
+        ),
+        "cause": "A JNDI lookup for a resource (DataSource, JMS queue, EJB) failed — the resource is not configured or has a mismatched name.",
+        "fixes": [
+            "Verify the resource is declared in server.xml (Liberty) or the admin console (tWAS) with the exact JNDI name.",
+            "Check that the application's web.xml resource-ref matches the configured resource name.",
+            "For EJB lookups, confirm the JNDI name follows the correct format (ejb/ModuleName/BeanName).",
+        ],
+    },
+    {
+        "id": "port-bind-fail",
+        "title": "TCP Port Binding Failure",
+        "match": re.compile(
+            r'TCPC0003E|CHFW0019I|[Pp]ort.*in use|[Bb]ind.*failed'
+            r'|Address already in use',
+            re.IGNORECASE,
+        ),
+        "cause": "The configured port is already bound by another process, preventing the server from starting.",
+        "fixes": [
+            "Identify the conflicting process: lsof -i :PORT (Unix) or netstat -ano | findstr :PORT (Windows).",
+            "Update httpPort / httpsPort in server.xml if a port change is needed.",
+            "Ensure the WAS user has permission to bind to ports below 1024 (requires root on Unix).",
+        ],
+    },
+    {
+        "id": "ldap-connection-fail",
+        "title": "LDAP / User Registry Connection Failed",
+        "match": re.compile(
+            r'CWWKS3005E|LDAP.*connection.*failed|[Dd]irectory.*service.*unavailable'
+            r'|bindDN.*failed',
+            re.IGNORECASE,
+        ),
+        "cause": "Cannot connect to the LDAP/AD server for authentication or user lookup.",
+        "fixes": [
+            "Verify LDAP server is reachable (telnet to LDAP port, usually 389 or 636).",
+            "Check LDAP configuration in server.xml — verify host, port, bindDN, and password.",
+            "Review firewall rules between WAS and the LDAP server.",
+        ],
+    },
+    {
+        "id": "cert-expiry",
+        "title": "SSL Certificate Expired or Expiring",
+        "match": re.compile(
+            r'CWPKI0033E|CWPKI0823E|[Cc]ertificate.*expired'
+            r'|[Cc]ert.*expir',
+            re.IGNORECASE,
+        ),
+        "cause": "An SSL certificate in the keystore or truststore has expired, blocking HTTPS connections.",
+        "fixes": [
+            "Renew the certificate and import it into the keystore (keytool -import).",
+            "Verify the entire certificate chain is present (root + intermediates).",
+            "Restart the server after renewal to clear cached certificate references.",
+        ],
+    },
+    {
+        "id": "config-error",
+        "title": "Configuration File Error",
+        "match": re.compile(
+            r'CWWKG0028A|CWWKC0001E|[Cc]onfig.*error.*xml'
+            r'|web\.xml.*invalid|server\.xml.*error',
+            re.IGNORECASE,
+        ),
+        "cause": "A configuration file (server.xml, web.xml) has syntax errors or failed schema validation.",
+        "fixes": [
+            "Check XML syntax — common issues: unclosed tags, mismatched quotes, invalid characters.",
+            "Validate the file against the schema using an IDE or XML validator.",
+            "Review the server log for the exact line number causing the error.",
+        ],
+    },
+    {
+        "id": "context-root-conflict",
+        "title": "Context Root Conflict / Duplicate Deployment",
+        "match": re.compile(
+            r'CWWKZ0014W|already.*exists.*context.root'
+            r'|[Dd]uplicate.*application|context.root.*conflict',
+            re.IGNORECASE,
+        ),
+        "cause": "Two applications are configured with the same context root, or an app was not fully undeployed before redeployment.",
+        "fixes": [
+            "Verify only one application uses each context root — list deployments via wsadmin or Liberty app manager.",
+            "Ensure the old version is fully undeployed before redeploying.",
+            "Check application.xml for correct context-root values.",
+        ],
+    },
 ]
 
 
@@ -684,7 +883,7 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=
                 "root_cause": e["root_cause"],
                 "ts": e["ts"],
                 "tags": e["tags"],
-                "text": e["text"][:4000],
+                "text": e["text"][:MAX_EVENT_TEXT],
             }
             for e in samples
         ],
@@ -806,8 +1005,8 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1, _analy
             md.append(f"- {' | '.join(parts)}")
         md.append("")
         md.append("```")
-        md.append(e["text"][:4000])
-        if len(e["text"]) > 4000:
+        md.append(e["text"][:MAX_EVENT_TEXT])
+        if len(e["text"]) > MAX_EVENT_TEXT:
             md.append("\n...[TRUNCATED]...")
         md.append("```")
         md.append("")
@@ -854,7 +1053,7 @@ def render_pdf_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=N
     def mono(text):
         pdf.set_font("Courier", "", 7)
         pdf.set_x(pdf.l_margin)
-        safe = _latin1_safe(text[:4000])
+        safe = _latin1_safe(text[:MAX_EVENT_TEXT])
         max_chars = 110
         wrapped = []
         for line in safe.split("\n"):
@@ -963,7 +1162,7 @@ def render_pdf_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=N
             parts.append(f"Root cause: {e['root_cause']}")
         if parts:
             body(" | ".join(parts))
-        mono(e["text"][:4000])
+        mono(e["text"][:MAX_EVENT_TEXT])
 
     return bytes(pdf.output())
 
@@ -1085,16 +1284,28 @@ _SKILL_TAG_MAP = {
 _SKILL_CODE_PREFIX_MAP = {
     "SRVE":  ["message-codes.md", "servlet-errors.md", "splunk-query.md"],
     "CWWK":  ["liberty-analysis.md", "message-codes.md"],
+    "CWWKS": ["security-analysis.md", "liberty-analysis.md", "message-codes.md"],
     "CWPKI": ["security-analysis.md", "splunk-query.md"],
+    "CWWKG": ["liberty-analysis.md", "message-codes.md"],
+    "CWNEN": ["deployment-analysis.md", "message-codes.md"],
+    "CWMMH": ["liberty-analysis.md", "deployment-analysis.md"],
+    "CWMRX": ["liberty-analysis.md"],
+    "CWMMC": ["liberty-analysis.md"],
     "WSVR":  ["websphere-startup.md", "thread-correlation.md"],
     "DSRA":  ["message-codes.md", "splunk-query.md"],
-    "DCSV":  ["log-noise-filter.md"],
-    "HMGR":  ["log-noise-filter.md"],
-    "WTRN":  ["message-codes.md"],
-    "J2CA":  ["message-codes.md"],
-    "CWWKZ": ["deployment-analysis.md"],
-    "CWWKF": ["liberty-analysis.md"],
+    "DCSV":  ["log-noise-filter.md", "websphere-startup.md"],
+    "HMGR":  ["log-noise-filter.md", "websphere-startup.md"],
+    "WTRN":  ["message-codes.md", "stacktrace-analysis.md"],
+    "J2CA":  ["message-codes.md", "splunk-query.md"],
+    "CWWKZ": ["deployment-analysis.md", "liberty-analysis.md"],
+    "CWWKF": ["liberty-analysis.md", "message-codes.md"],
+    "CWWKE": ["liberty-analysis.md", "websphere-startup.md"],
     "SESN":  ["message-codes.md", "servlet-errors.md"],
+    "ADMA":  ["deployment-analysis.md"],
+    "ADMU":  ["websphere-startup.md"],
+    "TCPC":  ["websphere-startup.md", "message-codes.md"],
+    "CHFW":  ["websphere-startup.md", "message-codes.md"],
+    "CNTR":  ["message-codes.md"],
 }
 
 _SKILL_EXCEPTION_MAP = {
@@ -1108,29 +1319,62 @@ _SKILL_EXCEPTION_MAP = {
     "nullpointer":      ["stacktrace-analysis.md"],
     "classnotfound":    ["stacktrace-analysis.md", "deployment-analysis.md"],
     "noclassdeffound":  ["stacktrace-analysis.md", "deployment-analysis.md"],
-    "sqlexception":     ["message-codes.md"],
-    "connectexception": ["message-codes.md"],
+    "linkageerror":     ["stacktrace-analysis.md", "deployment-analysis.md"],
+    "classcastexception": ["deployment-analysis.md", "stacktrace-analysis.md"],
+    "sqlexception":     ["message-codes.md", "splunk-query.md"],
+    "connectexception": ["message-codes.md", "splunk-query.md"],
+    "sockettimeout":    ["thread-correlation.md", "message-codes.md"],
     "servlet":          ["servlet-errors.md"],
+    "namenotfound":     ["deployment-analysis.md", "message-codes.md"],
+    "notserializable":  ["servlet-errors.md", "message-codes.md"],
+    "deadlock":         ["thread-correlation.md"],
+    "illegalstate":     ["servlet-errors.md", "stacktrace-analysis.md"],
+    "oauth":            ["security-analysis.md"],
+    "openid":           ["security-analysis.md"],
+    "asynccontext":     ["servlet-errors.md"],
 }
 
 _SKILL_QUERY_KEYWORDS = {
-    "liberty":    ["liberty-analysis.md"],
-    "startup":    ["websphere-startup.md"],
-    "deploy":     ["deployment-analysis.md"],
-    "noise":      ["log-noise-filter.md"],
-    "splunk":     ["splunk-query.md"],
-    "thread":     ["thread-correlation.md", "stacktrace-analysis.md"],
-    "hung":       ["thread-correlation.md", "stacktrace-analysis.md"],
-    "security":   ["security-analysis.md"],
-    "auth":       ["security-analysis.md"],
-    "login":      ["security-analysis.md"],
-    "servlet":    ["servlet-errors.md"],
-    "stacktrace": ["stacktrace-analysis.md"],
-    "pkix":       ["security-analysis.md", "splunk-query.md"],
-    "certificate":["security-analysis.md"],
+    "liberty":      ["liberty-analysis.md"],
+    "startup":      ["websphere-startup.md"],
+    "deploy":       ["deployment-analysis.md"],
+    "rollback":     ["deployment-analysis.md"],
+    "canary":       ["deployment-analysis.md"],
+    "noise":        ["log-noise-filter.md"],
+    "filter":       ["log-noise-filter.md"],
+    "splunk":       ["splunk-query.md"],
+    "alert":        ["splunk-query.md"],
+    "thread":       ["thread-correlation.md", "stacktrace-analysis.md"],
+    "hung":         ["thread-correlation.md", "stacktrace-analysis.md"],
+    "deadlock":     ["thread-correlation.md"],
+    "blocked":      ["thread-correlation.md"],
+    "security":     ["security-analysis.md"],
+    "auth":         ["security-analysis.md"],
+    "login":        ["security-analysis.md"],
+    "oauth":        ["security-analysis.md"],
+    "ldap":         ["security-analysis.md"],
+    "brute":        ["security-analysis.md"],
+    "token":        ["security-analysis.md"],
+    "servlet":      ["servlet-errors.md"],
+    "filter chain": ["servlet-errors.md"],
+    "async":        ["servlet-errors.md"],
+    "stacktrace":   ["stacktrace-analysis.md"],
+    "exception":    ["stacktrace-analysis.md"],
+    "pkix":         ["security-analysis.md", "splunk-query.md"],
+    "certificate":  ["security-analysis.md"],
+    "jndi":         ["deployment-analysis.md", "message-codes.md"],
+    "classloader":  ["deployment-analysis.md", "stacktrace-analysis.md"],
+    "kubernetes":   ["deployment-analysis.md"],
+    "container":    ["deployment-analysis.md"],
+    "microprofile": ["liberty-analysis.md"],
+    "health check": ["liberty-analysis.md"],
+    "shutdown":     ["liberty-analysis.md"],
+    "restart":      ["websphere-startup.md", "splunk-query.md"],
+    "cluster":      ["websphere-startup.md"],
+    "transaction":  ["message-codes.md", "stacktrace-analysis.md"],
+    "pool":         ["message-codes.md", "splunk-query.md"],
+    "connection":   ["message-codes.md", "splunk-query.md"],
 }
-
-MAX_SKILLS = 3
 
 
 def select_skills(match_result, user_query=""):
@@ -1264,13 +1508,14 @@ def claude_cache_key(user_query, match_result):
     return "|".join(parts)
 
 
-def ask_gemini(prompt: str, api_key: str = "", system: str = "") -> str:
+def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "gemini-2.5-flash") -> str:
     """Send a prompt to Google Gemini and return the text response.
 
     Args:
         prompt: The user content to send.
         api_key: Gemini API key. Falls back to GEMINI_API_KEY env var.
         system: System instruction (kept separate from user content).
+        model: Gemini model ID (default: gemini-2.5-flash).
     """
     import os
     key = api_key or os.environ.get("GEMINI_API_KEY", "")
@@ -1287,7 +1532,7 @@ def ask_gemini(prompt: str, api_key: str = "", system: str = "") -> str:
     model_kwargs = {}
     if system:
         model_kwargs["system_instruction"] = system
-    model = genai.GenerativeModel("gemini-2.5-flash", **model_kwargs)
+    model = genai.GenerativeModel(model, **model_kwargs)
     response = model.generate_content(prompt, request_options={"timeout": 30})
     return response.text
 

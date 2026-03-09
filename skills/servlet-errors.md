@@ -84,3 +84,68 @@ If one servlet fails while others work:
 | SRVE0207E | 503 | Servlet unavailable (init failed) |
 | SRVE0319E | 413 | Request too large |
 | SRVE0190E | varies | I/O error, often client-side |
+
+## Filter and Interceptor Errors
+
+Modern apps use servlet filters heavily (authentication, logging, CORS). Filter errors may not produce SRVE codes directly:
+
+### Filter Chain Failure
+```
+SRVE0255E: A Servlet Exception occurred
+Caused by: java.lang.RuntimeException: Filter execution failed
+    at com.example.filter.AuthFilter.doFilter(AuthFilter.java:45)
+```
+The stacktrace shows the filter class, not the servlet. Look for `doFilter` in the trace.
+
+### Common Filter Issues
+| Pattern | Cause |
+|---------|-------|
+| `AuthFilter` + `NullPointerException` | Missing security context or session |
+| `CorsFilter` + `IllegalStateException` | Response already committed before CORS headers |
+| `LoggingFilter` + `OutOfMemoryError` | Filter buffering entire request/response body |
+| `CompressionFilter` + `IOException` | Client disconnected during compressed response |
+
+## Async Servlet Errors
+
+Async servlets (`AsyncContext`) introduce new failure modes:
+
+### Async Timeout
+```
+SRVE0255E: ... AsyncContext timeout
+```
+The async operation didn't call `complete()` within the timeout (default 30s).
+Fix: Increase `asyncTimeout` or fix the slow async operation.
+
+### Async Error After Response
+```
+IllegalStateException: Response already committed
+    at javax.servlet.AsyncContext.dispatch(AsyncContext.java:...)
+```
+The async handler tried to write after the response was already sent.
+Fix: Check `response.isCommitted()` before writing.
+
+## Servlet Timeout Configuration
+
+WAS servlet timeouts manifest differently than HTTP client timeouts:
+
+| Config | Default | Log Pattern |
+|--------|---------|-------------|
+| `asyncTimeout` | 30s | SRVE0255E with AsyncContext |
+| `connectionTimeout` | 60s | SRVE0190E, connection closed |
+| `readTimeout` | 60s | SRVE0190E, read timed out |
+| `writeTimeout` | 60s | SRVE0315E, write failed |
+
+### Slow Servlet Load (SRVE0242I)
+If the time between SRVE0169I (loading module) and SRVE0242I (servlet loaded) is > 10 seconds:
+- Servlet `init()` is doing heavy work (DB connections, cache warmup)
+- Consider lazy initialization or async init for expensive setup
+
+## Incident Response Playbook
+
+### Scenario: 500 Errors Spiking
+1. Check if one servlet or many → single = app bug, many = shared resource down
+2. Extract the root exception from SRVE0255E stacktraces
+3. If `SQLException` → check DB health (DSRA codes)
+4. If `ConnectException` → downstream service is down
+5. If `NullPointerException` → application bug, check the exact line number
+6. If errors started after deploy → rollback candidate

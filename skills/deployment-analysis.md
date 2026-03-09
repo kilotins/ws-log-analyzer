@@ -76,3 +76,64 @@ For rolling deployments across a cluster:
 2. Check no CWWKZ0013E on any node
 3. Confirm health checks pass (CWMMH) before routing traffic
 4. Monitor error rate for 5-10 minutes post-deploy per node
+
+## Container / Kubernetes Deployments
+
+### Pod Startup Sequence
+In containerized Liberty, the log sequence is:
+```
+CWWKE0001I  → Liberty JVM starting inside container
+CWWKF0007I  → Features loading
+CWWKZ0001I  → App started
+CWWKF0011I  → Server ready ← readiness probe should check after this
+```
+
+### Container-Specific Failure Patterns
+| Log Pattern | Likely Cause |
+|-------------|-------------|
+| CWWKZ0013E at pod startup | Missing ConfigMap/Secret mount → env vars not set |
+| DSRA8020E at pod startup | DB Service not yet available (pod started before DB) |
+| CWPKI0022E at pod startup | TLS secret not mounted or wrong secret name |
+| OOMKilled (not in WAS logs) | Container memory limit too low for JVM heap |
+
+### Detecting Partial Rollouts
+When only some pods updated (stuck rollout):
+```
+Pod A: CWWKZ0001I Application MyApp-v2.1 started   ← new version
+Pod B: CWWKZ0001I Application MyApp-v2.0 started   ← old version
+```
+Compare app version strings across pods. Mixed versions = incomplete rollout.
+
+## ClassLoader Cleanup After Redeploy
+
+Failed cleanup causes memory leaks across redeploys:
+```
+WARNING: The web application [MyApp] registered the JDBC driver [oracle.jdbc.OracleDriver]
+but failed to unregister it when the web application was stopped. To prevent a memory leak,
+the JDBC driver has been forcibly unregistered.
+```
+
+Detection:
+- Metaspace/PermGen growth after each redeploy without restart
+- `ClassCastException` with identical class names (same class, different classloaders)
+- Thread local values surviving redeploy (`ThreadLocal` leak)
+
+Fix: Always restart after multiple hot redeploys in production.
+
+## Canary Deployment Verification
+
+When doing canary deploys (small % of traffic to new version):
+1. Compare error rates: `msg_code=SRVE0255E` on canary vs stable pods
+2. Compare response times: canary latency should match or improve
+3. Watch for new exception types: any `Caused by:` not seen on stable pods = regression
+4. Minimum soak time: 15-30 minutes before promoting to full rollout
+
+## Incident Response Playbook
+
+### Scenario: Deploy Broke Production
+1. Check timestamp of CWWKZ0001I — does it correlate with error spike?
+2. Compare error types before/after deploy timestamp
+3. If new exceptions appeared → rollback immediately
+4. If same exceptions but higher rate → likely a performance regression, investigate
+5. Rollback: redeploy previous artifact, verify CWWKZ0001I with old version string
+6. Post-mortem: diff the deployment artifacts to find the breaking change
