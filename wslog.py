@@ -1016,6 +1016,28 @@ def render_markdown_report(events: list[dict], top_n: int = 10, samples_n: int =
     return "\n".join(md)
 
 
+def render_csv_report(events: list[dict], max_text: int = 500) -> str:
+    """Generate a CSV export of parsed events."""
+    import csv
+    import io
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["timestamp", "level", "code", "exception", "root_cause", "tags", "thread_id", "file", "text"])
+    for e in events:
+        writer.writerow([
+            e.get("ts", ""),
+            e.get("level", ""),
+            e.get("code", ""),
+            e.get("exception", ""),
+            e.get("root_cause", ""),
+            ", ".join(e.get("tags", [])),
+            e.get("thread_id", ""),
+            e.get("file", ""),
+            (e.get("text", "")[:max_text]).replace("\n", " "),
+        ])
+    return buf.getvalue()
+
+
 def render_pdf_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None) -> bytes:
     """Generate a PDF triage report and return the bytes."""
     from fpdf import FPDF
