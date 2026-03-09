@@ -29,6 +29,7 @@ from app_render import (
     render_code_row, render_summary, render_report_sections,
     render_splunk_section,
 )
+from app_constants import CACHE_TTL_SECONDS, MAX_CACHE_ENTRIES as _MAX_CACHE_ENTRIES_DEFAULT
 from app_realtime import (
     _LEVEL_COLORS, _LEVEL_HIGHLIGHT_RE, _highlight_line,
     _is_safe_rt_path, _rt_poll, _rt_live_view, _RT_BUFFER_SIZE,
@@ -86,7 +87,7 @@ GEMINI_HISTORY_FILE = CACHE_DIR / "gemini_history.json"
 OPENAI_HISTORY_FILE = CACHE_DIR / "openai_history.json"
 
 
-MAX_CACHE_ENTRIES = 100
+MAX_CACHE_ENTRIES = _MAX_CACHE_ENTRIES_DEFAULT
 MAX_HISTORY_ENTRIES = 50
 
 
@@ -108,7 +109,7 @@ def _save_json_file(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days
+_CACHE_TTL_SECONDS = CACHE_TTL_SECONDS
 
 
 def _load_file_cache():

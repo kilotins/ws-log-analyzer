@@ -15,6 +15,7 @@ from wslog import (
     match_user_query, build_claude_prompt, claude_cache_key, _truncate_event_text, _sanitize_prompt_input,
     select_skills, load_skill_content, MAX_SKILLS, precompute_analysis,
     render_csv_report, render_xml_report,
+    estimate_tokens, _load_heuristics_from_yaml,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -2189,6 +2190,60 @@ class TestRenderXmlReport:
         assert len(xml) < 500  # Truncated, not full 1000 chars
 
 
+# --- Error scenario tests ---
+
+def test_parse_file_permission_error(tmp_path, monkeypatch):
+    """parse_file should raise or propagate PermissionError when file can't be opened."""
+    from wslog import open_text
+    from unittest.mock import patch
+
+    p = tmp_path / "noperm.log"
+    p.write_text("[10/12/15 21:22:04:257 CEST] 00000001 Comp I   CODE0001I: ok\n")
+
+    with patch("wslog.open_text", side_effect=PermissionError("Permission denied")):
+        with pytest.raises(PermissionError):
+            parse_file(p)
+
+
+def test_parse_file_non_utf8_content(tmp_path):
+    """parse_file should handle files with non-UTF8 (latin-1) encoded content without crashing."""
+    p = tmp_path / "latin1.log"
+    # Write latin-1 encoded content with characters outside ASCII
+    content = "[10/12/15 21:22:04:257 CEST] 00000001 Comp I   CODE0001I: caf\xe9 r\xe9sum\xe9\n"
+    p.write_bytes(content.encode("latin-1"))
+    events = parse_file(p)
+    assert len(events) == 1
+    assert events[0]["code"] == "CODE0001I"
+
+
+def test_render_pdf_report_missing_fpdf2(monkeypatch):
+    """render_pdf_report should raise ImportError when fpdf2 is not installed."""
+    import builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "fpdf":
+            raise ImportError("No module named 'fpdf'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+    events = [_make_event("ERROR: something broke")]
+    with pytest.raises(ImportError, match="fpdf"):
+        render_pdf_report(events)
+
+
+def test_open_text_with_null_bytes(tmp_path):
+    """open_text should handle files containing null bytes without crashing."""
+    from wslog import open_text
+    p = tmp_path / "nullbytes.log"
+    content = "[10/12/15 21:22:04:257 CEST] 00000001 Comp I   CODE0001I: before\x00after\n"
+    p.write_bytes(content.encode("utf-8"))
+    with open_text(p) as fh:
+        text = fh.read()
+    assert "before" in text
+    assert "after" in text
+
+
 # --- 10.1 open_text() with invalid gzip data ---
 
 def test_open_text_invalid_gz_falls_back_to_plain(tmp_path):
@@ -2438,3 +2493,59 @@ def test_sanitize_strips_tags_with_attributes():
     assert "<div" not in result
     assert "</div>" not in result
     assert "content" in result
+
+
+# ── estimate_tokens() ────────────────────────────────────────────────
+
+def test_estimate_tokens_empty_string():
+    """Empty string returns 0 tokens."""
+    assert estimate_tokens("") == 0
+
+
+def test_estimate_tokens_short_string():
+    """"hello" (5 chars) returns 5 // 4 = 1."""
+    assert estimate_tokens("hello") == 1
+
+
+def test_estimate_tokens_longer_string():
+    """Longer strings return len // 4."""
+    text = "a" * 100
+    assert estimate_tokens(text) == 25
+    text2 = "x" * 17
+    assert estimate_tokens(text2) == 4  # 17 // 4 = 4
+
+
+# ── _load_heuristics_from_yaml() ─────────────────────────────────────
+
+import re as _re
+
+
+def test_load_heuristics_from_yaml_returns_list():
+    """When heuristics.yaml exists, returns a non-empty list."""
+    result = _load_heuristics_from_yaml()
+    if result is None:
+        pytest.skip("yaml not installed or heuristics.yaml missing")
+    assert isinstance(result, list)
+    assert len(result) > 0
+
+
+def test_load_heuristics_from_yaml_entry_keys():
+    """Each heuristic entry has required keys: match, cause, fixes."""
+    result = _load_heuristics_from_yaml()
+    if result is None:
+        pytest.skip("yaml not installed or heuristics.yaml missing")
+    for entry in result:
+        assert "match" in entry, f"entry missing 'match': {entry}"
+        assert "cause" in entry, f"entry missing 'cause': {entry}"
+        assert "fixes" in entry, f"entry missing 'fixes': {entry}"
+
+
+def test_load_heuristics_from_yaml_patterns_are_compiled():
+    """The 'match' field should be a compiled regex pattern."""
+    result = _load_heuristics_from_yaml()
+    if result is None:
+        pytest.skip("yaml not installed or heuristics.yaml missing")
+    for entry in result:
+        assert isinstance(entry["match"], _re.Pattern), (
+            f"'match' is not a compiled regex: {type(entry['match'])}"
+        )

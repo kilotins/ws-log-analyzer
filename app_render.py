@@ -6,6 +6,7 @@ import streamlit as st
 from pathlib import Path
 
 from wslog import render_histogram, precompute_analysis
+from app_constants import LEVEL_COLORS
 
 
 def _looks_like_splunk(code):
@@ -181,16 +182,7 @@ def render_incident_timeline(itl):
     sizes = []
     hovers = []
 
-    level_colors = {
-        "FATAL": "#dc3545",
-        "ERROR": "#dc3545",
-        "SEVERE": "#dc3545",
-        "WARNING": "#ffc107",
-        "WARN": "#ffc107",
-        "INFO": "#0d6efd",
-        "AUDIT": "#6c757d",
-        "DEBUG": "#adb5bd",
-    }
+    level_colors = LEVEL_COLORS
 
     for w in window_events:
         e = w["event"]
@@ -487,8 +479,17 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     with st.expander(f"Hung Thread Analysis ({len(display_hung)} threads)"):
         render_hung_threads(display_hung)
 
-    with st.expander("Timeline"):
-        render_timeline(display_hist)
+    # Only show timeline if there's meaningful variation (max/min ratio >= 2)
+    _show_timeline = False
+    if display_hist:
+        counts = [count for _, count, _ in display_hist]
+        if counts:
+            min_c = min(counts)
+            max_c = max(counts)
+            _show_timeline = min_c == 0 or (max_c / max(min_c, 1)) >= 2
+    if _show_timeline:
+        with st.expander("Timeline", expanded=False):
+            render_timeline(display_hist)
 
     itl_label = "Incident Timeline"
     if display_itl:

@@ -6,17 +6,15 @@ import re as _re
 import streamlit as st
 from pathlib import Path
 
+from app_constants import LEVEL_COLORS, RT_BUFFER_SIZE
 
-_LEVEL_COLORS = {
-    "FATAL": "#dc3545", "ERROR": "#dc3545", "SEVERE": "#dc3545",
-    "WARNING": "#ffc107", "WARN": "#ffc107",
-    "INFO": "#0d6efd", "DEBUG": "#adb5bd",
-}
+
+_LEVEL_COLORS = LEVEL_COLORS
 _LEVEL_HIGHLIGHT_RE = _re.compile(
     r'\b(FATAL|ERROR|SEVERE|WARNING|WARN|INFO|DEBUG)\b'
 )
 
-_RT_BUFFER_SIZE = 300
+_RT_BUFFER_SIZE = RT_BUFFER_SIZE
 
 
 def _highlight_line(line):

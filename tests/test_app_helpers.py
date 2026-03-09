@@ -578,12 +578,18 @@ class TestCallOpenaiApi:
 
 
 class TestCallGeminiApi:
-    def test_returns_answer_and_empty_usage(self):
+    def test_returns_answer_and_estimated_usage(self):
         import app_ai as app_ai_mod
-        with mock.patch.object(app_ai_mod, "ask_gemini", return_value="Gemini says hi"):
-            answer, usage = _call_gemini_api("key", "model", {"system": "s", "user": "u"})
-        assert answer == "Gemini says hi"
-        assert usage == {}
+        with mock.patch.object(app_ai_mod, "ask_gemini", return_value="Gemini says hi there friend"):
+            answer, usage = _call_gemini_api(
+                "key", "model",
+                {"system": "You are a helpful assistant", "user": "Analyze this log file"},
+            )
+        assert answer == "Gemini says hi there friend"
+        assert "input" in usage
+        assert "output" in usage
+        assert usage["input"] > 0
+        assert usage["output"] > 0
 
     def test_empty_returns_none(self):
         import app_ai as app_ai_mod

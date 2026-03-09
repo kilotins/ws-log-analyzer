@@ -11,6 +11,7 @@ from wslog import (
     SWEDISH_CHEF_STYLE, ask_gemini,
     estimate_tokens, TOKEN_LIMITS,
 )
+from app_constants import AI_RATE_LIMIT_SECONDS as _AI_RATE_LIMIT_SECONDS_DEFAULT
 
 
 # --- Provider configuration for the common AI orchestrator ---
@@ -133,7 +134,15 @@ def _call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placehold
 def _call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
     """Make the actual Gemini API call. Returns (answer, usage_dict). Streaming not supported."""
     answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id)
-    return (answer or None, {})
+    # Gemini SDK doesn't return token usage, so estimate from prompt/response text
+    usage = {}
+    if answer:
+        input_text = (prompt.get("system") or "") + (prompt.get("user") or "")
+        usage = {
+            "input": estimate_tokens(input_text),
+            "output": estimate_tokens(answer),
+        }
+    return (answer or None, usage)
 
 
 def _call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
@@ -185,7 +194,7 @@ _API_CALLERS = {
 }
 
 
-_AI_RATE_LIMIT_SECONDS = 2.0  # Minimum seconds between AI API calls
+_AI_RATE_LIMIT_SECONDS = _AI_RATE_LIMIT_SECONDS_DEFAULT
 
 
 def build_ai_request_context(user_query: str, events: list[dict], provider: str = "claude", log=None) -> dict:
