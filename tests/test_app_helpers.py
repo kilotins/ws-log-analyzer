@@ -579,15 +579,15 @@ class TestCallOpenaiApi:
 
 class TestCallGeminiApi:
     def test_returns_answer_and_empty_usage(self):
-        import app as app_mod
-        with mock.patch.object(app_mod, "ask_gemini", return_value="Gemini says hi"):
+        import app_ai as app_ai_mod
+        with mock.patch.object(app_ai_mod, "ask_gemini", return_value="Gemini says hi"):
             answer, usage = _call_gemini_api("key", "model", {"system": "s", "user": "u"})
         assert answer == "Gemini says hi"
         assert usage == {}
 
     def test_empty_returns_none(self):
-        import app as app_mod
-        with mock.patch.object(app_mod, "ask_gemini", return_value=""):
+        import app_ai as app_ai_mod
+        with mock.patch.object(app_ai_mod, "ask_gemini", return_value=""):
             answer, usage = _call_gemini_api("key", "model", {"system": "s", "user": "u"})
         assert answer is None
 

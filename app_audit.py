@@ -1,0 +1,292 @@
+"""Audit tab module for the Streamlit GUI."""
+from __future__ import annotations
+
+import sys
+import streamlit as st
+from datetime import datetime
+from pathlib import Path
+
+from wslog import ask_gemini
+
+
+def _get_app_dir():
+    """Return the application directory (same as app.py's _APP_DIR)."""
+    return Path(__file__).parent
+
+
+_AUDIT_FILES_FULL = ["wslog.py", "app.py", "tests/test_wslog.py", "CLAUDE.md", "ARCHITECTURE.md"]
+_AUDIT_FILES_COMPACT = ["wslog.py", "app.py", "CLAUDE.md"]  # For models with low TPM limits
+_AUDIT_SKILL_DIRS = ["skills", ".claude/skills"]
+
+_AUDIT_MODELS = {
+    "Claude Sonnet 4.6 (~$0.20)": {"provider": "claude", "id": "claude-sonnet-4-6", "max_tokens": 8192, "compact": True},
+    "Claude Opus 4.6 (~$1.00)": {"provider": "claude", "id": "claude-opus-4-6", "max_tokens": 8192},
+    "Claude Haiku 4.5 (~$0.05)": {"provider": "claude", "id": "claude-haiku-4-5-20251001", "max_tokens": 8192, "compact": True},
+    "Gemini 2.5 Pro (~$0.15)": {"provider": "gemini", "id": "gemini-2.5-pro-preview-06-05", "max_tokens": 8192},
+    "Gemini 2.5 Flash (~$0.03)": {"provider": "gemini", "id": "gemini-2.5-flash-preview-05-20", "max_tokens": 8192},
+    "GPT-4o (~$0.15)": {"provider": "openai", "id": "gpt-4o", "max_tokens": 8192, "compact": True},
+    "GPT-4o mini (~$0.02)": {"provider": "openai", "id": "gpt-4o-mini", "max_tokens": 8192, "compact": True},
+    "o3 (~$0.60)": {"provider": "openai", "id": "o3", "max_tokens": 8192, "compact": True},
+    "o4-mini (~$0.07)": {"provider": "openai", "id": "o4-mini", "max_tokens": 8192, "compact": True},
+}
+
+_AUDIT_SYSTEM_PROMPT = """\
+You are a senior software engineer performing a technical audit of a Python project.
+Produce a structured Markdown report with these sections:
+1. Executive Summary (strengths, key findings)
+2. Repository Overview (file counts, line counts)
+3. Documentation Audit (accuracy, completeness)
+4. Skills System Analysis (coverage, gaps)
+5. Code Review Findings (bugs, style, security)
+6. AI Integration Review (prompt safety, caching)
+7. Test Coverage Analysis (coverage, gaps)
+8. Refactoring Opportunities
+9. Feature Opportunities
+10. Prioritized Improvement Plan
+
+For each section, assign a grade: A, A-, B+, B, B-, C+, C, or lower.
+Include an overall grade at the top. Use this format for grades:
+**Grade: X/10** (or letter grade)
+
+Mark fixed issues with ~~strikethrough~~ ✅ Fixed.
+Be specific — reference file names, line numbers, and function names.
+Start the report with: # Technical Audit Report — WS Log Analyzer
+"""
+
+
+_COMPACT_MAX_LINES = 250  # Max lines per file in compact mode
+
+
+def _extract_signatures(content: str) -> str:
+    """Extract function/class signatures and docstrings from Python source for compact audit."""
+    lines = content.splitlines()
+    result = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.lstrip()
+        # Keep imports, constants, class/function defs
+        if (stripped.startswith(("import ", "from ", "class ", "def "))
+                or (stripped and not stripped.startswith("#") and "=" in stripped.split("#")[0]
+                    and not stripped.startswith(" ") and not stripped.startswith("\t"))):
+            result.append(line)
+            # If it's a def/class, grab the docstring
+            if stripped.startswith(("def ", "class ")):
+                # Multi-line signature (only if current line doesn't end with ':')
+                if not line.rstrip().endswith(":"):
+                    i += 1
+                    while i < len(lines) and not lines[i].rstrip().endswith(":"):
+                        result.append(lines[i])
+                        i += 1
+                    if i < len(lines):
+                        result.append(lines[i])
+                i += 1
+                # Docstring
+                if i < len(lines) and '"""' in lines[i]:
+                    result.append(lines[i])
+                    if lines[i].count('"""') < 2:  # multi-line docstring
+                        i += 1
+                        while i < len(lines) and '"""' not in lines[i]:
+                            result.append(lines[i])
+                            i += 1
+                        if i < len(lines):
+                            result.append(lines[i])
+                    i += 1
+                    continue
+        i += 1
+    return "\n".join(result)
+
+
+def _collect_audit_sources(compact=False):
+    """Collect source files for auditing. Compact mode sends signatures + docstrings."""
+    app_dir = _get_app_dir()
+    file_list = _AUDIT_FILES_COMPACT if compact else _AUDIT_FILES_FULL
+    file_contents = []
+    for rel in file_list:
+        path = app_dir / rel
+        if path.is_file():
+            content = path.read_text(encoding="utf-8", errors="replace")
+            all_lines = content.splitlines()
+            total = len(all_lines)
+            if compact and total > _COMPACT_MAX_LINES and rel.endswith(".py"):
+                sig_content = _extract_signatures(content)
+                sig_lines = len(sig_content.splitlines())
+                file_contents.append(
+                    f"--- {rel} ({total} lines, showing {sig_lines} signature lines) ---\n{sig_content}"
+                )
+            elif compact and total > _COMPACT_MAX_LINES:
+                content = "\n".join(all_lines[:_COMPACT_MAX_LINES])
+                file_contents.append(f"--- {rel} ({total} lines, showing first {_COMPACT_MAX_LINES}) ---\n{content}")
+            else:
+                file_contents.append(f"--- {rel} ({total} lines) ---\n{content}")
+
+    # In compact mode, only include skill filenames (not full content)
+    if compact:
+        skill_names = []
+        for skill_dir in _AUDIT_SKILL_DIRS:
+            sdir = app_dir / skill_dir
+            if sdir.is_dir():
+                for sf in sorted(sdir.glob("*.md")) + sorted(sdir.glob("*.yaml")):
+                    skill_names.append(str(sf.relative_to(app_dir)))
+        if skill_names:
+            file_contents.append(f"--- Skills files (names only) ---\n" + "\n".join(skill_names))
+    else:
+        for skill_dir in _AUDIT_SKILL_DIRS:
+            sdir = app_dir / skill_dir
+            if sdir.is_dir():
+                for sf in sorted(sdir.glob("*.md")) + sorted(sdir.glob("*.yaml")):
+                    content = sf.read_text(encoding="utf-8", errors="replace")
+                    rel_path = sf.relative_to(app_dir)
+                    file_contents.append(f"--- {rel_path} ({len(content.splitlines())} lines) ---\n{content}")
+
+    return "Perform a full technical audit of the following codebase.\n\n" + "\n\n".join(file_contents)
+
+
+def _run_audit_claude(api_key, model_id, max_tokens, compact=False):
+    """Run audit via Claude API."""
+    from anthropic import Anthropic
+    client = Anthropic(api_key=api_key, timeout=300.0)
+    message = client.messages.create(
+        model=model_id,
+        max_tokens=max_tokens,
+        system=_AUDIT_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": _collect_audit_sources(compact=compact)}],
+    )
+    return message.content[0].text
+
+
+def _run_audit_gemini(api_key, model_id, compact=False):
+    """Run audit via Gemini API."""
+    return ask_gemini(
+        _collect_audit_sources(compact=compact),
+        api_key=api_key,
+        system=_AUDIT_SYSTEM_PROMPT,
+        model=model_id,
+    )
+
+
+def _run_audit_openai(api_key, model_id, max_tokens, compact=False):
+    """Run audit via OpenAI API."""
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ImportError("The openai package is not installed. Install with: pip install openai")
+    client = OpenAI(api_key=api_key, timeout=300.0)
+    response = client.chat.completions.create(
+        model=model_id,
+        max_completion_tokens=max_tokens,
+        messages=[
+            {"role": "system", "content": _AUDIT_SYSTEM_PROMPT},
+            {"role": "user", "content": _collect_audit_sources(compact=compact)},
+        ],
+    )
+    return response.choices[0].message.content
+
+
+def _run_audit(model_label, log):
+    """Run a full audit and regenerate the HTML report."""
+    from report_renderer import render_html
+
+    app_dir = _get_app_dir()
+    model_info = _AUDIT_MODELS[model_label]
+    provider = model_info["provider"]
+    compact = model_info.get("compact", False)
+
+    if provider == "claude":
+        if not st.session_state.api_key:
+            raise ValueError("Enter your Anthropic API key in the sidebar first.")
+        audit_md = _run_audit_claude(
+            st.session_state.api_key, model_info["id"], model_info["max_tokens"], compact=compact
+        )
+    elif provider == "gemini":
+        gemini_key = st.session_state.gemini_api_key
+        if not gemini_key:
+            raise ValueError("Enter your Gemini API key in the sidebar first.")
+        audit_md = _run_audit_gemini(gemini_key, model_info["id"], compact=compact)
+    else:
+        openai_key = st.session_state.openai_api_key
+        if not openai_key:
+            raise ValueError("Enter your OpenAI API key in the sidebar first.")
+        audit_md = _run_audit_openai(
+            openai_key, model_info["id"], model_info["max_tokens"], compact=compact
+        )
+
+    if not audit_md:
+        raise ValueError("Model returned an empty response.")
+
+    # Save markdown
+    md_path = app_dir / "AUDIT_REPORT.md"
+    md_path.write_text(audit_md, encoding="utf-8")
+
+    # Version the report and generate delta if previous exists
+    _delta_md = None
+    try:
+        reports_dir = app_dir / "reports"
+        reports_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+        versioned = reports_dir / f"AUDIT_{timestamp}.md"
+        versioned.write_text(audit_md, encoding="utf-8")
+        log.info("audit Versioned report: %s", versioned.name)
+
+        # Find previous versioned report
+        import re as _re_mod
+        pattern = _re_mod.compile(r'^AUDIT_\d{4}-\d{2}-\d{2}_\d{4}\.md$')
+        all_reports = sorted(p for p in reports_dir.iterdir() if pattern.match(p.name))
+        previous = None
+        for r in all_reports:
+            if r != versioned:
+                previous = r
+        if previous:
+            sys.path.insert(0, str(app_dir / "scripts"))
+            from compare_audits import compare_audits, render_delta
+            results = compare_audits(previous, versioned)
+            _delta_md = render_delta(results, previous.name, versioned.name)
+            delta_path = reports_dir / f"DELTA_AUDIT_{timestamp}.md"
+            delta_path.write_text(_delta_md, encoding="utf-8")
+            log.info("audit Delta report: %s", delta_path.name)
+    except Exception as ex:
+        log.warning("audit Could not generate delta: %s", ex)
+
+    # Convert to HTML
+    audit_html = render_html(audit_md, title="Technical Audit Report -- WS Log Analyzer")
+    html_path = app_dir / "AUDIT_REPORT.html"
+    html_path.write_text(audit_html, encoding="utf-8")
+
+    log.info("audit Audit report generated with %s: %s", model_label, html_path)
+    # Store delta for display
+    if _delta_md:
+        st.session_state._audit_delta = _delta_md
+    return audit_html
+
+
+_AUDIT_LIGHT_CSS = """
+<style>
+:root {
+  --bg-primary: #ffffff !important;
+  --bg-secondary: #f6f8fa !important;
+  --bg-tertiary: #f0f2f5 !important;
+  --bg-hover: #e8eaed !important;
+  --border: #d0d7de !important;
+  --border-strong: #bbc0c7 !important;
+  --text-primary: #1f2328 !important;
+  --text-secondary: #2d333b !important;
+  --text-muted: #656d76 !important;
+  --text-heading: #1f2328 !important;
+  --accent: #0969da !important;
+  --green: #1a7f37 !important;
+  --green-bg: #dafbe1 !important;
+  --yellow: #9a6700 !important;
+  --yellow-bg: #fff8c5 !important;
+  --red: #cf222e !important;
+  --red-bg: #ffebe9 !important;
+  --blue: #0969da !important;
+  --blue-bg: #ddf4ff !important;
+  --purple: #8250df !important;
+  --purple-bg: #fbefff !important;
+}
+body { background: #ffffff !important; color: #2d333b !important; }
+nav { display: none !important; }
+.layout { display: block !important; }
+main { max-width: 800px !important; margin: 0 !important; padding: 20px !important; }
+</style>
+"""
