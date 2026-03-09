@@ -68,6 +68,9 @@ from app import (                       # noqa: E402
     _call_claude_api,
     _call_openai_api,
     _call_gemini_api,
+    _collect_audit_sources,
+    _PROVIDER_HISTORY_FILES,
+    _AI_RATE_LIMIT_SECONDS,
     REPORTS_DIR,
 )
 

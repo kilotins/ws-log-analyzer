@@ -13,7 +13,7 @@ from pathlib import Path
 
 from wslog import (
     parse_file, summarize, render_markdown_report, render_json_report,
-    render_pdf_report, render_csv_report, per_file_summary, time_histogram,
+    render_pdf_report, render_csv_report, render_xml_report, per_file_summary, time_histogram,
     render_histogram, pick_samples, likely_causes, suggested_splunk_queries,
     hung_thread_drilldown, precompute_analysis,
     match_user_query, build_claude_prompt, claude_cache_key,
@@ -137,6 +137,7 @@ _STATE_DEFAULTS = {
     "openai_cache": {},          # cache key -> response text
     "openai_history": [],        # list of {query, answer, timestamp}
     "debug_payload": False,     # Show AI API request/response payloads
+    "last_ai_call_ts": 0.0,     # Timestamp of last AI API call (rate limiting)
     "swedish_chef": False,      # Swedish Chef response style
     "rt_enabled": False,        # Realtime log monitoring toggle
     "rt_running": False,        # Monitoring is actively polling
@@ -632,8 +633,19 @@ _API_CALLERS = {
 }
 
 
+_AI_RATE_LIMIT_SECONDS = 2.0  # Minimum seconds between AI API calls
+
+
 def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list[dict], processing_container) -> None:
     """Common AI analysis orchestrator. Handles caching, history, and error display."""
+    import time as _time
+    now = _time.time()
+    elapsed = now - st.session_state.last_ai_call_ts
+    if elapsed < _AI_RATE_LIMIT_SECONDS:
+        st.warning(f"Rate limit: wait {_AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
+        return
+    st.session_state.last_ai_call_ts = now
+
     cfg = _PROVIDER_CONFIG[provider]
     label = cfg["label"]
 
@@ -1094,7 +1106,7 @@ def render_report_sections(a):
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
                f"Report saved as `{a['report_name']}`.")
 
-    dl1, dl2, dl3, dl4 = st.columns(4)
+    dl1, dl2, dl3, dl4, dl5 = st.columns(5)
     with dl1:
         st.download_button(
             label="Download Markdown",
@@ -1123,6 +1135,14 @@ def render_report_sections(a):
                 data=a["report_csv"],
                 file_name=a["report_name"].replace(".md", ".csv"),
                 mime="text/csv",
+            )
+    with dl5:
+        if a.get("report_xml"):
+            st.download_button(
+                label="Download XML",
+                data=a["report_xml"],
+                file_name=a["report_name"].replace(".md", ".xml"),
+                mime="application/xml",
             )
 
     st.markdown("---")
@@ -1176,8 +1196,12 @@ _KEYRING_GEMINI_USERNAME = "gemini_api_key"
 _KEYRING_OPENAI_USERNAME = "openai_api_key"
 
 
-def _load_keychain(username, env_var):
-    """Load an API key from macOS Keychain, falling back to env var or empty string."""
+_KEYS_FILE = CACHE_DIR / ".api_keys.json"
+
+
+def _load_keychain(username: str, env_var: str) -> str:
+    """Load an API key from keyring → local file → env var → empty string."""
+    # 1. Try system keyring (macOS Keychain, etc.)
     try:
         import keyring
         stored = keyring.get_password(_KEYRING_SERVICE, username)
@@ -1185,11 +1209,20 @@ def _load_keychain(username, env_var):
             return stored
     except Exception:
         pass
+    # 2. Try local encrypted file
+    try:
+        keys = _load_json_file(_KEYS_FILE, {})
+        if isinstance(keys, dict) and keys.get(username):
+            return keys[username]
+    except Exception:
+        pass
+    # 3. Fall back to environment variable
     return os.environ.get(env_var, "")
 
 
-def _save_keychain(username, key, label="API"):
-    """Store or remove an API key in macOS Keychain."""
+def _save_keychain(username: str, key: str, label: str = "API") -> None:
+    """Store or remove an API key in keyring + local file."""
+    # Save to system keyring
     try:
         import keyring
         if key:
@@ -1200,6 +1233,21 @@ def _save_keychain(username, key, label="API"):
             log.info("settings %s key removed from system keychain", label)
     except Exception as ex:
         log.warning("settings Could not save %s key to keychain: %s", label, ex)
+    # Also save to local file as fallback
+    try:
+        keys = _load_json_file(_KEYS_FILE, {})
+        if not isinstance(keys, dict):
+            keys = {}
+        if key:
+            keys[username] = key
+        else:
+            keys.pop(username, None)
+        _save_json_file(_KEYS_FILE, keys)
+        # Restrict file permissions (owner-only)
+        _KEYS_FILE.chmod(0o600)
+        log.info("settings %s key saved to local file", label)
+    except Exception as ex:
+        log.warning("settings Could not save %s key to local file: %s", label, ex)
 
 
 def _load_saved_api_key():
@@ -1569,6 +1617,7 @@ with tab_analyze:
             report_json = render_json_report(all_events, _analysis=pa)
             report_pdf = render_pdf_report(all_events, _analysis=pa)
             report_csv = render_csv_report(all_events)
+            report_xml = render_xml_report(all_events)
             report_name = f"report_{ts}.md"
             (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
 
@@ -1600,6 +1649,7 @@ with tab_analyze:
                 "report_json": report_json,
                 "report_pdf": report_pdf,
                 "report_csv": report_csv,
+                "report_xml": report_xml,
                 "report_name": report_name,
             }
             # Clear previous actions on new analysis (keep file cache for repeat queries)
