@@ -2,12 +2,12 @@
 
 ```
 ws-log-analyzer/
-├── wslog.py              # Core engine + CLI (~1641 lines, all logic here)
-├── app.py                # Streamlit web GUI (~1860 lines)
+├── wslog.py              # Core engine + CLI (~1684 lines, all logic here)
+├── app.py                # Streamlit web GUI (~2041 lines)
 ├── tests/
-│   ├── test_wslog.py     # 237 pytest unit tests for core engine
-│   ├── test_app_helpers.py  # 52 pytest unit tests for app helpers
-│   └── test_app_e2e.py   # 6 Playwright end-to-end tests
+│   ├── test_wslog.py     # 266 pytest unit tests for core engine
+│   ├── test_app_helpers.py  # 92 pytest unit tests for app helpers
+│   └── test_app_e2e.py   # 27 Playwright end-to-end tests
 ├── skills/               # Domain knowledge (10 files: message-codes, stacktrace-analysis, etc.)
 ├── .claude/
 │   └── skills/
@@ -68,9 +68,10 @@ Functions that consume parsed events to produce insights:
 |----------|--------|
 | `render_markdown_report()` | Full Markdown triage report |
 | `render_json_report()` | Structured JSON equivalent |
+| `render_xml_report()` | XML export with SAX escaping and configurable text truncation |
 | `render_pdf_report()` | PDF report via `fpdf2` (long lines wrapped, non-latin1 chars handled) |
 
-### AI Integration (Claude + Gemini)
+### AI Integration (Claude + Gemini + OpenAI)
 
 | Function | Purpose |
 |----------|---------|
@@ -95,17 +96,20 @@ Functions that consume parsed events to produce insights:
 
 `main()` wires argparse to the pipeline. Supports multi-file input with progress output, markdown/JSON output, and optional `--claude` integration (lazy-imports `anthropic`).
 
-## `app.py` — Streamlit GUI (~1860 lines)
+## `app.py` — Streamlit GUI (~2041 lines)
 
 UI layer that imports from `wslog.py`. No analysis logic lives here.
 
 ### Key GUI Features
 
-- **Dual AI providers** — Claude and Gemini with per-provider caching and history
+- **Three AI providers** — Claude, Gemini, and OpenAI with per-provider caching and history
 - **Incident timeline** — groups errors into time-windowed incidents
 - **Realtime log monitoring** — `@st.fragment(run_every=N)` polls a file for new events
 - **Swedish Chef mode** — novelty mode with sound clips and translated responses
 - **File browser** — browse uploaded log files
+- **Persistent API keys** — keyring → file fallback → env var, with 0o600 permissions
+- **API rate limiting** — configurable cooldown between AI calls
+- **Security** — symlink rejection, path traversal prevention, API key format validation
 
 ### State Management
 
@@ -171,7 +175,7 @@ Log file(s)  →  parse_file()  →  List[event dicts]
                                     ├── time_histogram()  →  render_histogram()
                                     ├── pick_samples()
                                     ├── per_file_summary()
-                                    └── render_*_report()  (markdown / json / pdf)
+                                    └── render_*_report()  (markdown / json / xml / pdf)
 
 Ask AI:
   user_query  →  match_user_query()  →  build_claude_prompt()  →  Claude API  (via Anthropic SDK)
@@ -188,4 +192,5 @@ Each event dict contains: `level`, `thread_id`, `code`, `exception`, `root_cause
 - **GUI**: `streamlit`
 - **AI (Claude)**: `anthropic`
 - **AI (Gemini)**: `google-generativeai`
-- **Tests**: `pytest`
+- **AI (OpenAI)**: `openai`
+- **Tests**: `pytest`, `playwright` (e2e)

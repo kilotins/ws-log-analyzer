@@ -12,9 +12,12 @@ CLI tool and Streamlit web GUI that analyzes WebSphere / Java logs and generates
 - **Hung Thread Drilldown** — per-thread analysis with stack samples and timeline
 - **Timeline histogram** — configurable bucket size, error overlay
 - **Secret redaction** — bearer tokens, passwords, API keys, JWTs, connection strings
-- **Reports** — Markdown, JSON, and PDF output
-- **AI analysis** — optional Claude and Gemini integration for root-cause suggestions (CLI and GUI)
+- **Reports** — Markdown, JSON, CSV, XML, and PDF output
+- **AI analysis** — optional Claude, Gemini, and OpenAI integration for root-cause suggestions (CLI and GUI)
+- **Persistent API keys** — keyring with file-based fallback, keys survive app restarts
+- **API rate limiting** — configurable cooldown between AI calls to prevent budget exhaustion
 - **Prompt injection protection** — system/user prompt separation, XML delimiters, input sanitization
+- **Security hardening** — symlink rejection, path traversal prevention, API key format validation
 
 ## CLI Usage
 
@@ -68,13 +71,12 @@ Open http://localhost:8501.
 - **Analyze tab** — upload `.log` / `.gz` files, configure settings, click Analyze
 - **Collapsible sections** — Summary, Likely Causes & Fixes, Splunk Searches, Hung Threads, Timeline, Event Samples
 - **Incident timeline** — groups errors into time-windowed incidents for faster triage
-- **Ask Claude** — enter an error code or question, get AI-powered analysis with Splunk suggestions
-- **Ask Gemini** — Google Gemini AI analysis alongside Claude
-- **Dual AI caching** — repeated queries return instantly for both providers (session + file-based cache)
+- **Ask AI for help** — enter an error code or question, select Claude/Gemini/OpenAI from the model dropdown, get AI-powered analysis with Splunk suggestions
+- **AI caching** — repeated queries return instantly for all providers (session + file-based cache)
 - **Realtime log monitoring** — tail a log file and see new events as they arrive
 - **Swedish Chef mode** — novelty mode with sound clips and Muppet-style translated responses
-- **API keys in sidebar** — Anthropic and Gemini keys (or `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` env vars)
-- **Download reports** — Markdown, JSON, and PDF
+- **API keys in sidebar** — Anthropic, Gemini, and OpenAI keys (or `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` env vars). Keys persist via keyring + file fallback
+- **Download reports** — Markdown, JSON, CSV, XML, and PDF
 - **History tab** — browse and download previous reports, clear history
 
 ## Installation
@@ -92,11 +94,17 @@ pip install -e ".[claude]"
 # With Gemini AI analysis
 pip install -e ".[gemini]"
 
+# With OpenAI analysis
+pip install -e ".[openai]"
+
 # With tests
 pip install -e ".[test]"
 
+# With e2e tests (Playwright)
+pip install -e ".[e2e]"
+
 # Everything
-pip install -e ".[gui,claude,gemini,test]"
+pip install -e ".[gui,claude,gemini,openai,test,e2e]"
 ```
 
 ## Tests
@@ -105,22 +113,33 @@ pip install -e ".[gui,claude,gemini,test]"
 pytest
 ```
 
-295 tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, Gemini integration, OpenAI integration, skill auto-selection, report generation, app helpers, and keychain management.
+385 tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, Gemini integration, OpenAI integration, skill auto-selection, report generation (Markdown/JSON/CSV/XML/PDF), app helpers, keychain management, symlink rejection, API key validation, rate limiting, and 27 Playwright end-to-end tests.
 
-## Gemini Setup
+## AI Provider Setup
 
-1. Install the dependency:
+All AI providers are optional. Install the one(s) you want:
+
+### Claude (Anthropic)
+
+```bash
+pip install -e ".[claude]"
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+### Gemini (Google)
 
 ```bash
 pip install -e ".[gemini]"
+export GEMINI_API_KEY="AI..."
 ```
 
-2. Set your API key:
+### OpenAI
 
 ```bash
-export GEMINI_API_KEY="your_api_key_here"
+pip install -e ".[openai]"
+export OPENAI_API_KEY="sk-..."
 ```
 
-Or enter the key directly in the Streamlit sidebar under "Gemini API Key".
+API keys can also be entered in the Streamlit sidebar. Keys are persisted via system keyring with a local file fallback (`cache/.api_keys.json`), so you only need to enter them once.
 
-3. In the GUI, click **Ask Gemini** next to the existing **Analyze with Claude** button to get Gemini's analysis of the same query.
+In the GUI, select your preferred model from the **AI Model** dropdown, then click **Ask AI for help**.

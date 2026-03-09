@@ -13,11 +13,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 5.1 | Add symlink check to `_is_safe_rt_path()` — resolve path with `p.resolve()` and reject symlinks to prevent path traversal | `app.py` | [ ] |
-| 5.2 | Narrow bare `except Exception` blocks — replace with specific exceptions (`ValueError`, `OSError`, `ImportError`, `json.JSONDecodeError`) | `wslog.py` | [ ] |
-| 5.3 | Tighten realtime monitor extensions — remove `.out` from allowed extensions or add explicit symlink/ownership check | `app.py` | [ ] |
-| 5.4 | Add API key format validation — check that Claude keys start with `sk-ant-`, OpenAI with `sk-`, before making API calls | `app.py` | [ ] |
-| 5.5 | Add tests for symlink rejection and narrowed exception handling | `tests/test_app_helpers.py`, `tests/test_wslog.py` | [ ] |
+| 5.1 | Add symlink check to `_is_safe_rt_path()` — resolve path with `p.resolve()` and reject symlinks to prevent path traversal | `app.py` | [x] |
+| 5.2 | Narrow bare `except Exception` blocks — replace with specific exceptions (`ValueError`, `OSError`, `ImportError`, `json.JSONDecodeError`) | `wslog.py` | [x] |
+| 5.3 | Tighten realtime monitor extensions — remove `.out` from allowed extensions or add explicit symlink/ownership check | `app.py` | [x] |
+| 5.4 | Add API key format validation — check that Claude keys start with `sk-ant-`, OpenAI with `sk-`, before making API calls | `app.py` | [x] |
+| 5.5 | Add tests for symlink rejection and narrowed exception handling | `tests/test_app_helpers.py`, `tests/test_wslog.py` | [x] |
 
 **Acceptance**: No bare `except Exception` in `wslog.py`. Symlinks rejected by path safety. API key format validated on entry. All tests pass.
 
@@ -82,7 +82,7 @@
 | 2 — DRY AI-funktioner | 5 | 5 | Done |
 | 3 — Streaming & UX | 5 | 5 | Done |
 | 4 — Kvalitet & polish | 5 | 5 | Done |
-| 5 — Säkerhetsförstärkning | 5 | 0 | Not started |
+| 5 — Säkerhetsförstärkning | 5 | 5 | Done |
 | 6 — E2e-teststabilitet | 5 | 5 | Done |
 | 7 — Kodstruktur & refaktorering | 5 | 5 | Done |
 | 8 — Funktioner & förbättringar | 5 | 5 | Done |
