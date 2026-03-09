@@ -1,0 +1,156 @@
+# Heuristics for WS Log Analyzer — root-cause pattern matching
+# Edit this file to add/modify heuristics without touching wslog.py
+# Each entry needs: id, title, pattern (regex), cause, fixes (list)
+
+- id: ssl-trust
+  title: "SSL / TLS Trust Failure"
+  pattern: "CertPathBuilderException|SSLHandshakeException|PKIX path building failed|CWPKI0022E|CWPKI0033E"
+  cause: "The JVM does not trust the remote certificate (self-signed, expired, or missing intermediate CA)."
+  fixes:
+    - "Import the remote certificate into the WAS truststore (retrieveSigners / wsadmin)."
+    - "Check certificate expiry with: keytool -list -v -keystore trust.p12."
+    - "If a recent cert renewal happened, the old CA chain may still be cached — restart the server."
+
+- id: db-pool
+  title: "JDBC / Connection-Pool Exhaustion"
+  pattern: "J2CA0045E|J2CA0079E|pool.*exhaust|Timeout waiting for idle object|ConnectionWaitTimeout|connection pool"
+  cause: "All connections in the JDBC pool are in use; new requests block until timeout."
+  fixes:
+    - "Check for long-running queries or uncommitted transactions holding connections."
+    - "Increase maxConnections / connectionTimeout in the data-source config if load is legitimate."
+    - "Look for connection leaks: code paths that obtain a connection but skip close() on exception."
+
+- id: hung-threads
+  title: "Hung / Stuck Threads"
+  pattern: "WSVR0605W|WSVR0606W|ThreadMonitor|hung.thread|stuck.thread|CWWKE0701E|CWWKE0700W"
+  cause: "One or more threads have been active longer than the configured threshold (default 600 s)."
+  fixes:
+    - "Capture a thread dump (kill -3 or wsadmin) to identify what the thread is waiting on."
+    - "Common culprits: slow external service calls, database locks, infinite loops."
+    - "If the threshold is too aggressive for batch workloads, increase com.ibm.websphere.threadmonitor.threshold."
+
+- id: oom-gc
+  title: "OutOfMemoryError / GC Pressure"
+  pattern: "OutOfMemoryError|Java heap space|GC overhead limit exceeded|allocation failure|Metaspace"
+  cause: "The JVM heap (or metaspace) is exhausted — objects cannot be allocated."
+  fixes:
+    - "Collect a heap dump (-XX:+HeapDumpOnOutOfMemoryError) and analyze with Eclipse MAT."
+    - "Check for memory leaks: growing collections, unclosed streams, or class-loader leaks after redeploys."
+    - "Increase -Xmx / -XX:MaxMetaspaceSize only after ruling out leaks."
+
+- id: session-error
+  title: "HTTP Session Failure"
+  pattern: "SESN0066E|SESN0008E|SESN0306E|Session.*invalid|NotSerializableException.*[Ss]ession"
+  cause: "HTTP sessions are being invalidated, failing to replicate, or contain non-serializable objects."
+  fixes:
+    - "Ensure all objects stored in the session implement java.io.Serializable."
+    - "Check session timeout settings — short timeouts cause unexpected invalidation under load."
+    - "For replication failures, verify the DRS transport is healthy across cluster members."
+
+- id: classloader
+  title: "ClassLoader / Linking Error"
+  pattern: "ClassNotFoundException|NoClassDefFoundError|LinkageError|ClassCastException.*proxy|CWWKL0007W"
+  cause: "A required class cannot be found or loaded — typically a missing JAR, classloader policy mismatch, or stale deploy."
+  fixes:
+    - "Verify the missing class is in the app's WEB-INF/lib or a shared library."
+    - "Check classloader policy (PARENT_FIRST vs PARENT_LAST) — mixing can cause LinkageError."
+    - "After redeploys, restart the server to clear stale classloader references."
+
+- id: datasource-down
+  title: "DataSource / Database Unreachable"
+  pattern: "DSRA0010E|DSRA0080E|DSRA8040I|Cannot get a connection|SocketTimeoutException.*jcc|Communication link failure"
+  cause: "The database is unreachable or rejecting connections — network issue, DB down, or credentials expired."
+  fixes:
+    - "Test connectivity to the DB host/port from the WAS server (telnet / nc)."
+    - "Check DB listener status and max_connections on the database side."
+    - "Review recent password rotations — update the J2C authentication alias if credentials changed."
+
+- id: servlet-error
+  title: "Servlet Runtime Error"
+  pattern: "SRVE0293E|SRVE0315E|SRVE0777E|StackOverflowError|Connection reset.*SocketException"
+  cause: "A servlet threw an unhandled exception or the client disconnected mid-response."
+  fixes:
+    - "Check the root exception in the stack trace — NullPointerException and StackOverflowError are the most common."
+    - "For StackOverflowError, look for recursive calls and increase -Xss if the recursion is intentional."
+    - "Connection reset errors are usually harmless client disconnects — suppress with response.isCommitted() checks."
+
+- id: deploy-fail
+  title: "Application Deployment Failure"
+  pattern: "CWWKZ0002E|CWWKZ0013E|CWWKZ0060E|ADMA0004E|failed to start|Initialization failed"
+  cause: "An application failed to start or deploy — missing dependencies, config errors, or port conflicts."
+  fixes:
+    - "Check for NameNotFoundException — a required JNDI resource (DataSource, JMS queue) may not be configured."
+    - "Review the full startup exception chain for the root cause."
+    - "Verify the application's deployment descriptor (web.xml / server.xml) is valid."
+
+- id: transaction-timeout
+  title: "Transaction Timeout or Rollback"
+  pattern: "WTRN0006W|WTRN0074W|WTRN0062E|StaleConnectionException|totalTranLifetime|transaction.*timed?\\s*out"
+  cause: "A transaction exceeded the configured timeout or a connection was invalidated mid-transaction."
+  fixes:
+    - "Review the transaction timeout setting (totalTranLifetimeTimeout in tWAS or transactionTimeout in Liberty)."
+    - "Identify the slow query or service call holding the transaction open — add query logging or APM."
+    - "For legitimate batch operations, increase the timeout; otherwise fix the underlying bottleneck."
+
+- id: authz-denied
+  title: "Authorization / Access Denied"
+  pattern: "CWWKS9104A|CWWKS1100A.*[Ll]ocked|[Aa]uthorization.*denied|not\\s+authorized|403.*[Ff]orbidden"
+  cause: "A user authenticated successfully but lacks the required role or permissions to access the resource."
+  fixes:
+    - "Verify role mappings in application-bnd.xml (tWAS) or server.xml (Liberty) match declared roles."
+    - "Check if the user's LDAP/registry group membership has changed."
+    - "Review security constraints in web.xml — ensure the required role name is correct."
+
+- id: jndi-lookup-fail
+  title: "JNDI Lookup Failed"
+  pattern: "CWNEN1001E|NameNotFoundException|JNDI.*not found|InitialContext.*failed"
+  cause: "A JNDI lookup for a resource (DataSource, JMS queue, EJB) failed — the resource is not configured or has a mismatched name."
+  fixes:
+    - "Verify the resource is declared in server.xml (Liberty) or the admin console (tWAS) with the exact JNDI name."
+    - "Check that the application's web.xml resource-ref matches the configured resource name."
+    - "For EJB lookups, confirm the JNDI name follows the correct format (ejb/ModuleName/BeanName)."
+
+- id: port-bind-fail
+  title: "TCP Port Binding Failure"
+  pattern: "TCPC0003E|CHFW0019I|[Pp]ort.*in use|[Bb]ind.*failed|Address already in use"
+  cause: "The configured port is already bound by another process, preventing the server from starting."
+  fixes:
+    - "Identify the conflicting process: lsof -i :PORT (Unix) or netstat -ano | findstr :PORT (Windows)."
+    - "Update httpPort / httpsPort in server.xml if a port change is needed."
+    - "Ensure the WAS user has permission to bind to ports below 1024 (requires root on Unix)."
+
+- id: ldap-connection-fail
+  title: "LDAP / User Registry Connection Failed"
+  pattern: "CWWKS3005E|LDAP.*connection.*failed|[Dd]irectory.*service.*unavailable|bindDN.*failed"
+  cause: "Cannot connect to the LDAP/AD server for authentication or user lookup."
+  fixes:
+    - "Verify LDAP server is reachable (telnet to LDAP port, usually 389 or 636)."
+    - "Check LDAP configuration in server.xml — verify host, port, bindDN, and password."
+    - "Review firewall rules between WAS and the LDAP server."
+
+- id: cert-expiry
+  title: "SSL Certificate Expired or Expiring"
+  pattern: "CWPKI0033E|CWPKI0823E|[Cc]ertificate.*expired|[Cc]ert.*expir"
+  cause: "An SSL certificate in the keystore or truststore has expired, blocking HTTPS connections."
+  fixes:
+    - "Renew the certificate and import it into the keystore (keytool -import)."
+    - "Verify the entire certificate chain is present (root + intermediates)."
+    - "Restart the server after renewal to clear cached certificate references."
+
+- id: config-error
+  title: "Configuration File Error"
+  pattern: "CWWKG0028A|CWWKC0001E|[Cc]onfig.*error.*xml|web\\.xml.*invalid|server\\.xml.*error"
+  cause: "A configuration file (server.xml, web.xml) has syntax errors or failed schema validation."
+  fixes:
+    - "Check XML syntax — common issues: unclosed tags, mismatched quotes, invalid characters."
+    - "Validate the file against the schema using an IDE or XML validator."
+    - "Review the server log for the exact line number causing the error."
+
+- id: context-root-conflict
+  title: "Context Root Conflict / Duplicate Deployment"
+  pattern: "CWWKZ0014W|already.*exists.*context.root|[Dd]uplicate.*application|context.root.*conflict"
+  cause: "Two applications are configured with the same context root, or an app was not fully undeployed before redeployment."
+  fixes:
+    - "Verify only one application uses each context root — list deployments via wsadmin or Liberty app manager."
+    - "Ensure the old version is fully undeployed before redeploying."
+    - "Check application.xml for correct context-root values."
