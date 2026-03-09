@@ -13,6 +13,8 @@ gui = ["streamlit>=1.30"]
 test = ["pytest>=7"]
 e2e = ["pytest>=7", "playwright>=1.40"]
 
+[tool.setuptools]
+py-modules = ["wslog", "app"]
+
 [project.scripts]
 wslog = "wslog:main"
-wslog-report = "report_renderer:main"
