@@ -69,3 +69,65 @@ These should never be filtered regardless of frequency:
 - Security audit failures (`CWWKS1100A`, `CWWKS9104A`)
 - Certificate errors (`CWPKI*E`)
 - Transaction errors (`WTRN*E`)
+- Deployment failures (`CWWKZ0013E`, `CWWKZ0002E`)
+- JNDI failures (`CWNEN1001E`)
+
+## Application-Specific Noise
+
+Custom application logging often generates repetitive messages:
+```
+INFO com.example.scheduler.HealthPing: Service alive [OK]     ← every 10s, noise
+INFO com.example.cache.CacheManager: Cache stats: hits=1234   ← every 60s, noise
+```
+
+Detection heuristics:
+- Same logger class + same message template + regular interval = noise
+- Extract the logger class name and group by it
+- If count > 100 and no associated errors → safe to filter
+
+## Noisy But Correlated Events
+
+Some events appear often but cluster around real errors. These should NOT be filtered:
+```
+DSRA7600I: Datasource cleanup    ← normally noise (routine cleanup)
+DSRA7600I × 50 in 1 minute      ← signal! Pool churn indicates connection instability
+```
+
+Rules:
+- If a normally-noisy code appears at 10x its normal rate → treat as signal
+- If a noise code appears within 30 seconds of an E-severity event → keep it for context
+- Calculate baseline rate per code over a 24h window; spikes above 3x baseline = signal
+
+## Time-Series Noise Patterns
+
+### Daily Recurring Patterns
+Some errors appear at the same time daily (batch jobs, scheduled tasks):
+```
+03:00 WSVR0605W × 5  ← hung threads during nightly batch, resolves by 03:15
+```
+If same pattern appears every day at same time → scheduled job, not an incident.
+
+Detection: Group errors by hour-of-day across 7 days. Consistent patterns = scheduled.
+
+### Startup Noise Burst
+Every server restart produces a burst of I/W messages:
+```
+WSVR0001I → CWPKI0003I → SRVE0169I → SRVE0242I × many → WSVR0024I
+```
+Filter strategy: Suppress all I-severity messages between WSVR0001I and WSVR0024I unless E-severity also appears in that window.
+
+## Noise Scoring Model
+
+Assign a noise score (0.0 = pure signal, 1.0 = pure noise) to each event:
+
+| Factor | Score Impact |
+|--------|-------------|
+| Severity I or A | +0.3 |
+| Appears > 1000 times identical | +0.4 |
+| Regular interval (±5% timing) | +0.2 |
+| Same message in last 24h, no incident | +0.1 |
+| Appears within 60s of E-severity | -0.5 |
+| Rate spike > 3x baseline | -0.3 |
+| On never-filter list | score = 0.0 |
+
+Events with score > 0.7 are candidates for filtering. Always review before permanently suppressing.

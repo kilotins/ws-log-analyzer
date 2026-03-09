@@ -76,6 +76,43 @@ WebSphere messages follow the pattern `PPPPNNNNs` where:
 - **CWWKS3005E** — LDAP connection failed
 - **CWWKS4105I** — LTPA key generated
 
+### Liberty Feature Manager (CWWKF)
+- **CWWKF0001E** — Feature failed to load, check dependencies
+- **CWWKF0032E** — Feature conflict (e.g., servlet-3.1 and servlet-4.0)
+- **CWWKF0033E** — Feature not found in runtime
+
+### Liberty Naming (CWNEN)
+- **CWNEN1001E** — JNDI resource not found, check server.xml bindings
+
+### Channel Framework (CHFW/TCPC)
+- **TCPC0003E** — Port already in use, cannot bind
+- **CHFW0019I** — Channel stopped (informational, but check if unexpected)
+
+### Liberty Config (CWWKG)
+- **CWWKG0028A** — Config validation error in server.xml
+- **CWWKC0001E** — Config element parse error
+
+## Codes That Appear Together
+
+Certain codes frequently co-occur. Recognizing these patterns speeds up root cause analysis:
+
+| First Code | Often Followed By | Root Cause |
+|------------|-------------------|------------|
+| DSRA0080E (pool exhausted) | SRVE0255E (servlet exception) | DB pool starves the app |
+| WSVR0605W (hung thread) | DSRA0010E (SQL exception) | Slow query blocks threads |
+| CWPKI0033E (cert expired) | CWWSS0008E (SSL handshake fail) | Expired cert breaks downstream calls |
+| CWWKZ0013E (app start fail) | CWNEN1001E (JNDI not found) | Missing resource prevents app startup |
+| WTRN0006W (txn timeout) | DSRA0010E (SQL exception) | Long query exceeds transaction timeout |
+| CWWKS1100A (auth fail) × many | CWWKS1101A (account locked) | Brute force triggers lockout |
+
+## Real Log Line Examples
+
+```
+[10/12/24 14:22:04:257 CET] 0000004e WebContainer  E SRVE0255E: A WebGroup/Virtual Host to handle /api/orders has not been defined.
+[10/12/24 14:22:05:100 CET] 00000052 DataSource    E DSRA0080E: An exception was received by the Data Store Adapter. See original exception message: Connection pool exhausted.
+[10/12/24 14:22:06:300 CET] 00000053 ThreadMonitor W WSVR0605W: Thread "WebContainer : 3" (0000004e) has been active for 612,015 milliseconds and may be hung.
+```
+
 ## Triage Priority
 
 1. **E-suffix codes** with stacktraces — immediate investigation
