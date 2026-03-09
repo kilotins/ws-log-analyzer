@@ -799,33 +799,51 @@ def render_ask_claude(events):
         key="claude_query_input",
     )
 
-    btn_col1, btn_col2, btn_col3 = st.columns(3)
-    with btn_col1:
-        st.button("Analyze with zee Swedish Chef" if _chef else "Analyze with Claude",
-                  type="primary",
-                  on_click=_on_ask_claude_click,
-                  disabled=not user_query)
-    with btn_col2:
-        st.button("Analyze with Gemini",
-                  on_click=_on_ask_gemini_click,
-                  disabled=not user_query)
-    with btn_col3:
-        st.button("Analyze with GPT",
-                  on_click=_on_ask_openai_click,
-                  disabled=not user_query)
+    _AI_MODELS = {
+        "Claude Sonnet 4.6": "claude",
+        "Claude Haiku 4.5": "claude",
+        "Gemini 2.5 Flash": "gemini",
+        "Gemini 2.5 Pro": "gemini",
+        "GPT-4o": "openai",
+        "GPT-4o mini": "openai",
+    }
+    if _chef:
+        _AI_MODELS = {"Zee Swedish Chef": "claude", **_AI_MODELS}
 
-    pending = st.session_state.pop("_ask_claude_pending", False)
-    gemini_pending = st.session_state.pop("_ask_gemini_pending", False)
-    openai_pending = st.session_state.pop("_ask_openai_pending", False)
+    col_model, col_btn = st.columns([2, 1])
+    with col_model:
+        selected_model = st.selectbox(
+            "AI Model",
+            list(_AI_MODELS.keys()),
+            key="ai_analysis_model",
+            label_visibility="collapsed",
+        )
+    with col_btn:
+        analyze_clicked = st.button(
+            "Analyze",
+            type="primary",
+            disabled=not user_query,
+        )
 
     processing_container = st.container()
 
+    if user_query and analyze_clicked:
+        provider = _AI_MODELS[selected_model]
+        if provider == "claude":
+            run_claude_analysis(user_query, events, processing_container)
+        elif provider == "gemini":
+            run_gemini_analysis(user_query, events, processing_container)
+        else:
+            run_openai_analysis(user_query, events, processing_container)
+
+    # Also handle pending actions from Ask AI button clicks on code rows
+    pending = st.session_state.pop("_ask_claude_pending", False)
+    gemini_pending = st.session_state.pop("_ask_gemini_pending", False)
+    openai_pending = st.session_state.pop("_ask_openai_pending", False)
     if user_query and pending:
         run_claude_analysis(user_query, events, processing_container)
-
     if user_query and gemini_pending:
         run_gemini_analysis(user_query, events, processing_container)
-
     if user_query and openai_pending:
         run_openai_analysis(user_query, events, processing_container)
 
