@@ -505,6 +505,7 @@ _PROVIDER_CONFIG = {
         "save_history": lambda hist: _save_history(hist),
         "extract_splunk": True,
         "api_key_error": "Enter your Anthropic API key in the sidebar.",
+        "api_key_prefix": "sk-ant-",
     },
     "gemini": {
         "label": "Gemini",
@@ -516,6 +517,7 @@ _PROVIDER_CONFIG = {
         "save_history": lambda hist: _save_gemini_history(hist),
         "extract_splunk": False,
         "api_key_error": "Enter your Gemini API key in the sidebar or set GEMINI_API_KEY env var.",
+        "api_key_prefix": "AI",
     },
     "openai": {
         "label": "GPT",
@@ -527,6 +529,7 @@ _PROVIDER_CONFIG = {
         "save_history": lambda hist: _save_openai_history(hist),
         "extract_splunk": False,
         "api_key_error": "Enter your OpenAI API key in the sidebar or set OPENAI_API_KEY env var.",
+        "api_key_prefix": "sk-",
     },
 }
 
@@ -685,6 +688,11 @@ def _run_ai_analysis(provider, model_id, user_query, events, processing_containe
     if not api_key:
         status.update(label=f"No {label} API key set", state="error")
         st.error(cfg["api_key_error"])
+        return
+    expected_prefix = cfg.get("api_key_prefix", "")
+    if expected_prefix and not api_key.startswith(expected_prefix):
+        status.update(label=f"Invalid {label} API key format", state="error")
+        st.error(f"{label} API key should start with `{expected_prefix}`. Check your key in the sidebar.")
         return
 
     if st.session_state.debug_payload:
@@ -1381,12 +1389,16 @@ def _highlight_line(line):
 
 
 def _is_safe_rt_path(filepath):
-    """Check if a realtime monitor path is safe (only .log/.gz files)."""
+    """Check if a realtime monitor path is safe (only .log/.gz/.txt files)."""
     if not filepath:
         return False
-    p = Path(filepath).resolve()
+    p = Path(filepath)
+    # Reject symlinks before resolving to prevent traversal
+    if p.is_symlink():
+        return False
+    p = p.resolve()
     # Only allow log-like file extensions
-    if p.suffix.lower() not in (".log", ".gz", ".txt", ".out"):
+    if p.suffix.lower() not in (".log", ".gz", ".txt"):
         return False
     # Block obvious sensitive paths
     _blocked = {"/etc", "/private/etc", "/var/run", "/proc", "/sys", "/dev"}
