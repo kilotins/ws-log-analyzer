@@ -790,15 +790,6 @@ def render_ai_history():
 
 def render_ask_claude(events):
     """Render AI analysis input, API calls, and response history."""
-    _chef = st.session_state.get("swedish_chef", False)
-    user_query = st.text_input(
-        "Ask zee Chef about un error code, excepshun, or troubleshooting questshun"
-        if _chef else
-        "Ask an AI assistant about an error code, exception, or troubleshooting question",
-        placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
-        key="claude_query_input",
-    )
-
     _AI_MODELS = {
         "Claude Sonnet 4.6": "claude",
         "Claude Haiku 4.5": "claude",
@@ -806,9 +797,14 @@ def render_ask_claude(events):
         "Gemini 2.5 Pro": "gemini",
         "GPT-4o": "openai",
         "GPT-4o mini": "openai",
+        "Swedish Chef": "openai_chef",
     }
-    if _chef:
-        _AI_MODELS = {"Zee Swedish Chef": "claude", **_AI_MODELS}
+
+    user_query = st.text_input(
+        "Ask an AI assistant about an error code, exception, or troubleshooting question",
+        placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
+        key="claude_query_input",
+    )
 
     col_model, col_btn = st.columns([2, 1])
     with col_model:
@@ -826,6 +822,10 @@ def render_ask_claude(events):
             key="ai_analyze_btn",
         )
 
+    # Swedish Chef mode is driven by the model dropdown selection
+    _is_chef = _AI_MODELS.get(selected_model) == "openai_chef"
+    st.session_state.swedish_chef = _is_chef
+
     processing_container = st.container()
 
     if user_query and analyze_clicked:
@@ -835,6 +835,7 @@ def render_ask_claude(events):
         elif provider == "gemini":
             run_gemini_analysis(user_query, events, processing_container)
         else:
+            # Both "openai" and "openai_chef" route to OpenAI
             run_openai_analysis(user_query, events, processing_container)
 
     # Also handle pending actions from Ask AI button clicks on code rows
@@ -880,9 +881,7 @@ def render_splunk_section(splunk):
                 _render_splunk_query(sq, q_idx)
     else:
         st.markdown("---")
-        st.caption("Run Ask zee Chef to get context-aware Splunk searches."
-                   if st.session_state.swedish_chef else
-                   "Run Ask Claude to get context-aware Splunk searches.")
+        st.caption("Run an AI analysis to get context-aware Splunk searches.")
 
 
 def render_hung_threads(hung):
@@ -1087,8 +1086,7 @@ def render_report_sections(a):
         with st.expander(f"Likely Causes & Fixes ({len(a['causes'])} detected)"):
             render_likely_causes(a["causes"])
 
-    _chef_lbl = "Ask zee Swedish Chef for help" if st.session_state.swedish_chef else "Ask AI for help"
-    with st.expander(_chef_lbl, expanded=True):
+    with st.expander("Ask AI for help", expanded=True):
         render_ask_claude(a["events"])
 
     claude_splunk_count = sum(len(e.get("splunk_queries", []))
@@ -1241,13 +1239,6 @@ with st.sidebar:
         value=st.session_state.debug_payload,
         help="Show request/response payloads for Claude and Gemini API calls",
     )
-    st.session_state.swedish_chef = st.toggle(
-        "Swedish Chef mode 🍳",
-        value=st.session_state.swedish_chef,
-        help="Claude responds in Swedish Chef style. Bork bork bork!",
-    )
-    if st.session_state.swedish_chef:
-        st.caption("Swedish Chef mode is enabled. Bork bork bork!")
     if st.button("Clear AI cache", help="Clear cached Claude/Gemini responses and history"):
         st.session_state.claude_cache = {}
         st.session_state.claude_answer = None
