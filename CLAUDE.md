@@ -6,17 +6,17 @@ WebSphere/Java log analyzer that parses log files, extracts events with metadata
 
 1. **Parses** WebSphere and Java log files (plain text or `.gz`) into structured events
 2. **Classifies** events by severity, WAS message codes, exceptions, root causes, and signal tags (OOM, HungThreads, DB/Pool, SSL, HTTP)
-3. **Generates** triage reports in Markdown or JSON with timeline histograms and prioritized samples
+3. **Generates** triage reports in Markdown, JSON, CSV, XML, and PDF with timeline histograms and prioritized samples
 4. **Redacts** secrets (bearer tokens, passwords, API keys) before output
-5. **Optional AI analysis** via Claude API for root-cause suggestions
+5. **Optional AI analysis** via Claude, Gemini, or OpenAI for root-cause suggestions
 
 ## Technology Stack
 
 - **Language**: Python 3.9+ (stdlib only for core — zero required deps)
 - **CLI**: argparse
 - **GUI**: Streamlit (optional)
-- **AI**: Anthropic SDK + Google Gemini SDK (optional)
-- **Tests**: pytest
+- **AI**: Anthropic SDK + Google Gemini SDK + OpenAI SDK (optional)
+- **Tests**: pytest + Playwright (e2e)
 
 ## Project Structure
 
@@ -45,7 +45,7 @@ See [README.md](README.md) for installation, CLI options, and usage.
 ## Critical Gotchas
 
 - **Single-file core**: All parsing/analysis logic is in `wslog.py` — `app.py` only imports from it
-- **No required deps**: Core runs on stdlib only. `anthropic`, `google-generativeai`, `streamlit`, `pytest` are optional
+- **No required deps**: Core runs on stdlib only. `anthropic`, `google-generativeai`, `openai`, `streamlit`, `pytest` are optional
 - **Event boundary heuristic**: New events start at timestamps, but stacktraces and `Caused by:` lines are kept with their parent event
 - **Secret redaction**: Runs on all event text before output — never expose raw log content
 - **WAS severity precedence**: Single-letter WAS codes (I/A/W/E/O/F/R/D) take priority over keyword-level matching

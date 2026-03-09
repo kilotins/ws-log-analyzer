@@ -8,8 +8,10 @@ dependencies = []
 [project.optional-dependencies]
 claude = ["anthropic>=0.40"]
 gemini = ["google-generativeai>=0.5"]
+openai = ["openai>=1.0"]
 gui = ["streamlit>=1.30"]
 test = ["pytest>=7"]
+e2e = ["pytest>=7", "playwright>=1.40"]
 
 [project.scripts]
 wslog = "wslog:main"
