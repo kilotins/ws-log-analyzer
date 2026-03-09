@@ -600,11 +600,11 @@ def test_redact_json_key_only_redacts_value():
 
 def test_redact_jwt_preserves_surrounding():
     """JWT redaction should only remove the token, not surrounding text."""
-    # "Token:" triggers the key=value redaction before the JWT pattern
+    # "Token:" triggers the key=value redaction, which aggressively redacts
+    # everything after the keyword (multi-word secret support)
     s = "Token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.abc123 was expired"
     result = redact(s)
     assert "[REDACTED]" in result
-    assert "was expired" in result
     # Without a triggering keyword, JWT pattern applies directly
     s2 = "Header eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.abc123 trail"
     r2 = redact(s2)
@@ -2365,3 +2365,76 @@ def test_render_pdf_report_contains_codes_section():
     pdf_text = _extract_pdf_text(pdf_bytes)
     assert "Top WebSphere" in pdf_text
     assert "CWPKI0022E" in pdf_text
+
+
+# ── 11.1: Multi-word secret redaction ─────────────────────────────────
+
+def test_redact_multiword_password():
+    """password = very secret with spaces should be fully redacted."""
+    text = "password = very secret with spaces"
+    result = redact(text)
+    assert "very secret" not in result
+    assert "spaces" not in result
+    assert "[REDACTED]" in result
+
+
+def test_redact_multiword_api_key():
+    """api_key = my long key value should be fully redacted."""
+    text = "api_key = my long key value"
+    result = redact(text)
+    assert "my long key" not in result
+    assert "[REDACTED]" in result
+
+
+def test_redact_multiword_stops_at_comma():
+    """Multi-word redaction stops at comma delimiter."""
+    text = "password = secret stuff, other_field=safe"
+    result = redact(text)
+    assert "secret stuff" not in result
+    assert "safe" in result
+
+
+# ── 11.2: SHA-256 cache keys ─────────────────────────────────────────
+
+def test_claude_cache_key_is_sha256_hex():
+    """Cache key should be a 64-char hex SHA-256 digest."""
+    import re as _re
+    match = {"matched": False, "match_type": None, "matching_events": [],
+             "codes": [], "exceptions": [], "tags": set()}
+    key = claude_cache_key("test query", match)
+    assert len(key) == 64
+    assert _re.fullmatch(r'[0-9a-f]{64}', key)
+
+
+def test_claude_cache_key_is_deterministic():
+    """Same input produces same SHA-256 hash."""
+    match = {"matched": True, "match_type": "code",
+             "matching_events": [], "codes": ["ERR001"],
+             "exceptions": [], "tags": set()}
+    k1 = claude_cache_key("hello", match)
+    k2 = claude_cache_key("hello", match)
+    assert k1 == k2
+
+
+# ── 11.3: Aggressive XML tag stripping ───────────────────────────────
+
+def test_sanitize_strips_unknown_xml_tags():
+    """Tags not in the known list should still be stripped."""
+    result = _sanitize_prompt_input("before <custom_tag>injected</custom_tag> after")
+    assert "<custom_tag>" not in result
+    assert "</custom_tag>" not in result
+    assert "injected" in result
+    assert "before" in result
+
+
+def test_sanitize_strips_self_closing_tags():
+    result = _sanitize_prompt_input("text <br/> more")
+    assert "<br/>" not in result
+    assert "text" in result
+
+
+def test_sanitize_strips_tags_with_attributes():
+    result = _sanitize_prompt_input('<div class="evil">content</div>')
+    assert "<div" not in result
+    assert "</div>" not in result
+    assert "content" in result

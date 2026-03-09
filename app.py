@@ -81,8 +81,23 @@ def _save_json_file(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days
+
+
 def _load_file_cache():
-    return _load_json_file(CACHE_FILE, {})
+    import time
+    raw = _load_json_file(CACHE_FILE, {})
+    now = time.time()
+    cleaned = {}
+    for k, v in raw.items():
+        # Support old format (plain string) and new format (dict with ts)
+        if isinstance(v, dict) and "ts" in v:
+            if now - v["ts"] <= _CACHE_TTL_SECONDS:
+                cleaned[k] = v
+        else:
+            # Old format entry without timestamp — keep it but migrate
+            cleaned[k] = {"text": v, "ts": now}
+    return cleaned
 
 
 def _save_file_cache(cache):
@@ -467,18 +482,21 @@ def _lookup_cache(cache_key, session_cache, provider_label, user_query):
     file_cache = _load_file_cache()
     cached = file_cache.get(cache_key)
     if cached:
+        # Extract text from new format (dict with ts) or old format (plain string)
+        text = cached["text"] if isinstance(cached, dict) and "text" in cached else cached
         log.info("cache %s file cache HIT for: %s", provider_label, user_query[:60])
-        session_cache[cache_key] = cached
-        return cached
+        session_cache[cache_key] = text
+        return text
     log.info("cache %s MISS for: %s", provider_label, user_query[:60])
     return None
 
 
 def _store_cache(cache_key, answer, session_cache):
     """Store answer in both session and file cache."""
+    import time
     session_cache[cache_key] = answer
     file_cache = _load_file_cache()
-    file_cache[cache_key] = answer
+    file_cache[cache_key] = {"text": answer, "ts": time.time()}
     _save_file_cache(file_cache)
 
 
