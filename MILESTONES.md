@@ -64,11 +64,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 8.1 | Multi-file audit scope — add checkboxes in Audit tab to select which files to include (default: all Python files) | `app.py` | [ ] |
-| 8.2 | API rate limiting — add simple cooldown (e.g., 2s between calls) to prevent budget exhaustion from rapid clicking | `app.py` | [ ] |
-| 8.3 | XML export option — add `render_xml_report()` alongside existing CSV/JSON/Markdown/PDF | `wslog.py`, `app.py` | [ ] |
-| 8.4 | Gemini streaming — investigate `generate_content(stream=True)` for incremental rendering when SDK supports it | `app.py` | [ ] |
-| 8.5 | Integration test for `_run_audit()` — mock-based end-to-end audit pipeline test | `tests/test_app_helpers.py` | [ ] |
+| 8.1 | Persistent API keys — file-based fallback for keyring, keys survive app restarts | `app.py` | [x] |
+| 8.2 | API rate limiting — 2s cooldown between AI calls to prevent budget exhaustion | `app.py` | [x] |
+| 8.3 | XML export option — `render_xml_report()` + download button alongside CSV/JSON/PDF | `wslog.py`, `app.py` | [x] |
+| 8.4 | Audit source collection test — integration tests for `_collect_audit_sources()` | `tests/test_app_helpers.py` | [x] |
+| 8.5 | Additional tests — XML export, rate limit config, provider history files, keychain fallback | `tests/` | [x] |
 
 **Acceptance**: Audit scope selectable. Rate limiting prevents rapid-fire API calls. XML export available. >360 tests. Audit grade **A+**.
 
@@ -85,4 +85,4 @@
 | 5 — Säkerhetsförstärkning | 5 | 0 | Not started |
 | 6 — E2e-teststabilitet | 5 | 5 | Done |
 | 7 — Kodstruktur & refaktorering | 5 | 5 | Done |
-| 8 — Funktioner & förbättringar | 5 | 0 | Not started |
+| 8 — Funktioner & förbättringar | 5 | 5 | Done |

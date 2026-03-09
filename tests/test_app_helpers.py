@@ -366,7 +366,8 @@ class TestKeychainHelpers:
         mock_keyring = mock.MagicMock()
         mock_keyring.get_password.side_effect = Exception("no keyring")
         monkeypatch.setenv("MY_API_KEY", "env-key-456")
-        with mock.patch.dict(sys.modules, {"keyring": mock_keyring}):
+        with mock.patch.dict(sys.modules, {"keyring": mock_keyring}), \
+             mock.patch("app._load_json_file", return_value={}):
             result = _load_keychain("test_user", "MY_API_KEY")
         assert result == "env-key-456"
 
@@ -374,7 +375,8 @@ class TestKeychainHelpers:
         mock_keyring = mock.MagicMock()
         mock_keyring.get_password.return_value = None
         monkeypatch.delenv("NO_SUCH_VAR", raising=False)
-        with mock.patch.dict(sys.modules, {"keyring": mock_keyring}):
+        with mock.patch.dict(sys.modules, {"keyring": mock_keyring}), \
+             mock.patch("app._load_json_file", return_value={}):
             result = _load_keychain("test_user", "NO_SUCH_VAR")
         assert result == ""
 
@@ -584,3 +586,47 @@ class TestCallGeminiApi:
         with mock.patch.object(app_mod, "ask_gemini", return_value=""):
             answer, usage = _call_gemini_api("key", "model", {"system": "s", "user": "u"})
         assert answer is None
+
+
+# ── _collect_audit_sources ─────────────────────────────────────────────
+
+class TestCollectAuditSources:
+    def test_returns_string(self):
+        result = _collect_audit_sources()
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_includes_main_files(self):
+        result = _collect_audit_sources()
+        assert "wslog.py" in result
+        assert "app.py" in result
+
+    def test_compact_mode_shorter(self):
+        full = _collect_audit_sources(compact=False)
+        compact = _collect_audit_sources(compact=True)
+        assert len(compact) <= len(full)
+
+    def test_includes_skill_content(self):
+        result = _collect_audit_sources()
+        # Should include skill directory content
+        assert "skills" in result.lower() or "skill" in result.lower()
+
+
+# ── _PROVIDER_HISTORY_FILES ───────────────────────────────────────────
+
+class TestProviderHistoryFiles:
+    def test_all_providers_have_files(self):
+        for provider in ("claude", "gemini", "openai"):
+            assert provider in _PROVIDER_HISTORY_FILES
+
+    def test_files_are_paths(self):
+        for path in _PROVIDER_HISTORY_FILES.values():
+            assert hasattr(path, "suffix")  # Path-like object
+
+
+# ── Rate limiting ─────────────────────────────────────────────────────
+
+class TestRateLimit:
+    def test_rate_limit_constant_exists(self):
+        assert _AI_RATE_LIMIT_SECONDS > 0
+        assert _AI_RATE_LIMIT_SECONDS <= 10  # Sanity check
