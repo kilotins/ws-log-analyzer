@@ -355,7 +355,11 @@ with st.sidebar:
     if gemini_key:
         st.success("Gemini API key set")
     else:
-        st.caption("Enter your key or set GEMINI_API_KEY env var")
+        saved_gemini = _load_saved_gemini_key()
+        if saved_gemini:
+            st.caption("Loaded from keychain")
+        else:
+            st.caption("Set via GEMINI_API_KEY env var")
 
     if not st.session_state.openai_api_key:
         st.session_state.openai_api_key = _load_saved_openai_key()
@@ -372,7 +376,11 @@ with st.sidebar:
     if openai_key:
         st.success("OpenAI API key set")
     else:
-        st.caption("Enter your key or set OPENAI_API_KEY env var")
+        saved_openai = _load_saved_openai_key()
+        if saved_openai:
+            st.caption("Loaded from keychain")
+        else:
+            st.caption("Set via OPENAI_API_KEY env var")
 
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
@@ -393,10 +401,9 @@ with st.sidebar:
         st.session_state.openai_answer = None
         st.session_state.openai_query_label = None
         st.session_state.openai_history = []
-        if CACHE_FILE.exists():
-            CACHE_FILE.unlink()
+        CACHE_FILE.unlink(missing_ok=True)
         for _hpath in _PROVIDER_HISTORY_FILES.values():
-            _save_provider_history(_hpath, [])
+            _hpath.unlink(missing_ok=True)
         log.info("cache Cleared all AI caches")
         st.success("Cache cleared")
 
@@ -426,6 +433,9 @@ with tab_analyze:
                                        help="Time resolution for the timeline histogram.")
 
     if uploaded_files and st.button("Analyze", type="primary"):
+        total_size = sum(len(f.getvalue()) for f in uploaded_files)
+        if total_size > 50 * 1024 * 1024:
+            st.warning("Large files detected (>50MB). Parsing may take a while.")
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         all_events = []
 
@@ -445,7 +455,7 @@ with tab_analyze:
                     st.error(f"Failed to parse {uploaded.name}: {ex}")
 
         if not all_events:
-            st.error("No events parsed. Are the files empty or in an unsupported format?")
+            st.error("No log events found. Possible causes: files may be empty, contain no recognizable timestamps, or use an unsupported format.")
         else:
             pa = precompute_analysis(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
             s = pa["summary"]
