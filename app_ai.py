@@ -572,7 +572,7 @@ def render_ai_history():
             st.subheader("Previoos queries from zee Chef")
         else:
             st.subheader("Previous Claude queries")
-        for h_idx, entry in enumerate(reversed(claude_history[:-1])):
+        for _, entry in enumerate(reversed(claude_history[:-1])):
             hist_label = f"Claude \u2014 {entry['query']} ({entry['timestamp']})"
             with st.expander(hist_label):
                 if st.session_state.swedish_chef:
@@ -583,7 +583,7 @@ def render_ai_history():
     if len(gemini_history) > 1:
         st.markdown("---")
         st.subheader("Previous Gemini queries")
-        for g_idx, entry in enumerate(reversed(gemini_history[:-1])):
+        for _, entry in enumerate(reversed(gemini_history[:-1])):
             hist_label = f"Gemini \u2014 {entry['query']} ({entry['timestamp']})"
             with st.expander(hist_label):
                 st.markdown(entry["answer"])
@@ -593,7 +593,7 @@ def render_ai_history():
         _chef_hist = st.session_state.swedish_chef
         st.markdown("---")
         st.subheader("\U0001f373 Previ\u00f6oos Chef queries" if _chef_hist else "Previous GPT queries")
-        for o_idx, entry in enumerate(reversed(openai_history[:-1])):
+        for _, entry in enumerate(reversed(openai_history[:-1])):
             if _chef_hist:
                 hist_label = f"\U0001f373 Zee Chef \u2014 {entry['query']} ({entry['timestamp']})"
             else:

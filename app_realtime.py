@@ -92,12 +92,17 @@ def _rt_live_view(log):
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         if st.button("Start", disabled=running and not paused, key="rt_start"):
-            ss.rt_running = True
-            ss.rt_paused = False
-            p = Path(filepath)
-            if p.exists():
-                ss.rt_offset = p.stat().st_size
-            log.info("realtime Started monitoring %s", filepath)
+            if not _is_safe_rt_path(filepath):
+                st.error(f"Invalid or unsafe path: {filepath}. Only .log, .gz, and .txt files are allowed.")
+            elif not Path(filepath).exists():
+                st.error(f"File not found: {filepath}")
+            else:
+                ss.rt_running = True
+                ss.rt_paused = False
+                p = Path(filepath)
+                if p.exists():
+                    ss.rt_offset = p.stat().st_size
+                log.info("realtime Started monitoring %s", filepath)
     with c2:
         if st.button("Pause", disabled=not running or paused, key="rt_pause"):
             ss.rt_paused = True
