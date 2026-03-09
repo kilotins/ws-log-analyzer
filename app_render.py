@@ -435,7 +435,12 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     filtered_events = render_event_filters(a["events"])
     if filtered_events is not None:
         # Recompute analysis from filtered events without modifying original
-        fa = precompute_analysis(filtered_events)
+        fa = precompute_analysis(
+            filtered_events,
+            top_n=a.get("top_n", 10),
+            samples_n=a.get("samples_n", 5),
+            hist_minutes=a.get("hist_minutes", 1),
+        )
         display_summary = fa["summary"]
         display_error_count = sum(1 for e in filtered_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
         display_causes = fa["causes"]

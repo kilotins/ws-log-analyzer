@@ -503,6 +503,9 @@ with tab_analyze:
                 "report_csv": report_csv,
                 "report_xml": report_xml,
                 "report_name": report_name,
+                "top_n": top_n,
+                "samples_n": samples_n,
+                "hist_minutes": hist_minutes,
             }
             st.session_state.claude_answer = None
             st.session_state.claude_query_label = None
