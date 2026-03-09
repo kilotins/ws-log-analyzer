@@ -92,35 +92,38 @@ def _save_file_cache(cache):
     _save_json_file(CACHE_FILE, cache)
 
 
-def _load_history():
-    data = _load_json_file(HISTORY_FILE, [])
-    return data if isinstance(data, list) else []
-
-
-def _save_history(history):
-    # Keep only the most recent entries
-    _save_json_file(HISTORY_FILE, history[-MAX_HISTORY_ENTRIES:])
-
-
-def _load_gemini_history():
-    data = _load_json_file(GEMINI_HISTORY_FILE, [])
-    return data if isinstance(data, list) else []
-
-
-def _save_gemini_history(history):
-    _save_json_file(GEMINI_HISTORY_FILE, history[-MAX_HISTORY_ENTRIES:])
-
-
 OPENAI_HISTORY_FILE = CACHE_DIR / "openai_history.json"
 
 
-def _load_openai_history():
-    data = _load_json_file(OPENAI_HISTORY_FILE, [])
+def _load_provider_history(path):
+    """Load provider history from a JSON file."""
+    data = _load_json_file(path, [])
     return data if isinstance(data, list) else []
 
 
+def _save_provider_history(path, history):
+    """Save provider history, keeping only the most recent entries."""
+    _save_json_file(path, history[-MAX_HISTORY_ENTRIES:])
+
+
+# Thin wrappers for backward compatibility
+def _load_history():
+    return _load_provider_history(HISTORY_FILE)
+
+def _save_history(history):
+    _save_provider_history(HISTORY_FILE, history)
+
+def _load_gemini_history():
+    return _load_provider_history(GEMINI_HISTORY_FILE)
+
+def _save_gemini_history(history):
+    _save_provider_history(GEMINI_HISTORY_FILE, history)
+
+def _load_openai_history():
+    return _load_provider_history(OPENAI_HISTORY_FILE)
+
 def _save_openai_history(history):
-    _save_json_file(OPENAI_HISTORY_FILE, history[-MAX_HISTORY_ENTRIES:])
+    _save_provider_history(OPENAI_HISTORY_FILE, history)
 
 
 # --- Session state defaults ---
@@ -490,227 +493,184 @@ def _store_cache(cache_key, answer, session_cache):
     _save_file_cache(file_cache)
 
 
-def run_claude_analysis(user_query, events, processing_container, model_id="claude-sonnet-4-6"):
-    """Run Claude API analysis with caching. Renders status into processing_container."""
-    log.info("claude Ask Claude request: %s", user_query[:100])
-    with processing_container:
-        status = st.status("Analyzing with Claude...", expanded=True)
-    match, cache_key, prompt = build_ai_request_context(user_query, events, "claude")
+# --- Provider configuration for the common AI orchestrator ---
+_PROVIDER_CONFIG = {
+    "claude": {
+        "label": "Claude",
+        "cache_key": "claude_cache",
+        "answer_key": "claude_answer",
+        "query_label_key": "claude_query_label",
+        "history_key": "claude_history",
+        "api_key_field": "api_key",
+        "save_history": lambda hist: _save_history(hist),
+        "extract_splunk": True,
+        "api_key_error": "Enter your Anthropic API key in the sidebar.",
+    },
+    "gemini": {
+        "label": "Gemini",
+        "cache_key": "gemini_cache",
+        "answer_key": "gemini_answer",
+        "query_label_key": "gemini_query_label",
+        "history_key": "gemini_history",
+        "api_key_field": "gemini_api_key",
+        "save_history": lambda hist: _save_gemini_history(hist),
+        "extract_splunk": False,
+        "api_key_error": "Enter your Gemini API key in the sidebar or set GEMINI_API_KEY env var.",
+    },
+    "openai": {
+        "label": "GPT",
+        "cache_key": "openai_cache",
+        "answer_key": "openai_answer",
+        "query_label_key": "openai_query_label",
+        "history_key": "openai_history",
+        "api_key_field": "openai_api_key",
+        "save_history": lambda hist: _save_openai_history(hist),
+        "extract_splunk": False,
+        "api_key_error": "Enter your OpenAI API key in the sidebar or set OPENAI_API_KEY env var.",
+    },
+}
 
-    cached = _lookup_cache(cache_key, st.session_state.claude_cache, "Claude", user_query)
+
+def _call_claude_api(api_key, model_id, prompt):
+    """Make the actual Claude API call. Returns answer text or raises."""
+    try:
+        from anthropic import Anthropic
+    except ImportError:
+        raise ImportError("The `anthropic` package is not installed. Install with: `pip install anthropic`")
+    client = Anthropic(api_key=api_key, timeout=30.0)
+    message = client.messages.create(
+        model=model_id, max_tokens=2048,
+        system=prompt["system"],
+        messages=[{"role": "user", "content": prompt["user"]}],
+    )
+    if not message.content:
+        return None
+    return message.content[0].text
+
+
+def _call_gemini_api(api_key, model_id, prompt):
+    """Make the actual Gemini API call. Returns answer text or raises."""
+    answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id)
+    return answer or None
+
+
+def _call_openai_api(api_key, model_id, prompt):
+    """Make the actual OpenAI API call. Returns answer text or raises."""
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ImportError("The `openai` package is not installed. Install with: `pip install openai`")
+    client = OpenAI(api_key=api_key, timeout=60.0)
+    response = client.chat.completions.create(
+        model=model_id, max_completion_tokens=2048,
+        messages=[
+            {"role": "system", "content": prompt["system"]},
+            {"role": "user", "content": prompt["user"]},
+        ],
+    )
+    answer = response.choices[0].message.content
+    return answer or None
+
+
+_API_CALLERS = {
+    "claude": _call_claude_api,
+    "gemini": _call_gemini_api,
+    "openai": _call_openai_api,
+}
+
+
+def _run_ai_analysis(provider, model_id, user_query, events, processing_container):
+    """Common AI analysis orchestrator. Handles caching, history, and error display."""
+    cfg = _PROVIDER_CONFIG[provider]
+    label = cfg["label"]
+
+    log.info("%s Ask %s request: %s", provider, label, user_query[:100])
+    with processing_container:
+        status = st.status(f"Analyzing with {label}...", expanded=True)
+
+    match, cache_key, prompt = build_ai_request_context(user_query, events, provider)
+    session_cache = getattr(st.session_state, cfg["cache_key"])
+
+    cached = _lookup_cache(cache_key, session_cache, label, user_query)
 
     def _record_answer(answer):
-        st.session_state.claude_answer = answer
-        st.session_state.claude_query_label = user_query
-        splunk_queries = _extract_splunk_from_response(answer)
+        setattr(st.session_state, cfg["answer_key"], answer)
+        setattr(st.session_state, cfg["query_label_key"], user_query)
         entry = {
             "query": user_query,
             "answer": answer,
-            "splunk_queries": splunk_queries,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
         }
-        hist = st.session_state.claude_history
+        if cfg["extract_splunk"]:
+            entry["splunk_queries"] = _extract_splunk_from_response(answer)
+        hist = getattr(st.session_state, cfg["history_key"])
         if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
             hist.append(entry)
-            _save_history(hist)
+            cfg["save_history"](hist)
 
     if cached:
         _record_answer(cached)
-        status.update(label="Using cached Claude response", state="complete")
+        status.update(label=f"Using cached {label} response", state="complete")
         return
 
     if match["matched"]:
         status.write(f"Found {len(match['matching_events'])} matching event(s) "
                      f"(match type: {match['match_type']})")
     else:
-        status.write("No exact match — sending general question to Claude.")
+        status.write(f"No exact match — sending general question to {label}.")
 
-    if not st.session_state.api_key:
-        status.update(label="No API key set", state="error")
-        st.error("Enter your Anthropic API key in the sidebar.")
+    api_key = getattr(st.session_state, cfg["api_key_field"], "")
+    if not api_key:
+        status.update(label=f"No {label} API key set", state="error")
+        st.error(cfg["api_key_error"])
         return
 
-    try:
-        from anthropic import Anthropic
-    except ImportError:
-        status.update(label="Missing package", state="error")
-        st.error("The `anthropic` package is not installed. "
-                 "Install with: `pip install anthropic`")
-        return
-
-    log.info("cache Cache miss — calling Claude API for: %s", user_query[:60])
-    request_payload = {
-        "model": model_id,
-        "max_tokens": 2048,
-        "system": prompt["system"],
-        "messages": [{"role": "user", "content": prompt["user"]}],
-    }
     if st.session_state.debug_payload:
-        with st.expander("Request payload", expanded=False):
+        with st.expander(f"{label} request payload", expanded=False):
             import json as _json
-            st.code(_json.dumps(request_payload, indent=2), language="json")
+            st.code(f"[SYSTEM]\n{prompt['system']}\n\n[USER]\n{prompt['user']}", language="text")
 
-    status.write("Calling Claude API...")
+    log.info("cache Cache miss — calling %s API for: %s", label, user_query[:60])
+    status.write(f"Calling {label} API...")
     try:
-        client = Anthropic(api_key=st.session_state.api_key, timeout=30.0)
-        message = client.messages.create(**request_payload)
-        if not message.content:
-            log.warning("claude Claude returned empty response for: %s", user_query[:60])
-            status.update(label="Empty response from Claude", state="error")
+        caller = _API_CALLERS[provider]
+        answer = caller(api_key, model_id, prompt)
+        if not answer:
+            log.warning("%s %s returned empty response for: %s", provider, label, user_query[:60])
+            status.update(label=f"Empty response from {label}", state="error")
             return
-        answer = message.content[0].text
-        log.info("claude Claude response received (%d chars) for: %s",
-                 len(answer), user_query[:60])
+        log.info("%s %s response received (%d chars) for: %s",
+                 provider, label, len(answer), user_query[:60])
         if st.session_state.debug_payload:
-            with st.expander("Response payload", expanded=False):
+            with st.expander(f"{label} response payload", expanded=False):
                 st.code(answer, language="markdown")
         _record_answer(answer)
-        _store_cache(cache_key, answer, st.session_state.claude_cache)
-        status.update(label="Claude analysis complete", state="complete")
+        _store_cache(cache_key, answer, session_cache)
+        status.update(label=f"{label} analysis complete", state="complete")
+    except ImportError as ex:
+        status.update(label="Missing package", state="error")
+        st.error(str(ex))
     except Exception as ex:
-        log.error("claude Claude API error: %s", ex)
+        log.error("%s %s API error: %s", provider, label, ex)
         if st.session_state.debug_payload:
-            with st.expander("Error details", expanded=True):
+            with st.expander(f"{label} error details", expanded=True):
                 st.code(str(ex), language="text")
-        status.update(label=f"Claude API error: {ex}", state="error")
+        status.update(label=f"{label} API error: {ex}", state="error")
+
+
+def run_claude_analysis(user_query, events, processing_container, model_id="claude-sonnet-4-6"):
+    """Run Claude API analysis with caching."""
+    _run_ai_analysis("claude", model_id, user_query, events, processing_container)
 
 
 def run_gemini_analysis(user_query, events, processing_container, model_id="gemini-2.5-flash"):
-    """Run Gemini API analysis with caching. Renders status into processing_container."""
-    log.info("gemini Ask Gemini request: %s", user_query[:100])
-    with processing_container:
-        gemini_status = st.status("Analyzing with Gemini...", expanded=True)
-    match, cache_key, prompt = build_ai_request_context(user_query, events, "gemini")
-
-    cached = _lookup_cache(cache_key, st.session_state.gemini_cache, "Gemini", user_query)
-
-    def _record_gemini_answer(answer):
-        st.session_state.gemini_answer = answer
-        st.session_state.gemini_query_label = user_query
-        entry = {
-            "query": user_query,
-            "answer": answer,
-            "timestamp": datetime.now().strftime("%H:%M:%S"),
-        }
-        hist = st.session_state.gemini_history
-        if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
-            hist.append(entry)
-            _save_gemini_history(hist)
-
-    if cached:
-        _record_gemini_answer(cached)
-        gemini_status.update(label="Using cached Gemini response", state="complete")
-        return
-
-    gemini_key = st.session_state.gemini_api_key
-    if not gemini_key:
-        gemini_status.update(label="No Gemini API key set", state="error")
-        st.error("Enter your Gemini API key in the sidebar or set GEMINI_API_KEY env var.")
-        return
-
-    if st.session_state.debug_payload:
-        with st.expander("Gemini request payload", expanded=False):
-            import json as _json
-            st.code(f"[SYSTEM]\n{prompt['system']}\n\n[USER]\n{prompt['user']}", language="text")
-
-    gemini_status.write("Calling Gemini API...")
-    try:
-        answer = ask_gemini(prompt["user"], api_key=gemini_key, system=prompt["system"], model=model_id)
-        if not answer:
-            log.warning("gemini Gemini returned empty response for: %s", user_query[:60])
-            gemini_status.update(label="Empty response from Gemini", state="error")
-            return
-        log.info("gemini Gemini response received (%d chars) for: %s",
-                 len(answer), user_query[:60])
-        if st.session_state.debug_payload:
-            with st.expander("Gemini response payload", expanded=False):
-                st.code(answer, language="markdown")
-        _record_gemini_answer(answer)
-        _store_cache(cache_key, answer, st.session_state.gemini_cache)
-        gemini_status.update(label="Gemini analysis complete", state="complete")
-    except Exception as ex:
-        log.error("gemini Gemini API error: %s", ex)
-        if st.session_state.debug_payload:
-            with st.expander("Gemini error details", expanded=True):
-                st.code(str(ex), language="text")
-        gemini_status.update(label=f"Gemini API error: {ex}", state="error")
+    """Run Gemini API analysis with caching."""
+    _run_ai_analysis("gemini", model_id, user_query, events, processing_container)
 
 
 def run_openai_analysis(user_query, events, processing_container, model_id="gpt-4o"):
-    """Run OpenAI API analysis with caching. Renders status into processing_container."""
-    log.info("openai Ask GPT request: %s", user_query[:100])
-    with processing_container:
-        openai_status = st.status("Analyzing with GPT...", expanded=True)
-    match, cache_key, prompt = build_ai_request_context(user_query, events, "openai")
-
-    cached = _lookup_cache(cache_key, st.session_state.openai_cache, "OpenAI", user_query)
-
-    def _record_openai_answer(answer):
-        st.session_state.openai_answer = answer
-        st.session_state.openai_query_label = user_query
-        entry = {
-            "query": user_query,
-            "answer": answer,
-            "timestamp": datetime.now().strftime("%H:%M:%S"),
-        }
-        hist = st.session_state.openai_history
-        if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
-            hist.append(entry)
-            _save_openai_history(hist)
-
-    if cached:
-        _record_openai_answer(cached)
-        openai_status.update(label="Using cached GPT response", state="complete")
-        return
-
-    openai_key = st.session_state.openai_api_key
-    if not openai_key:
-        openai_status.update(label="No OpenAI API key set", state="error")
-        st.error("Enter your OpenAI API key in the sidebar or set OPENAI_API_KEY env var.")
-        return
-
-    try:
-        from openai import OpenAI
-    except ImportError:
-        openai_status.update(label="Missing package", state="error")
-        st.error("The `openai` package is not installed. Install with: `pip install openai`")
-        return
-
-    if st.session_state.debug_payload:
-        with st.expander("GPT request payload", expanded=False):
-            import json as _json
-            st.code(f"[SYSTEM]\n{prompt['system']}\n\n[USER]\n{prompt['user']}", language="text")
-
-    openai_status.write("Calling OpenAI API...")
-    try:
-        client = OpenAI(api_key=openai_key, timeout=60.0)
-        response = client.chat.completions.create(
-            model=model_id,
-            max_completion_tokens=2048,
-            messages=[
-                {"role": "system", "content": prompt["system"]},
-                {"role": "user", "content": prompt["user"]},
-            ],
-        )
-        answer = response.choices[0].message.content
-        if not answer:
-            log.warning("openai GPT returned empty response for: %s", user_query[:60])
-            openai_status.update(label="Empty response from GPT", state="error")
-            return
-        log.info("openai GPT response received (%d chars) for: %s",
-                 len(answer), user_query[:60])
-        if st.session_state.debug_payload:
-            with st.expander("GPT response payload", expanded=False):
-                st.code(answer, language="markdown")
-        _record_openai_answer(answer)
-        _store_cache(cache_key, answer, st.session_state.openai_cache)
-        openai_status.update(label="GPT analysis complete", state="complete")
-    except Exception as ex:
-        log.error("openai GPT API error: %s", ex)
-        if st.session_state.debug_payload:
-            with st.expander("GPT error details", expanded=True):
-                st.code(str(ex), language="text")
-        openai_status.update(label=f"GPT API error: {ex}", state="error")
+    """Run OpenAI API analysis with caching."""
+    _run_ai_analysis("openai", model_id, user_query, events, processing_container)
 
 
 def render_current_ai_analyses():
