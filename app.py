@@ -823,6 +823,7 @@ def render_ask_claude(events):
             "Analyze",
             type="primary",
             disabled=not user_query,
+            key="ai_analyze_btn",
         )
 
     processing_container = st.container()
