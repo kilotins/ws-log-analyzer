@@ -749,7 +749,11 @@ def render_current_ai_analyses():
 
     if _has_openai:
         label = st.session_state.openai_query_label or "query"
-        with st.expander(f"GPT analysis — {label}", expanded=_expand_openai):
+        _chef_openai = st.session_state.swedish_chef
+        expander_title = f"🍳 Zee Chef's analysis — {label}" if _chef_openai else f"GPT analysis — {label}"
+        with st.expander(expander_title, expanded=_expand_openai):
+            if _chef_openai:
+                _render_chef_sound_button()
             st.markdown(st.session_state.openai_answer)
 
 
@@ -780,11 +784,17 @@ def render_ai_history():
 
     openai_history = st.session_state.openai_history
     if len(openai_history) > 1:
+        _chef_hist = st.session_state.swedish_chef
         st.markdown("---")
-        st.subheader("Previous GPT queries")
+        st.subheader("🍳 Previöoos Chef queries" if _chef_hist else "Previous GPT queries")
         for o_idx, entry in enumerate(reversed(openai_history[:-1])):
-            hist_label = f"GPT — {entry['query']} ({entry['timestamp']})"
+            if _chef_hist:
+                hist_label = f"🍳 Zee Chef — {entry['query']} ({entry['timestamp']})"
+            else:
+                hist_label = f"GPT — {entry['query']} ({entry['timestamp']})"
             with st.expander(hist_label):
+                if _chef_hist:
+                    _render_chef_sound_button()
                 st.markdown(entry["answer"])
 
 
