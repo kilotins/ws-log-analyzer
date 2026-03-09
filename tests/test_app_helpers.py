@@ -71,6 +71,10 @@ from app import (                       # noqa: E402
     _collect_audit_sources,
     _PROVIDER_HISTORY_FILES,
     _AI_RATE_LIMIT_SECONDS,
+    _CACHE_TTL_SECONDS,
+    _load_file_cache,
+    _save_file_cache,
+    CACHE_FILE,
     REPORTS_DIR,
 )
 
@@ -630,3 +634,46 @@ class TestRateLimit:
     def test_rate_limit_constant_exists(self):
         assert _AI_RATE_LIMIT_SECONDS > 0
         assert _AI_RATE_LIMIT_SECONDS <= 10  # Sanity check
+
+
+# ── Cache TTL ─────────────────────────────────────────────────────────
+
+class TestCacheTTL:
+    def test_fresh_entries_are_kept(self, tmp_path, monkeypatch):
+        import time, app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+        now = time.time()
+        data = {"key1": {"text": "answer1", "ts": now - 3600}}  # 1 hour old
+        _save_json_file(cache_file, data)
+        loaded = _load_file_cache()
+        assert "key1" in loaded
+        assert loaded["key1"]["text"] == "answer1"
+
+    def test_expired_entries_are_removed(self, tmp_path, monkeypatch):
+        import time, app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+        now = time.time()
+        data = {
+            "old": {"text": "stale", "ts": now - _CACHE_TTL_SECONDS - 1},
+            "new": {"text": "fresh", "ts": now - 100},
+        }
+        _save_json_file(cache_file, data)
+        loaded = _load_file_cache()
+        assert "old" not in loaded
+        assert "new" in loaded
+
+    def test_old_format_plain_string_migrated(self, tmp_path, monkeypatch):
+        import app as app_mod
+        cache_file = tmp_path / "ai_responses.json"
+        monkeypatch.setattr(app_mod, "CACHE_FILE", cache_file)
+        data = {"legacy_key": "plain string answer"}
+        _save_json_file(cache_file, data)
+        loaded = _load_file_cache()
+        assert "legacy_key" in loaded
+        assert loaded["legacy_key"]["text"] == "plain string answer"
+        assert "ts" in loaded["legacy_key"]
+
+    def test_ttl_is_seven_days(self):
+        assert _CACHE_TTL_SECONDS == 7 * 24 * 60 * 60

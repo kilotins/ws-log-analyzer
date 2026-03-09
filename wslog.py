@@ -8,6 +8,7 @@ from collections import Counter
 from pathlib import Path
 from typing import IO
 import sys
+import hashlib
 from datetime import datetime, timedelta
 
 # --- Constants ---
@@ -62,8 +63,8 @@ HTTP_RE = re.compile(r'\b(4\d\d|5\d\d)\b.*\b(HTTP|SRVE)\b|\b(HTTP|SRVE)\b.*\b(4\
 # Secret redaction patterns
 SECRET_REPLACERS = [
     (re.compile(r'(?i)\b(authorization:\s*bearer)\s+[A-Za-z0-9._\-/+=]+'), r'\1 [REDACTED]'),
-    # key=value (unquoted)
-    (re.compile(r'(?i)\b(api[_-]?key|token|secret|password|passwd|credential)\b\s*[:=]\s*(\S+)'), r'\1=[REDACTED]'),
+    # key=value (unquoted, supports multi-word values)
+    (re.compile(r'(?i)\b(api[_-]?key|token|secret|password|passwd|credential)\b\s*[:=]\s*([^\n,;]+)'), r'\1=[REDACTED]'),
     # JSON: "key": "value"
     (re.compile(r'(?i)("(?:api[_-]?key|token|secret|password|passwd|credential)")\s*:\s*"[^"]*"'), r'\1: "[REDACTED]"'),
     # Connection strings with password
@@ -1300,6 +1301,8 @@ def _sanitize_prompt_input(text: str) -> str:
     from xml.sax.saxutils import escape
     # Strip delimiter tags that could break prompt structure
     text = re.sub(r'</?(?:user_query|log_excerpt|context|system|system_instruction|instructions|report|domain_knowledge)[^>]*>', '', text)
+    # Strip ALL XML-like tags to catch any new tags that might be added
+    text = re.sub(r'</?[a-zA-Z_][a-zA-Z0-9_.-]*[^>]*>', '', text)
     # Escape XML entities to prevent &lt;system&gt; style attacks
     return escape(text)
 
@@ -1548,7 +1551,8 @@ def claude_cache_key(user_query: str, match_result: dict) -> str:
     tags = match_result.get("tags") or []
     parts.append(",".join(sorted(tags)))
     parts.append(match_result.get("match_type") or "none")
-    return "|".join(parts)
+    raw = "|".join(parts)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "gemini-2.5-flash") -> str:
