@@ -110,6 +110,19 @@ def _load_gemini_history():
 def _save_gemini_history(history):
     _save_json_file(GEMINI_HISTORY_FILE, history[-MAX_HISTORY_ENTRIES:])
 
+
+OPENAI_HISTORY_FILE = CACHE_DIR / "openai_history.json"
+
+
+def _load_openai_history():
+    data = _load_json_file(OPENAI_HISTORY_FILE, [])
+    return data if isinstance(data, list) else []
+
+
+def _save_openai_history(history):
+    _save_json_file(OPENAI_HISTORY_FILE, history[-MAX_HISTORY_ENTRIES:])
+
+
 # --- Session state defaults ---
 _STATE_DEFAULTS = {
     "analysis": None,           # dict with all analysis results
@@ -126,6 +139,10 @@ _STATE_DEFAULTS = {
     "gemini_query_label": None,  # query that produced the Gemini answer
     "gemini_cache": {},          # cache key -> response text
     "gemini_history": [],        # list of {query, answer, timestamp}
+    "openai_answer": None,       # last OpenAI response
+    "openai_query_label": None,  # query that produced the OpenAI answer
+    "openai_cache": {},          # cache key -> response text
+    "openai_history": [],        # list of {query, answer, timestamp}
     "debug_payload": False,     # Show AI API request/response payloads
     "swedish_chef": False,      # Swedish Chef response style
     "rt_enabled": False,        # Realtime log monitoring toggle
@@ -148,6 +165,8 @@ if not st.session_state.claude_history:
     st.session_state.claude_history = _load_history()
 if not st.session_state.gemini_history:
     st.session_state.gemini_history = _load_gemini_history()
+if not st.session_state.openai_history:
+    st.session_state.openai_history = _load_openai_history()
 
 
 def get_report_history(limit=20):
@@ -167,11 +186,13 @@ def _on_code_action(code, action):
         st.session_state._ask_claude_pending = True
     elif action == "gemini":
         st.session_state._ask_gemini_pending = True
+    elif action == "openai":
+        st.session_state._ask_openai_pending = True
 
 
 def render_code_row(code, count):
     """Render a message code row with count and action buttons."""
-    cols = st.columns([3, 1, 1])
+    cols = st.columns([3, 1, 1, 1])
     with cols[0]:
         st.text(f"  {count:>4}  {code}")
     with cols[1]:
@@ -185,6 +206,11 @@ def render_code_row(code, count):
                   key=f"ask_gemini_{code}",
                   on_click=_on_code_action, args=(code, "gemini"),
                   help=f"Ask Gemini about {code}")
+    with cols[3]:
+        st.button("Ask GPT",
+                  key=f"ask_openai_{code}",
+                  on_click=_on_code_action, args=(code, "openai"),
+                  help=f"Ask GPT about {code}")
 
 
 def render_summary(s, error_count, file_count, file_summary):
@@ -435,6 +461,11 @@ def _on_ask_gemini_click():
     st.session_state._ask_gemini_pending = True
 
 
+def _on_ask_openai_click():
+    """Callback: mark that the user clicked Ask GPT."""
+    st.session_state._ask_openai_pending = True
+
+
 def build_ai_request_context(user_query, events, provider="claude"):
     """Compute match, cache key, and prompt for an AI analysis request."""
     match = match_user_query(user_query, events)
@@ -443,6 +474,8 @@ def build_ai_request_context(user_query, events, provider="claude"):
         cache_key += ":swedish_chef"
     if provider == "gemini":
         cache_key = "gemini:" + cache_key
+    elif provider == "openai":
+        cache_key = "openai:" + cache_key
     style = SWEDISH_CHEF_STYLE if st.session_state.swedish_chef else None
     prompt = build_claude_prompt(user_query, match, style=style)
     skills = prompt.get("skills", [])
@@ -622,18 +655,100 @@ def run_gemini_analysis(user_query, events, processing_container):
         gemini_status.update(label=f"Gemini API error: {ex}", state="error")
 
 
-def render_current_ai_analyses():
-    """Render expanders for current Claude and Gemini results."""
-    _has_claude = bool(st.session_state.claude_answer)
-    _has_gemini = bool(st.session_state.gemini_answer)
-    if not _has_claude and not _has_gemini:
+def run_openai_analysis(user_query, events, processing_container):
+    """Run OpenAI API analysis with caching. Renders status into processing_container."""
+    log.info("openai Ask GPT request: %s", user_query[:100])
+    with processing_container:
+        openai_status = st.status("Analyzing with GPT...", expanded=True)
+    match, cache_key, prompt = build_ai_request_context(user_query, events, "openai")
+
+    cached = _lookup_cache(cache_key, st.session_state.openai_cache, "OpenAI", user_query)
+
+    def _record_openai_answer(answer):
+        st.session_state.openai_answer = answer
+        st.session_state.openai_query_label = user_query
+        entry = {
+            "query": user_query,
+            "answer": answer,
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+        }
+        hist = st.session_state.openai_history
+        if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
+            hist.append(entry)
+            _save_openai_history(hist)
+
+    if cached:
+        _record_openai_answer(cached)
+        openai_status.update(label="Using cached GPT response", state="complete")
         return
 
-    _expand_claude = _has_claude and not _has_gemini
-    _expand_gemini = _has_gemini and not _has_claude
-    if _has_claude and _has_gemini:
+    openai_key = st.session_state.openai_api_key
+    if not openai_key:
+        openai_status.update(label="No OpenAI API key set", state="error")
+        st.error("Enter your OpenAI API key in the sidebar or set OPENAI_API_KEY env var.")
+        return
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        openai_status.update(label="Missing package", state="error")
+        st.error("The `openai` package is not installed. Install with: `pip install openai`")
+        return
+
+    if st.session_state.debug_payload:
+        with st.expander("GPT request payload", expanded=False):
+            import json as _json
+            st.code(f"[SYSTEM]\n{prompt['system']}\n\n[USER]\n{prompt['user']}", language="text")
+
+    openai_status.write("Calling OpenAI API...")
+    try:
+        client = OpenAI(api_key=openai_key, timeout=60.0)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            max_completion_tokens=2048,
+            messages=[
+                {"role": "system", "content": prompt["system"]},
+                {"role": "user", "content": prompt["user"]},
+            ],
+        )
+        answer = response.choices[0].message.content
+        if not answer:
+            log.warning("openai GPT returned empty response for: %s", user_query[:60])
+            openai_status.update(label="Empty response from GPT", state="error")
+            return
+        log.info("openai GPT response received (%d chars) for: %s",
+                 len(answer), user_query[:60])
+        if st.session_state.debug_payload:
+            with st.expander("GPT response payload", expanded=False):
+                st.code(answer, language="markdown")
+        _record_openai_answer(answer)
+        _store_cache(cache_key, answer, st.session_state.openai_cache)
+        openai_status.update(label="GPT analysis complete", state="complete")
+    except Exception as ex:
+        log.error("openai GPT API error: %s", ex)
+        if st.session_state.debug_payload:
+            with st.expander("GPT error details", expanded=True):
+                st.code(str(ex), language="text")
+        openai_status.update(label=f"GPT API error: {ex}", state="error")
+
+
+def render_current_ai_analyses():
+    """Render expanders for current Claude, Gemini, and GPT results."""
+    _has_claude = bool(st.session_state.claude_answer)
+    _has_gemini = bool(st.session_state.gemini_answer)
+    _has_openai = bool(st.session_state.openai_answer)
+    if not _has_claude and not _has_gemini and not _has_openai:
+        return
+
+    # Expand the most recently added one
+    _count = sum([_has_claude, _has_gemini, _has_openai])
+    _expand_claude = _has_claude and _count == 1
+    _expand_gemini = _has_gemini and _count == 1
+    _expand_openai = _has_openai and _count == 1
+    if _count > 1:
         _expand_claude = False
-        _expand_gemini = True
+        _expand_gemini = False
+        _expand_openai = _has_openai
 
     st.markdown("---")
     st.subheader("Current AI analyses")
@@ -651,9 +766,14 @@ def render_current_ai_analyses():
         with st.expander(f"Gemini analysis — {label}", expanded=_expand_gemini):
             st.markdown(st.session_state.gemini_answer)
 
+    if _has_openai:
+        label = st.session_state.openai_query_label or "query"
+        with st.expander(f"GPT analysis — {label}", expanded=_expand_openai):
+            st.markdown(st.session_state.openai_answer)
+
 
 def render_ai_history():
-    """Render previous query history for Claude and Gemini."""
+    """Render previous query history for Claude, Gemini, and GPT."""
     claude_history = st.session_state.claude_history
     if len(claude_history) > 1:
         st.markdown("---")
@@ -677,6 +797,15 @@ def render_ai_history():
             with st.expander(hist_label):
                 st.markdown(entry["answer"])
 
+    openai_history = st.session_state.openai_history
+    if len(openai_history) > 1:
+        st.markdown("---")
+        st.subheader("Previous GPT queries")
+        for o_idx, entry in enumerate(reversed(openai_history[:-1])):
+            hist_label = f"GPT — {entry['query']} ({entry['timestamp']})"
+            with st.expander(hist_label):
+                st.markdown(entry["answer"])
+
 
 def render_ask_claude(events):
     """Render AI analysis input, API calls, and response history."""
@@ -689,7 +818,7 @@ def render_ask_claude(events):
         key="claude_query_input",
     )
 
-    btn_col1, btn_col2 = st.columns(2)
+    btn_col1, btn_col2, btn_col3 = st.columns(3)
     with btn_col1:
         st.button("Analyze with zee Swedish Chef" if _chef else "Analyze with Claude",
                   type="primary",
@@ -699,9 +828,14 @@ def render_ask_claude(events):
         st.button("Analyze with Gemini",
                   on_click=_on_ask_gemini_click,
                   disabled=not user_query)
+    with btn_col3:
+        st.button("Analyze with GPT",
+                  on_click=_on_ask_openai_click,
+                  disabled=not user_query)
 
     pending = st.session_state.pop("_ask_claude_pending", False)
     gemini_pending = st.session_state.pop("_ask_gemini_pending", False)
+    openai_pending = st.session_state.pop("_ask_openai_pending", False)
 
     processing_container = st.container()
 
@@ -710,6 +844,9 @@ def render_ask_claude(events):
 
     if user_query and gemini_pending:
         run_gemini_analysis(user_query, events, processing_container)
+
+    if user_query and openai_pending:
+        run_openai_analysis(user_query, events, processing_container)
 
     render_current_ai_analyses()
     render_ai_history()
