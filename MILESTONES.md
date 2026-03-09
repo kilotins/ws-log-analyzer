@@ -1,72 +1,76 @@
-# Milestones — WS Log Analyzer
+# Milestones — WS Log Analyzer (v2)
 
 > Generated from [AUDIT_REPORT.html](AUDIT_REPORT.html) — 2026-03-09
-> Overall grade: **A-** — target: **A**
+> Overall grade: **A** — target: **A+**
+>
+> Previous milestones (v1) are all completed. This is the next iteration.
 
 ---
 
-## Milestone 1 — Buggfixar & hygien
+## Milestone 5 — Säkerhetsförstärkning & stabilitet
 **Priority: P0 (immediate)**
-**Estimated scope: Small — 5 targeted edits**
+**Estimated scope: Small — targeted fixes**
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 1.1 | Fix OpenAI model routing — pass model ID from `_AI_MODELS` dropdown through to `run_openai_analysis()` so GPT-4o mini actually uses `gpt-4o-mini` | `app.py` | [x] |
-| 1.2 | Fix Claude model routing — pass model ID so Haiku/Sonnet/Opus selection is honored (currently hardcodes `claude-sonnet-4-6`) | `app.py` | [x] |
-| 1.3 | Fix Gemini model routing — pass model ID so Flash/Pro selection is honored (currently uses default `gemini-2.5-flash`) | `app.py` | [x] |
-| 1.4 | Fix "Clear AI cache" button — add missing OpenAI cache/history/answer clearing | `app.py` L1252-1266 | [x] |
-| 1.5 | Update stale counts in docs — test count (295), line counts (1641/1849) | `ARCHITECTURE.md`, `README.md` | [x] |
+| 5.1 | Add symlink check to `_is_safe_rt_path()` — resolve path with `p.resolve()` and reject symlinks to prevent path traversal | `app.py` | [ ] |
+| 5.2 | Narrow bare `except Exception` blocks — replace with specific exceptions (`ValueError`, `OSError`, `ImportError`, `json.JSONDecodeError`) | `wslog.py` | [ ] |
+| 5.3 | Tighten realtime monitor extensions — remove `.out` from allowed extensions or add explicit symlink/ownership check | `app.py` | [ ] |
+| 5.4 | Add API key format validation — check that Claude keys start with `sk-ant-`, OpenAI with `sk-`, before making API calls | `app.py` | [ ] |
+| 5.5 | Add tests for symlink rejection and narrowed exception handling | `tests/test_app_helpers.py`, `tests/test_wslog.py` | [ ] |
 
-**Acceptance**: All 7 AI models in the dropdown route to their correct model ID. Cache clearing covers all 3 providers. Docs match reality. All 295 tests pass.
+**Acceptance**: No bare `except Exception` in `wslog.py`. Symlinks rejected by path safety. API key format validated on entry. All tests pass.
 
 ---
 
-## Milestone 2 — DRY AI-funktioner
+## Milestone 6 — E2e-teststabilitet
 **Priority: P1 (short-term)**
-**Estimated scope: Medium — refactor + tests**
-**Depends on: Milestone 1**
+**Estimated scope: Medium — fix 6 flaky tests**
+**Depends on: Milestone 5**
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 2.1 | Extract `_run_ai_analysis(provider, model_id, user_query, events, container)` — common orchestration for cache lookup, API call, history recording, cache storage | `app.py` | [x] |
-| 2.2 | Reduce `run_claude_analysis` / `run_gemini_analysis` / `run_openai_analysis` to thin wrappers calling the common function with provider-specific API logic | `app.py` | [x] |
-| 2.3 | Consolidate history helpers — single `_load_provider_history(path)` / `_save_provider_history(path, data)` replacing 6 duplicate functions | `app.py` | [x] |
-| 2.4 | Extend `_AI_MODELS` dict to include `model_id` per entry (not just provider string) | `app.py` | [x] |
-| 2.5 | Add unit tests for the new common orchestration function | `tests/test_app_helpers.py` | [x] |
+| 6.1 | Fix `TestAskClaude` flakiness — add `wait_for_selector` before checking "Ask Claude" expander visibility | `tests/test_app_e2e.py` | [ ] |
+| 6.2 | Fix `test_analyze_button_disabled_without_input` — wait for button to render before checking `is_disabled()` | `tests/test_app_e2e.py` | [ ] |
+| 6.3 | Fix `test_code_button_populates_input` — wait for code buttons to appear after analysis completes | `tests/test_app_e2e.py` | [ ] |
+| 6.4 | Fix `TestSwedishChefMode` (3 tests) — wait for sidebar toggle to render before clicking; UI may have changed labels | `tests/test_app_e2e.py` | [ ] |
+| 6.5 | Add CI-friendly timeout configuration — increase default Playwright timeout from 30s to 60s for slow environments | `tests/test_app_e2e.py`, `pyproject.toml` | [ ] |
 
-**Acceptance**: Net reduction of ~120 lines. Same behavior. All tests pass. Adding a new AI provider in the future requires only ~15 lines.
+**Acceptance**: All 18 e2e tests pass reliably on 3 consecutive runs. No timeout-based flakiness.
 
 ---
 
-## Milestone 3 — Streaming & UX
+## Milestone 7 — Kodstruktur & refaktorering
 **Priority: P2 (mid-term)**
-**Depends on: Milestone 2**
+**Estimated scope: Medium — refactor long functions**
+**Depends on: Milestone 6**
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 3.1 | Streaming Claude responses — use `client.messages.stream()` and render tokens incrementally | `app.py` | [x] |
-| 3.2 | Streaming OpenAI responses — use `stream=True` in `chat.completions.create()` | `app.py` | [x] |
-| 3.3 | Cost tracking — log input/output tokens and estimated cost per API call in the UI | `app.py` | [x] |
-| 3.4 | Smarter compact mode for audit — send function signatures + docstrings only (not full source) for large files | `app.py` | [x] |
-| 3.5 | Audit comparison in GUI — surface `compare_audits.py` delta reports in the Audit tab | `app.py`, `scripts/` | [x] |
+| 7.1 | Split `_rt_live_view()` (284 lines) into `_rt_status_panel()`, `_rt_controls()`, `_rt_render_buffer()` | `app.py` | [ ] |
+| 7.2 | Replace 6 thin history wrapper functions with a factory/dict-based approach using `_PROVIDER_CONFIG` paths | `app.py` | [ ] |
+| 7.3 | Split `app.py` into modules if it exceeds 2,000 lines after M5-M6 changes: extract `ai_providers.py` (API callers, config, orchestrator) and `renderers.py` (report sections, timeline, samples) | `app.py` → multiple | [ ] |
+| 7.4 | Add type hints to key `app.py` functions — at minimum: `_run_ai_analysis`, `_call_*_api`, `build_ai_request_context`, `_extract_signatures`, `_is_safe_rt_path` | `app.py` | [ ] |
+| 7.5 | Update tests to match new module structure (imports, mocks) | `tests/test_app_helpers.py` | [ ] |
 
-**Acceptance**: AI responses stream visibly. Token count + cost shown after each call. Audit tab shows delta between runs.
+**Acceptance**: No function over 150 lines. `app.py` under 1,500 lines (if split). Key functions typed. All 340+ tests pass.
 
 ---
 
-## Milestone 4 — Kvalitet & polish
+## Milestone 8 — Funktioner & förbättringar
 **Priority: P3 (long-term)**
-**Depends on: Milestone 3**
+**Estimated scope: Medium — new features**
+**Depends on: Milestone 7**
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 4.1 | Split `app.py` into modules (`ai_providers.py`, `sidebar.py`, `renderers.py`) if it exceeds 2,000 lines | `app.py` → multiple | [x] Deferred — under 2k lines |
-| 4.2 | Add false-positive tests for redaction (ensure normal log text isn't over-redacted) | `tests/test_wslog.py` | [x] |
-| 4.3 | Add mock-based tests for `run_*_analysis()` functions | `tests/test_app_helpers.py` | [x] |
-| 4.4 | Multi-file audit — allow selecting which files to include in audit scope | `app.py` | [x] Deferred to future milestone |
-| 4.5 | CSV/XML export options for analysis results | `wslog.py`, `app.py` | [x] |
+| 8.1 | Multi-file audit scope — add checkboxes in Audit tab to select which files to include (default: all Python files) | `app.py` | [ ] |
+| 8.2 | API rate limiting — add simple cooldown (e.g., 2s between calls) to prevent budget exhaustion from rapid clicking | `app.py` | [ ] |
+| 8.3 | XML export option — add `render_xml_report()` alongside existing CSV/JSON/Markdown/PDF | `wslog.py`, `app.py` | [ ] |
+| 8.4 | Gemini streaming — investigate `generate_content(stream=True)` for incremental rendering when SDK supports it | `app.py` | [ ] |
+| 8.5 | Integration test for `_run_audit()` — mock-based end-to-end audit pipeline test | `tests/test_app_helpers.py` | [ ] |
 
-**Acceptance**: Clean module boundaries. >300 tests. No known bugs. Audit grade **A**.
+**Acceptance**: Audit scope selectable. Rate limiting prevents rapid-fire API calls. XML export available. >360 tests. Audit grade **A+**.
 
 ---
 
@@ -78,3 +82,7 @@
 | 2 — DRY AI-funktioner | 5 | 5 | Done |
 | 3 — Streaming & UX | 5 | 5 | Done |
 | 4 — Kvalitet & polish | 5 | 5 | Done |
+| 5 — Säkerhetsförstärkning | 5 | 0 | Not started |
+| 6 — E2e-teststabilitet | 5 | 0 | Not started |
+| 7 — Kodstruktur & refaktorering | 5 | 0 | Not started |
+| 8 — Funktioner & förbättringar | 5 | 0 | Not started |

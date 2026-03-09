@@ -251,7 +251,7 @@ def parse_ts_datetime(ts: str | None) -> datetime | None:
                 return datetime.strptime(normalized, fmt)
             except ValueError:
                 continue
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
         pass
     return None
 
@@ -1655,7 +1655,7 @@ def main():
                 if prompt.get("skills"):
                     print(f"[skills] Selected: {', '.join(prompt['skills'])}", file=sys.stderr)
                 print(f"Wrote claude-analysis.md: {analysis_path}")
-        except Exception as ex:
+        except (ImportError, OSError, ValueError, RuntimeError) as ex:
             print(f"Claude API call failed: {ex}", file=sys.stderr)
             print("Tip: ensure ANTHROPIC_API_KEY is set.", file=sys.stderr)
 

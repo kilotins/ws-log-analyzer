@@ -289,7 +289,6 @@ class TestIsSafeRtPath:
         "/tmp/test.log",
         "/opt/IBM/output.gz",
         "/home/user/app.txt",
-        "/home/user/server.out",
     ])
     def test_safe_paths(self, path):
         assert _is_safe_rt_path(path) is True
@@ -311,6 +310,41 @@ class TestIsSafeRtPath:
         assert _is_safe_rt_path("/tmp/data.csv") is False
         assert _is_safe_rt_path("/tmp/script.py") is False
         assert _is_safe_rt_path("/tmp/config.json") is False
+
+    def test_out_extension_rejected(self):
+        """'.out' extension was removed for security — should be rejected."""
+        assert _is_safe_rt_path("/home/user/server.out") is False
+
+    def test_symlink_rejected(self, tmp_path):
+        """Symlinks should be rejected to prevent path traversal."""
+        real_file = tmp_path / "real.log"
+        real_file.write_text("log data", encoding="utf-8")
+        link = tmp_path / "link.log"
+        link.symlink_to(real_file)
+        assert _is_safe_rt_path(str(link)) is False
+
+    def test_symlink_to_sensitive_rejected(self, tmp_path):
+        """Symlink pointing to sensitive path should be rejected."""
+        link = tmp_path / "sneaky.log"
+        link.symlink_to("/etc/passwd")
+        assert _is_safe_rt_path(str(link)) is False
+
+
+# ── API key prefix validation ────────────────────────────────────────────
+
+class TestApiKeyPrefix:
+    def test_claude_key_prefix(self):
+        assert _PROVIDER_CONFIG["claude"]["api_key_prefix"] == "sk-ant-"
+
+    def test_openai_key_prefix(self):
+        assert _PROVIDER_CONFIG["openai"]["api_key_prefix"] == "sk-"
+
+    def test_gemini_key_prefix(self):
+        assert _PROVIDER_CONFIG["gemini"]["api_key_prefix"] == "AI"
+
+    def test_all_providers_have_prefix(self):
+        for provider, cfg in _PROVIDER_CONFIG.items():
+            assert "api_key_prefix" in cfg, f"{provider} missing api_key_prefix"
 
 
 # ── _load_keychain / _save_keychain ───────────────────────────────────────
