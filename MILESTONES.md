@@ -227,6 +227,57 @@
 
 ---
 
+## Milestone 18 — Reviewfixar: prestanda, tester & arkitektur
+**Priority: P1 (short-term)**
+**Estimated scope: Medium — fixes from 4-part review**
+**Source: Architecture (B+), Security (A-), Performance (B+), Test Quality (B+) reviews**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 18.1 | Lazy-render rapporter — generera PDF/CSV/XML vid nedladdning, inte vid uppladdning | `app.py`, `app_render.py` | [ ] |
+| 18.2 | Cachelagra filtrerad analys — memoize `precompute_analysis()` per filterkombination istället för att räkna om varje gång | `app_render.py` | [ ] |
+| 18.3 | Fixa dött E2E-test — ta bort `or True` i `test_analyze_button_disabled_without_input`, skriv fungerande assertion | `tests/test_app_e2e.py` | [ ] |
+| 18.4 | Konsolidera Splunk-parsing — flytta `_looks_like_splunk` + `_split_combined_splunk` till `wslog.py` så att `app_ai.py` och `app_render.py` delar samma kod | `wslog.py`, `app_ai.py`, `app_render.py` | [ ] |
+| 18.5 | Ersätt hårdkodade `wait_for_timeout()` i E2E-tester med villkorsbaserade `wait_for_selector()` / `expect()` | `tests/test_app_e2e.py` | [ ] |
+
+**Acceptance**: Rapporter genereras on-demand (snabbare analys). Filtrerad analys cachas. Inga döda tester. Splunk-logik på ett ställe. E2E-tester utan godtyckliga väntetider. Alla 432+ tester passerar.
+
+---
+
+## Milestone 19 — Testkvalitet & organisation
+**Priority: P2 (mid-term)**
+**Estimated scope: Medium — refaktorering av testsvit**
+**Depends on: Milestone 18**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 19.1 | Splitta `test_wslog.py` (2750 rader) i `test_parsing.py`, `test_reports.py`, `test_ai_prompt.py`, `test_heuristics.py` | `tests/` | [ ] |
+| 19.2 | Skapa `tests/conftest.py` med delade fixtures (`_make_event`, `_make_classified_event`, `_empty_match`) | `tests/conftest.py` | [ ] |
+| 19.3 | Parametrisera 12 `test_likely_causes_*` tester till en enda `@pytest.mark.parametrize` | `tests/test_wslog.py` | [ ] |
+| 19.4 | Parametrisera 5 `test_was_level_*` tester till en enda `@pytest.mark.parametrize` | `tests/test_wslog.py` | [ ] |
+| 19.5 | Lägg till enhetstester för `app_ai.py` — mocka API-svar för providerkonfiguration, kostnadsberäkning och cachelogik | `tests/test_app_ai.py` | [ ] |
+
+**Acceptance**: Inga testfiler över 1000 rader. Delade fixtures i conftest.py. Parametriserade heuristik-/nivåtester. `app_ai.py` har enhetstester. Alla tester passerar.
+
+---
+
+## Milestone 20 — Arkitektur & prestandaoptimering
+**Priority: P3 (long-term)**
+**Estimated scope: Medium — refaktorering**
+**Depends on: Milestone 19**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 20.1 | Konsolidera audit-AI-anrop — återanvänd `PROVIDER_CONFIG` / `call_*_api` från `app_ai.py` i `app_audit.py` istället för duplicerade funktioner | `app_audit.py`, `app_ai.py` | [ ] |
+| 20.2 | Cacha `incident_timeline()` timestamp-parsing — undvik upprepad `parse_ts_datetime()` per event | `wslog.py` | [ ] |
+| 20.3 | Early-exit i `redact()` — snabbkolla om vanliga secretmönster finns innan 11 regex-substitutioner körs | `wslog.py` | [ ] |
+| 20.4 | Cacha `_discover_skills()` med `lru_cache` — undvik filsystem-scan vid varje `select_skills()`-anrop | `wslog.py` | [ ] |
+| 20.5 | Använd `parse_file_iter()` i GUI för filer >50MB — streama events istället för att ladda alla i minnet | `app.py` | [ ] |
+
+**Acceptance**: Ingen duplicerad AI-anropslogik. Timestamp-parsing cachad. Redaction snabbare för normala loggar. Skill-discovery cachad. Stora filer streamade. Alla tester passerar.
+
+---
+
 ## Progress Tracker
 
 | Milestone | Tasks | Done | Status |
@@ -248,3 +299,6 @@
 | 15 — Testtäckning: E2E & kantfall | 5 | 5 | Done |
 | 16 — Robusthet & Splunk-parsing | 5 | 5 | Done |
 | 17 — Skalbarhet & prestanda | 5 | 5 | Done |
+| 18 — Reviewfixar: prestanda, tester & arkitektur | 5 | 0 | Not started |
+| 19 — Testkvalitet & organisation | 5 | 0 | Not started |
+| 20 — Arkitektur & prestandaoptimering | 5 | 0 | Not started |
