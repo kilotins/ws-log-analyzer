@@ -30,11 +30,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 6.1 | Fix `TestAskClaude` flakiness — add `wait_for_selector` before checking "Ask Claude" expander visibility | `tests/test_app_e2e.py` | [ ] |
-| 6.2 | Fix `test_analyze_button_disabled_without_input` — wait for button to render before checking `is_disabled()` | `tests/test_app_e2e.py` | [ ] |
-| 6.3 | Fix `test_code_button_populates_input` — wait for code buttons to appear after analysis completes | `tests/test_app_e2e.py` | [ ] |
-| 6.4 | Fix `TestSwedishChefMode` (3 tests) — wait for sidebar toggle to render before clicking; UI may have changed labels | `tests/test_app_e2e.py` | [ ] |
-| 6.5 | Add CI-friendly timeout configuration — increase default Playwright timeout from 30s to 60s for slow environments | `tests/test_app_e2e.py`, `pyproject.toml` | [ ] |
+| 6.1 | Fix `TestAskClaude` flakiness — update "Ask Claude" to "Ask AI for help", add `wait_for_selector` | `tests/test_app_e2e.py` | [x] |
+| 6.2 | Fix `test_analyze_button_disabled_without_input` — update button selector to match "Analyze" | `tests/test_app_e2e.py` | [x] |
+| 6.3 | Fix `test_code_button_populates_input` — add `wait_for` before scroll and click | `tests/test_app_e2e.py` | [x] |
+| 6.4 | Fix `TestSwedishChefMode` (3 tests) — rewrite to use model dropdown instead of non-existent toggle | `tests/test_app_e2e.py` | [x] |
+| 6.5 | Add CI-friendly timeout configuration — increase default Playwright timeout from 30s to 60s | `tests/test_app_e2e.py` | [x] |
 
 **Acceptance**: All 18 e2e tests pass reliably on 3 consecutive runs. No timeout-based flakiness.
 
@@ -83,6 +83,6 @@
 | 3 — Streaming & UX | 5 | 5 | Done |
 | 4 — Kvalitet & polish | 5 | 5 | Done |
 | 5 — Säkerhetsförstärkning | 5 | 0 | Not started |
-| 6 — E2e-teststabilitet | 5 | 0 | Not started |
+| 6 — E2e-teststabilitet | 5 | 5 | Done |
 | 7 — Kodstruktur & refaktorering | 5 | 0 | Not started |
 | 8 — Funktioner & förbättringar | 5 | 0 | Not started |
