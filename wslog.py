@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 import argparse
 import gzip
 import re
 import json
 from collections import Counter
 from pathlib import Path
+from typing import IO
 import sys
 
 # --- Constants ---
@@ -69,7 +71,7 @@ SECRET_REPLACERS = [
     (re.compile(r'\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'), '[REDACTED_JWT]'),
 ]
 
-def open_text(path: Path):
+def open_text(path: Path) -> IO[str]:
     if path.suffix.lower() == ".gz":
         try:
             f = gzip.open(path, "rt", errors="ignore")
@@ -86,14 +88,14 @@ def redact(s: str) -> str:
         s = rx.sub(repl, s)
     return s
 
-def extract_ts(line: str):
+def extract_ts(line: str) -> str | None:
     for rx in TS_PATTERNS:
         m = rx.search(line)
         if m:
             return m.group("ts")
     return None
 
-def bucket_tags(text: str):
+def bucket_tags(text: str) -> set[str]:
     tags = set()
     if OOM_RE.search(text): tags.add("OOM/GC")
     if HUNG_THREAD_RE.search(text): tags.add("HungThreads")
@@ -103,7 +105,7 @@ def bucket_tags(text: str):
     return tags
 
 
-def classify_event(text):
+def classify_event(text: str) -> dict[str, object]:
     """Classify a block of log text and return a dict of metadata (no file/ts)."""
     # Level — prefer WAS single-letter (authoritative) over keyword match
     lvl = None
@@ -155,7 +157,7 @@ def classify_event(text):
     }
 
 
-def parse_file(path: Path, max_lines: int = None):
+def parse_file(path: Path, max_lines: int | None = None) -> list[dict[str, object]]:
     events = []
     current = []
     current_meta = {"file": str(path), "first_ts": None}
@@ -213,7 +215,7 @@ def parse_file(path: Path, max_lines: int = None):
     flush()
     return events
 
-def summarize(events, top_n):
+def summarize(events: list[dict], top_n: int) -> dict[str, object]:
     by_level = Counter(e["level"] or "UNKNOWN" for e in events)
     by_code = Counter(e["code"] for e in events if e["code"])
     by_exc = Counter(e["exception"] for e in events if e["exception"])
@@ -230,7 +232,7 @@ def summarize(events, top_n):
         "tags": top(by_tag),
     }
 
-def parse_ts_datetime(ts):
+def parse_ts_datetime(ts: str | None) -> datetime | None:
     """Parse a timestamp string into a datetime object. Returns None on failure."""
     from datetime import datetime
     if not ts:
@@ -254,7 +256,7 @@ def parse_ts_datetime(ts):
     return None
 
 
-def incident_timeline(events, window_seconds=30):
+def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str, object] | None:
     """Build an incident timeline around the first error.
 
     Returns dict with:
@@ -304,7 +306,7 @@ def incident_timeline(events, window_seconds=30):
     }
 
 
-def _parse_ts_parts(ts):
+def _parse_ts_parts(ts: str) -> tuple[str | None, int, int] | None:
     """Extract (date_str, hour, minute) from a timestamp string. Returns None on failure."""
     try:
         parts = ts.split()
@@ -331,7 +333,7 @@ def _parse_ts_parts(ts):
         return None
 
 
-def time_histogram(events, bucket_minutes=1):
+def time_histogram(events: list[dict], bucket_minutes: int = 1) -> list[tuple[str, int, int]]:
     """Group events by time bucket and return list of (bucket_label, total, error_count)."""
     # Single pass: always key with date, strip date suffix at end if only one date seen
     buckets = {}
@@ -371,7 +373,7 @@ def time_histogram(events, bucket_minutes=1):
     return [(k, buckets[k]["total"], buckets[k]["errors"]) for k in sorted(buckets)]
 
 
-def render_histogram(hist, bar_width=40):
+def render_histogram(hist: list[tuple[str, int, int]], bar_width: int = 40) -> list[str]:
     """Render ASCII bar chart lines from histogram data."""
     if not hist:
         return ["- _(no timestamped events)_"]
@@ -385,7 +387,7 @@ def render_histogram(hist, bar_width=40):
     return lines
 
 
-def pick_samples(events, n):
+def pick_samples(events: list[dict], n: int) -> list[dict]:
     # deduplicate by (level, code, exception) to avoid showing near-identical events
     seen = set()
     unique = []
@@ -407,7 +409,7 @@ def pick_samples(events, n):
         return -s
     return sorted(unique, key=score)[:n]
 
-def per_file_summary(events):
+def per_file_summary(events: list[dict]) -> list[tuple[str, int, int]]:
     """Return list of (filename, total, error_count) for each source file."""
     files = {}
     for e in events:
@@ -679,7 +681,7 @@ _HEURISTICS = [
 ]
 
 
-def likely_causes(events):
+def likely_causes(events: list[dict]) -> list[dict[str, object]]:
     """Return list of {id, title, count, cause, fixes} for detected heuristic patterns."""
     results = []
     for h in _HEURISTICS:
@@ -699,7 +701,7 @@ def likely_causes(events):
 _SPLUNK_PREFIX = 'index=APP sourcetype=WAS'
 
 
-def _extract_hung_thread_name(text):
+def _extract_hung_thread_name(text: str) -> str | None:
     """Extract thread name from a hung-thread event. Returns name or None."""
     m = HUNG_THREAD_NAME_RE.search(text)
     if m:
@@ -707,7 +709,7 @@ def _extract_hung_thread_name(text):
     return None
 
 
-def _extract_stack_sample(text, max_lines=5):
+def _extract_stack_sample(text: str, max_lines: int = 5) -> list[str]:
     """Extract up to max_lines of stack trace from event text."""
     lines = []
     for line in text.splitlines():
@@ -718,7 +720,7 @@ def _extract_stack_sample(text, max_lines=5):
     return lines
 
 
-def hung_thread_drilldown(events):
+def hung_thread_drilldown(events: list[dict]) -> list[dict[str, object]]:
     """Analyze hung/stuck thread events. Returns list of thread info dicts sorted by count."""
     threads = {}  # thread_name -> {count, first_ts, last_ts, hex_ids, stack_sample}
 
@@ -770,7 +772,7 @@ def hung_thread_drilldown(events):
     return results
 
 
-def suggested_splunk_queries(summary, causes, hist):
+def suggested_splunk_queries(summary: dict, causes: list[dict], hist: list[tuple]) -> list[dict[str, str]]:
     """Generate Splunk query strings based on detected issues. Returns list of {description, query}."""
     queries = []
 
@@ -835,7 +837,7 @@ def suggested_splunk_queries(summary, causes, hist):
     return queries[:8]
 
 
-def precompute_analysis(events, top_n=10, samples_n=5, hist_minutes=1):
+def precompute_analysis(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1) -> dict[str, object]:
     """Compute all shared analysis data once. Returns a dict."""
     s = summarize(events, top_n)
     samples = pick_samples(events, samples_n)
@@ -855,7 +857,7 @@ def precompute_analysis(events, top_n=10, samples_n=5, hist_minutes=1):
     }
 
 
-def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=None):
+def render_json_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None) -> str:
     """Generate a JSON triage report string from parsed events."""
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     s = a["summary"]
@@ -891,7 +893,7 @@ def render_json_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=
     return json.dumps(data, indent=2)
 
 
-def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=None):
+def render_markdown_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None) -> str:
     """Generate a complete markdown triage report from parsed events."""
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     s = a["summary"]
@@ -1014,7 +1016,7 @@ def render_markdown_report(events, top_n=10, samples_n=5, hist_minutes=1, _analy
     return "\n".join(md)
 
 
-def render_pdf_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=None):
+def render_pdf_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None) -> bytes:
     """Generate a PDF triage report and return the bytes."""
     from fpdf import FPDF
 
@@ -1167,7 +1169,7 @@ def render_pdf_report(events, top_n=10, samples_n=5, hist_minutes=1, _analysis=N
     return bytes(pdf.output())
 
 
-def match_user_query(query, events):
+def match_user_query(query: str, events: list[dict]) -> dict[str, object]:
     """Match a user query (error code, exception, or free text) against parsed events.
 
     Returns dict with:
@@ -1228,7 +1230,7 @@ def match_user_query(query, events):
     return result
 
 
-def _truncate_event_text(text, max_lines=25):
+def _truncate_event_text(text: str, max_lines: int = 25) -> str:
     """Truncate event text to max_lines for prompt inclusion."""
     lines = text.splitlines()
     if len(lines) <= max_lines:
@@ -1252,7 +1254,7 @@ CLAUDE_SYSTEM_PROMPT = "\n".join([
 ])
 
 
-def _sanitize_prompt_input(text):
+def _sanitize_prompt_input(text: str) -> str:
     """Remove XML-like tags and escape XML entities in untrusted input."""
     from xml.sax.saxutils import escape
     # Strip delimiter tags that could break prompt structure
@@ -1377,7 +1379,7 @@ _SKILL_QUERY_KEYWORDS = {
 }
 
 
-def select_skills(match_result, user_query=""):
+def select_skills(match_result: dict, user_query: str = "") -> list[str]:
     """Select relevant domain skill filenames based on match context and query.
 
     Returns a deduplicated list of skill filenames (max MAX_SKILLS).
@@ -1427,7 +1429,7 @@ def select_skills(match_result, user_query=""):
     return unique[:MAX_SKILLS]
 
 
-def load_skill_content(filenames):
+def load_skill_content(filenames: list[str]) -> str:
     """Load and concatenate skill file contents. Skips missing files."""
     sections = []
     for fn in filenames:
@@ -1438,7 +1440,7 @@ def load_skill_content(filenames):
     return "\n\n".join(sections)
 
 
-def build_claude_prompt(user_query, match_result, style=None):
+def build_claude_prompt(user_query: str, match_result: dict, style: str | None = None) -> dict[str, str | list[str]]:
     """Build a sanitized prompt for Claude based on user query and match results.
 
     Returns a dict with 'system' and 'user' keys.
@@ -1491,7 +1493,7 @@ def build_claude_prompt(user_query, match_result, style=None):
     return {"system": system, "user": "\n".join(parts), "skills": skill_files}
 
 
-def claude_cache_key(user_query, match_result):
+def claude_cache_key(user_query: str, match_result: dict) -> str:
     """Generate a stable cache key for a Claude query + match context.
 
     Based on the user input, matched codes/exceptions/tags, and match type.
