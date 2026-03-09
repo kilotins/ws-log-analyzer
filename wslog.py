@@ -8,6 +8,7 @@ from collections import Counter
 from pathlib import Path
 from typing import IO
 import sys
+from datetime import datetime, timedelta
 
 # --- Constants ---
 MAX_EVENT_TEXT = 4000  # Max characters of event text in reports
@@ -234,7 +235,6 @@ def summarize(events: list[dict], top_n: int) -> dict[str, object]:
 
 def parse_ts_datetime(ts: str | None) -> datetime | None:
     """Parse a timestamp string into a datetime object. Returns None on failure."""
-    from datetime import datetime
     if not ts:
         return None
     try:
@@ -266,8 +266,6 @@ def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str,
       - window_seconds: the window used
     Returns None if no error events with timestamps exist.
     """
-    from datetime import timedelta
-
     # Find first error event with a parseable timestamp
     trigger = None
     trigger_dt = None
@@ -1577,8 +1575,8 @@ def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "g
     model_kwargs = {}
     if system:
         model_kwargs["system_instruction"] = system
-    model = genai.GenerativeModel(model, **model_kwargs)
-    response = model.generate_content(prompt, request_options={"timeout": 30})
+    gen_model = genai.GenerativeModel(model, **model_kwargs)
+    response = gen_model.generate_content(prompt, request_options={"timeout": 30})
     return response.text
 
 

@@ -78,7 +78,7 @@ Functions that consume parsed events to produce insights:
 | `match_user_query()` | Matches user input against events by code, exception, or free text |
 | `build_claude_prompt()` | Returns `{system, user}` dict with prompt injection protection |
 | `_sanitize_prompt_input()` | Strips XML delimiter tags (incl. `<system_instruction>`) from untrusted input |
-| `claude_cache_key()` | Stable cache key from query + match context (SHA-256 digest of event excerpts) |
+| `claude_cache_key()` | Stable cache key from query + match context (pipe-delimited string of query, codes, exceptions, tags, match type) |
 | `ask_gemini()` | Gemini API call with separate `system_instruction` parameter |
 | `incident_timeline()` | Groups errors into incidents within a configurable time window |
 | `select_skills()` | Picks relevant domain skill files based on tags, codes, exceptions, query |
@@ -130,6 +130,11 @@ _STATE_DEFAULTS = {
     "gemini_query_label": None, # query that produced the Gemini answer
     "gemini_cache": {},         # cache key -> response text
     "gemini_history": [],       # list of {query, answer, timestamp}
+    "openai_api_key": "",       # OpenAI API key
+    "openai_answer": None,      # last OpenAI response
+    "openai_query_label": None, # query that produced the OpenAI answer
+    "openai_cache": {},         # cache key -> response text
+    "openai_history": [],       # list of {query, answer, timestamp}
     "debug_payload": False,     # Show AI API request/response payloads
     "swedish_chef": False,      # Swedish Chef response style
     "rt_enabled": False,        # Realtime log monitoring toggle
