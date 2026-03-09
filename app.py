@@ -205,14 +205,14 @@ def render_summary(s, error_count, file_count, file_summary):
     with exc_col:
         st.subheader("Top Exceptions")
         if s["exceptions"]:
-            for name, count in s["exceptions"][:5]:
+            for name, count in s["exceptions"]:
                 st.text(f"  {count:>4}  {name}")
         else:
             st.caption("None detected")
     with code_col:
         st.subheader("Top Message Codes")
         if s["codes"]:
-            for code, count in s["codes"][:5]:
+            for code, count in s["codes"]:
                 render_code_row(code, count)
         else:
             st.caption("None detected")
