@@ -2187,3 +2187,181 @@ class TestRenderXmlReport:
         events = [{"text": "x" * 1000}]
         xml = render_xml_report(events, max_text=100)
         assert len(xml) < 500  # Truncated, not full 1000 chars
+
+
+# --- 10.1 open_text() with invalid gzip data ---
+
+def test_open_text_invalid_gz_falls_back_to_plain(tmp_path):
+    """A .gz file that is actually plain text should fall back to plain text reading."""
+    from wslog import open_text
+    p = tmp_path / "fake.log.gz"
+    p.write_text("This is plain text, not gzip compressed\nSecond line\n")
+    with open_text(p) as fh:
+        content = fh.read()
+    assert "This is plain text" in content
+    assert "Second line" in content
+
+
+# --- 10.2 TestRenderCsvReport ---
+
+class TestRenderCsvReport:
+    def test_csv_has_header_row(self):
+        events = [{"ts": "2025-01-01 12:00:00", "level": "ERROR", "text": "fail"}]
+        csv_out = render_csv_report(events)
+        lines = csv_out.strip().split("\n")
+        header = lines[0]
+        assert "timestamp" in header
+        assert "level" in header
+        assert "code" in header
+        assert "exception" in header
+        assert "root_cause" in header
+        assert "tags" in header
+        assert "thread_id" in header
+        assert "file" in header
+        assert "text" in header
+
+    def test_csv_contains_event_fields(self):
+        events = [{"ts": "2025-01-01", "level": "ERROR", "code": "SRVE0293E",
+                    "exception": "NullPointerException", "tags": ["HTTP", "SSL/TLS"],
+                    "text": "error text", "thread_id": "00000150",
+                    "root_cause": "javax.net.ssl.SSLException", "file": "server.log"}]
+        csv_out = render_csv_report(events)
+        assert "ERROR" in csv_out
+        assert "SRVE0293E" in csv_out
+        assert "NullPointerException" in csv_out
+        assert "HTTP, SSL/TLS" in csv_out
+        assert "00000150" in csv_out
+        assert "server.log" in csv_out
+        assert "error text" in csv_out
+
+    def test_csv_escapes_special_chars(self):
+        """Commas and quotes in text should be properly CSV-escaped."""
+        import csv
+        import io
+        events = [{"ts": "2025-01-01", "level": "ERROR",
+                    "text": 'He said "hello, world" and left'}]
+        csv_out = render_csv_report(events)
+        # Parse back through csv reader to verify proper escaping
+        reader = csv.reader(io.StringIO(csv_out))
+        rows = list(reader)
+        assert len(rows) == 2  # header + 1 data row
+        data_row = rows[1]
+        # The text field (last column) should contain the original text (with newlines replaced)
+        assert '"hello, world"' in data_row[-1] or 'hello, world' in data_row[-1]
+
+    def test_csv_empty_events(self):
+        csv_out = render_csv_report([])
+        lines = csv_out.strip().split("\n")
+        assert len(lines) == 1  # header only
+        assert "timestamp" in lines[0]
+
+
+# --- 10.3 Negative tests for WAS_THREAD_RE ---
+
+class TestWasThreadReNegative:
+    def test_plain_text_no_match(self):
+        assert WAS_THREAD_RE.search("just some plain text") is None
+
+    def test_non_hex_chars_no_match(self):
+        """String with non-hex characters (g-z) should not match."""
+        assert WAS_THREAD_RE.search("] 0000ghij Component") is None
+
+    def test_short_hex_no_match(self):
+        """Hex string shorter than 8 chars should not match."""
+        assert WAS_THREAD_RE.search("] 0000abc Component") is None
+
+    def test_no_bracket_prefix_no_match(self):
+        """Thread regex requires ] before the hex ID."""
+        assert WAS_THREAD_RE.search("00000001 Component I") is None
+
+    def test_uppercase_hex_no_match(self):
+        """WAS thread IDs use lowercase hex; uppercase should not match."""
+        assert WAS_THREAD_RE.search("] 0000ABCD Component") is None
+
+    def test_empty_string_no_match(self):
+        assert WAS_THREAD_RE.search("") is None
+
+    def test_numbers_without_bracket(self):
+        assert WAS_THREAD_RE.search("thread 00000001 running") is None
+
+
+# --- 10.4 parse_file with blank lines after timestamp ---
+
+def test_parse_file_blank_lines_after_timestamp(tmp_path):
+    """Timestamp line followed by blank lines should parse gracefully."""
+    content = (
+        "[10/12/15 21:22:04:257 CEST] 00000001 WsmmConfigFac I   ARFM5007I: config loaded\n"
+        "\n"
+        "\n"
+        "\n"
+        "[10/12/15 21:22:05:000 CEST] 00000001 TCPChannel    I   TCPC0001I: TCP listening\n"
+    )
+    p = tmp_path / "blanks.log"
+    p.write_text(content)
+    events = parse_file(p)
+    assert len(events) == 2
+    # First event should include the blank lines as part of its text
+    assert events[0]["ts"] is not None
+    assert events[1]["ts"] is not None
+
+
+# --- 10.5 render_pdf_report() content verification ---
+
+def _extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Decompress all FlateDecode streams in a PDF and return concatenated text."""
+    import re
+    import zlib
+    raw = bytes(pdf_bytes)
+    texts = []
+    for m in re.finditer(b'stream\n(.+?)\nendstream', raw, re.DOTALL):
+        try:
+            decompressed = zlib.decompress(m.group(1)).decode("latin-1", errors="ignore")
+            texts.append(decompressed)
+        except Exception:
+            pass
+    return "\n".join(texts)
+
+
+def test_render_pdf_report_contains_summary_text():
+    """Verify PDF output contains expected section headings and data."""
+    try:
+        import fpdf  # noqa: F401
+    except ImportError:
+        pytest.skip("fpdf2 not installed")
+
+    events = [
+        {"level": "ERROR", "code": "CWPKI0022E", "exception": "SSLHandshakeException",
+         "root_cause": "javax.net.ssl.SSLException", "tags": ["SSL/TLS"],
+         "ts": "10/12/15 21:22:04:257", "file": "test.log",
+         "text": "CWPKI0022E: SSL HANDSHAKE FAILURE", "thread_id": "00000150"},
+        {"level": "INFO", "code": "ARFM5007I", "exception": None,
+         "root_cause": None, "tags": [],
+         "ts": "10/12/15 21:22:05:000", "file": "test.log",
+         "text": "ARFM5007I: config loaded", "thread_id": "00000001"},
+    ]
+    pdf_bytes = render_pdf_report(events, top_n=5, samples_n=5)
+    pdf_text = _extract_pdf_text(pdf_bytes)
+    assert "Parsed events: 2" in pdf_text
+    assert "Top Levels" in pdf_text
+    assert "ERROR" in pdf_text
+    assert "INFO" in pdf_text
+    assert "Sample Events" in pdf_text
+
+
+def test_render_pdf_report_contains_codes_section():
+    """Verify PDF includes WebSphere codes section."""
+    try:
+        import fpdf  # noqa: F401
+    except ImportError:
+        pytest.skip("fpdf2 not installed")
+
+    events = [
+        {"level": "ERROR", "code": "CWPKI0022E", "exception": "SSLHandshakeException",
+         "root_cause": None, "tags": ["SSL/TLS"],
+         "ts": "10/12/15 21:22:04:257", "file": "test.log",
+         "text": "CWPKI0022E: SSL failure", "thread_id": "00000150"},
+    ]
+    pdf_bytes = render_pdf_report(events, top_n=5, samples_n=5)
+    pdf_text = _extract_pdf_text(pdf_bytes)
+    assert "Top WebSphere" in pdf_text
+    assert "CWPKI0022E" in pdf_text
