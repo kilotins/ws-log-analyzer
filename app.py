@@ -11,9 +11,9 @@ from pathlib import Path
 
 from wslog import (
     parse_file, summarize, render_markdown_report, render_json_report,
-    render_pdf_report, per_file_summary, time_histogram, render_histogram,
-    pick_samples, likely_causes, suggested_splunk_queries, hung_thread_drilldown,
-    precompute_analysis,
+    render_pdf_report, render_csv_report, per_file_summary, time_histogram,
+    render_histogram, pick_samples, likely_causes, suggested_splunk_queries,
+    hung_thread_drilldown, precompute_analysis,
     match_user_query, build_claude_prompt, claude_cache_key,
     incident_timeline, SWEDISH_CHEF_STYLE, ask_gemini,
 )
@@ -1098,7 +1098,7 @@ def render_report_sections(a):
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
                f"Report saved as `{a['report_name']}`.")
 
-    dl1, dl2, dl3 = st.columns(3)
+    dl1, dl2, dl3, dl4 = st.columns(4)
     with dl1:
         st.download_button(
             label="Download Markdown",
@@ -1120,6 +1120,14 @@ def render_report_sections(a):
             file_name=a["report_name"].replace(".md", ".pdf"),
             mime="application/pdf",
         )
+    with dl4:
+        if a.get("report_csv"):
+            st.download_button(
+                label="Download CSV",
+                data=a["report_csv"],
+                file_name=a["report_name"].replace(".md", ".csv"),
+                mime="text/csv",
+            )
 
     st.markdown("---")
 
@@ -1552,6 +1560,7 @@ with tab_analyze:
             report_md = render_markdown_report(all_events, _analysis=pa)
             report_json = render_json_report(all_events, _analysis=pa)
             report_pdf = render_pdf_report(all_events, _analysis=pa)
+            report_csv = render_csv_report(all_events)
             report_name = f"report_{ts}.md"
             (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
 
@@ -1582,6 +1591,7 @@ with tab_analyze:
                 "report_md": report_md,
                 "report_json": report_json,
                 "report_pdf": report_pdf,
+                "report_csv": report_csv,
                 "report_name": report_name,
             }
             # Clear previous actions on new analysis (keep file cache for repeat queries)
@@ -1715,14 +1725,15 @@ def _extract_signatures(content):
             result.append(line)
             # If it's a def/class, grab the docstring
             if stripped.startswith(("def ", "class ")):
+                # Multi-line signature (only if current line doesn't end with ':')
+                if not line.rstrip().endswith(":"):
+                    i += 1
+                    while i < len(lines) and not lines[i].rstrip().endswith(":"):
+                        result.append(lines[i])
+                        i += 1
+                    if i < len(lines):
+                        result.append(lines[i])
                 i += 1
-                # Multi-line signature
-                while i < len(lines) and not lines[i].rstrip().endswith(":"):
-                    result.append(lines[i])
-                    i += 1
-                if i < len(lines):
-                    result.append(lines[i])
-                    i += 1
                 # Docstring
                 if i < len(lines) and '"""' in lines[i]:
                     result.append(lines[i])

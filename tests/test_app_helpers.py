@@ -63,6 +63,11 @@ from app import (                       # noqa: E402
     _load_provider_history,
     _save_provider_history,
     _PROVIDER_CONFIG,
+    _estimate_cost,
+    _extract_signatures,
+    _call_claude_api,
+    _call_openai_api,
+    _call_gemini_api,
     REPORTS_DIR,
 )
 
@@ -418,3 +423,127 @@ class TestProviderConfig:
 
     def test_openai_does_not_extract_splunk(self):
         assert _PROVIDER_CONFIG["openai"]["extract_splunk"] is False
+
+
+# ── _estimate_cost ───────────────────────────────────────────────────────
+
+class TestEstimateCost:
+    def test_known_model(self):
+        # gpt-4o: $2.50/1M input, $10.00/1M output
+        cost = _estimate_cost("gpt-4o", 1000, 500)
+        assert cost == pytest.approx(0.0025 + 0.005, abs=1e-6)
+
+    def test_unknown_model_returns_zero(self):
+        assert _estimate_cost("unknown-model", 1000, 500) == 0.0
+
+    def test_zero_tokens(self):
+        assert _estimate_cost("gpt-4o", 0, 0) == 0.0
+
+    def test_large_input(self):
+        # 1M tokens input on claude-sonnet-4-6: $3.00
+        cost = _estimate_cost("claude-sonnet-4-6", 1_000_000, 0)
+        assert cost == pytest.approx(3.00, abs=0.01)
+
+
+# ── _extract_signatures ─────────────────────────────────────────────────
+
+class TestExtractSignatures:
+    def test_extracts_function_def(self):
+        code = 'def hello(name):\n    """Say hello."""\n    print(name)\n'
+        result = _extract_signatures(code)
+        assert "def hello(name):" in result
+        assert '"""Say hello."""' in result
+        assert "print(name)" not in result
+
+    def test_extracts_class_def(self):
+        code = 'class Foo:\n    """A foo."""\n    x = 1\n'
+        result = _extract_signatures(code)
+        assert "class Foo:" in result
+        assert '"""A foo."""' in result
+
+    def test_extracts_imports(self):
+        code = 'import os\nfrom pathlib import Path\nx = 1\n'
+        result = _extract_signatures(code)
+        assert "import os" in result
+        assert "from pathlib import Path" in result
+
+    def test_extracts_top_level_constants(self):
+        code = 'MAX_SIZE = 100\n_INTERNAL = "abc"\n'
+        result = _extract_signatures(code)
+        assert "MAX_SIZE = 100" in result
+
+    def test_empty_source(self):
+        assert _extract_signatures("") == ""
+
+    def test_multiline_docstring(self):
+        code = 'def foo():\n    """Multi\n    line\n    doc."""\n    pass\n'
+        result = _extract_signatures(code)
+        assert "Multi" in result
+        assert "doc." in result
+        assert "pass" not in result
+
+
+# ── API callers (mock-based) ────────────────────────────────────────────
+
+class TestCallClaudeApi:
+    def test_returns_text_and_usage(self):
+        mock_anthropic = mock.MagicMock()
+        mock_msg = mock.MagicMock()
+        mock_msg.content = [mock.MagicMock(text="Hello from Claude")]
+        mock_msg.usage = mock.MagicMock(input_tokens=100, output_tokens=50)
+        mock_anthropic.Anthropic.return_value.messages.create.return_value = mock_msg
+        with mock.patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+            answer, usage = _call_claude_api("key", "model", {"system": "s", "user": "u"})
+        assert answer == "Hello from Claude"
+        assert usage == {"input": 100, "output": 50}
+
+    def test_empty_content_returns_none(self):
+        mock_anthropic = mock.MagicMock()
+        mock_msg = mock.MagicMock()
+        mock_msg.content = []
+        mock_anthropic.Anthropic.return_value.messages.create.return_value = mock_msg
+        with mock.patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+            answer, usage = _call_claude_api("key", "model", {"system": "s", "user": "u"})
+        assert answer is None
+
+
+class TestCallOpenaiApi:
+    def test_returns_text_and_usage(self):
+        mock_openai = mock.MagicMock()
+        mock_choice = mock.MagicMock()
+        mock_choice.message.content = "Hello from GPT"
+        mock_resp = mock.MagicMock()
+        mock_resp.choices = [mock_choice]
+        mock_resp.usage = mock.MagicMock(prompt_tokens=200, completion_tokens=80)
+        mock_openai.OpenAI.return_value.chat.completions.create.return_value = mock_resp
+        with mock.patch.dict(sys.modules, {"openai": mock_openai}):
+            answer, usage = _call_openai_api("key", "model", {"system": "s", "user": "u"})
+        assert answer == "Hello from GPT"
+        assert usage == {"input": 200, "output": 80}
+
+    def test_empty_answer_returns_none(self):
+        mock_openai = mock.MagicMock()
+        mock_choice = mock.MagicMock()
+        mock_choice.message.content = ""
+        mock_resp = mock.MagicMock()
+        mock_resp.choices = [mock_choice]
+        mock_resp.usage = None
+        mock_openai.OpenAI.return_value.chat.completions.create.return_value = mock_resp
+        with mock.patch.dict(sys.modules, {"openai": mock_openai}):
+            answer, usage = _call_openai_api("key", "model", {"system": "s", "user": "u"})
+        assert answer is None
+
+
+class TestCallGeminiApi:
+    def test_returns_answer_and_empty_usage(self):
+        import app as app_mod
+        with mock.patch.object(app_mod, "ask_gemini", return_value="Gemini says hi"):
+            answer, usage = _call_gemini_api("key", "model", {"system": "s", "user": "u"})
+        assert answer == "Gemini says hi"
+        assert usage == {}
+
+    def test_empty_returns_none(self):
+        import app as app_mod
+        with mock.patch.object(app_mod, "ask_gemini", return_value=""):
+            answer, usage = _call_gemini_api("key", "model", {"system": "s", "user": "u"})
+        assert answer is None

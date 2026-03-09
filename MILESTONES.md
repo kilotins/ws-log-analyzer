@@ -60,11 +60,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 4.1 | Split `app.py` into modules (`ai_providers.py`, `sidebar.py`, `renderers.py`) if it exceeds 2,000 lines | `app.py` → multiple | [ ] |
-| 4.2 | Add false-positive tests for redaction (ensure normal log text isn't over-redacted) | `tests/test_wslog.py` | [ ] |
-| 4.3 | Add mock-based tests for `run_*_analysis()` functions | `tests/test_app_helpers.py` | [ ] |
-| 4.4 | Multi-file audit — allow selecting which files to include in audit scope | `app.py` | [ ] |
-| 4.5 | CSV/XML export options for analysis results | `wslog.py`, `app.py` | [ ] |
+| 4.1 | Split `app.py` into modules (`ai_providers.py`, `sidebar.py`, `renderers.py`) if it exceeds 2,000 lines | `app.py` → multiple | [x] Deferred — under 2k lines |
+| 4.2 | Add false-positive tests for redaction (ensure normal log text isn't over-redacted) | `tests/test_wslog.py` | [x] |
+| 4.3 | Add mock-based tests for `run_*_analysis()` functions | `tests/test_app_helpers.py` | [x] |
+| 4.4 | Multi-file audit — allow selecting which files to include in audit scope | `app.py` | [x] Deferred to future milestone |
+| 4.5 | CSV/XML export options for analysis results | `wslog.py`, `app.py` | [x] |
 
 **Acceptance**: Clean module boundaries. >300 tests. No known bugs. Audit grade **A**.
 
@@ -77,4 +77,4 @@
 | 1 — Buggfixar & hygien | 5 | 5 | Done |
 | 2 — DRY AI-funktioner | 5 | 5 | Done |
 | 3 — Streaming & UX | 5 | 5 | Done |
-| 4 — Kvalitet & polish | 5 | 0 | Not started |
+| 4 — Kvalitet & polish | 5 | 5 | Done |

@@ -542,6 +542,75 @@ def test_redact_secret():
     assert "my_super_secret_value" not in result
 
 
+# --- Redaction false-positive tests (must NOT over-redact) ---
+
+@pytest.mark.parametrize("text", [
+    "SRVE0293E: Servlet Error - /api/v1/health returned 500",
+    "CWWKZ0002E: The application myapp failed to start",
+    "WebContainer : 5 has been active for 610 seconds",
+    "javax.naming.NameNotFoundException: java:comp/env/jdbc/MyDS",
+    "Connection pool exhausted for DataSource jdbc/AppDB",
+    "SSLHandshakeException: PKIX path building failed",
+    "Thread-42 performed token refresh successfully",
+    "SELECT * FROM users WHERE password_hash = 'abc'",
+    "Application password-reset-service started in 2.3s",
+    "java.lang.OutOfMemoryError: Java heap space at com.example.Service.process",
+    "authorization check passed for user admin",
+    "The credential store was initialized successfully",
+    "Using API endpoint https://api.example.com/v2/status",
+    "secret_key_rotation completed for partition 3",
+])
+def test_redact_preserves_normal_log_text(text):
+    """Ensure redaction doesn't destroy normal log content."""
+    result = redact(text)
+    # The text should be mostly preserved (some keyword matches may redact adjacent values)
+    # but the core message structure must survive
+    assert len(result) >= len(text) * 0.5, f"Over-redacted: {text!r} -> {result!r}"
+
+
+def test_redact_preserves_was_codes():
+    """WAS message codes must never be redacted."""
+    codes = ["SRVE0293E", "CWWKZ0002E", "J2CA0045E", "DSRA0010E", "WSVR0605W"]
+    for code in codes:
+        text = f"[ERROR] {code}: Something happened"
+        assert code in redact(text)
+
+
+def test_redact_preserves_exception_names():
+    """Java exception class names must not be redacted."""
+    exceptions = [
+        "javax.naming.NameNotFoundException",
+        "java.lang.NullPointerException",
+        "javax.net.ssl.SSLHandshakeException",
+        "java.sql.SQLException",
+    ]
+    for exc in exceptions:
+        text = f"Caused by: {exc}: detail message"
+        assert exc in redact(text)
+
+
+def test_redact_json_key_only_redacts_value():
+    """JSON-style secrets: only the value should be redacted, not the key."""
+    s = '"api_key": "sk-ant-abc123"'
+    result = redact(s)
+    assert "api_key" in result
+    assert "sk-ant-abc123" not in result
+
+
+def test_redact_jwt_preserves_surrounding():
+    """JWT redaction should only remove the token, not surrounding text."""
+    # "Token:" triggers the key=value redaction before the JWT pattern
+    s = "Token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.abc123 was expired"
+    result = redact(s)
+    assert "[REDACTED]" in result
+    assert "was expired" in result
+    # Without a triggering keyword, JWT pattern applies directly
+    s2 = "Header eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.abc123 trail"
+    r2 = redact(s2)
+    assert "[REDACTED_JWT]" in r2
+    assert "trail" in r2
+
+
 # --- Edge cases for parse_file ---
 
 def test_parse_empty_file(tmp_path):
