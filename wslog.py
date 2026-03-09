@@ -421,7 +421,35 @@ def per_file_summary(events: list[dict]) -> list[tuple[str, int, int]]:
     return [(f, files[f]["total"], files[f]["errors"]) for f in sorted(files)]
 
 
-_HEURISTICS = [
+def _load_heuristics_from_yaml() -> list[dict] | None:
+    """Try to load heuristics from YAML file. Returns None if unavailable."""
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError:
+        return None
+    yaml_path = Path(__file__).parent / "heuristics.yaml"
+    if not yaml_path.is_file():
+        return None
+    try:
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            entries = yaml.safe_load(f)
+        if not isinstance(entries, list):
+            return None
+        heuristics = []
+        for entry in entries:
+            heuristics.append({
+                "id": entry["id"],
+                "title": entry["title"],
+                "match": re.compile(entry["pattern"], re.IGNORECASE),
+                "cause": entry["cause"],
+                "fixes": entry["fixes"],
+            })
+        return heuristics
+    except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError):
+        return None
+
+
+_HEURISTICS_INLINE = [
     {
         "id": "ssl-trust",
         "title": "SSL / TLS Trust Failure",
@@ -678,6 +706,9 @@ _HEURISTICS = [
         ],
     },
 ]
+
+# Try YAML first; fall back to inline list if PyYAML is missing or file is absent
+_HEURISTICS = _load_heuristics_from_yaml() or _HEURISTICS_INLINE
 
 
 def likely_causes(events: list[dict]) -> list[dict[str, object]]:
@@ -1535,6 +1566,22 @@ def build_claude_prompt(user_query: str, match_result: dict, style: str | None =
     if style:
         system += style
     return {"system": system, "user": "\n".join(parts), "skills": skill_files}
+
+
+# Approximate context window limits per provider (in tokens)
+TOKEN_LIMITS: dict[str, int] = {
+    "claude": 200_000,
+    "gemini": 1_000_000,
+    "openai": 128_000,
+}
+
+
+def estimate_tokens(text: str) -> int:
+    """Rough token estimate: ~4 characters per token (industry standard approximation).
+
+    No external tokenizer needed — suitable for pre-flight sanity checks.
+    """
+    return len(text) // 4
 
 
 def claude_cache_key(user_query: str, match_result: dict) -> str:

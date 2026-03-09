@@ -5,7 +5,7 @@ import re as _re
 import streamlit as st
 from pathlib import Path
 
-from wslog import render_histogram
+from wslog import render_histogram, precompute_analysis
 
 
 def _looks_like_splunk(code):
@@ -296,6 +296,101 @@ def render_samples(samples):
         st.code(e["text"][:4000], language="text")
 
 
+def _apply_event_filters(events, levels, code_prefix, exception_types, time_range):
+    """Filter events using AND logic. Returns a new list (never modifies original)."""
+    filtered = list(events)
+
+    if levels:
+        level_set = set(levels)
+        filtered = [e for e in filtered if (e.get("level") or "UNKNOWN") in level_set]
+
+    if code_prefix:
+        prefix = code_prefix.strip().upper()
+        filtered = [e for e in filtered if e.get("code") and e["code"].upper().startswith(prefix)]
+
+    if exception_types:
+        exc_set = set(exception_types)
+        filtered = [e for e in filtered if e.get("exception") in exc_set]
+
+    if time_range and len(time_range) == 2:
+        t_start, t_end = time_range
+        if t_start or t_end:
+            from wslog import parse_ts_datetime
+            result = []
+            for e in filtered:
+                ts = e.get("ts")
+                if not ts:
+                    continue
+                dt = parse_ts_datetime(ts)
+                if dt is None:
+                    continue
+                t = dt.time()
+                if t_start and t < t_start:
+                    continue
+                if t_end and t > t_end:
+                    continue
+                result.append(e)
+            filtered = result
+
+    return filtered
+
+
+def render_event_filters(events):
+    """Render event filter widgets inside an expander. Returns filtered events or None if no filters active."""
+    with st.expander("Event Filters", expanded=False):
+        # Collect available values from events
+        all_levels = sorted({e.get("level") or "UNKNOWN" for e in events})
+        all_exceptions = sorted({e.get("exception") for e in events if e.get("exception")})
+
+        col_level, col_code = st.columns(2)
+        with col_level:
+            selected_levels = st.multiselect(
+                "Severity Levels",
+                options=all_levels,
+                default=[],
+                key="filter_levels",
+                help="Show only events with selected severity levels",
+            )
+        with col_code:
+            code_prefix = st.text_input(
+                "Code Prefix",
+                value="",
+                key="filter_code_prefix",
+                placeholder="e.g. SRVE, WSVR, CWWK",
+                help="Show only events whose message code starts with this prefix",
+            )
+
+        col_exc, col_time = st.columns(2)
+        with col_exc:
+            selected_exceptions = st.multiselect(
+                "Exception Types",
+                options=all_exceptions,
+                default=[],
+                key="filter_exceptions",
+                help="Show only events with selected exception types",
+            )
+        with col_time:
+            use_time = st.checkbox("Filter by time range", key="filter_use_time")
+            time_range = None
+            if use_time:
+                t_col1, t_col2 = st.columns(2)
+                from datetime import time as dt_time
+                with t_col1:
+                    t_start = st.time_input("Start time", value=dt_time(0, 0), key="filter_time_start")
+                with t_col2:
+                    t_end = st.time_input("End time", value=dt_time(23, 59, 59), key="filter_time_end")
+                time_range = (t_start, t_end)
+
+        has_filters = bool(selected_levels or code_prefix.strip() or selected_exceptions or (use_time and time_range))
+
+        if has_filters:
+            filtered = _apply_event_filters(events, selected_levels, code_prefix, selected_exceptions, time_range)
+            st.info(f"Showing {len(filtered)} of {len(events)} events after filtering.")
+            return filtered
+
+    return None
+
+
 def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     """Render all report sections from persisted analysis dict."""
     from app_ai import render_ask_claude
@@ -344,38 +439,63 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     st.markdown("---")
 
-    with st.expander("Summary", expanded=True):
-        render_summary(a["summary"], a["error_count"], a["file_count"], a["file_summary"])
+    # --- Event Filters ---
+    filtered_events = render_event_filters(a["events"])
+    if filtered_events is not None:
+        # Recompute analysis from filtered events without modifying original
+        fa = precompute_analysis(filtered_events)
+        display_summary = fa["summary"]
+        display_error_count = sum(1 for e in filtered_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
+        display_causes = fa["causes"]
+        display_splunk = fa["splunk"]
+        display_hung = fa["hung"]
+        display_hist = fa["hist"]
+        display_samples = fa["samples"]
+        display_events = filtered_events
+        from wslog import incident_timeline as _itl_fn
+        display_itl = _itl_fn(filtered_events)
+    else:
+        display_summary = a["summary"]
+        display_error_count = a["error_count"]
+        display_causes = a["causes"]
+        display_splunk = a["splunk"]
+        display_hung = a["hung"]
+        display_hist = a["hist"]
+        display_samples = a["samples"]
+        display_events = a["events"]
+        display_itl = a.get("incident_timeline")
 
-    if a["causes"]:
-        with st.expander(f"Likely Causes & Fixes ({len(a['causes'])} detected)"):
-            render_likely_causes(a["causes"])
+    with st.expander("Summary", expanded=True):
+        render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"])
+
+    if display_causes:
+        with st.expander(f"Likely Causes & Fixes ({len(display_causes)} detected)"):
+            render_likely_causes(display_causes)
 
     with st.expander("Ask AI for help", expanded=True):
-        render_ask_claude(a["events"], log=log, lookup_cache=lookup_cache, store_cache=store_cache)
+        render_ask_claude(display_events, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
 
     claude_splunk_count = sum(len(e.get("splunk_queries", []))
                                for e in st.session_state.claude_history)
-    splunk_label = f"Suggested Splunk Searches ({len(a['splunk'])} baseline"
+    splunk_label = f"Suggested Splunk Searches ({len(display_splunk)} baseline"
     if claude_splunk_count:
         splunk_label += f" + {claude_splunk_count} Claude"
     splunk_label += ")"
     with st.expander(splunk_label):
-        render_splunk_section(a["splunk"])
+        render_splunk_section(display_splunk)
 
-    with st.expander(f"Hung Thread Analysis ({len(a['hung'])} threads)"):
-        render_hung_threads(a["hung"])
+    with st.expander(f"Hung Thread Analysis ({len(display_hung)} threads)"):
+        render_hung_threads(display_hung)
 
     with st.expander("Timeline"):
-        render_timeline(a["hist"])
+        render_timeline(display_hist)
 
-    itl = a.get("incident_timeline")
     itl_label = "Incident Timeline"
-    if itl:
-        n = len(itl["window_events"])
+    if display_itl:
+        n = len(display_itl["window_events"])
         itl_label += f" ({n} events around first error)"
     with st.expander(itl_label):
-        render_incident_timeline(itl)
+        render_incident_timeline(display_itl)
 
-    with st.expander(f"Event Samples ({len(a['samples'])} shown)"):
-        render_samples(a["samples"])
+    with st.expander(f"Event Samples ({len(display_samples)} shown)"):
+        render_samples(display_samples)

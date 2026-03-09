@@ -9,6 +9,7 @@ from pathlib import Path
 from wslog import (
     match_user_query, build_claude_prompt, claude_cache_key,
     SWEDISH_CHEF_STYLE, ask_gemini,
+    estimate_tokens, TOKEN_LIMITS,
 )
 
 
@@ -301,6 +302,18 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
         status.update(label=f"Invalid {label} API key format", state="error")
         st.error(f"{label} API key should start with `{expected_prefix}`. Check your key in the sidebar.")
         return
+
+    # Pre-flight token estimation — warn if prompt is near context limit
+    prompt_text = prompt.get("system", "") + prompt.get("user", "")
+    est_tokens = estimate_tokens(prompt_text)
+    token_limit = TOKEN_LIMITS.get(provider, TOKEN_LIMITS["claude"])
+    if est_tokens > int(token_limit * 0.8):
+        pct = est_tokens / token_limit * 100
+        st.warning(
+            f"Estimated prompt size (~{est_tokens:,} tokens) is {pct:.0f}% of "
+            f"{label}'s {token_limit:,}-token context limit. "
+            f"Consider shortening your query or reducing log input."
+        )
 
     if st.session_state.debug_payload:
         with st.expander(f"{label} request payload", expanded=False):

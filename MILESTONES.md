@@ -150,11 +150,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 13.1 | Pre-flight token estimation — estimate prompt size before API calls, warn if near context limit | `app_ai.py`, `wslog.py` | [ ] |
-| 13.2 | Extract `_HEURISTICS` to YAML data file — easier to extend without touching Python | `wslog.py`, `heuristics.yaml` | [ ] |
-| 13.3 | Add JMS/SIB skill file — cover `CWSID*`, `CWSJY*` message codes and SIBJMSRAThreadPool patterns | `skills/jms-messaging.md` | [ ] |
-| 13.4 | Add GC/performance skill file — verbose GC log patterns, heap dump guidance, G1/ZGC tuning | `skills/gc-performance.md` | [ ] |
-| 13.5 | Structured event filtering in UI — filter by level, code prefix, exception type, time range before AI analysis | `app_render.py`, `app.py` | [ ] |
+| 13.1 | Pre-flight token estimation — estimate prompt size before API calls, warn if near context limit | `app_ai.py`, `wslog.py` | [x] |
+| 13.2 | Extract `_HEURISTICS` to YAML data file — easier to extend without touching Python | `wslog.py`, `heuristics.yaml` | [x] |
+| 13.3 | Add JMS/SIB skill file — cover `CWSID*`, `CWSJY*` message codes and SIBJMSRAThreadPool patterns | `skills/jms-messaging.md` | [x] |
+| 13.4 | Add GC/performance skill file — verbose GC log patterns, heap dump guidance, G1/ZGC tuning | `skills/gc-performance.md` | [x] |
+| 13.5 | Structured event filtering in UI — filter by level, code prefix, exception type, time range before AI analysis | `app_render.py`, `app.py` | [x] |
 
 **Acceptance**: Token estimation warns before expensive calls. Heuristics editable via YAML. 2 new skill files. Event filtering in UI. Audit grade **A+**.
 
@@ -172,8 +172,8 @@
 | 6 — E2e-teststabilitet | 5 | 5 | Done |
 | 7 — Kodstruktur & refaktorering | 5 | 5 | Done |
 | 8 — Funktioner & förbättringar | 5 | 5 | Done |
-| 9 — Dokumentation & snabbfixar | 5 | 0 | Not started |
-| 10 — Testtäckning | 5 | 0 | Not started |
-| 11 — Säkerhet & integritet | 5 | 0 | Not started |
-| 12 — Kodstruktur: splitta app.py | 5 | 0 | Not started |
-| 13 — Funktioner & förbättringar | 5 | 0 | Not started |
+| 9 — Dokumentation & snabbfixar | 5 | 5 | Done |
+| 10 — Testtäckning | 5 | 5 | Done |
+| 11 — Säkerhet & integritet | 5 | 5 | Done |
+| 12 — Kodstruktur: splitta app.py | 5 | 5 | Done |
+| 13 — Funktioner & förbättringar | 5 | 5 | Done |
