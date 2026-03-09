@@ -62,7 +62,7 @@ MAX_CACHE_ENTRIES = 100
 MAX_HISTORY_ENTRIES = 50
 
 
-def _load_json_file(path, default):
+def _load_json_file(path: Path, default: object) -> object:
     """Load a JSON file, returning default on error."""
     if path.exists():
         try:
@@ -73,7 +73,7 @@ def _load_json_file(path, default):
     return default
 
 
-def _save_json_file(path, data):
+def _save_json_file(path: Path, data: object) -> None:
     """Save data as JSON."""
     import json
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -95,35 +95,23 @@ def _save_file_cache(cache):
 OPENAI_HISTORY_FILE = CACHE_DIR / "openai_history.json"
 
 
-def _load_provider_history(path):
+def _load_provider_history(path: Path) -> list[dict]:
     """Load provider history from a JSON file."""
     data = _load_json_file(path, [])
     return data if isinstance(data, list) else []
 
 
-def _save_provider_history(path, history):
+def _save_provider_history(path: Path, history: list[dict]) -> None:
     """Save provider history, keeping only the most recent entries."""
     _save_json_file(path, history[-MAX_HISTORY_ENTRIES:])
 
 
-# Thin wrappers for backward compatibility
-def _load_history():
-    return _load_provider_history(HISTORY_FILE)
-
-def _save_history(history):
-    _save_provider_history(HISTORY_FILE, history)
-
-def _load_gemini_history():
-    return _load_provider_history(GEMINI_HISTORY_FILE)
-
-def _save_gemini_history(history):
-    _save_provider_history(GEMINI_HISTORY_FILE, history)
-
-def _load_openai_history():
-    return _load_provider_history(OPENAI_HISTORY_FILE)
-
-def _save_openai_history(history):
-    _save_provider_history(OPENAI_HISTORY_FILE, history)
+# Provider history file paths — keyed by provider name
+_PROVIDER_HISTORY_FILES = {
+    "claude": HISTORY_FILE,
+    "gemini": GEMINI_HISTORY_FILE,
+    "openai": OPENAI_HISTORY_FILE,
+}
 
 
 # --- Session state defaults ---
@@ -164,12 +152,10 @@ if st.session_state.rt_buffer is None:
     st.session_state.rt_buffer = deque(maxlen=_RT_BUFFER_SIZE)
 
 # Load persisted history on fresh session
-if not st.session_state.claude_history:
-    st.session_state.claude_history = _load_history()
-if not st.session_state.gemini_history:
-    st.session_state.gemini_history = _load_gemini_history()
-if not st.session_state.openai_history:
-    st.session_state.openai_history = _load_openai_history()
+for _prov, _hpath in _PROVIDER_HISTORY_FILES.items():
+    _hkey = f"{_prov}_history" if _prov != "claude" else "claude_history"
+    if not st.session_state[_hkey]:
+        st.session_state[_hkey] = _load_provider_history(_hpath)
 
 
 def get_report_history(limit=20):
@@ -450,7 +436,7 @@ def _on_ask_openai_click():
     st.session_state._ask_openai_pending = True
 
 
-def build_ai_request_context(user_query, events, provider="claude"):
+def build_ai_request_context(user_query: str, events: list[dict], provider: str = "claude") -> dict:
     """Compute match, cache key, and prompt for an AI analysis request."""
     match = match_user_query(user_query, events)
     cache_key = claude_cache_key(user_query, match)
@@ -502,7 +488,7 @@ _PROVIDER_CONFIG = {
         "query_label_key": "claude_query_label",
         "history_key": "claude_history",
         "api_key_field": "api_key",
-        "save_history": lambda hist: _save_history(hist),
+        "save_history": lambda hist: _save_provider_history(HISTORY_FILE, hist),
         "extract_splunk": True,
         "api_key_error": "Enter your Anthropic API key in the sidebar.",
         "api_key_prefix": "sk-ant-",
@@ -514,7 +500,7 @@ _PROVIDER_CONFIG = {
         "query_label_key": "gemini_query_label",
         "history_key": "gemini_history",
         "api_key_field": "gemini_api_key",
-        "save_history": lambda hist: _save_gemini_history(hist),
+        "save_history": lambda hist: _save_provider_history(GEMINI_HISTORY_FILE, hist),
         "extract_splunk": False,
         "api_key_error": "Enter your Gemini API key in the sidebar or set GEMINI_API_KEY env var.",
         "api_key_prefix": "AI",
@@ -526,7 +512,7 @@ _PROVIDER_CONFIG = {
         "query_label_key": "openai_query_label",
         "history_key": "openai_history",
         "api_key_field": "openai_api_key",
-        "save_history": lambda hist: _save_openai_history(hist),
+        "save_history": lambda hist: _save_provider_history(OPENAI_HISTORY_FILE, hist),
         "extract_splunk": False,
         "api_key_error": "Enter your OpenAI API key in the sidebar or set OPENAI_API_KEY env var.",
         "api_key_prefix": "sk-",
@@ -549,13 +535,13 @@ _TOKEN_COSTS = {
 }
 
 
-def _estimate_cost(model_id, input_tokens, output_tokens):
+def _estimate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float:
     """Estimate cost in USD given model and token counts."""
     costs = _TOKEN_COSTS.get(model_id, (0, 0))
     return (input_tokens * costs[0] + output_tokens * costs[1]) / 1_000_000
 
 
-def _call_claude_api(api_key, model_id, prompt, stream_placeholder=None):
+def _call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
     """Make the actual Claude API call with optional streaming. Returns (answer, usage_dict)."""
     try:
         from anthropic import Anthropic
@@ -589,13 +575,13 @@ def _call_claude_api(api_key, model_id, prompt, stream_placeholder=None):
     return (message.content[0].text, usage)
 
 
-def _call_gemini_api(api_key, model_id, prompt, stream_placeholder=None):
+def _call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
     """Make the actual Gemini API call. Returns (answer, usage_dict). Streaming not supported."""
     answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id)
     return (answer or None, {})
 
 
-def _call_openai_api(api_key, model_id, prompt, stream_placeholder=None):
+def _call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
     """Make the actual OpenAI API call with optional streaming. Returns (answer, usage_dict)."""
     try:
         from openai import OpenAI
@@ -644,7 +630,7 @@ _API_CALLERS = {
 }
 
 
-def _run_ai_analysis(provider, model_id, user_query, events, processing_container):
+def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list[dict], processing_container) -> None:
     """Common AI analysis orchestrator. Handles caching, history, and error display."""
     cfg = _PROVIDER_CONFIG[provider]
     label = cfg["label"]
@@ -1314,9 +1300,8 @@ with st.sidebar:
         st.session_state.openai_history = []
         if CACHE_FILE.exists():
             CACHE_FILE.unlink()
-        _save_history([])
-        _save_gemini_history([])
-        _save_openai_history([])
+        for _hpath in _PROVIDER_HISTORY_FILES.values():
+            _save_provider_history(_hpath, [])
         log.info("cache Cleared all AI caches")
         st.success("Cache cleared")
 
@@ -1388,7 +1373,7 @@ def _highlight_line(line):
     return _LEVEL_HIGHLIGHT_RE.sub(_color_match, html.escape(line, quote=True))
 
 
-def _is_safe_rt_path(filepath):
+def _is_safe_rt_path(filepath: str | None) -> bool:
     """Check if a realtime monitor path is safe (only .log/.gz/.txt files)."""
     if not filepath:
         return False
@@ -1438,40 +1423,33 @@ def _rt_poll():
 
 
 @st.fragment(run_every=2)
-def _rt_live_view():
-    """Fragment that polls and renders the live log stream."""
-    ss = st.session_state
-    if not ss.rt_enabled:
-        return
-
-    filepath = ss.rt_file
-    running = ss.rt_running
-    paused = ss.rt_paused
-
-    # Status indicator
+def _rt_status_panel(filepath: str, running: bool, paused: bool) -> bool:
+    """Show realtime monitor status. Returns False if monitoring should not continue."""
     if not filepath:
         st.info("Enter a log file path in the sidebar to start monitoring.")
-        return
+        return False
     if not running:
         st.caption("Monitoring stopped.")
     elif paused:
         st.warning("Monitoring paused")
     else:
-        # Active polling
         _rt_poll()
         p = Path(filepath)
         if p.exists():
-            st.success(f"Monitoring **{p.name}** — {len(ss.rt_buffer)} lines in buffer")
+            st.success(f"Monitoring **{p.name}** — {len(st.session_state.rt_buffer)} lines in buffer")
         else:
             st.error(f"File not found: {filepath}")
+    return True
 
-    # Control buttons
+
+def _rt_controls(filepath: str, running: bool, paused: bool) -> None:
+    """Render Start/Pause/Resume/Stop/Clear control buttons."""
+    ss = st.session_state
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         if st.button("Start", disabled=running and not paused, key="rt_start"):
             ss.rt_running = True
             ss.rt_paused = False
-            # Seek to end of file on fresh start
             p = Path(filepath)
             if p.exists():
                 ss.rt_offset = p.stat().st_size
@@ -1498,8 +1476,10 @@ def _rt_live_view():
             ss.rt_buffer.clear()
             st.rerun()
 
-    # Render buffer
-    buf = ss.rt_buffer
+
+def _rt_render_buffer() -> None:
+    """Render the log buffer as highlighted HTML."""
+    buf = st.session_state.rt_buffer
     if buf:
         highlighted = "<br>".join(_highlight_line(line) for line in buf)
         st.markdown(
@@ -1512,6 +1492,20 @@ def _rt_live_view():
         )
     else:
         st.caption("Buffer empty. New lines will appear here when the file is written to.")
+
+
+def _rt_live_view():
+    """Fragment that polls and renders the live log stream."""
+    ss = st.session_state
+    if not ss.rt_enabled:
+        return
+    filepath = ss.rt_file
+    running = ss.rt_running
+    paused = ss.rt_paused
+    if not _rt_status_panel(filepath, running, paused):
+        return
+    _rt_controls(filepath, running, paused)
+    _rt_render_buffer()
 
 
 # --- Realtime section (above tabs, always visible when enabled) ---
@@ -1612,7 +1606,7 @@ with tab_analyze:
             st.session_state.claude_history = []
             st.session_state.selected_code = None
             st.session_state.selected_action = None
-            _save_history([])
+            _save_provider_history(HISTORY_FILE, [])
 
     # --- Render results from session state (survives reruns) ---
     a = st.session_state.analysis
@@ -1722,7 +1716,7 @@ Start the report with: # Technical Audit Report — WS Log Analyzer
 _COMPACT_MAX_LINES = 250  # Max lines per file in compact mode
 
 
-def _extract_signatures(content):
+def _extract_signatures(content: str) -> str:
     """Extract function/class signatures and docstrings from Python source for compact audit."""
     lines = content.splitlines()
     result = []

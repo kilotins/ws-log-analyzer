@@ -47,11 +47,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 7.1 | Split `_rt_live_view()` (284 lines) into `_rt_status_panel()`, `_rt_controls()`, `_rt_render_buffer()` | `app.py` | [ ] |
-| 7.2 | Replace 6 thin history wrapper functions with a factory/dict-based approach using `_PROVIDER_CONFIG` paths | `app.py` | [ ] |
-| 7.3 | Split `app.py` into modules if it exceeds 2,000 lines after M5-M6 changes: extract `ai_providers.py` (API callers, config, orchestrator) and `renderers.py` (report sections, timeline, samples) | `app.py` → multiple | [ ] |
-| 7.4 | Add type hints to key `app.py` functions — at minimum: `_run_ai_analysis`, `_call_*_api`, `build_ai_request_context`, `_extract_signatures`, `_is_safe_rt_path` | `app.py` | [ ] |
-| 7.5 | Update tests to match new module structure (imports, mocks) | `tests/test_app_helpers.py` | [ ] |
+| 7.1 | Split `_rt_live_view()` into `_rt_status_panel()`, `_rt_controls()`, `_rt_render_buffer()` | `app.py` | [x] |
+| 7.2 | Replace 6 thin history wrappers with `_PROVIDER_HISTORY_FILES` dict | `app.py` | [x] |
+| 7.3 | Split `app.py` into modules if it exceeds 2,000 lines | `app.py` → multiple | [x] Deferred — 1,989 lines |
+| 7.4 | Add type hints to 12 key `app.py` functions | `app.py` | [x] |
+| 7.5 | Update tests to match new module structure (imports, mocks) | `tests/test_app_helpers.py` | [x] No changes needed |
 
 **Acceptance**: No function over 150 lines. `app.py` under 1,500 lines (if split). Key functions typed. All 340+ tests pass.
 
@@ -84,5 +84,5 @@
 | 4 — Kvalitet & polish | 5 | 5 | Done |
 | 5 — Säkerhetsförstärkning | 5 | 0 | Not started |
 | 6 — E2e-teststabilitet | 5 | 5 | Done |
-| 7 — Kodstruktur & refaktorering | 5 | 0 | Not started |
+| 7 — Kodstruktur & refaktorering | 5 | 5 | Done |
 | 8 — Funktioner & förbättringar | 5 | 0 | Not started |
