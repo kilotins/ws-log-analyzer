@@ -1,4 +1,6 @@
 """Streamlit GUI for the WebSphere Log Analyzer."""
+from __future__ import annotations
+
 import html
 import logging
 import logging.handlers
