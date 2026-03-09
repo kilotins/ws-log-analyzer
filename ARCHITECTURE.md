@@ -2,10 +2,12 @@
 
 ```
 ws-log-analyzer/
-├── wslog.py              # Core engine + CLI (~1636 lines, all logic here)
-├── app.py                # Streamlit web GUI (~1738 lines)
+├── wslog.py              # Core engine + CLI (~1641 lines, all logic here)
+├── app.py                # Streamlit web GUI (~1860 lines)
 ├── tests/
-│   └── test_wslog.py     # 237 pytest tests
+│   ├── test_wslog.py     # 237 pytest unit tests for core engine
+│   ├── test_app_helpers.py  # 52 pytest unit tests for app helpers
+│   └── test_app_e2e.py   # 6 Playwright end-to-end tests
 ├── skills/               # Domain knowledge (10 files: message-codes, stacktrace-analysis, etc.)
 ├── .claude/
 │   └── skills/
@@ -23,7 +25,7 @@ ws-log-analyzer/
 └── cache/                # AI response cache + history (runtime, gitignored)
 ```
 
-## `wslog.py` — Core Engine + CLI (~1636 lines)
+## `wslog.py` — Core Engine + CLI (~1641 lines)
 
 The entire analysis pipeline lives in one file with no required dependencies (stdlib only). It breaks down into four layers:
 
@@ -93,7 +95,7 @@ Functions that consume parsed events to produce insights:
 
 `main()` wires argparse to the pipeline. Supports multi-file input with progress output, markdown/JSON output, and optional `--claude` integration (lazy-imports `anthropic`).
 
-## `app.py` — Streamlit GUI (~1738 lines)
+## `app.py` — Streamlit GUI (~1860 lines)
 
 UI layer that imports from `wslog.py`. No analysis logic lives here.
 

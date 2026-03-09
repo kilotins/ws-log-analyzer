@@ -490,7 +490,7 @@ def _store_cache(cache_key, answer, session_cache):
     _save_file_cache(file_cache)
 
 
-def run_claude_analysis(user_query, events, processing_container):
+def run_claude_analysis(user_query, events, processing_container, model_id="claude-sonnet-4-6"):
     """Run Claude API analysis with caching. Renders status into processing_container."""
     log.info("claude Ask Claude request: %s", user_query[:100])
     with processing_container:
@@ -540,7 +540,7 @@ def run_claude_analysis(user_query, events, processing_container):
 
     log.info("cache Cache miss — calling Claude API for: %s", user_query[:60])
     request_payload = {
-        "model": "claude-sonnet-4-6",
+        "model": model_id,
         "max_tokens": 2048,
         "system": prompt["system"],
         "messages": [{"role": "user", "content": prompt["user"]}],
@@ -575,7 +575,7 @@ def run_claude_analysis(user_query, events, processing_container):
         status.update(label=f"Claude API error: {ex}", state="error")
 
 
-def run_gemini_analysis(user_query, events, processing_container):
+def run_gemini_analysis(user_query, events, processing_container, model_id="gemini-2.5-flash"):
     """Run Gemini API analysis with caching. Renders status into processing_container."""
     log.info("gemini Ask Gemini request: %s", user_query[:100])
     with processing_container:
@@ -615,7 +615,7 @@ def run_gemini_analysis(user_query, events, processing_container):
 
     gemini_status.write("Calling Gemini API...")
     try:
-        answer = ask_gemini(prompt["user"], api_key=gemini_key, system=prompt["system"])
+        answer = ask_gemini(prompt["user"], api_key=gemini_key, system=prompt["system"], model=model_id)
         if not answer:
             log.warning("gemini Gemini returned empty response for: %s", user_query[:60])
             gemini_status.update(label="Empty response from Gemini", state="error")
@@ -636,7 +636,7 @@ def run_gemini_analysis(user_query, events, processing_container):
         gemini_status.update(label=f"Gemini API error: {ex}", state="error")
 
 
-def run_openai_analysis(user_query, events, processing_container):
+def run_openai_analysis(user_query, events, processing_container, model_id="gpt-4o"):
     """Run OpenAI API analysis with caching. Renders status into processing_container."""
     log.info("openai Ask GPT request: %s", user_query[:100])
     with processing_container:
@@ -685,7 +685,7 @@ def run_openai_analysis(user_query, events, processing_container):
     try:
         client = OpenAI(api_key=openai_key, timeout=60.0)
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=model_id,
             max_completion_tokens=2048,
             messages=[
                 {"role": "system", "content": prompt["system"]},
@@ -801,13 +801,13 @@ def render_ai_history():
 def render_ask_claude(events):
     """Render AI analysis input, API calls, and response history."""
     _AI_MODELS = {
-        "Claude Sonnet 4.6": "claude",
-        "Claude Haiku 4.5": "claude",
-        "Gemini 2.5 Flash": "gemini",
-        "Gemini 2.5 Pro": "gemini",
-        "GPT-4o": "openai",
-        "GPT-4o mini": "openai",
-        "Swedish Chef": "openai_chef",
+        "Claude Sonnet 4.6": {"provider": "claude", "model_id": "claude-sonnet-4-6"},
+        "Claude Haiku 4.5": {"provider": "claude", "model_id": "claude-haiku-4-5-20251001"},
+        "Gemini 2.5 Flash": {"provider": "gemini", "model_id": "gemini-2.5-flash"},
+        "Gemini 2.5 Pro": {"provider": "gemini", "model_id": "gemini-2.5-pro-preview-06-05"},
+        "GPT-4o": {"provider": "openai", "model_id": "gpt-4o"},
+        "GPT-4o mini": {"provider": "openai", "model_id": "gpt-4o-mini"},
+        "Swedish Chef": {"provider": "openai_chef", "model_id": "gpt-4o-mini"},
     }
 
     user_query = st.text_input(
@@ -833,20 +833,22 @@ def render_ask_claude(events):
         )
 
     # Swedish Chef mode is driven by the model dropdown selection
-    _is_chef = _AI_MODELS.get(selected_model) == "openai_chef"
+    _model_info = _AI_MODELS.get(selected_model, {})
+    _is_chef = _model_info.get("provider") == "openai_chef"
     st.session_state.swedish_chef = _is_chef
 
     processing_container = st.container()
 
     if user_query and analyze_clicked:
-        provider = _AI_MODELS[selected_model]
+        provider = _model_info.get("provider", "claude")
+        model_id = _model_info.get("model_id", "")
         if provider == "claude":
-            run_claude_analysis(user_query, events, processing_container)
+            run_claude_analysis(user_query, events, processing_container, model_id=model_id)
         elif provider == "gemini":
-            run_gemini_analysis(user_query, events, processing_container)
+            run_gemini_analysis(user_query, events, processing_container, model_id=model_id)
         else:
             # Both "openai" and "openai_chef" route to OpenAI
-            run_openai_analysis(user_query, events, processing_container)
+            run_openai_analysis(user_query, events, processing_container, model_id=model_id)
 
     # Also handle pending actions from Ask AI button clicks on code rows
     pending = st.session_state.pop("_ask_claude_pending", False)
@@ -1249,7 +1251,7 @@ with st.sidebar:
         value=st.session_state.debug_payload,
         help="Show request/response payloads for Claude and Gemini API calls",
     )
-    if st.button("Clear AI cache", help="Clear cached Claude/Gemini responses and history"):
+    if st.button("Clear AI cache", help="Clear cached Claude/Gemini/OpenAI responses and history"):
         st.session_state.claude_cache = {}
         st.session_state.claude_answer = None
         st.session_state.claude_query_label = None
@@ -1258,10 +1260,15 @@ with st.sidebar:
         st.session_state.gemini_answer = None
         st.session_state.gemini_query_label = None
         st.session_state.gemini_history = []
+        st.session_state.openai_cache = {}
+        st.session_state.openai_answer = None
+        st.session_state.openai_query_label = None
+        st.session_state.openai_history = []
         if CACHE_FILE.exists():
             CACHE_FILE.unlink()
         _save_history([])
         _save_gemini_history([])
+        _save_openai_history([])
         log.info("cache Cleared all AI caches")
         st.success("Cache cleared")
 
