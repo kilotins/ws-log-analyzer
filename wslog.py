@@ -80,7 +80,7 @@ SECRET_REPLACERS = [
     # Azure SAS token signatures
     (re.compile(r'(?i)(sig=)[A-Za-z0-9%+/=]+'), r'\1***REDACTED***'),
     # Authorization Digest header
-    (re.compile(r'(?i)(authorization:\s*digest\s+)\S+'), r'\1***REDACTED***'),
+    (re.compile(r'(?i)(authorization:\s*digest\s+)[^\n]+'), r'\1***REDACTED***'),
 ]
 
 def open_text(path: Path) -> IO[str]:
@@ -768,7 +768,8 @@ def likely_causes(events: list[dict]) -> list[dict[str, object]]:
         h_keywords.append(_heuristic_keywords(h))
 
     # First pass: find candidate heuristics via keyword pre-filter
-    candidates = set()
+    # Heuristics with no extractable keywords are always candidates
+    candidates = {idx for idx, kws in enumerate(h_keywords) if not kws}
     for e in events:
         text_lower = e.get("text", "").lower()
         for idx, kws in enumerate(h_keywords):

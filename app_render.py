@@ -273,6 +273,11 @@ def render_samples(samples):
 
     total = len(samples)
     # Determine how many to show
+    # Reset pagination when analysis changes
+    current_total = len(samples)
+    if st.session_state.get("_samples_total") != current_total:
+        st.session_state["_samples_show_all"] = False
+        st.session_state["_samples_total"] = current_total
     show_all = st.session_state.get("_samples_show_all", False)
     if total > _SAMPLES_PAGE_SIZE and not show_all:
         visible = samples[:_SAMPLES_PAGE_SIZE]
@@ -489,6 +494,10 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     with st.expander("Ask AI for help", expanded=True):
         render_ask_claude(display_events, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
+
+    # Render AI responses outside the expander to avoid scroll issues with long content
+    from app_ai import render_ai_responses
+    render_ai_responses()
 
     claude_splunk_count = sum(len(e.get("splunk_queries", []))
                                for e in st.session_state.claude_history)
