@@ -60,6 +60,9 @@ from app import (                       # noqa: E402
     _is_safe_rt_path,
     _load_keychain,
     _save_keychain,
+    _load_provider_history,
+    _save_provider_history,
+    _PROVIDER_CONFIG,
     REPORTS_DIR,
 )
 
@@ -355,3 +358,63 @@ class TestKeychainHelpers:
         with mock.patch.dict(sys.modules, {"keyring": mock_keyring}):
             # Should not raise
             _save_keychain("test_user", "key", label="Test")
+
+
+# ── _load_provider_history / _save_provider_history ──────────────────────
+
+class TestProviderHistory:
+    def test_load_empty(self, tmp_path):
+        f = tmp_path / "history.json"
+        assert _load_provider_history(f) == []
+
+    def test_save_and_load_roundtrip(self, tmp_path):
+        f = tmp_path / "history.json"
+        data = [{"query": "test", "answer": "ok", "timestamp": "12:00:00"}]
+        _save_provider_history(f, data)
+        assert _load_provider_history(f) == data
+
+    def test_save_truncates_to_max(self, tmp_path):
+        f = tmp_path / "history.json"
+        import app as app_mod
+        orig_max = app_mod.MAX_HISTORY_ENTRIES
+        try:
+            app_mod.MAX_HISTORY_ENTRIES = 3
+            data = [{"query": f"q{i}", "answer": f"a{i}", "timestamp": "00:00"} for i in range(10)]
+            _save_provider_history(f, data)
+            loaded = _load_provider_history(f)
+            assert len(loaded) == 3
+            assert loaded[0]["query"] == "q7"  # kept last 3
+        finally:
+            app_mod.MAX_HISTORY_ENTRIES = orig_max
+
+    def test_load_corrupt_returns_empty(self, tmp_path):
+        f = tmp_path / "history.json"
+        f.write_text("not json!", encoding="utf-8")
+        assert _load_provider_history(f) == []
+
+    def test_load_non_list_returns_empty(self, tmp_path):
+        f = tmp_path / "history.json"
+        f.write_text('{"key": "value"}', encoding="utf-8")
+        assert _load_provider_history(f) == []
+
+
+# ── _PROVIDER_CONFIG ─────────────────────────────────────────────────────
+
+class TestProviderConfig:
+    @pytest.mark.parametrize("provider", ["claude", "gemini", "openai"])
+    def test_all_providers_have_required_keys(self, provider):
+        cfg = _PROVIDER_CONFIG[provider]
+        required = ["label", "cache_key", "answer_key", "query_label_key",
+                     "history_key", "api_key_field", "save_history",
+                     "extract_splunk", "api_key_error"]
+        for key in required:
+            assert key in cfg, f"Missing key '{key}' in {provider} config"
+
+    def test_claude_extracts_splunk(self):
+        assert _PROVIDER_CONFIG["claude"]["extract_splunk"] is True
+
+    def test_gemini_does_not_extract_splunk(self):
+        assert _PROVIDER_CONFIG["gemini"]["extract_splunk"] is False
+
+    def test_openai_does_not_extract_splunk(self):
+        assert _PROVIDER_CONFIG["openai"]["extract_splunk"] is False

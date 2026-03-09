@@ -28,11 +28,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 2.1 | Extract `_run_ai_analysis(provider, model_id, user_query, events, container)` — common orchestration for cache lookup, API call, history recording, cache storage | `app.py` | [ ] |
-| 2.2 | Reduce `run_claude_analysis` / `run_gemini_analysis` / `run_openai_analysis` to thin wrappers calling the common function with provider-specific API logic | `app.py` | [ ] |
-| 2.3 | Consolidate history helpers — single `_load_provider_history(path)` / `_save_provider_history(path, data)` replacing 6 duplicate functions | `app.py` | [ ] |
-| 2.4 | Extend `_AI_MODELS` dict to include `model_id` per entry (not just provider string) | `app.py` | [ ] |
-| 2.5 | Add unit tests for the new common orchestration function | `tests/test_app_helpers.py` | [ ] |
+| 2.1 | Extract `_run_ai_analysis(provider, model_id, user_query, events, container)` — common orchestration for cache lookup, API call, history recording, cache storage | `app.py` | [x] |
+| 2.2 | Reduce `run_claude_analysis` / `run_gemini_analysis` / `run_openai_analysis` to thin wrappers calling the common function with provider-specific API logic | `app.py` | [x] |
+| 2.3 | Consolidate history helpers — single `_load_provider_history(path)` / `_save_provider_history(path, data)` replacing 6 duplicate functions | `app.py` | [x] |
+| 2.4 | Extend `_AI_MODELS` dict to include `model_id` per entry (not just provider string) | `app.py` | [x] |
+| 2.5 | Add unit tests for the new common orchestration function | `tests/test_app_helpers.py` | [x] |
 
 **Acceptance**: Net reduction of ~120 lines. Same behavior. All tests pass. Adding a new AI provider in the future requires only ~15 lines.
 
@@ -75,6 +75,6 @@
 | Milestone | Tasks | Done | Status |
 |-----------|-------|------|--------|
 | 1 — Buggfixar & hygien | 5 | 5 | Done |
-| 2 — DRY AI-funktioner | 5 | 0 | Not started |
+| 2 — DRY AI-funktioner | 5 | 5 | Done |
 | 3 — Streaming & UX | 5 | 0 | Not started |
 | 4 — Kvalitet & polish | 5 | 0 | Not started |
