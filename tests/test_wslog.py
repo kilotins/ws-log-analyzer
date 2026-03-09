@@ -14,6 +14,7 @@ from wslog import (
     _extract_hung_thread_name, _extract_stack_sample,
     match_user_query, build_claude_prompt, claude_cache_key, _truncate_event_text, _sanitize_prompt_input,
     select_skills, load_skill_content, MAX_SKILLS, precompute_analysis,
+    render_csv_report, render_xml_report,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE,
 )
@@ -2147,3 +2148,42 @@ def test_sanitize_strips_all_tag_types(tag):
     assert f"<{tag}>" not in cleaned
     assert f"</{tag}>" not in cleaned
     assert "injected" in cleaned
+
+
+# --- XML export tests ---
+
+class TestRenderXmlReport:
+    def test_xml_has_header(self):
+        events = [{"ts": "2025-01-01 12:00:00", "level": "ERROR", "text": "fail"}]
+        xml = render_xml_report(events)
+        assert xml.startswith('<?xml version="1.0"')
+        assert "<events>" in xml
+        assert "</events>" in xml
+
+    def test_xml_contains_event_fields(self):
+        events = [{"ts": "2025-01-01", "level": "ERROR", "code": "SRVE0293E",
+                    "exception": "NullPointerException", "tags": ["HTTP"], "text": "error text"}]
+        xml = render_xml_report(events)
+        assert "<level>ERROR</level>" in xml
+        assert "<code>SRVE0293E</code>" in xml
+        assert "<exception>NullPointerException</exception>" in xml
+        assert "<tags>HTTP</tags>" in xml
+        assert "<text>error text</text>" in xml
+
+    def test_xml_escapes_special_chars(self):
+        events = [{"ts": "2025-01-01", "level": "ERROR", "text": "a < b & c > d"}]
+        xml = render_xml_report(events)
+        assert "&lt;" in xml
+        assert "&amp;" in xml
+        assert "&gt;" in xml
+
+    def test_xml_empty_events(self):
+        xml = render_xml_report([])
+        assert "<events>" in xml
+        assert "</events>" in xml
+        assert "<event>" not in xml
+
+    def test_xml_truncates_text(self):
+        events = [{"text": "x" * 1000}]
+        xml = render_xml_report(events, max_text=100)
+        assert len(xml) < 500  # Truncated, not full 1000 chars

@@ -1038,6 +1038,27 @@ def render_csv_report(events: list[dict], max_text: int = 500) -> str:
     return buf.getvalue()
 
 
+def render_xml_report(events: list[dict], max_text: int = 500) -> str:
+    """Generate an XML export of parsed events."""
+    from xml.sax.saxutils import escape
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>', '<events>']
+    for e in events:
+        lines.append('  <event>')
+        for field in ("ts", "level", "code", "exception", "root_cause", "thread_id", "file"):
+            val = e.get(field, "")
+            if val:
+                lines.append(f'    <{field}>{escape(str(val))}</{field}>')
+        tags = e.get("tags", [])
+        if tags:
+            lines.append('    <tags>' + escape(", ".join(tags)) + '</tags>')
+        text = (e.get("text", "")[:max_text]).replace("\n", " ")
+        if text:
+            lines.append(f'    <text>{escape(text)}</text>')
+        lines.append('  </event>')
+    lines.append('</events>')
+    return "\n".join(lines)
+
+
 def render_pdf_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None) -> bytes:
     """Generate a PDF triage report and return the bytes."""
     from fpdf import FPDF
