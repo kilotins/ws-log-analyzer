@@ -2,10 +2,14 @@
 
 ```
 ws-log-analyzer/
-├── wslog.py              # Core engine + CLI (~1684 lines, all logic here)
-├── app.py                # Streamlit web GUI (~2041 lines)
+├── wslog.py              # Core engine + CLI (~1733 lines, all logic here)
+├── app.py                # Streamlit GUI entry point (646 lines)
+├── app_ai.py             # AI provider orchestration (655 lines)
+├── app_render.py         # Report rendering UI (510 lines)
+├── app_audit.py          # Audit report generation (292 lines)
+├── app_realtime.py       # Realtime log monitoring (150 lines)
 ├── tests/
-│   ├── test_wslog.py     # 266 pytest unit tests for core engine
+│   ├── test_wslog.py     # 299 pytest unit tests for core engine
 │   ├── test_app_helpers.py  # 92 pytest unit tests for app helpers
 │   └── test_app_e2e.py   # 27 Playwright end-to-end tests
 ├── skills/               # Domain knowledge (10 files: message-codes, stacktrace-analysis, etc.)
@@ -25,7 +29,7 @@ ws-log-analyzer/
 └── cache/                # AI response cache + history (runtime, gitignored)
 ```
 
-## `wslog.py` — Core Engine + CLI (~1641 lines)
+## `wslog.py` — Core Engine + CLI (~1733 lines)
 
 The entire analysis pipeline lives in one file with no required dependencies (stdlib only). It breaks down into four layers:
 
@@ -78,7 +82,7 @@ Functions that consume parsed events to produce insights:
 | `match_user_query()` | Matches user input against events by code, exception, or free text |
 | `build_claude_prompt()` | Returns `{system, user}` dict with prompt injection protection |
 | `_sanitize_prompt_input()` | Strips XML delimiter tags (incl. `<system_instruction>`) from untrusted input |
-| `claude_cache_key()` | Stable cache key from query + match context (pipe-delimited string of query, codes, exceptions, tags, match type) |
+| `claude_cache_key()` | Stable cache key from query + match context — SHA-256 hashed so queries are not readable in the cache file |
 | `ask_gemini()` | Gemini API call with separate `system_instruction` parameter |
 | `incident_timeline()` | Groups errors into incidents within a configurable time window |
 | `select_skills()` | Picks relevant domain skill files based on tags, codes, exceptions, query |
@@ -96,9 +100,9 @@ Functions that consume parsed events to produce insights:
 
 `main()` wires argparse to the pipeline. Supports multi-file input with progress output, markdown/JSON output, and optional `--claude` integration (lazy-imports `anthropic`).
 
-## `app.py` — Streamlit GUI (~2041 lines)
+## `app.py` — Streamlit GUI (split across modules)
 
-UI layer that imports from `wslog.py`. No analysis logic lives here.
+UI layer that imports from `wslog.py`. No analysis logic lives here. The GUI is split into modules: `app.py` (646 lines, entry point and layout), `app_ai.py` (655 lines, AI provider orchestration), `app_render.py` (510 lines, report rendering), `app_audit.py` (292 lines, audit report generation), and `app_realtime.py` (150 lines, realtime log monitoring).
 
 ### Key GUI Features
 
@@ -150,10 +154,11 @@ Key pattern: analysis runs only on "Analyze" button click, stores everything in 
 
 ### Caching
 
-Two-layer cache for AI responses (Claude and Gemini share the same mechanism):
-1. **Session cache** (`claude_cache` / `gemini_cache`) — fast in-memory lookup
+Two-layer cache for AI responses (Claude, Gemini, and OpenAI share the same mechanism):
+1. **Session cache** (`claude_cache` / `gemini_cache` / `openai_cache`) — fast in-memory lookup
 2. **File cache** (`cache/ai_responses.json`) — persists between sessions, max 100 entries
 
+Cache keys are SHA-256 hashed so queries are not readable in `ai_responses.json`.
 Gemini cache keys are prefixed with `"gemini:"` to avoid collisions.
 Claude query history stored in `cache/claude_history.json` (max 50 entries), loaded on fresh session.
 

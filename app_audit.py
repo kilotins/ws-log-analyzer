@@ -1,7 +1,9 @@
 """Audit tab module for the Streamlit GUI."""
 from __future__ import annotations
 
+import ast
 import sys
+import textwrap
 import streamlit as st
 from datetime import datetime
 from pathlib import Path
@@ -57,22 +59,19 @@ Start the report with: # Technical Audit Report — WS Log Analyzer
 _COMPACT_MAX_LINES = 250  # Max lines per file in compact mode
 
 
-def _extract_signatures(content: str) -> str:
-    """Extract function/class signatures and docstrings from Python source for compact audit."""
+def _extract_signatures_regex(content: str) -> str:
+    """Regex fallback: extract function/class signatures and docstrings from Python source."""
     lines = content.splitlines()
     result = []
     i = 0
     while i < len(lines):
         line = lines[i]
         stripped = line.lstrip()
-        # Keep imports, constants, class/function defs
         if (stripped.startswith(("import ", "from ", "class ", "def "))
                 or (stripped and not stripped.startswith("#") and "=" in stripped.split("#")[0]
                     and not stripped.startswith(" ") and not stripped.startswith("\t"))):
             result.append(line)
-            # If it's a def/class, grab the docstring
             if stripped.startswith(("def ", "class ")):
-                # Multi-line signature (only if current line doesn't end with ':')
                 if not line.rstrip().endswith(":"):
                     i += 1
                     while i < len(lines) and not lines[i].rstrip().endswith(":"):
@@ -81,10 +80,9 @@ def _extract_signatures(content: str) -> str:
                     if i < len(lines):
                         result.append(lines[i])
                 i += 1
-                # Docstring
                 if i < len(lines) and '"""' in lines[i]:
                     result.append(lines[i])
-                    if lines[i].count('"""') < 2:  # multi-line docstring
+                    if lines[i].count('"""') < 2:
                         i += 1
                         while i < len(lines) and '"""' not in lines[i]:
                             result.append(lines[i])
@@ -95,6 +93,97 @@ def _extract_signatures(content: str) -> str:
                     continue
         i += 1
     return "\n".join(result)
+
+
+def _extract_signatures(content: str) -> str:
+    """Extract function/class signatures and docstrings from Python source using AST.
+
+    Falls back to regex-based extraction if ast.parse() fails (e.g. non-Python or partial files).
+    """
+    source_lines = content.splitlines()
+
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return _extract_signatures_regex(content)
+
+    result = []
+
+    def _get_source_line(lineno: int) -> str:
+        """Return 0-indexed source line."""
+        return source_lines[lineno - 1] if 1 <= lineno <= len(source_lines) else ""
+
+    def _get_docstring_lines(node) -> list[str]:
+        """Extract docstring lines from a function/class node."""
+        ds = ast.get_docstring(node)
+        if not ds:
+            return []
+        # Find the actual docstring node to get its source lines
+        first_stmt = node.body[0]
+        lines_out = []
+        for ln in range(first_stmt.lineno, first_stmt.end_lineno + 1):
+            lines_out.append(_get_source_line(ln))
+        return lines_out
+
+    def _get_decorator_lines(node) -> list[str]:
+        """Extract decorator lines from a function/class node."""
+        lines_out = []
+        for dec in node.decorator_list:
+            for ln in range(dec.lineno, dec.end_lineno + 1):
+                lines_out.append(_get_source_line(ln))
+        return lines_out
+
+    def _get_signature_lines(node) -> list[str]:
+        """Extract the def/class signature line(s) up to the colon."""
+        lines_out = []
+        # The signature spans from node.lineno to the line containing the colon
+        # For functions/classes the body starts after the signature
+        body_start = node.body[0].lineno if node.body else node.end_lineno
+        for ln in range(node.lineno, body_start):
+            line = _get_source_line(ln)
+            lines_out.append(line)
+            if line.rstrip().endswith(":"):
+                break
+        if not lines_out:
+            lines_out.append(_get_source_line(node.lineno))
+        return lines_out
+
+    def _process_class(cls_node, indent=0):
+        """Process a class definition: signature, docstring, and method signatures."""
+        result.extend(_get_decorator_lines(cls_node))
+        result.extend(_get_signature_lines(cls_node))
+        result.extend(_get_docstring_lines(cls_node))
+        # Process methods inside the class
+        for item in cls_node.body:
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                result.extend(_get_decorator_lines(item))
+                result.extend(_get_signature_lines(item))
+                result.extend(_get_docstring_lines(item))
+            elif isinstance(item, ast.ClassDef):
+                _process_class(item, indent + 1)
+
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            # Emit import lines as-is from source
+            for ln in range(node.lineno, node.end_lineno + 1):
+                result.append(_get_source_line(ln))
+        elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            # Module-level constant/assignment — first line only
+            result.append(_get_source_line(node.lineno))
+        elif isinstance(node, ast.ClassDef):
+            _process_class(node)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            result.extend(_get_decorator_lines(node))
+            result.extend(_get_signature_lines(node))
+            result.extend(_get_docstring_lines(node))
+
+    # Respect compact limit
+    output = "\n".join(result)
+    out_lines = output.splitlines()
+    if len(out_lines) > _COMPACT_MAX_LINES:
+        out_lines = out_lines[:_COMPACT_MAX_LINES]
+        output = "\n".join(out_lines)
+    return output
 
 
 def _collect_audit_sources(compact=False):

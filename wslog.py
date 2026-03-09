@@ -71,6 +71,12 @@ SECRET_REPLACERS = [
     (re.compile(r'(?i)(password|pwd)\s*=\s*[^;,\s]+'), r'\1=[REDACTED]'),
     # JWT-like tokens (three base64 segments separated by dots)
     (re.compile(r'\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'), '[REDACTED_JWT]'),
+    # AWS access key IDs
+    (re.compile(r'\b(AKIA[0-9A-Z]{16})\b'), '***AWS_KEY***'),
+    # Authorization Basic header
+    (re.compile(r'(?i)(authorization:\s*basic\s+)[A-Za-z0-9+/=]+'), r'\1***REDACTED***'),
+    # PEM private key blocks
+    (re.compile(r'-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |DSA )?PRIVATE KEY-----'), '***PEM_KEY_REDACTED***'),
 ]
 
 def open_text(path: Path) -> IO[str]:
@@ -1351,7 +1357,7 @@ SWEDISH_CHEF_STYLE = (
 _SKILLS_DIR = Path(__file__).parent / "skills"
 
 _SKILL_TAG_MAP = {
-    "OOM/GC":      ["stacktrace-analysis.md"],
+    "OOM/GC":      ["stacktrace-analysis.md", "gc-performance.md"],
     "HungThreads": ["thread-correlation.md", "stacktrace-analysis.md"],
     "DB/Pool":     ["message-codes.md", "splunk-query.md"],
     "SSL/TLS":     ["security-analysis.md", "splunk-query.md"],
@@ -1383,6 +1389,10 @@ _SKILL_CODE_PREFIX_MAP = {
     "TCPC":  ["websphere-startup.md", "message-codes.md"],
     "CHFW":  ["websphere-startup.md", "message-codes.md"],
     "CNTR":  ["message-codes.md"],
+    "CWSID": ["jms-messaging.md", "message-codes.md"],
+    "CWSJY": ["jms-messaging.md", "message-codes.md"],
+    "CWSIV": ["jms-messaging.md", "message-codes.md"],
+    "CWSIT": ["jms-messaging.md", "message-codes.md"],
 }
 
 _SKILL_EXCEPTION_MAP = {
@@ -1409,6 +1419,10 @@ _SKILL_EXCEPTION_MAP = {
     "oauth":            ["security-analysis.md"],
     "openid":           ["security-analysis.md"],
     "asynccontext":     ["servlet-errors.md"],
+    "jmsexception":     ["jms-messaging.md"],
+    "sibexception":     ["jms-messaging.md"],
+    "messagingexception": ["jms-messaging.md"],
+    "gcoverhead":       ["gc-performance.md", "stacktrace-analysis.md"],
 }
 
 _SKILL_QUERY_KEYWORDS = {
@@ -1451,6 +1465,18 @@ _SKILL_QUERY_KEYWORDS = {
     "transaction":  ["message-codes.md", "stacktrace-analysis.md"],
     "pool":         ["message-codes.md", "splunk-query.md"],
     "connection":   ["message-codes.md", "splunk-query.md"],
+    "jms":          ["jms-messaging.md"],
+    "messaging":    ["jms-messaging.md"],
+    "queue":        ["jms-messaging.md"],
+    "sib":          ["jms-messaging.md"],
+    "mdb":          ["jms-messaging.md"],
+    "topic":        ["jms-messaging.md"],
+    "gc":           ["gc-performance.md"],
+    "garbage":      ["gc-performance.md"],
+    "heap":         ["gc-performance.md"],
+    "tuning":       ["gc-performance.md"],
+    "heap dump":    ["gc-performance.md"],
+    "memory leak":  ["gc-performance.md"],
 }
 
 
@@ -1699,7 +1725,7 @@ def main():
         prompt = build_claude_prompt(cli_query, cli_match)
 
         # Override user content with the full report (CLI sends report, not individual events)
-        safe_report = _sanitize_prompt_input(report[:12000])
+        safe_report = _sanitize_prompt_input(report)[:12000]
         cli_instruction = (
             "Based on the triage report below, give:\n"
             "1) likely root causes (ranked),\n"
