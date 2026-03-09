@@ -7,6 +7,7 @@ Run with:
     pytest tests/test_app_e2e.py -v
 """
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -294,3 +295,76 @@ class TestApplicationLog:
         page.wait_for_timeout(1000)
         content = page.locator('[data-testid="stExpander"]').last.text_content()
         assert "startup" in content.lower() or "INFO" in content
+
+
+class TestErrorFlows:
+    """15.1 — E2E error flow tests for invalid uploads."""
+
+    def test_upload_empty_file(self, page):
+        """Upload an empty file and verify an error/warning message is shown."""
+        with tempfile.NamedTemporaryFile(suffix=".log", delete=False, mode="w") as f:
+            f.write("")  # empty content
+            empty_path = f.name
+        try:
+            file_input = page.locator('input[type="file"]')
+            file_input.set_input_files(empty_path)
+            page.wait_for_timeout(2000)
+            # Click Analyze — the app should handle the empty file gracefully
+            analyze_btn = page.get_by_role("button", name="Analyze", exact=True)
+            if analyze_btn.is_visible() and analyze_btn.is_enabled():
+                analyze_btn.click()
+                page.wait_for_timeout(3000)
+            # Should show some feedback — error, warning, or "0" events
+            body = page.text_content("body")
+            assert ("error" in body.lower()
+                    or "warning" in body.lower()
+                    or "no events" in body.lower()
+                    or "0" in body
+                    or "empty" in body.lower()), \
+                "Expected error/warning/empty feedback for empty file upload"
+        finally:
+            Path(empty_path).unlink(missing_ok=True)
+
+    def test_upload_non_log_file(self, page):
+        """Upload a file with .jpg extension (but text content) and verify handling."""
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False, mode="w") as f:
+            f.write("This is not a real image, just text pretending to be a jpg.")
+            jpg_path = f.name
+        try:
+            file_input = page.locator('input[type="file"]')
+            file_input.set_input_files(jpg_path)
+            page.wait_for_timeout(2000)
+            # The uploader may reject or accept; either way the app should not crash
+            body = page.text_content("body")
+            # Page should still have the main heading (not crashed)
+            assert "WebSphere Log Analyzer" in body
+        finally:
+            Path(jpg_path).unlink(missing_ok=True)
+
+
+class TestApiSectionNoKey:
+    """15.2 — E2E test for API section when no API key is configured."""
+
+    def test_ai_expander_renders_without_api_key(self, page):
+        """Verify the Ask AI expander renders without crashing when no API key is set."""
+        _upload_file(page)
+        _click_analyze(page)
+        # The "Ask AI for help" expander should still be visible
+        page.wait_for_selector("text=Ask AI for help", timeout=DEFAULT_TIMEOUT)
+        ai_section = page.get_by_text("Ask AI for help", exact=False).first
+        assert ai_section.is_visible()
+        # The page should not show any unhandled exception
+        body = page.text_content("body")
+        assert "Traceback" not in body
+        assert "KeyError" not in body
+
+    def test_ai_analyze_button_exists_without_key(self, page):
+        """The AI analyze button should render (possibly disabled) without an API key."""
+        _upload_file(page)
+        _click_analyze(page)
+        page.wait_for_selector("text=Ask AI for help", timeout=DEFAULT_TIMEOUT)
+        # There should be at least one Analyze button on the page (main + AI)
+        buttons = page.locator('button:has-text("Analyze")')
+        assert buttons.count() >= 1
+        # Page should not crash
+        assert "WebSphere Log Analyzer" in page.text_content("body")

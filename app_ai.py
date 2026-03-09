@@ -11,11 +11,11 @@ from wslog import (
     SWEDISH_CHEF_STYLE, ask_gemini,
     estimate_tokens, TOKEN_LIMITS,
 )
-from app_constants import AI_RATE_LIMIT_SECONDS as _AI_RATE_LIMIT_SECONDS_DEFAULT
+from app_constants import AI_RATE_LIMIT_SECONDS
 
 
 # --- Provider configuration for the common AI orchestrator ---
-_PROVIDER_CONFIG = {
+PROVIDER_CONFIG = {
     "claude": {
         "label": "Claude",
         "cache_key": "claude_cache",
@@ -62,11 +62,11 @@ def init_provider_config(save_history_funcs: dict):
         save_history_funcs: dict mapping provider name -> save function
     """
     for provider, func in save_history_funcs.items():
-        _PROVIDER_CONFIG[provider]["save_history"] = func
+        PROVIDER_CONFIG[provider]["save_history"] = func
 
 
 # Approximate cost per 1M tokens (input, output) in USD
-_TOKEN_COSTS = {
+TOKEN_COSTS = {
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-haiku-4-5-20251001": (0.80, 4.00),
     "claude-opus-4-6": (15.00, 75.00),
@@ -80,7 +80,7 @@ _TOKEN_COSTS = {
 }
 
 
-_AI_MODELS = {
+AI_MODELS = {
     "Claude Sonnet 4.6": {"provider": "claude", "model_id": "claude-sonnet-4-6"},
     "Claude Haiku 4.5": {"provider": "claude", "model_id": "claude-haiku-4-5-20251001"},
     "Gemini 2.5 Flash": {"provider": "gemini", "model_id": "gemini-2.5-flash"},
@@ -91,13 +91,13 @@ _AI_MODELS = {
 }
 
 
-def _estimate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float:
+def estimate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float:
     """Estimate cost in USD given model and token counts."""
-    costs = _TOKEN_COSTS.get(model_id, (0, 0))
+    costs = TOKEN_COSTS.get(model_id, (0, 0))
     return (input_tokens * costs[0] + output_tokens * costs[1]) / 1_000_000
 
 
-def _call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
+def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
     """Make the actual Claude API call with optional streaming. Returns (answer, usage_dict)."""
     try:
         from anthropic import Anthropic
@@ -131,7 +131,7 @@ def _call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placehold
     return (message.content[0].text, usage)
 
 
-def _call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
+def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
     """Make the actual Gemini API call. Returns (answer, usage_dict). Streaming not supported."""
     answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id)
     # Gemini SDK doesn't return token usage, so estimate from prompt/response text
@@ -145,7 +145,7 @@ def _call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placehold
     return (answer or None, usage)
 
 
-def _call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
+def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
     """Make the actual OpenAI API call with optional streaming. Returns (answer, usage_dict)."""
     try:
         from openai import OpenAI
@@ -188,13 +188,11 @@ def _call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placehold
 
 
 _API_CALLERS = {
-    "claude": _call_claude_api,
-    "gemini": _call_gemini_api,
-    "openai": _call_openai_api,
+    "claude": call_claude_api,
+    "gemini": call_gemini_api,
+    "openai": call_openai_api,
 }
 
-
-_AI_RATE_LIMIT_SECONDS = _AI_RATE_LIMIT_SECONDS_DEFAULT
 
 
 def build_ai_request_context(user_query: str, events: list[dict], provider: str = "claude", log=None) -> dict:
@@ -215,37 +213,85 @@ def build_ai_request_context(user_query: str, events: list[dict], provider: str 
     return match, cache_key, prompt
 
 
-def _extract_splunk_from_response(text):
+def extract_splunk_from_response(text):
     """Extract Splunk queries from a Claude response.
+
+    Uses a line-by-line state-machine parser that handles nested fences
+    and inline backticks correctly.
 
     Returns list of {description, query} dicts.
     """
     from app_render import _looks_like_splunk, _split_combined_splunk
 
     results = []
-    parts = _re.split(r'(```[^\n]*\n.*?\n```)', text, flags=_re.DOTALL)
-    for i, part in enumerate(parts):
-        code_match = _re.match(r'```(\w*)\n(.*?)\n```$', part, flags=_re.DOTALL)
-        if not code_match:
-            continue
-        lang = code_match.group(1).lower()
-        code = code_match.group(2).strip()
-        if lang in ("spl", "splunk", "") and _looks_like_splunk(code):
-            # Split combined queries (-- separated) into individual entries
+    lines = text.split("\n")
+    in_block = False
+    fence_len = 0  # backtick length of the opening fence
+    block_lang = ""
+    block_lines = []
+    preceding_text = []  # non-code lines before the current block
+
+    for line in lines:
+        stripped = line.strip()
+        # Check if this line is a fence (3+ backticks at start)
+        if stripped.startswith("```"):
+            tick_count = 0
+            for ch in stripped:
+                if ch == "`":
+                    tick_count += 1
+                else:
+                    break
+
+            if not in_block:
+                # Opening fence
+                in_block = True
+                fence_len = tick_count
+                block_lang = stripped[tick_count:].strip().lower()
+                block_lines = []
+            elif tick_count >= fence_len:
+                # Closing fence (must be at least as long as opening)
+                in_block = False
+                code = "\n".join(block_lines).strip()
+                if block_lang in ("spl", "splunk", "") and code and _looks_like_splunk(code):
+                    split = _split_combined_splunk(code)
+                    if len(split) > 1:
+                        results.extend(split)
+                    else:
+                        # Use preceding text as description
+                        desc = ""
+                        for prev_line in reversed(preceding_text):
+                            candidate = prev_line.strip().strip("*").strip("#").strip()
+                            if candidate:
+                                desc = candidate
+                                break
+                        results.append({"description": desc or "Splunk query", "query": code})
+                block_lines = []
+                block_lang = ""
+                fence_len = 0
+            else:
+                # Nested fence (shorter than opening) — treat as content
+                block_lines.append(line)
+        elif in_block:
+            block_lines.append(line)
+        else:
+            preceding_text.append(line)
+
+    # If a code block was never closed, still check its content
+    if in_block and block_lines:
+        code = "\n".join(block_lines).strip()
+        if block_lang in ("spl", "splunk", "") and code and _looks_like_splunk(code):
             split = _split_combined_splunk(code)
             if len(split) > 1:
                 results.extend(split)
             else:
-                # Single query -- use preceding text as description
                 desc = ""
-                if i > 0:
-                    prev = parts[i - 1].strip()
-                    for line in reversed(prev.splitlines()):
-                        line = line.strip().strip("*").strip("#").strip()
-                        if line:
-                            desc = line
-                            break
+                for prev_line in reversed(preceding_text):
+                    candidate = prev_line.strip().strip("*").strip("#").strip()
+                    if candidate:
+                        desc = candidate
+                        break
                 results.append({"description": desc or "Splunk query", "query": code})
+
     return results
 
 
@@ -255,12 +301,12 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
     import time as _time
     now = _time.time()
     elapsed = now - st.session_state.last_ai_call_ts
-    if elapsed < _AI_RATE_LIMIT_SECONDS:
-        st.warning(f"Rate limit: wait {_AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
+    if elapsed < AI_RATE_LIMIT_SECONDS:
+        st.warning(f"Rate limit: wait {AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
         return
     st.session_state.last_ai_call_ts = now
 
-    cfg = _PROVIDER_CONFIG[provider]
+    cfg = PROVIDER_CONFIG[provider]
     label = cfg["label"]
 
     if log:
@@ -284,7 +330,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
             "timestamp": datetime.now().strftime("%H:%M:%S"),
         }
         if cfg["extract_splunk"]:
-            entry["splunk_queries"] = _extract_splunk_from_response(answer)
+            entry["splunk_queries"] = extract_splunk_from_response(answer)
         hist = getattr(st.session_state, cfg["history_key"])
         if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
             hist.append(entry)
@@ -356,7 +402,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
         if usage:
             inp = usage.get("input", 0)
             out = usage.get("output", 0)
-            cost = _estimate_cost(model_id, inp, out)
+            cost = estimate_cost(model_id, inp, out)
             cost_info = f" -- {inp:,}+{out:,} tokens (~${cost:.4f})"
             if log:
                 log.info("%s tokens: %d in / %d out, est cost: $%.4f", label, inp, out, cost)
@@ -495,29 +541,73 @@ def _render_chef_sound_button():
 # --- AI response rendering ---
 
 def _render_claude_response(text):
-    """Render Claude response with separate copyable blocks for each Splunk query."""
+    """Render Claude response with separate copyable blocks for each Splunk query.
+
+    Uses a line-by-line state-machine parser that handles nested fences correctly.
+    """
     from app_render import _looks_like_splunk, _split_combined_splunk
 
-    parts = _re.split(r'(```[^\n]*\n.*?\n```)', text, flags=_re.DOTALL)
-    for part in parts:
-        code_match = _re.match(r'```(\w*)\n(.*?)\n```$', part, flags=_re.DOTALL)
-        if code_match:
-            lang = code_match.group(1).lower()
-            code = code_match.group(2).strip()
-            if lang in ("spl", "splunk", "") and _looks_like_splunk(code):
-                queries = _split_combined_splunk(code)
-                if len(queries) > 1:
-                    for sq in queries:
-                        st.markdown(f"**{sq['description']}**")
-                        st.code(sq["query"], language="spl")
-                else:
-                    st.code(code, language="spl")
+    lines = text.split("\n")
+    in_block = False
+    fence_len = 0
+    block_lang = ""
+    block_lines = []
+    prose_lines = []
+
+    def _flush_prose():
+        content = "\n".join(prose_lines).strip()
+        if content:
+            st.markdown(content)
+        prose_lines.clear()
+
+    def _flush_code(lang, code_text):
+        code_text = code_text.strip()
+        if not code_text:
+            return
+        if lang in ("spl", "splunk", "") and _looks_like_splunk(code_text):
+            queries = _split_combined_splunk(code_text)
+            if len(queries) > 1:
+                for sq in queries:
+                    st.markdown(f"**{sq['description']}**")
+                    st.code(sq["query"], language="spl")
             else:
-                st.code(code, language=lang or None)
+                st.code(code_text, language="spl")
         else:
-            stripped = part.strip()
-            if stripped:
-                st.markdown(stripped)
+            st.code(code_text, language=lang or None)
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            tick_count = 0
+            for ch in stripped:
+                if ch == "`":
+                    tick_count += 1
+                else:
+                    break
+
+            if not in_block:
+                _flush_prose()
+                in_block = True
+                fence_len = tick_count
+                block_lang = stripped[tick_count:].strip().lower()
+                block_lines = []
+            elif tick_count >= fence_len:
+                in_block = False
+                _flush_code(block_lang, "\n".join(block_lines))
+                block_lines = []
+                block_lang = ""
+                fence_len = 0
+            else:
+                block_lines.append(line)
+        elif in_block:
+            block_lines.append(line)
+        else:
+            prose_lines.append(line)
+
+    # Flush remaining prose or unclosed code block
+    if in_block and block_lines:
+        _flush_code(block_lang, "\n".join(block_lines))
+    _flush_prose()
 
 
 def render_current_ai_analyses():
@@ -616,7 +706,7 @@ def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
     with col_model:
         selected_model = st.selectbox(
             "AI Model",
-            list(_AI_MODELS.keys()),
+            list(AI_MODELS.keys()),
             key="ai_analysis_model",
             label_visibility="collapsed",
         )
@@ -628,7 +718,7 @@ def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
             key="ai_analyze_btn",
         )
 
-    _model_info = _AI_MODELS.get(selected_model, {})
+    _model_info = AI_MODELS.get(selected_model, {})
     _is_chef = _model_info.get("provider") == "openai_chef"
     st.session_state.swedish_chef = _is_chef
 

@@ -17,10 +17,10 @@ from wslog import (
 
 # --- Extracted modules ---
 from app_ai import (
-    _PROVIDER_CONFIG, _TOKEN_COSTS, _AI_MODELS,
-    _estimate_cost, _call_claude_api, _call_gemini_api, _call_openai_api,
-    _AI_RATE_LIMIT_SECONDS, build_ai_request_context,
-    _extract_splunk_from_response,
+    PROVIDER_CONFIG, TOKEN_COSTS, AI_MODELS,
+    estimate_cost, call_claude_api, call_gemini_api, call_openai_api,
+    AI_RATE_LIMIT_SECONDS, build_ai_request_context,
+    extract_splunk_from_response,
     run_claude_analysis, run_gemini_analysis, run_openai_analysis,
     init_provider_config,
 )
@@ -29,7 +29,7 @@ from app_render import (
     render_code_row, render_summary, render_report_sections,
     render_splunk_section,
 )
-from app_constants import CACHE_TTL_SECONDS, MAX_CACHE_ENTRIES as _MAX_CACHE_ENTRIES_DEFAULT
+from app_constants import CACHE_TTL_SECONDS, MAX_CACHE_ENTRIES as _MAX_CACHE_ENTRIES_DEFAULT, MAX_UPLOAD_MB
 from app_realtime import (
     _LEVEL_COLORS, _LEVEL_HIGHLIGHT_RE, _highlight_line,
     _is_safe_rt_path, _rt_poll, _rt_live_view, _RT_BUFFER_SIZE,
@@ -151,7 +151,7 @@ _PROVIDER_HISTORY_FILES = {
     "openai": OPENAI_HISTORY_FILE,
 }
 
-# Initialize the save_history callbacks in _PROVIDER_CONFIG now that history files are set up
+# Initialize the save_history callbacks in PROVIDER_CONFIG now that history files are set up
 init_provider_config({
     "claude": lambda hist: _save_provider_history(HISTORY_FILE, hist),
     "gemini": lambda hist: _save_provider_history(GEMINI_HISTORY_FILE, hist),
@@ -218,11 +218,20 @@ _STATE_DEFAULTS = {
     "rt_buffer": None,
 }
 
+_EXPECTED_STATE_KEYS = set(_STATE_DEFAULTS.keys())
+
 for key, default in _STATE_DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = default
 if st.session_state.rt_buffer is None:
     st.session_state.rt_buffer = deque(maxlen=_RT_BUFFER_SIZE)
+
+# Session state schema validation — warn on unexpected keys in debug mode
+if st.session_state.get("debug_payload"):
+    _unexpected_keys = {k for k in st.session_state if k not in _EXPECTED_STATE_KEYS}
+    if _unexpected_keys:
+        log.warning("session_state Unexpected keys in session state: %s",
+                    ", ".join(sorted(_unexpected_keys)))
 
 # Load persisted history on fresh session
 for _prov, _hpath in _PROVIDER_HISTORY_FILES.items():
@@ -434,8 +443,13 @@ with tab_analyze:
 
     if uploaded_files and st.button("Analyze", type="primary"):
         total_size = sum(len(f.getvalue()) for f in uploaded_files)
-        if total_size > 50 * 1024 * 1024:
+        _over_limit = total_size > MAX_UPLOAD_MB * 1024 * 1024
+        if _over_limit:
+            st.error(f"Total upload size ({total_size / 1024 / 1024:.1f} MB) exceeds the {MAX_UPLOAD_MB} MB limit. Please upload smaller files.")
+        elif total_size > 50 * 1024 * 1024:
             st.warning("Large files detected (>50MB). Parsing may take a while.")
+        if _over_limit:
+            st.stop()
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         all_events = []
 

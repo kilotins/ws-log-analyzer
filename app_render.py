@@ -262,12 +262,24 @@ def render_incident_timeline(itl):
     st.plotly_chart(fig, use_container_width=True)
 
 
+_SAMPLES_PAGE_SIZE = 10
+
+
 def render_samples(samples):
-    """Render sample events."""
+    """Render sample events with pagination (first 10 by default)."""
     if not samples:
         st.caption("No events to display.")
         return
-    for idx, e in enumerate(samples, start=1):
+
+    total = len(samples)
+    # Determine how many to show
+    show_all = st.session_state.get("_samples_show_all", False)
+    if total > _SAMPLES_PAGE_SIZE and not show_all:
+        visible = samples[:_SAMPLES_PAGE_SIZE]
+    else:
+        visible = samples
+
+    for idx, e in enumerate(visible, start=1):
         header = f"{idx}. {e['level'] or 'UNKNOWN'}"
         if e["code"]:
             header += f" {e['code']}"
@@ -286,6 +298,12 @@ def render_samples(samples):
         if parts:
             st.text("  " + " | ".join(parts))
         st.code(e["text"][:4000], language="text")
+
+    # Show "Show all" button if there are more samples
+    if total > _SAMPLES_PAGE_SIZE and not show_all:
+        if st.button(f"Show all {total} samples", key="samples_show_all_btn"):
+            st.session_state["_samples_show_all"] = True
+            st.rerun()
 
 
 def _apply_event_filters(events, levels, code_prefix, exception_types, time_range):

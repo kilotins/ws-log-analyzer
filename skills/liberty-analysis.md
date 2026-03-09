@@ -192,3 +192,9 @@ Forced/ungraceful shutdown:
 4. Check metrics endpoint: `/metrics` → look for active request count
 5. If no response at all → check if process is alive (`ps aux | grep liberty`)
 6. Check messages.log (not SystemOut.log) — Liberty logs there by default
+
+## See Also
+
+- [websphere-startup.md](websphere-startup.md) — Traditional WAS startup vs Liberty startup differences
+- [servlet-errors.md](servlet-errors.md) — SRVE codes shared between Liberty and traditional WAS
+- [deployment-analysis.md](deployment-analysis.md) — Application deployment patterns on Liberty
