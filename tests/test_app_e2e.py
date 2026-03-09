@@ -266,16 +266,15 @@ class TestSwedishChefMode:
 
 
 class TestRealtimeMonitoring:
-    def test_realtime_toggle_in_sidebar(self, page):
-        sidebar = page.locator('[data-testid="stSidebar"]')
-        assert sidebar.get_by_text("Realtime monitoring", exact=False).first.is_visible()
+    def test_realtime_console_tab_exists(self, page):
+        tab = page.get_by_role("tab", name="Realtime Console")
+        assert tab.is_visible()
 
-    def test_realtime_toggle_shows_path_input(self, page):
-        sidebar = page.locator('[data-testid="stSidebar"]')
-        toggle = sidebar.get_by_text("Enable realtime", exact=False).first
-        toggle.click()
+    def test_realtime_tab_shows_path_input(self, page):
+        tab = page.get_by_role("tab", name="Realtime Console")
+        tab.click()
         page.wait_for_timeout(500)
-        assert sidebar.get_by_text("Log file path", exact=False).first.is_visible()
+        assert page.get_by_text("Log file path", exact=False).first.is_visible()
 
 
 class TestHistoryTab:
