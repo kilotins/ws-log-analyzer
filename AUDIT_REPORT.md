@@ -1,307 +1,434 @@
 
+
 # Technical Audit Report — WS Log Analyzer
 
-**Overall Grade: A**
-
-**Date**: 2026-03-09 (post-P0-P2 fixes)
-**Auditor**: Claude Opus 4.6 (automated deep audit)
-**Scope**: Full repository — architecture, security, AI integration, tests, skills, documentation, performance
+**Overall Grade: A-**
 
 ---
 
 ## 1. Executive Summary
 
-WS Log Analyzer is a mature, well-engineered WebSphere/Java log analysis system. The codebase has completed 13 milestones plus a full round of P0-P2 audit fixes. It consists of a zero-dependency core engine (`wslog.py`, 1,759 lines), a modular Streamlit GUI (5 modules, ~2,400 lines), 392 passing tests, 12 domain skills, and comprehensive security hardening.
+**Grade: A-**
+
+This is a well-engineered, production-quality WebSphere/Java log analysis tool with impressive domain depth. The codebase demonstrates strong software engineering practices: separation of concerns, comprehensive testing, thoughtful security measures, and excellent documentation.
 
 **Key Strengths:**
-- Zero-dependency core engine with comprehensive parsing, classification, and 6 output formats
-- Triple-layer prompt injection protection (tag stripping, catch-all regex, XML escaping)
-- 9 secret redaction patterns including AWS keys, PEM blocks, and JWTs
-- Well-factored module split with no circular imports and shared constants
-- 12 domain skills all wired into `select_skills()` for dynamic AI prompt enrichment
-- AST-based signature extraction for audit (with regex fallback)
-- Immediate path validation in realtime monitor with clear error messages
-- Pre-flight token estimation warns before expensive API calls
+- Zero required dependencies for core functionality — stdlib-only design is a major architectural win
+- Deep domain expertise in WebSphere/Liberty log patterns with 17 heuristic detectors
+- Robust prompt injection protection with multi-layer sanitization
+- Comprehensive test suite (300+ tests covering parsing, heuristics, AI integration, edge cases)
+- Excellent documentation (CLAUDE.md, ARCHITECTURE.md, 11 skill files totaling ~2,000 lines)
+- Well-designed caching system with SHA-256 hashed keys and TTL expiry
+- Generator-based streaming parser (`parse_file_iter`) for memory-efficient processing
 
-**Key Weaknesses:**
-- Session state coupling across GUI modules (implicit key contracts)
-- Some underscore-prefixed functions exported cross-module
-- ARCHITECTURE.md line counts slightly outdated after latest changes
-- E2E test coverage limited to happy paths
-
-**Risk Assessment:** Low. No critical vulnerabilities. No blocking issues. All remaining items are polish.
+**Key Findings:**
+- Several minor documentation inaccuracies (line counts, test counts)
+- API key storage in plaintext JSON file alongside keyring is a security concern
+- Missing test coverage for some app-layer modules (`app_ai.py`, `app_render.py`, `app_audit.py`, `app_realtime.py`)
+- Some code duplication in report renderers that could be refactored
+- No input validation on file paths in CLI mode
 
 ---
 
 ## 2. Repository Overview
 
-| Component | Files | Lines | Purpose |
-|-----------|-------|-------|---------|
-| Core engine | `wslog.py` | 1,759 | Parsing, classification, analysis, reports, CLI |
-| GUI main | `app.py` | 658 | Layout, state, tabs, caching, API keys |
-| GUI AI | `app_ai.py` | 665 | Claude/Gemini/OpenAI orchestration, streaming |
-| GUI render | `app_render.py` | 503 | Report rendering, event filtering, Plotly charts |
-| GUI audit | `app_audit.py` | 381 | Audit tab, AST signature extraction, HTML reports |
-| GUI realtime | `app_realtime.py` | 154 | Live log monitoring with fragment polling |
-| GUI constants | `app_constants.py` | 29 | Shared constants (colors, limits, TTL) |
-| Report HTML | `report_renderer.py` | 819 | Standalone MD→HTML with syntax highlighting |
-| Tests | 3 files | 3,532 | 392 tests (unit + helper + e2e) |
-| Domain skills | 12 files | ~2,135 | WebSphere troubleshooting knowledge |
-| Claude skills | 4 files | ~254 | Development context for Claude Code |
-| Scripts | 2 files | ~200 | Audit automation and delta comparison |
-| **Total** | **~30 files** | **~13,100** | |
+**Grade: A-**
+
+### File Inventory
+
+| File | Lines (Reported) | Lines (Actual) | Audited |
+|------|-----------------|----------------|---------|
+| `wslog.py` | ~1759 (ARCHITECTURE.md) | 1838 | ✅ |
+| `app.py` | ~658 (ARCHITECTURE.md) | 676 | ✅ |
+| `app_ai.py` | ~665 | Not provided | ❌ |
+| `app_render.py` | ~503 | Not provided | ❌ |
+| `app_audit.py` | ~381 | Not provided | ❌ |
+| `app_realtime.py` | ~154 | Not provided | ❌ |
+| `app_constants.py` | ~29 | Not provided | ❌ |
+| `tests/test_wslog.py` | N/A | 2762 | ✅ |
+| `tests/test_app_helpers.py` | ~92 tests | Not provided | ❌ |
+| `tests/test_app_e2e.py` | ~27 tests | Not provided | ❌ |
+| Skills (11 files) | ~2,000+ | Provided | ✅ |
+| Doc files (3) | ~332 | Provided | ✅ |
+
+**Total audited lines**: ~5,276 (core + tests) + ~2,147 (skills/docs)
+
+**Observation**: Several supporting modules (`app_ai.py`, `app_render.py`, `app_audit.py`, `app_realtime.py`, `app_constants.py`) are imported in `app.py` but not provided for audit. This limits the completeness of the review.
 
 ---
 
-## 3. Architecture Review
+## 3. Documentation Audit
 
-### Grade: A
+**Grade: B+**
 
-**Strengths:**
+### CLAUDE.md
+- **Accurate** in describing the tool's purpose, architecture, and conventions
+- **Complete** skill table covering all 14 skill files (4 Claude skills + 10 domain skills)
+- **Gotchas section** is excellent — highlights the most common mistakes
+- Minor issue: States "Single-file core" but the project has grown to multiple app modules
 
-1. **Clean layer separation.** Core engine (`wslog.py`) has four distinct layers — regex, parsing, analysis, reporting. GUI imports from core but contains no analysis logic.
+### ARCHITECTURE.md
 
-2. **Module split well-executed.** GUI split into 5 focused modules (AI, rendering, audit, realtime, constants). Clean import graph with no circular dependencies. Cross-module references use late imports where needed.
+| Claim | Accuracy |
+|-------|----------|
+| `wslog.py` ~1759 lines | ❌ Actual: 1838 lines |
+| `app.py` ~658 lines | ❌ Actual: 676 lines |
+| 306 pytest unit tests | ❌ Stale — `testing.md` says 392+, test file has significantly more |
+| 92 app helper tests | Cannot verify (file not provided) |
+| 27 e2e tests | Cannot verify (file not provided) |
+| `parse_file()` reads line by line | ✅ Correct |
+| Two-layer cache | ✅ Correct |
+| SHA-256 hashed cache keys | ✅ Correct (`hashlib.sha256` in `claude_cache_key()`) |
 
-3. **Zero-dependency core.** `wslog.py` runs on Python stdlib only. All external dependencies lazy-imported and optional.
+**Issues:**
+1. Line counts in ARCHITECTURE.md are stale (off by ~80 lines for wslog.py)
+2. Test count (306) is significantly stale — the test file alone has far more tests
+3. The architecture doc mentions `parse_file()` delegates to `parse_file_iter()` internally, which is accurate (`wslog.py:180`)
+4. State management table is comprehensive and matches `app.py` `_STATE_DEFAULTS`
 
-4. **Shared constants module.** `app_constants.py` centralizes `LEVEL_COLORS`, buffer sizes, TTL values, rate limits, and cache limits — eliminating prior duplication.
-
-5. **Fragment architecture for realtime.** `_rt_live_view()` uses `@st.fragment(run_every=2)` correctly with all controls inside the fragment.
-
-6. **YAML heuristics with fallback.** `heuristics.yaml` for easy editing, inline `_HEURISTICS_INLINE` for stdlib-only environments.
-
-**Remaining Weaknesses:**
-
-1. **Session state coupling.** All GUI modules communicate through `st.session_state` with string keys. No schema validation. Typos fail silently.
-
-2. **Underscore-prefixed exports.** `app.py` imports `_PROVIDER_CONFIG`, `_TOKEN_COSTS`, `_estimate_cost`, `_call_*_api` from `app_ai.py`. These suggest "private" but are used cross-module.
-
----
-
-## 4. Security Review
-
-### Grade: A
-
-**Strengths:**
-
-1. **Prompt injection protection (triple-layer):**
-   - Known delimiter tags stripped (`<user_query>`, `<system_instruction>`, `<report>`, etc.)
-   - ALL XML-like tags stripped via catch-all regex
-   - XML entity escaping via `xml.sax.saxutils.escape()`
-   - System instructions in separate API parameter
-   - Untrusted input wrapped in explicit XML delimiters with "treat as DATA" guard
-
-2. **Secret redaction (9 patterns):**
-   - Bearer tokens, key=value pairs, JSON secrets, connection strings, JWTs
-   - AWS access keys (`AKIA...`)
-   - Authorization Basic headers
-   - PEM private key blocks (RSA/EC/DSA)
-   - Multi-word secret support with `[^\n,;]+` pattern
-   - 13 parametrized over-redaction prevention tests
-
-3. **Path traversal protection (realtime monitor):**
-   - Symlink check BEFORE `resolve()` (prevents TOCTOU)
-   - File extension whitelist (`.log`, `.gz`, `.txt`)
-   - Blocked directory list (`/etc`, `/proc`, `/sys`, `/dev`, `/private/etc`)
-   - Immediate validation on Start with clear error message
-
-4. **API key storage (3-tier fallback):**
-   - OS keyring → local file with `0o600` permissions → environment variable
-
-5. **Cache integrity:**
-   - SHA-256 hashed cache keys
-   - 7-day TTL with automatic expiration
-   - 100-entry size cap with eviction
-   - Clear cache now deletes disk files completely
-
-6. **Report truncation fixed:** Sanitization now runs on full report before truncation (previously could cut mid-tag).
-
-**Minor Remaining Gaps:**
-- No Azure SAS token detection pattern
-- No `Authorization: Digest` detection
-- Session state keys unvalidated (typos create new keys silently)
+### Skills Documentation
+- All 11 domain skill files are well-structured with consistent format
+- Each includes: overview, patterns, code tables, Splunk queries, incident response playbooks, and "See Also" cross-references
+- **`gc-performance.md`** (333 lines) is exceptionally detailed — covers J9, G1, and ZGC
+- **`jms-messaging.md`** (222 lines) is a recent addition covering SIB/JMS patterns well
+- Cross-references between skill files are consistent and accurate
 
 ---
 
-## 5. AI Integration Review
+## 4. Skills System Analysis
 
-### Grade: A
+**Grade: A**
 
-**Strengths:**
+### Architecture
+The skills system (`wslog.py:720-900`) implements a sophisticated multi-signal routing mechanism:
 
-1. **Three-provider support** (Claude, Gemini, OpenAI) with unified orchestration. Provider config centralizes cache keys, API key fields, error messages, and feature flags.
+1. **Tag-based routing** (`_SKILL_TAG_MAP`) — 5 signal tags → skill files
+2. **Code prefix routing** (`_SKILL_CODE_PREFIX_MAP`) — 28 WAS code prefixes → skill files
+3. **Exception routing** (`_SKILL_EXCEPTION_MAP`) — 27 exception keywords → skill files
+4. **Query keyword routing** (`_SKILL_QUERY_KEYWORDS`) — 50+ keywords → skill files
 
-2. **Streaming support** for Claude and OpenAI with real-time token display.
+### Coverage Analysis
 
-3. **Gemini usage tracking** now estimates tokens using `estimate_tokens()` — cost display no longer shows $0.
+| Signal Source | Entries | Coverage |
+|--------------|---------|----------|
+| Tags | 5/5 | ✅ Complete |
+| Code prefixes | 28 | ✅ Comprehensive (covers all major WAS prefixes) |
+| Exception keywords | 27 | ✅ Good coverage of common Java/WAS exceptions |
+| Query keywords | 50+ | ✅ Extensive natural language coverage |
+| Skill files on disk | 11 | Validated at runtime via `_discover_skills()` |
 
-4. **Pre-flight token estimation** warns at 80% of provider context limit.
+### Gaps Identified
 
-5. **Rate limiting** (2.0s minimum between calls) prevents budget exhaustion.
+1. **No skill for `gc-performance.md` in tag mapping**: The `OOM/GC` tag maps to `["stacktrace-analysis.md", "gc-performance.md"]` — ✅ this is covered
+2. **No skill for `jms-messaging.md` in tag mapping**: JMS-related tags are not in `_SKILL_TAG_MAP`. However, code prefixes (`CWSID`, `CWSJY`, `CWSIV`, `CWSIT`) and query keywords (`jms`, `messaging`, `queue`, `sib`, `mdb`, `topic`) cover this. Still, adding a `"JMS"` signal tag in `bucket_tags()` would improve automatic detection.
+3. **Missing code prefix `CWSIA`**: Referenced in `jms-messaging.md` but not in `_SKILL_CODE_PREFIX_MAP`
+4. **Missing code prefix `CWSJC`**: Referenced in `jms-messaging.md` but not in `_SKILL_CODE_PREFIX_MAP`
+5. `MAX_SKILLS = 3` may be restrictive for complex issues involving multiple domains (e.g., JMS + security + deployment)
 
-6. **All 12 skills wired into `select_skills()`:**
-   - JMS: CWSID/CWSJY/CWSIV/CWSIT codes + jms/messaging/queue/sib/mdb/topic keywords
-   - GC: OOM/GC tag extended + gc/garbage/heap/tuning/memory leak keywords
-   - All 10 original skills fully reachable via tags, codes, exceptions, and query keywords
-
-7. **Two-tier caching:** Session + file cache with SHA-256 keys, 7-day TTL.
-
-8. **Cost estimation** with per-model token pricing for 10+ model variants.
-
-**Minor Remaining Gaps:**
-- Splunk query extraction uses regex-based markdown parsing (fragile with nested fences)
-- Skill files not re-sanitized before prompt injection (acceptable — local files)
-
----
-
-## 6. Test & Reliability Review
-
-### Grade: A-
-
-**Test Summary:**
-
-| File | Tests | Lines | Focus |
-|------|-------|-------|-------|
-| `test_wslog.py` | ~300 | 2,551 | Parsing, classification, reports, redaction, AI prompts, skills |
-| `test_app_helpers.py` | ~80 | 685 | Cache, keys, paths, providers, signatures, TTL |
-| `test_app_e2e.py` | 27 | 296 | Playwright: upload, analyze, AI, Chef, realtime |
-| **Total** | **392** | **3,532** | |
-
-**Strengths:**
-- Comprehensive redaction testing (13 over-redaction prevention cases)
-- 30+ parametrized skill auto-selection tests
-- Performance tests on 100k+ line logs
-- Symlink rejection and path security tested
-- Cache TTL with format migration tested
-- AST signature extraction tested
-- Token estimation and YAML heuristic loading tested
-- Error scenarios: permission errors, non-UTF8, missing fpdf2, null bytes
-
-**Remaining Gaps:**
-- E2E tests only cover happy paths (no error flows, API failures)
-- No concurrency tests for cache file access
-- No test for `_lookup_cache()` / `_store_cache()` helpers directly
-- No network/timeout error tests
+### Validation
+The `select_skills()` function at `wslog.py:855` validates returned filenames against `_discover_skills()`, preventing stale mappings from breaking prompts. This is excellent defensive programming.
 
 ---
 
-## 7. Skills System Review
+## 5. Code Review Findings
 
-### Grade: A
+**Grade: B+**
 
-**All 12 domain skills reachable:**
+### Bugs
 
-| Skill | Triggers | Quality |
-|-------|----------|---------|
-| `message-codes.md` | 15+ code prefixes, fallback | Excellent |
-| `stacktrace-analysis.md` | OOM tag, exception keywords | Excellent |
-| `thread-correlation.md` | HungThreads tag, deadlock keywords | Excellent |
-| `splunk-query.md` | Code prefixes, "splunk" query | Excellent |
-| `websphere-startup.md` | WSVR/ADMU codes, "startup" query | Excellent |
-| `servlet-errors.md` | SRVE code, "servlet" query | Excellent |
-| `liberty-analysis.md` | CWWK codes, "liberty" query | Excellent |
-| `deployment-analysis.md` | CWNEN/CWWKZ codes, "deploy" query | Good |
-| `security-analysis.md` | CWWKS/CWPKI codes, "ssl" query | Excellent |
-| `log-noise-filter.md` | DCSV/HMGR codes, "noise" query | Good |
-| `jms-messaging.md` | CWSID/CWSJY/CWSIV/CWSIT codes, "jms"/"queue" query | Very Good |
-| `gc-performance.md` | OOM/GC tag, "gc"/"heap"/"tuning" query | Very Good |
+1. **`_parse_ts_parts()` edge case** (`wslog.py:224-246`): The `date_part` variable can be `None` when parsing bare time strings like `"12:34:56.789"`. The function returns `(None, 12, 34)`, and `time_histogram()` uses `date_key = date_part or "_"` which handles this correctly. ✅ No bug.
 
-**4 Claude Code skills** accurate and up-to-date (ws-log-parsing, streamlit-patterns, claude-integration, testing).
+2. **`open_text()` double-read for gzip probe** (`wslog.py:80-88`): Reads 1 byte then seeks to 0. This is correct for gzip validation but adds a small overhead. The fallback to plain text on `OSError`/`EOFError` is well-handled.
 
----
+3. **`pick_samples()` scoring inconsistency** (`wslog.py:218-228`): `FATAL` gets score 4, `ERROR`/`SEVERE` gets 3, but the `WARN` keyword check only matches `"WARN"`, not `"WARNING"`. Looking at the code:
+   ```python
+   if e["level"] in ("WARNING", "WARN"): s += 1
+   ```
+   ✅ Both forms are checked. No bug.
 
-## 8. Documentation Review
+4. **Potential issue in `_heuristic_keywords()`** (`wslog.py:336-349`): The keyword extraction uses `p.strip().isalnum()` which excludes keywords containing dots (e.g., `"hung.thread"`). The second pass (`parts2`) allows dots but the logic is slightly fragile. The regex `re.split(r'[|()\\.\[\]*+?{}^$]', pattern)` splits on dots, so `"hung.thread"` becomes `["hung", "thread"]` — both < 4 chars, so they're excluded from the first pass. The second pass with `re.split(r'[|()\\*+?{}^$\[\]]', pattern)` doesn't split on dots, so `"hung.thread"` would appear as a candidate. This works correctly.
 
-### Grade: B+
+5. **`per_file_summary()` sorting** (`wslog.py:237`): Returns files sorted by path string. This is deterministic but may not match insertion order for multi-file analyses.
 
-| Document | Accuracy | Notes |
-|----------|----------|-------|
-| `README.md` | 95% | Features current; test count should be updated to 392 |
-| `ARCHITECTURE.md` | 90% | Updated for module split; line counts slightly stale after latest edits (wslog.py now 1,759, app_audit.py now 381) |
-| `CLAUDE.md` | 95% | Skill table accurate; mentions all providers |
-| `MILESTONES.md` | 100% | All 13 milestones complete |
-| `.claude/skills/testing.md` | 95% | Updated to 385+ (actual: 392) |
+### Style Issues
 
----
+1. **Mixed type annotations** (`wslog.py`): Uses both `str | None` (PEP 604, Python 3.10+) and `from __future__ import annotations`. With the `__future__` import, the `|` syntax works in older Python versions for annotations. ✅ Consistent.
 
-## 9. Performance Analysis
+2. **`classify_event()` return type** (`wslog.py:112`): Returns `dict[str, object]` but the actual values are specific types (`str | None`, `list[str]`). A `TypedDict` or dataclass would improve type safety.
 
-### Grade: A-
+3. **Module-level mutable state** (`wslog.py:328`): `_HEURISTICS = _load_heuristics_from_yaml() or _HEURISTICS_INLINE` — this executes at import time. If the YAML file is malformed, it silently falls back to inline. This is intentional but worth noting.
 
-**Strengths:**
-- O(n) single-pass parsing
-- `precompute_analysis()` runs all aggregations once
-- Lazy imports minimize startup time
-- Realtime read capped at 64KB per poll
-- Two-tier cache avoids redundant API calls
-- Timeline hidden when no meaningful variation (max/min < 2)
+4. **`app.py` global execution** (`app.py`): Significant logic runs at module level (directory creation, cache migration, logging setup, keyring loading). This is standard for Streamlit but makes testing harder.
 
-**Remaining Risks:**
-- All events in memory — no streaming for very large files (>100MB)
-- Heuristic scanning is O(n × 17) — acceptable but could pre-filter
-- No pagination in GUI event display
-- Upload size warning added (>50MB) but no hard limit
+5. **Inconsistent error handling in `_load_keychain()`** (`app.py:267-280`): Catches broad `Exception` for keyring operations. While pragmatic (keyring has many failure modes), it could mask unexpected errors.
 
----
+### Security Issues
 
-## 10. Recent Improvements (Since Last Audit)
+1. **API key storage in plaintext JSON** (`app.py:281-298`, `_KEYS_FILE = CACHE_DIR / ".api_keys.json"`): While the file permissions are set to `0o600`, storing API keys in a JSON file is less secure than keyring-only storage. The file serves as a fallback when keyring is unavailable, which is a reasonable tradeoff, but the file should be documented as a security consideration.
 
-| Change | Impact |
-|--------|--------|
-| Wired jms-messaging.md + gc-performance.md into select_skills() | All 12 skills now reachable |
-| Added tests for estimate_tokens() + _load_heuristics_from_yaml() | Coverage gaps closed |
-| Fixed Gemini usage tracking (returns estimated tokens) | Cost display works for all providers |
-| AST-based signature extraction (app_audit.py) | Handles decorators correctly |
-| Added AWS key, Basic auth, PEM block redaction patterns | 9 total secret patterns |
-| Created shared app_constants.py | Eliminated duplication |
-| Added error scenario tests (permissions, encoding, null bytes) | Robustness verified |
-| Fixed report truncation order (sanitize before truncate) | Edge case security fix |
-| Immediate realtime path validation on Start | Better UX |
-| Better empty-file error message | Clearer troubleshooting |
-| Large upload warning (>50MB) | User awareness |
-| Clear cache deletes disk files | Complete cleanup |
-| Updated ARCHITECTURE.md for module split | Documentation accuracy |
+2. **`_is_safe_rt_path()`** (imported from `app_realtime.py`): This function is referenced but not provided for audit. Path traversal and symlink attacks are critical for the realtime monitoring feature.
+
+3. **Redaction completeness** (`wslog.py:57-73`): The `SECRET_REPLACERS` list is comprehensive with 10 patterns covering:
+   - Bearer tokens
+   - Key-value secrets (multi-word support)
+   - JSON secrets
+   - Connection string passwords
+   - JWTs
+   - AWS access keys
+   - Basic auth headers
+   - PEM private keys
+   - Azure SAS tokens
+   - Digest auth headers
+
+   **Potential gap**: No redaction for `Set-Cookie` headers containing session tokens. However, this is a minor concern since WebSphere logs rarely contain HTTP response headers.
+
+4. **Prompt injection protection** (`wslog.py:680-697`): The `_sanitize_prompt_input()` function:
+   - Strips known delimiter tags by name
+   - Strips ALL XML-like tags via generic regex
+   - Escapes XML entities via `xml.sax.saxutils.escape`
+   
+   This is a strong three-layer defense. The system prompt also includes explicit instructions to treat user input as data.
+
+5. **No CLI path validation** (`wslog.py:main()`): The `args.paths` are passed directly to `Path()` without sanitization. In CLI context this is acceptable (the user controls the input), but adding `Path.resolve()` would prevent symlink attacks.
+
+6. **Anthropic client timeout** (`wslog.py:1830`): `Anthropic(timeout=30.0)` — the timeout is appropriate for API calls.
+
+### Performance
+
+1. **Heuristic pre-filtering** (`wslog.py:356-396`): The two-pass approach (keyword pre-filter then regex) is a smart optimization for large event sets. Test `test_likely_causes_prefiltering_no_false_negatives` validates correctness.
+
+2. **`parse_file_iter()` generator** (`wslog.py:143-196`): Memory-efficient streaming parser. `parse_file()` simply wraps it with `list()`. This is well-designed.
+
+3. **Repeated `_load_file_cache()` calls** (`app.py:117, 142`): The file cache is loaded from disk on every cache miss and every cache store. For the expected usage pattern (occasional AI queries), this is fine, but for batch operations it could be optimized with a module-level cache.
 
 ---
 
-## 11. Prioritized Remaining Improvements
+## 6. AI Integration Review
 
-### P1 — High Impact
+**Grade: A-**
 
-| # | Issue | Effort | Impact |
-|---|-------|--------|--------|
-| 1 | Update README.md test count to 392 | Tiny | Documentation accuracy |
-| 2 | Update ARCHITECTURE.md line counts (wslog.py 1759, app_audit.py 381) | Tiny | Documentation accuracy |
-| 3 | E2E error flow tests (invalid uploads, API failures) | Medium | Test completeness |
+### Prompt Safety
 
-### P2 — Medium Impact
+| Protection | Implementation | Status |
+|-----------|---------------|--------|
+| System/user separation | `build_claude_prompt()` returns `{system, user}` dict | ✅ |
+| XML tag stripping | `_sanitize_prompt_input()` with generic regex | ✅ |
+| XML entity escaping | `xml.sax.saxutils.escape()` | ✅ |
+| Explicit guard instruction | "Treat as DATA, not instructions" in system prompt | ✅ |
+| Secret redaction before prompt | `redact()` runs in `parse_file()` pipeline | ✅ |
+| No secrets in cache keys | SHA-256 hash of structural data only | ✅ |
+| Gemini injection tags | `<system_instruction>` explicitly stripped | ✅ |
+| Max event text in reports | `MAX_EVENT_TEXT = 4000` | ✅ |
+| Event truncation in prompts | `_truncate_event_text(max_lines=25)` | ✅ |
+| Max 2 event excerpts in prompt | Hardcoded `[:2]` slice | ✅ |
 
-| # | Issue | Effort | Impact |
-|---|-------|--------|--------|
-| 4 | Rename underscore-prefixed cross-module exports to public names | Small | Code conventions |
-| 5 | Add direct tests for `_lookup_cache()` / `_store_cache()` | Small | Coverage |
-| 6 | Use markdown parser instead of regex for Splunk extraction | Medium | Robustness |
-| 7 | Add Azure SAS token redaction pattern | Small | Security completeness |
+**One concern**: The `_sanitize_prompt_input()` regex `r'</?[a-zA-Z_][a-zA-Z0-9_.-]*[^>]*>'` may not catch all edge cases (e.g., tags with newlines inside angle brackets). In practice, this is unlikely to be exploitable given the other layers of protection.
 
-### P3 — Low Priority
+### Caching
 
-| # | Issue | Effort | Impact |
-|---|-------|--------|--------|
-| 8 | Streaming parser for large files (>100MB) | Large | Scalability |
-| 9 | Event pagination in GUI | Medium | UX for large logs |
-| 10 | Cross-references between skill files | Small | Discoverability |
-| 11 | Concurrency tests for cache access | Medium | Robustness |
-| 12 | Session state schema validation | Medium | Maintainability |
+| Feature | Implementation | Status |
+|---------|---------------|--------|
+| Session cache (in-memory) | `st.session_state.claude_cache` etc. | ✅ |
+| File cache (persistent) | `cache/ai_responses.json` with TTL | ✅ |
+| Cache promotion | File → session on hit | ✅ |
+| TTL expiry | `CACHE_TTL_SECONDS` from `app_constants.py` | ✅ |
+| Max entries | `MAX_CACHE_ENTRIES` (100 default) | ✅ |
+| Key stability | SHA-256 of query + structural match data | ✅ |
+| Provider isolation | Gemini keys prefixed (mentioned in ARCHITECTURE.md) | Cannot verify (app_ai.py not provided) |
+
+### Multi-Provider Support
+
+The codebase supports three AI providers (Claude, Gemini, OpenAI) with:
+- Per-provider caching and history
+- Per-provider API key management (keyring → file → env var)
+- Shared prompt building via `build_claude_prompt()` (naming is slightly misleading for Gemini/OpenAI usage)
+- `ask_gemini()` in `wslog.py` with separate `system_instruction` parameter
+
+**Note**: `ask_gemini()` (`wslog.py:1068`) uses `request_options={"timeout": 30}` which is appropriate. The Gemini model default is `gemini-2.5-flash` — a good cost/quality balance.
+
+### Token Estimation
+
+`estimate_tokens()` (`wslog.py:1049`) uses `len(text) // 4` — a reasonable approximation. The `TOKEN_LIMITS` dict provides per-provider context window sizes. No evidence these limits are enforced in prompt construction, which could lead to oversized prompts for very large log files.
 
 ---
 
-## 12. Conclusion
+## 7. Test Coverage Analysis
 
-WS Log Analyzer has evolved from a capable log analyzer into a polished, well-tested production tool. The codebase demonstrates strong engineering practices: zero-dependency core, modular GUI, comprehensive security hardening, and rich domain knowledge. All critical audit findings from previous rounds have been addressed. The remaining improvements are quality-of-life enhancements, not blockers.
+**Grade: A-**
 
-**Grade progression:** B+ (initial) → A- (post-M1-8) → A (post-M9-13 + P0-P2 fixes)
+### Quantitative Coverage
+
+| Category | Test Count | Coverage |
+|----------|-----------|----------|
+| Timestamp extraction | 3 | ✅ Complete |
+| WAS level parsing | 6 | ✅ Complete |
+| Thread ID extraction | 3 | ✅ |
+| WAS code regex | 2 | ✅ |
+| Exception regex | 4 | ✅ |
+| Redaction | 20+ | ✅ Excellent (includes false-positive tests) |
+| Bucket tags | 7 | ✅ |
+| Event classification | 5 | ✅ |
+| File parsing | 12+ | ✅ (includes gz, empty, preamble, max_lines, permissions, encoding) |
+| Stacktrace handling | 3 | ✅ |
+| Summary/aggregation | 3 | ✅ |
+| Histogram | 5 | ✅ |
+| Report rendering (MD) | 5 | ✅ |
+| Report rendering (JSON) | 4 | ✅ |
+| Report rendering (PDF) | 4 | ✅ |
+| Report rendering (CSV) | 4 | ✅ |
+| Report rendering (XML) | 5 | ✅ |
+| Likely causes | 20+ | ✅ Excellent |
+| Splunk queries | 12 | ✅ |
+| Hung thread drilldown | 10 | ✅ |
+| match_user_query | 6 | ✅ |
+| Prompt building | 10+ | ✅ |
+| Cache keys | 6 | ✅ |
+| Sanitization | 12+ | ✅ |
+| Skills selection | 30+ | ✅ Excellent (parametrized) |
+| Performance | 3 | ✅ (100k lines, 50k events, 10k histogram) |
+| API error handling | 5 | ✅ |
+| Streaming parser | 6 | ✅ |
+| Incident timeline | 3 | ✅ |
+
+**Total estimated test count**: ~250+ distinct test cases in the provided file.
+
+### Coverage Gaps
+
+1. **`render_csv_report()` newline handling** (`wslog.py:548`): The CSV renderer replaces `\n` with space in event text. No test verifies multi-line event text is properly handled in CSV output.
+
+2. **`incident_timeline()` edge cases**: No test for events where all timestamps are unparseable, or for events spanning midnight.
+
+3. **`_load_heuristics_from_yaml()` error paths**: Tests skip when YAML is unavailable. No test for malformed YAML content.
+
+4. **`main()` CLI function**: Only tested indirectly via subprocess calls (2 tests). No unit tests for argument parsing edge cases.
+
+5. **`app.py` module**: No direct tests for:
+   - `_load_file_cache()` TTL expiry logic
+   - `_save_file_cache()` eviction logic
+   - `_load_keychain()` / `_save_keychain()` fallback chain
+   - `get_report_history()`
+   
+6. **Missing modules**: `app_ai.py`, `app_render.py`, `app_audit.py`, `app_realtime.py` — their test files (`test_app_helpers.py`, `test_app_e2e.py`) were not provided for review.
+
+### Test Quality
+
+- **Fixtures**: Well-organized with shared string constants and `@pytest.fixture` functions
+- **Parametrized tests**: Good use of `@pytest.mark.parametrize` for skill mapping coverage
+- **Regression tests**: `test_likely_causes_prefiltering_regression` and `test_likely_causes_prefiltering_no_false_negatives` are particularly well-designed
+- **Edge cases**: Tests cover empty files, encoding issues, permission errors, null bytes, fake gzip files
+- **Performance tests**: Include 100k-line parsing and 50k-event summarization — validates scalability
 
 ---
 
-*Generated by Claude Opus 4.6 — 2026-03-09*
+## 8. Refactoring Opportunities
+
+**Grade: B+**
+
+### 8.1 Extract Event TypedDict/Dataclass
+
+**Priority**: Medium | **Effort**: Low
+
+Currently, events are plain `dict[str, object]` passed everywhere. A `TypedDict` would catch key typos at lint time:
+
+```python
+class Event(TypedDict):
+    level: str | None
+    thread_id: str | None
+    code: str | None
+    exception: str | None
+    root_cause: str | None
+    tags: list[str]
+    ts: str | None
+    file: str
+    text: str
+```
+
+**Files affected**: `wslog.py` (type annotations only — no runtime change needed)
+
+### 8.2 DRY Report Renderers
+
+**Priority**: Medium | **Effort**: Medium
+
+`render_markdown_report()` (~85 lines), `render_json_report()` (~40 lines), and `render_pdf_report()` (~130 lines) share significant structural logic (iterating causes, splunk queries, hung threads, samples). Extract a shared data structure or visitor pattern.
+
+### 8.3 Rename `build_claude_prompt()` to `build_ai_prompt()`
+
+**Priority**: Low | **Effort**: Low
+
+The function is used for all three AI providers, not just Claude. The name is misleading. Similarly, `claude_cache_key()` could become `ai_cache_key()`.
+
+### 8.4 Extract Heuristics to Separate Module
+
+**Priority**: Low | **Effort**: Medium
+
+`_HEURISTICS_INLINE` is ~230 lines of data definitions. Moving to a separate `heuristics.py` or ensuring `heuristics.yaml` is the primary source would reduce `wslog.py`'s size.
+
+### 8.5 Consolidate Keychain Logic in `app.py`
+
+**Priority**: Low | **Effort**: Low
+
+`_load_saved_api_key()`, `_load_saved_gemini_key()`, `_load_saved_openai_key()` and their save counterparts are nearly identical wrappers. They could be generated programmatically or replaced with a dict-driven approach.
+
+---
+
+## 9. Feature Opportunities
+
+**Grade: B+**
+
+### 9.1 JMS Signal Tag
+Add a `"JMS"` signal tag to `bucket_tags()` for automatic JMS/SIB issue detection:
+```python
+JMS_RE = re.compile(r'CWSID|CWSJY|CWSIV|CWSIT|SIBException|JMSException', re.IGNORECASE)
+```
+This would enable automatic skill routing to `jms-messaging.md`.
+
+### 9.2 Token Budget Enforcement
+The `estimate_tokens()` and `TOKEN_LIMITS` infrastructure exists but isn't enforced. Add pre-flight checks before AI API calls to truncate or summarize when prompts exceed provider limits.
+
+### 9.3 Correlation ID Tracking
+Add detection for common correlation patterns (e.g., `requestId=`, `correlationId=`, `X-Request-ID:`) to link events across threads and files.
+
+### 9.4 Log Format Auto-Detection
+Currently, timestamp patterns are tried sequentially. A format detection phase on the first 10 lines could optimize parsing for large files.
+
+### 9.5 Incremental Analysis
+For realtime monitoring, support incremental analysis where new events are merged with existing analysis results rather than re-analyzing everything.
+
+### 9.6 YAML Heuristics Validation
+Add schema validation for `heuristics.yaml` entries (required fields, regex syntax check) with clear error messages.
+
+---
+
+## 10. Prioritized Improvement Plan
+
+| Priority | Item | Effort | Impact | Section |
+|----------|------|--------|--------|---------|
+| 🔴 High | Update ARCHITECTURE.md line/test counts | 15 min | Accuracy | §3 |
+| 🔴 High | Add token budget enforcement before AI calls | 2 hrs | Reliability | §6, §9.2 |
+| 🟡 Medium | Add `Event` TypedDict for type safety | 1 hr | Maintainability | §8.1 |
+| 🟡 Medium | Add JMS signal tag to `bucket_tags()` | 30 min | Feature | §9.1 |
+| 🟡 Medium | Add missing CWSIA/CWSJC to `_SKILL_CODE_PREFIX_MAP` | 15 min | Coverage | §4 |
+| 🟡 Medium | Add tests for `app.py` cache/keychain logic | 3 hrs | Coverage | §7 |
+| 🟡 Medium | Document API key file fallback as security note | 15 min | Security | §5 |
+| 🟢 Low | Rename `build_claude_prompt` → `build_ai_prompt` | 30 min | Clarity | §8.3 |
+| 🟢 Low | DRY report renderers | 4 hrs | Maintainability | §8.2 |
+| 🟢 Low | Extract heuristics to separate module | 2 hrs | Organization | §8.4 |
+| 🟢 Low | Add correlation ID detection | 3 hrs | Feature | §9.3 |
+| 🟢 Low | Consolidate keychain wrapper functions | 1 hr | DRY | §8.5 |
+
+---
+
+### Section Grade Summary
+
+| Section | Grade |
+|---------|-------|
+| Executive Summary | A- |
+| Repository Overview | A- |
+| Documentation Audit | B+ |
+| Skills System Analysis | A |
+| Code Review Findings | B+ |
+| AI Integration Review | A- |
+| Test Coverage Analysis | A- |
+| Refactoring Opportunities | B+ |
+| Feature Opportunities | B+ |
+| Prioritized Improvement Plan | A |
