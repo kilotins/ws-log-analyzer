@@ -140,6 +140,7 @@ def _rt_live_view(log):
     # Render buffer
     buf = ss.rt_buffer
     if buf:
+        st.caption(f"Showing {len(buf)} of {_RT_BUFFER_SIZE} buffer lines")
         highlighted = "<br>".join(_highlight_line(line) for line in buf)
         st.markdown(
             f'<div style="font-family:monospace;font-size:12px;'

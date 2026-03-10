@@ -8,7 +8,8 @@ import streamlit as st
 from datetime import datetime
 from pathlib import Path
 
-from wslog import ask_gemini
+from wslog import ask_gemini, estimate_tokens
+from app_spend import record_spend
 
 
 def _get_app_dir():
@@ -24,8 +25,8 @@ _AUDIT_MODELS = {
     "Claude Sonnet 4.6 (~$0.20)": {"provider": "claude", "id": "claude-sonnet-4-6", "max_tokens": 8192, "compact": True},
     "Claude Opus 4.6 (~$1.00)": {"provider": "claude", "id": "claude-opus-4-6", "max_tokens": 8192},
     "Claude Haiku 4.5 (~$0.05)": {"provider": "claude", "id": "claude-haiku-4-5-20251001", "max_tokens": 8192, "compact": True},
-    "Gemini 2.5 Pro (~$0.15)": {"provider": "gemini", "id": "gemini-2.5-pro-preview-06-05", "max_tokens": 8192},
-    "Gemini 2.5 Flash (~$0.03)": {"provider": "gemini", "id": "gemini-2.5-flash-preview-05-20", "max_tokens": 8192},
+    "Gemini 2.5 Pro (~$0.15)": {"provider": "gemini", "id": "gemini-2.5-pro", "max_tokens": 8192},
+    "Gemini 2.5 Flash (~$0.03)": {"provider": "gemini", "id": "gemini-2.5-flash", "max_tokens": 8192},
     "GPT-4o (~$0.15)": {"provider": "openai", "id": "gpt-4o", "max_tokens": 8192, "compact": True},
     "GPT-4o mini (~$0.02)": {"provider": "openai", "id": "gpt-4o-mini", "max_tokens": 8192, "compact": True},
     "o3 (~$0.60)": {"provider": "openai", "id": "o3", "max_tokens": 8192, "compact": True},
@@ -232,8 +233,9 @@ def _collect_audit_sources(compact=False):
 
 
 def _run_audit_claude(api_key, model_id, max_tokens, compact=False):
-    """Run audit via Claude API."""
+    """Run audit via Claude API. Returns (text, usage_dict)."""
     from anthropic import Anthropic
+    from app_ai import _extract_claude_usage
     client = Anthropic(api_key=api_key, timeout=300.0)
     message = client.messages.create(
         model=model_id,
@@ -241,21 +243,20 @@ def _run_audit_claude(api_key, model_id, max_tokens, compact=False):
         system=_AUDIT_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": _collect_audit_sources(compact=compact)}],
     )
-    return message.content[0].text
+    usage = _extract_claude_usage(message.usage)
+    return message.content[0].text, usage
 
 
 def _run_audit_gemini(api_key, model_id, compact=False):
-    """Run audit via Gemini API."""
-    return ask_gemini(
-        _collect_audit_sources(compact=compact),
-        api_key=api_key,
-        system=_AUDIT_SYSTEM_PROMPT,
-        model=model_id,
-    )
+    """Run audit via Gemini API. Returns (text, usage_dict)."""
+    prompt_text = _collect_audit_sources(compact=compact)
+    answer = ask_gemini(prompt_text, api_key=api_key, system=_AUDIT_SYSTEM_PROMPT, model=model_id, timeout=300)
+    usage = {"input": estimate_tokens(_AUDIT_SYSTEM_PROMPT + prompt_text), "output": estimate_tokens(answer)}
+    return answer, usage
 
 
 def _run_audit_openai(api_key, model_id, max_tokens, compact=False):
-    """Run audit via OpenAI API."""
+    """Run audit via OpenAI API. Returns (text, usage_dict)."""
     try:
         from openai import OpenAI
     except ImportError:
@@ -269,7 +270,10 @@ def _run_audit_openai(api_key, model_id, max_tokens, compact=False):
             {"role": "user", "content": _collect_audit_sources(compact=compact)},
         ],
     )
-    return response.choices[0].message.content
+    usage = {"input": 0, "output": 0}
+    if response.usage:
+        usage = {"input": response.usage.prompt_tokens, "output": response.usage.completion_tokens}
+    return response.choices[0].message.content, usage
 
 
 def _run_audit(model_label, log):
@@ -284,21 +288,26 @@ def _run_audit(model_label, log):
     if provider == "claude":
         if not st.session_state.api_key:
             raise ValueError("Enter your Anthropic API key in the sidebar first.")
-        audit_md = _run_audit_claude(
+        audit_md, usage = _run_audit_claude(
             st.session_state.api_key, model_info["id"], model_info["max_tokens"], compact=compact
         )
     elif provider == "gemini":
         gemini_key = st.session_state.gemini_api_key
         if not gemini_key:
             raise ValueError("Enter your Gemini API key in the sidebar first.")
-        audit_md = _run_audit_gemini(gemini_key, model_info["id"], compact=compact)
+        audit_md, usage = _run_audit_gemini(gemini_key, model_info["id"], compact=compact)
     else:
         openai_key = st.session_state.openai_api_key
         if not openai_key:
             raise ValueError("Enter your OpenAI API key in the sidebar first.")
-        audit_md = _run_audit_openai(
+        audit_md, usage = _run_audit_openai(
             openai_key, model_info["id"], model_info["max_tokens"], compact=compact
         )
+
+    # Track spend (including cache tokens for Claude)
+    record_spend(provider, model_info["id"], usage.get("input", 0), usage.get("output", 0),
+                 source="audit", cache_creation=usage.get("cache_creation", 0),
+                 cache_read=usage.get("cache_read", 0))
 
     if not audit_md:
         raise ValueError("Model returned an empty response.")

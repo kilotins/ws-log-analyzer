@@ -5,10 +5,10 @@ LEVEL_COLORS = {
     "FATAL": "#dc3545",
     "ERROR": "#dc3545",
     "SEVERE": "#dc3545",
-    "WARNING": "#ffc107",
-    "WARN": "#ffc107",
+    "WARNING": "#D97706",
+    "WARN": "#D97706",
     "INFO": "#0d6efd",
-    "AUDIT": "#6c757d",
+    "AUDIT": "#0891B2",
     "DEBUG": "#adb5bd",
 }
 
