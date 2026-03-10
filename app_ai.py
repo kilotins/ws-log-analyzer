@@ -71,12 +71,19 @@ TOKEN_COSTS = {
     "claude-haiku-4-5-20251001": (0.80, 4.00),
     "claude-opus-4-6": (15.00, 75.00),
     "gemini-2.5-flash": (0.15, 0.60),
-    "gemini-2.5-flash-preview-05-20": (0.15, 0.60),
-    "gemini-2.5-pro-preview-06-05": (1.25, 10.00),
+    "gemini-2.5-pro": (1.25, 10.00),
     "gpt-4o": (2.50, 10.00),
     "gpt-4o-mini": (0.15, 0.60),
     "o3": (10.00, 40.00),
     "o4-mini": (1.10, 4.40),
+}
+
+# Cache token pricing per 1M tokens (cache_write, cache_read) in USD
+# cache_write = cost to create cached content, cache_read = cost to read from cache
+CACHE_TOKEN_COSTS = {
+    "claude-sonnet-4-6": (3.75, 0.30),
+    "claude-haiku-4-5-20251001": (1.00, 0.08),
+    "claude-opus-4-6": (18.75, 1.50),
 }
 
 
@@ -84,7 +91,7 @@ AI_MODELS = {
     "Claude Sonnet 4.6": {"provider": "claude", "model_id": "claude-sonnet-4-6"},
     "Claude Haiku 4.5": {"provider": "claude", "model_id": "claude-haiku-4-5-20251001"},
     "Gemini 2.5 Flash": {"provider": "gemini", "model_id": "gemini-2.5-flash"},
-    "Gemini 2.5 Pro": {"provider": "gemini", "model_id": "gemini-2.5-pro-preview-06-05"},
+    "Gemini 2.5 Pro": {"provider": "gemini", "model_id": "gemini-2.5-pro"},
     "GPT-4o": {"provider": "openai", "model_id": "gpt-4o"},
     "GPT-4o mini": {"provider": "openai", "model_id": "gpt-4o-mini"},
     "Swedish Chef": {"provider": "openai_chef", "model_id": "gpt-4o-mini"},
@@ -117,7 +124,7 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
                 stream_placeholder.markdown("".join(chunks) + "...")
             final = stream.get_final_message()
         answer = "".join(chunks)
-        usage = {"input": final.usage.input_tokens, "output": final.usage.output_tokens} if final and final.usage else {}
+        usage = _extract_claude_usage(final.usage if final else None)
         return (answer or None, usage)
 
     message = client.messages.create(
@@ -127,8 +134,20 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
     )
     if not message.content:
         return (None, {})
-    usage = {"input": message.usage.input_tokens, "output": message.usage.output_tokens} if message.usage else {}
+    usage = _extract_claude_usage(message.usage)
     return (message.content[0].text, usage)
+
+
+def _extract_claude_usage(usage) -> dict:
+    """Extract token usage from Claude API response, including cache tokens."""
+    if not usage:
+        return {}
+    return {
+        "input": getattr(usage, "input_tokens", 0) or 0,
+        "output": getattr(usage, "output_tokens", 0) or 0,
+        "cache_creation": getattr(usage, "cache_creation_input_tokens", 0) or 0,
+        "cache_read": getattr(usage, "cache_read_input_tokens", 0) or 0,
+    }
 
 
 def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
@@ -378,7 +397,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
 
     if log:
         log.info("cache Cache miss -- calling %s API for: %s", label, user_query[:60])
-    status.write(f"Calling {label} API...")
+    status.write(f"Calling {label} API ({model_id})...")
     stream_placeholder = st.empty()  # for streaming text display
     try:
         caller = _API_CALLERS[provider]
@@ -403,10 +422,18 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
         if usage:
             inp = usage.get("input", 0)
             out = usage.get("output", 0)
+            cache_c = usage.get("cache_creation", 0)
+            cache_r = usage.get("cache_read", 0)
             cost = estimate_cost(model_id, inp, out)
             cost_info = f" -- {inp:,}+{out:,} tokens (~${cost:.4f})"
+            if cache_c or cache_r:
+                cost_info += f" [cache W:{cache_c:,} R:{cache_r:,}]"
             if log:
-                log.info("%s tokens: %d in / %d out, est cost: $%.4f", label, inp, out, cost)
+                log.info("%s tokens: %d in / %d out, cache: %d write / %d read, est cost: $%.4f",
+                         label, inp, out, cache_c, cache_r, cost)
+            from app_spend import record_spend
+            record_spend(provider, model_id, inp, out, source="chat",
+                         cache_creation=cache_c, cache_read=cache_r)
         status.update(label=f"{label} analysis complete{cost_info}", state="complete")
     except ImportError as ex:
         status.update(label="Missing package", state="error")

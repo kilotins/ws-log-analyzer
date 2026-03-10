@@ -1707,7 +1707,8 @@ def claude_cache_key(user_query: str, match_result: dict) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "gemini-2.5-flash") -> str:
+def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "gemini-2.5-flash",
+               timeout: int = 120) -> str:
     """Send a prompt to Google Gemini and return the text response.
 
     Args:
@@ -1715,6 +1716,7 @@ def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "g
         api_key: Gemini API key. Falls back to GEMINI_API_KEY env var.
         system: System instruction (kept separate from user content).
         model: Gemini model ID (default: gemini-2.5-flash).
+        timeout: Request timeout in seconds (default: 120).
     """
     import os
     key = api_key or os.environ.get("GEMINI_API_KEY", "")
@@ -1732,7 +1734,7 @@ def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "g
     if system:
         model_kwargs["system_instruction"] = system
     gen_model = genai.GenerativeModel(model, **model_kwargs)
-    response = gen_model.generate_content(prompt, request_options={"timeout": 30})
+    response = gen_model.generate_content(prompt, request_options={"timeout": timeout})
     return response.text
 
 

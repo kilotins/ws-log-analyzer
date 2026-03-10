@@ -41,6 +41,7 @@ from app_audit import (
     _run_audit_claude, _run_audit_gemini, _run_audit_openai,
     _run_audit, _COMPACT_MAX_LINES,
 )
+from app_spend import render_spend_tab
 
 # --- Paths and directories ---
 _APP_DIR = Path(__file__).parent
@@ -399,29 +400,41 @@ with st.sidebar:
         value=st.session_state.debug_payload,
         help="Show request/response payloads for Claude and Gemini API calls",
     )
-    if st.button("Clear AI cache", help="Clear cached Claude/Gemini/OpenAI responses and history"):
-        st.session_state.claude_cache = {}
-        st.session_state.claude_answer = None
-        st.session_state.claude_query_label = None
-        st.session_state.claude_history = []
-        st.session_state.gemini_cache = {}
-        st.session_state.gemini_answer = None
-        st.session_state.gemini_query_label = None
-        st.session_state.gemini_history = []
-        st.session_state.openai_cache = {}
-        st.session_state.openai_answer = None
-        st.session_state.openai_query_label = None
-        st.session_state.openai_history = []
-        CACHE_FILE.unlink(missing_ok=True)
-        for _hpath in _PROVIDER_HISTORY_FILES.values():
-            _hpath.unlink(missing_ok=True)
-        log.info("cache Cleared all AI caches")
-        st.success("Cache cleared")
+    if st.session_state.get("_confirm_clear_cache"):
+        st.warning("Clear all AI caches and history?")
+        _cc1, _cc2 = st.columns(2)
+        with _cc1:
+            if st.button("Yes, clear", type="primary", use_container_width=True, key="confirm_clear_cache"):
+                st.session_state._confirm_clear_cache = False
+                st.session_state.claude_cache = {}
+                st.session_state.claude_answer = None
+                st.session_state.claude_query_label = None
+                st.session_state.claude_history = []
+                st.session_state.gemini_cache = {}
+                st.session_state.gemini_answer = None
+                st.session_state.gemini_query_label = None
+                st.session_state.gemini_history = []
+                st.session_state.openai_cache = {}
+                st.session_state.openai_answer = None
+                st.session_state.openai_query_label = None
+                st.session_state.openai_history = []
+                CACHE_FILE.unlink(missing_ok=True)
+                for _hpath in _PROVIDER_HISTORY_FILES.values():
+                    _hpath.unlink(missing_ok=True)
+                log.info("cache Cleared all AI caches")
+                st.success("Cache cleared")
+        with _cc2:
+            if st.button("Cancel", use_container_width=True, key="cancel_clear_cache"):
+                st.session_state._confirm_clear_cache = False
+                st.rerun()
+    elif st.button("Clear AI cache", help="Clear cached Claude/Gemini/OpenAI responses and history"):
+        st.session_state._confirm_clear_cache = True
+        st.rerun()
 
 
 # --- Tabs ---
-tab_analyze, tab_realtime, tab_history, tab_audit, tab_applog = st.tabs(
-    ["Analyze", "Realtime Console", "History", "Audit Report", "Application Log"]
+tab_analyze, tab_realtime, tab_history, tab_audit, tab_spend, tab_applog = st.tabs(
+    ["Analyze", "Realtime Console", "History", "Audit Report", "Cloud Spend", "Application Log"]
 )
 
 with tab_analyze:
@@ -534,7 +547,7 @@ with tab_analyze:
     if a is not None:
         render_report_sections(a, log=log, lookup_cache=_lookup_cache, store_cache=_store_cache)
     elif not uploaded_files:
-        st.info("Upload one or more log files to get started.")
+        st.info("Upload one or more WebSphere log files (.log or .gz) above, then click **Analyze** to generate a triage report.")
 
 with tab_realtime:
     st.session_state.rt_enabled = True
@@ -581,13 +594,25 @@ with tab_realtime:
 with tab_history:
     reports = get_report_history()
     if not reports:
-        st.info("No reports yet. Upload a log file in the Analyze tab to get started.")
+        st.info("No reports yet. Upload and analyze a log file in the **Analyze** tab to generate your first report.")
     else:
-        if st.button("Clear history", type="secondary",
+        if st.session_state.get("_confirm_clear_history"):
+            st.warning(f"Delete all {len(reports)} saved reports? This cannot be undone.")
+            hc1, hc2 = st.columns(2)
+            with hc1:
+                if st.button("Yes, delete all", type="primary", use_container_width=True, key="confirm_clear_history"):
+                    st.session_state._confirm_clear_history = False
+                    log.info("history Cleared %d report(s)", len(reports))
+                    for rpath in reports:
+                        rpath.unlink(missing_ok=True)
+                    st.rerun()
+            with hc2:
+                if st.button("Cancel", use_container_width=True, key="cancel_clear_history"):
+                    st.session_state._confirm_clear_history = False
+                    st.rerun()
+        elif st.button("Clear history", type="secondary",
                       help="Delete all saved reports"):
-            log.info("history Cleared %d report(s)", len(reports))
-            for rpath in reports:
-                rpath.unlink(missing_ok=True)
+            st.session_state._confirm_clear_history = True
             st.rerun()
         for rpath in reports:
             content = rpath.read_text(encoding="utf-8")
@@ -654,7 +679,10 @@ with tab_audit:
         _audit_styled = _audit_html.replace("</head>", _AUDIT_LIGHT_CSS + "</head>")
         st.components.v1.html(_audit_styled, height=2000, scrolling=True)
     else:
-        st.info("No audit report yet. Click **Run Audit** to generate one.")
+        st.info("No audit report yet. Select a model above and click **Run Audit** to analyze the codebase.")
+
+with tab_spend:
+    render_spend_tab()
 
 with tab_applog:
     _log_level_filter = st.selectbox(
@@ -673,4 +701,4 @@ with tab_applog:
         else:
             st.caption("No matching log entries.")
     else:
-        st.caption("No application log yet.")
+        st.info("No application log yet. The log will appear here as you use the app.")
