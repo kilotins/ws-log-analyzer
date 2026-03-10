@@ -94,7 +94,7 @@ AI_MODELS = {
     "Gemini 2.5 Pro": {"provider": "gemini", "model_id": "gemini-2.5-pro"},
     "GPT-4o": {"provider": "openai", "model_id": "gpt-4o"},
     "GPT-4o mini": {"provider": "openai", "model_id": "gpt-4o-mini"},
-    "Swedish Chef": {"provider": "openai_chef", "model_id": "gpt-4o-mini"},
+    "Swedish Chef (fun mode)": {"provider": "openai_chef", "model_id": "gpt-4o-mini"},
 }
 
 

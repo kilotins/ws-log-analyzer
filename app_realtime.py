@@ -17,12 +17,19 @@ _LEVEL_HIGHLIGHT_RE = _re.compile(
 _RT_BUFFER_SIZE = RT_BUFFER_SIZE
 
 
+_LEVEL_PREFIX = {
+    "FATAL": "[F]", "ERROR": "[E]", "SEVERE": "[E]",
+    "WARNING": "[W]", "WARN": "[W]", "INFO": "[I]", "DEBUG": "[D]",
+}
+
+
 def _highlight_line(line):
     """Return a line with HTML color spans for log levels."""
     def _color_match(m):
         lvl = m.group(1)
         color = _LEVEL_COLORS.get(lvl, "inherit")
-        return f'<span style="color:{color};font-weight:bold">{lvl}</span>'
+        prefix = _LEVEL_PREFIX.get(lvl, "")
+        return f'<span style="color:{color};font-weight:bold">{prefix} {lvl}</span>'
     return _LEVEL_HIGHLIGHT_RE.sub(_color_match, html.escape(line, quote=True))
 
 

@@ -22,15 +22,15 @@ _AUDIT_FILES_COMPACT = ["wslog.py", "app.py", "CLAUDE.md"]  # For models with lo
 _AUDIT_SKILL_DIRS = ["skills", ".claude/skills"]
 
 _AUDIT_MODELS = {
-    "Claude Sonnet 4.6 (~$0.20)": {"provider": "claude", "id": "claude-sonnet-4-6", "max_tokens": 8192, "compact": True},
-    "Claude Opus 4.6 (~$1.00)": {"provider": "claude", "id": "claude-opus-4-6", "max_tokens": 8192},
-    "Claude Haiku 4.5 (~$0.05)": {"provider": "claude", "id": "claude-haiku-4-5-20251001", "max_tokens": 8192, "compact": True},
-    "Gemini 2.5 Pro (~$0.15)": {"provider": "gemini", "id": "gemini-2.5-pro", "max_tokens": 8192},
-    "Gemini 2.5 Flash (~$0.03)": {"provider": "gemini", "id": "gemini-2.5-flash", "max_tokens": 8192},
-    "GPT-4o (~$0.15)": {"provider": "openai", "id": "gpt-4o", "max_tokens": 8192, "compact": True},
-    "GPT-4o mini (~$0.02)": {"provider": "openai", "id": "gpt-4o-mini", "max_tokens": 8192, "compact": True},
-    "o3 (~$0.60)": {"provider": "openai", "id": "o3", "max_tokens": 8192, "compact": True},
-    "o4-mini (~$0.07)": {"provider": "openai", "id": "o4-mini", "max_tokens": 8192, "compact": True},
+    "Claude — Sonnet 4.6 (~$0.20)": {"provider": "claude", "id": "claude-sonnet-4-6", "max_tokens": 8192, "compact": True},
+    "Claude — Opus 4.6 (~$1.00)": {"provider": "claude", "id": "claude-opus-4-6", "max_tokens": 8192},
+    "Claude — Haiku 4.5 (~$0.05)": {"provider": "claude", "id": "claude-haiku-4-5-20251001", "max_tokens": 8192, "compact": True},
+    "Gemini — 2.5 Pro (~$0.15)": {"provider": "gemini", "id": "gemini-2.5-pro", "max_tokens": 8192},
+    "Gemini — 2.5 Flash (~$0.03)": {"provider": "gemini", "id": "gemini-2.5-flash", "max_tokens": 8192},
+    "OpenAI — GPT-4o (~$0.15)": {"provider": "openai", "id": "gpt-4o", "max_tokens": 8192, "compact": True},
+    "OpenAI — GPT-4o mini (~$0.02)": {"provider": "openai", "id": "gpt-4o-mini", "max_tokens": 8192, "compact": True},
+    "OpenAI — o3 (~$0.60)": {"provider": "openai", "id": "o3", "max_tokens": 8192, "compact": True},
+    "OpenAI — o4-mini (~$0.07)": {"provider": "openai", "id": "o4-mini", "max_tokens": 8192, "compact": True},
 }
 
 _AUDIT_SYSTEM_PROMPT = """\

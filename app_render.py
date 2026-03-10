@@ -66,11 +66,13 @@ def render_summary(s, error_count, file_count, file_summary):
     m4.metric("Warnings", level_counts.get("WARNING", 0))
 
     if len(file_summary) > 1:
+        st.divider()
         st.subheader("Per-File Breakdown")
         for fname, total, errors in file_summary:
             err_note = f" ({errors} errors)" if errors else ""
             st.text(f"  {Path(fname).name}: {total} events{err_note}")
 
+    st.divider()
     exc_col, code_col = st.columns(2)
     with exc_col:
         st.subheader("Top Exceptions")
@@ -88,6 +90,7 @@ def render_summary(s, error_count, file_count, file_summary):
             st.caption("None detected")
 
     if s["tags"]:
+        st.divider()
         st.subheader("Signal Tags")
         for tag, count in s["tags"]:
             st.text(f"  {count:>4}  {tag}")
@@ -260,6 +263,14 @@ def render_incident_timeline(itl):
         f"**{trigger_label}** at {trigger_dt.strftime('%H:%M:%S.%f')[:-3]}"
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # Text fallback for accessibility
+    from collections import Counter
+    level_counts = Counter(e["event"].get("level", "UNKNOWN") for e in window_events)
+    level_parts = [f"{count} {lvl}" for lvl, count in level_counts.most_common()]
+    time_start = min(times).strftime("%H:%M:%S")
+    time_end = max(times).strftime("%H:%M:%S")
+    st.caption(f"Summary: {', '.join(level_parts)} from {time_start} to {time_end}")
 
 
 _SAMPLES_PAGE_SIZE = 10
@@ -492,7 +503,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         with st.expander(f"Likely Causes & Fixes ({len(display_causes)} detected)"):
             render_likely_causes(display_causes)
 
-    with st.expander("Ask AI for help", expanded=True):
+    with st.expander("Ask AI for help"):
         render_ask_claude(display_events, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
 
     # Render AI responses outside the expander to avoid scroll issues with long content
