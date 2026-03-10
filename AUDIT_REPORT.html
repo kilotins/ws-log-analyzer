@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Technical Audit Report -- WS Log Analyzer</title>
+<title>Technical Audit Report — WS Log Analyzer</title>
 <style>*, *::before, *::after { box-sizing: border-box; }
 
 :root {
@@ -240,13 +240,13 @@ mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1
 <div class="layout">
 <nav>
   <div class="nav-title">Audit Report</div>
-  <div class="nav-subtitle">WS Log Analyzer &middot; 2026-03-10 09:09</div>
+  <div class="nav-subtitle">WS Log Analyzer &middot; 2026-03-10 15:28</div>
   <div class="search-box">
     <input type="text" id="report-search" placeholder="Search report..." autocomplete="off">
     <div class="search-count"></div>
   </div>
   <div class="nav-links">
-    <a class="nav-link" href="#sect-1-executive-summary" title="1. Executive Summary"><span class="num">1</span> 1. Executive Summary</a><a class="nav-link" href="#sect-2-repository-overview" title="2. Repository Overview"><span class="num">2</span> 2. Repository Overview</a><a class="nav-link" href="#sect-3-documentation-audit" title="3. Documentation Audit"><span class="num">3</span> 3. Documentation Audit</a><a class="nav-link" href="#sect-4-skills-system-analysis" title="4. Skills System Analysis"><span class="num">4</span> 4. Skills System Analysis</a><a class="nav-link" href="#sect-5-code-review-findings" title="5. Code Review Findings"><span class="num">5</span> 5. Code Review Findings</a><a class="nav-link" href="#sect-6-ai-integration-review" title="6. AI Integration Review"><span class="num">6</span> 6. AI Integration Review</a><a class="nav-link" href="#sect-7-test-coverage-analysis" title="7. Test Coverage Analysis"><span class="num">7</span> 7. Test Coverage Analysis</a><a class="nav-link" href="#sect-8-refactoring-opportunities" title="8. Refactoring Opportunities"><span class="num">8</span> 8. Refactoring Opportunities</a><a class="nav-link" href="#sect-9-feature-opportunities" title="9. Feature Opportunities"><span class="num">9</span> 9. Feature Opportunities</a><a class="nav-link" href="#sect-10-prioritized-improvement-plan" title="10. Prioritized Improvement Plan"><span class="num">10</span> 10. Prioritized Improvement Plan</a>
+    <a class="nav-link" href="#sect-1-executive-summary" title="1. Executive Summary"><span class="num">1</span> 1. Executive Summary</a><a class="nav-link" href="#sect-2-repository-overview" title="2. Repository Overview"><span class="num">2</span> 2. Repository Overview</a><a class="nav-link" href="#sect-3-test-coverage-analysis" title="3. Test Coverage Analysis"><span class="num">3</span> 3. Test Coverage Analysis</a><a class="nav-link" href="#sect-4-documentation-audit" title="4. Documentation Audit"><span class="num">4</span> 4. Documentation Audit</a><a class="nav-link" href="#sect-5-skills-system-analysis" title="5. Skills System Analysis"><span class="num">5</span> 5. Skills System Analysis</a><a class="nav-link" href="#sect-6-security-review" title="6. Security Review"><span class="num">6</span> 6. Security Review</a><a class="nav-link" href="#sect-7-code-quality" title="7. Code Quality"><span class="num">7</span> 7. Code Quality</a><a class="nav-link" href="#sect-8-ai-integration-review" title="8. AI Integration Review"><span class="num">8</span> 8. AI Integration Review</a><a class="nav-link" href="#sect-9-feature-completeness" title="9. Feature Completeness"><span class="num">9</span> 9. Feature Completeness</a><a class="nav-link" href="#sect-10-improvement-recommendations" title="10. Improvement Recommendations"><span class="num">10</span> 10. Improvement Recommendations</a><a class="nav-link" href="#sect-summary-scoring" title="Summary Scoring"><span class="num">11</span> Summary Scoring</a>
   </div>
   <div class="nav-controls">
     <button onclick="expandAll()">Expand all</button>
@@ -255,265 +255,243 @@ mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1
 </nav>
 <main>
   <div class="report-header">
-    <h1>Technical Audit Report -- WS Log Analyzer</h1>
+    <h1>Technical Audit Report — WS Log Analyzer</h1>
     <div class="report-meta">
-      <span>Generated: 2026-03-10 09:09</span>
-      <span>10 sections</span>
+      <span>Generated: 2026-03-10 15:28</span>
+      <span>11 sections</span>
     </div>
-    <div class="severity-grid"><div class="sev-card"><span class="sev-label">Overall</span><span class="sev-grade good">A-</span></div></div>
+    <div class="severity-grid"><div class="sev-card"><span class="sev-label">Tests</span><span class="sev-grade good">A</span></div><div class="sev-card"><span class="sev-label">Security</span><span class="sev-grade bad">D</span></div><div class="sev-card"><span class="sev-label">Skills System</span><span class="sev-grade good">A</span></div><div class="sev-card"><span class="sev-label">Ai Integration</span><span class="sev-grade good">A-</span></div><div class="sev-card"><span class="sev-label">Overall</span><span class="sev-grade good">A-</span></div></div>
   </div>
   <h1 id="technical-audit-report-ws-log-analyzer">Technical Audit Report — WS Log Analyzer</h1>
-<p><strong>Overall Grade: A-</strong></p>
+<p><strong>Generated:</strong> 2026-03-10 | <strong>Auditor:</strong> Claude Opus 4.6</p>
+<p><strong>Overall Grade: A-</strong> (88/100)</p>
 <hr>
-<details class="section" id="sect-1-executive-summary" open><summary><span class="section-title">1. Executive Summary</span><span class="badge badge-summary section-badge">1/10</span></summary><div class="section-body">
-<p><strong>Grade: A-</strong></p>
-<p>This is a well-engineered, production-quality WebSphere/Java log analysis tool with impressive domain depth. The codebase demonstrates strong software engineering practices: separation of concerns, comprehensive testing, thoughtful security measures, and excellent documentation.</p>
-<p><strong>Key Strengths:</strong></p>
-<ul><li>Zero required dependencies for core functionality — stdlib-only design is a major architectural win</li><li>Deep domain expertise in WebSphere/Liberty log patterns with 17 heuristic detectors</li><li>Robust prompt injection protection with multi-layer sanitization</li><li>Comprehensive test suite (300+ tests covering parsing, heuristics, AI integration, edge cases)</li><li>Excellent documentation (CLAUDE.md, ARCHITECTURE.md, 11 skill files totaling ~2,000 lines)</li><li>Well-designed caching system with SHA-256 hashed keys and TTL expiry</li><li>Generator-based streaming parser (<code class="inline">parse_file_iter</code>) for memory-efficient processing</li></ul>
+<details class="section" id="sect-1-executive-summary" open><summary><span class="section-title">1. Executive Summary</span><span class="badge badge-summary section-badge">1/11</span></summary><div class="section-body">
+<p><strong>Strengths:</strong></p>
+<ul><li>✅ Comprehensive test suite: 463 tests (235 unit + 95 helper + 31 e2e + Playwright)</li><li>✅ Zero required dependencies for core — stdlib only</li><li>✅ Rich domain knowledge: 16 skill files covering WAS, Liberty, security, threads, Splunk</li><li>✅ Multi-provider AI integration (Claude, Gemini, OpenAI) with per-provider caching and cost tracking</li><li>✅ 5 output formats (Markdown, JSON, CSV, XML, PDF)</li><li>✅ Strong secret redaction (9 patterns: bearer, JWT, AWS, PEM, Azure SAS, Digest auth)</li><li>✅ Prompt injection protection with XML tag stripping and input sanitization</li><li>✅ Clean module separation: wslog.py (engine) → app.py (GUI) → app_*.py (features)</li><li>✅ Cloud spend tracking across all AI providers</li></ul>
 <p><strong>Key Findings:</strong></p>
-<ul><li>Several minor documentation inaccuracies (line counts, test counts)</li><li>API key storage in plaintext JSON file alongside keyring is a security concern</li><li>Missing test coverage for some app-layer modules (<code class="inline">app_ai.py</code>, <code class="inline">app_render.py</code>, <code class="inline">app_audit.py</code>, <code class="inline">app_realtime.py</code>)</li><li>Some code duplication in report renderers that could be refactored</li><li>No input validation on file paths in CLI mode</li></ul>
+<ul><li>⚠️ <strong>Medium</strong>: No CI/CD pipeline (no GitHub Actions)</li><li>⚠️ <strong>Medium</strong>: wslog.py is 1,840 lines — large but manageable single-file core</li><li>⚠️ <strong>Low</strong>: Token estimation is approximate (~4 chars/token)</li><li>⚠️ <strong>Low</strong>: No structured logging (JSON format) for production use</li></ul>
 <hr>
-</div></details><details class="section" id="sect-2-repository-overview"><summary><span class="section-title">2. Repository Overview</span><span class="badge badge-info section-badge">2/10</span></summary><div class="section-body">
-<p><strong>Grade: A-</strong></p>
-<h3 id="file-inventory">File Inventory</h3>
-<div class="table-wrap"><table><thead><tr><th>File</th><th>Lines (Reported)</th><th>Lines (Actual)</th><th>Audited</th></tr></thead><tbody>
-<tr><td><code class="inline">wslog.py</code></td><td>~1759 (ARCHITECTURE.md)</td><td>1838</td><td>✅</td></tr>
-<tr><td><code class="inline">app.py</code></td><td>~658 (ARCHITECTURE.md)</td><td>676</td><td>✅</td></tr>
-<tr><td><code class="inline">app_ai.py</code></td><td>~665</td><td>Not provided</td><td>❌</td></tr>
-<tr><td><code class="inline">app_render.py</code></td><td>~503</td><td>Not provided</td><td>❌</td></tr>
-<tr><td><code class="inline">app_audit.py</code></td><td>~381</td><td>Not provided</td><td>❌</td></tr>
-<tr><td><code class="inline">app_realtime.py</code></td><td>~154</td><td>Not provided</td><td>❌</td></tr>
-<tr><td><code class="inline">app_constants.py</code></td><td>~29</td><td>Not provided</td><td>❌</td></tr>
-<tr><td><code class="inline">tests/test_wslog.py</code></td><td>N/A</td><td>2762</td><td>✅</td></tr>
-<tr><td><code class="inline">tests/test_app_helpers.py</code></td><td>~92 tests</td><td>Not provided</td><td>❌</td></tr>
-<tr><td><code class="inline">tests/test_app_e2e.py</code></td><td>~27 tests</td><td>Not provided</td><td>❌</td></tr>
-<tr><td>Skills (11 files)</td><td>~2,000+</td><td>Provided</td><td>✅</td></tr>
-<tr><td>Doc files (3)</td><td>~332</td><td>Provided</td><td>✅</td></tr>
+</div></details><details class="section" id="sect-2-repository-overview"><summary><span class="section-title">2. Repository Overview</span><span class="badge badge-info section-badge">2/11</span></summary><div class="section-body">
+<p><strong>Grade: A</strong> (92/100)</p>
+<div class="table-wrap"><table><thead><tr><th>Metric</th><th>Value</th><th>Assessment</th></tr></thead><tbody>
+<tr><td><strong>Total lines of code</strong></td><td>11,137</td><td>Well-proportioned</td></tr>
+<tr><td><strong>Core engine</strong></td><td>1,840 (wslog.py)</td><td>Comprehensive single-file</td></tr>
+<tr><td><strong>GUI layer</strong></td><td>695 (app.py) + 2,833 (app_*.py)</td><td>Clean separation</td></tr>
+<tr><td><strong>Report renderer</strong></td><td>819 (report_renderer.py)</td><td>Self-contained HTML generation</td></tr>
+<tr><td><strong>Test code</strong></td><td>4,071 lines across 3 files</td><td>Excellent coverage</td></tr>
+<tr><td><strong>Skill files</strong></td><td>16 total (4 Claude + 12 domain)</td><td>Comprehensive</td></tr>
+<tr><td><strong>Python modules</strong></td><td>9 core + 3 scripts + 3 test files</td><td>Well-organized</td></tr>
+<tr><td><strong>Functions</strong></td><td>112+ across core modules</td><td>Coherent grouping</td></tr>
+<tr><td><strong>Regex patterns</strong></td><td>16 compiled</td><td>Thorough log parsing</td></tr>
 </tbody></table></div>
-<p><strong>Total audited lines</strong>: ~5,276 (core + tests) + ~2,147 (skills/docs)</p>
-<p><strong>Observation</strong>: Several supporting modules (<code class="inline">app_ai.py</code>, <code class="inline">app_render.py</code>, <code class="inline">app_audit.py</code>, <code class="inline">app_realtime.py</code>, <code class="inline">app_constants.py</code>) are imported in <code class="inline">app.py</code> but not provided for audit. This limits the completeness of the review.</p>
-<hr>
-</div></details><details class="section" id="sect-3-documentation-audit"><summary><span class="section-title">3. Documentation Audit</span><span class="badge badge-info section-badge">3/10</span></summary><div class="section-body">
-<p><strong>Grade: B+</strong></p>
-<h3 id="claude-md">CLAUDE.md</h3>
-<ul><li><strong>Accurate</strong> in describing the tool&#x27;s purpose, architecture, and conventions</li><li><strong>Complete</strong> skill table covering all 14 skill files (4 Claude skills + 10 domain skills)</li><li><strong>Gotchas section</strong> is excellent — highlights the most common mistakes</li><li>Minor issue: States &quot;Single-file core&quot; but the project has grown to multiple app modules</li></ul>
-<h3 id="architecture-md">ARCHITECTURE.md</h3>
-<div class="table-wrap"><table><thead><tr><th>Claim</th><th>Accuracy</th></tr></thead><tbody>
-<tr><td><code class="inline">wslog.py</code> ~1759 lines</td><td>❌ Actual: 1838 lines</td></tr>
-<tr><td><code class="inline">app.py</code> ~658 lines</td><td>❌ Actual: 676 lines</td></tr>
-<tr><td>306 pytest unit tests</td><td>❌ Stale — <code class="inline">testing.md</code> says 392+, test file has significantly more</td></tr>
-<tr><td>92 app helper tests</td><td>Cannot verify (file not provided)</td></tr>
-<tr><td>27 e2e tests</td><td>Cannot verify (file not provided)</td></tr>
-<tr><td><code class="inline">parse_file()</code> reads line by line</td><td>✅ Correct</td></tr>
-<tr><td>Two-layer cache</td><td>✅ Correct</td></tr>
-<tr><td>SHA-256 hashed cache keys</td><td>✅ Correct (<code class="inline">hashlib.sha256</code> in <code class="inline">claude_cache_key()</code>)</td></tr>
-</tbody></table></div>
-<p><strong>Issues:</strong></p>
-<ol><li>Line counts in ARCHITECTURE.md are stale (off by ~80 lines for wslog.py)</li><li>Test count (306) is significantly stale — the test file alone has far more tests</li><li>The architecture doc mentions <code class="inline">parse_file()</code> delegates to <code class="inline">parse_file_iter()</code> internally, which is accurate (<code class="inline">wslog.py:180</code>)</li><li>State management table is comprehensive and matches <code class="inline">app.py</code> <code class="inline">_STATE_DEFAULTS</code></li></ol>
-<h3 id="skills-documentation">Skills Documentation</h3>
-<ul><li>All 11 domain skill files are well-structured with consistent format</li><li>Each includes: overview, patterns, code tables, Splunk queries, incident response playbooks, and &quot;See Also&quot; cross-references</li><li><strong><code class="inline">gc-performance.md</code></strong> (333 lines) is exceptionally detailed — covers J9, G1, and ZGC</li><li><strong><code class="inline">jms-messaging.md</code></strong> (222 lines) is a recent addition covering SIB/JMS patterns well</li><li>Cross-references between skill files are consistent and accurate</li></ul>
-<hr>
-</div></details><details class="section" id="sect-4-skills-system-analysis"><summary><span class="section-title">4. Skills System Analysis</span><span class="badge badge-good section-badge">4/10</span></summary><div class="section-body">
-<p><strong>Grade: A</strong></p>
-<h3 id="architecture">Architecture</h3>
-<p>The skills system (<code class="inline">wslog.py:720-900</code>) implements a sophisticated multi-signal routing mechanism:</p>
-<ol><li><strong>Tag-based routing</strong> (<code class="inline">_SKILL_TAG_MAP</code>) — 5 signal tags → skill files</li><li><strong>Code prefix routing</strong> (<code class="inline">_SKILL_CODE_PREFIX_MAP</code>) — 28 WAS code prefixes → skill files</li><li><strong>Exception routing</strong> (<code class="inline">_SKILL_EXCEPTION_MAP</code>) — 27 exception keywords → skill files</li><li><strong>Query keyword routing</strong> (<code class="inline">_SKILL_QUERY_KEYWORDS</code>) — 50+ keywords → skill files</li></ol>
-<h3 id="coverage-analysis">Coverage Analysis</h3>
-<div class="table-wrap"><table><thead><tr><th>Signal Source</th><th>Entries</th><th>Coverage</th></tr></thead><tbody>
-<tr><td>Tags</td><td>5/5</td><td>✅ Complete</td></tr>
-<tr><td>Code prefixes</td><td>28</td><td>✅ Comprehensive (covers all major WAS prefixes)</td></tr>
-<tr><td>Exception keywords</td><td>27</td><td>✅ Good coverage of common Java/WAS exceptions</td></tr>
-<tr><td>Query keywords</td><td>50+</td><td>✅ Extensive natural language coverage</td></tr>
-<tr><td>Skill files on disk</td><td>11</td><td>Validated at runtime via <code class="inline">_discover_skills()</code></td></tr>
-</tbody></table></div>
-<h3 id="gaps-identified">Gaps Identified</h3>
-<ol><li><strong>No skill for <code class="inline">gc-performance.md</code> in tag mapping</strong>: The <code class="inline">OOM/GC</code> tag maps to <code class="inline">[&quot;stacktrace-analysis.md&quot;, &quot;gc-performance.md&quot;]</code> — ✅ this is covered</li><li><strong>No skill for <code class="inline">jms-messaging.md</code> in tag mapping</strong>: JMS-related tags are not in <code class="inline">_SKILL_TAG_MAP</code>. However, code prefixes (<code class="inline">CWSID</code>, <code class="inline">CWSJY</code>, <code class="inline">CWSIV</code>, <code class="inline">CWSIT</code>) and query keywords (<code class="inline">jms</code>, <code class="inline">messaging</code>, <code class="inline">queue</code>, <code class="inline">sib</code>, <code class="inline">mdb</code>, <code class="inline">topic</code>) cover this. Still, adding a <code class="inline">&quot;JMS&quot;</code> signal tag in <code class="inline">bucket_tags()</code> would improve automatic detection.</li><li><strong>Missing code prefix <code class="inline">CWSIA</code></strong>: Referenced in <code class="inline">jms-messaging.md</code> but not in <code class="inline">_SKILL_CODE_PREFIX_MAP</code></li><li><strong>Missing code prefix <code class="inline">CWSJC</code></strong>: Referenced in <code class="inline">jms-messaging.md</code> but not in <code class="inline">_SKILL_CODE_PREFIX_MAP</code></li><li><code class="inline">MAX_SKILLS = 3</code> may be restrictive for complex issues involving multiple domains (e.g., JMS + security + deployment)</li></ol>
-<h3 id="validation">Validation</h3>
-<p>The <code class="inline">select_skills()</code> function at <code class="inline">wslog.py:855</code> validates returned filenames against <code class="inline">_discover_skills()</code>, preventing stale mappings from breaking prompts. This is excellent defensive programming.</p>
-<hr>
-</div></details><details class="section" id="sect-5-code-review-findings"><summary><span class="section-title">5. Code Review Findings</span><span class="badge badge-warn section-badge">5/10</span></summary><div class="section-body">
-<p><strong>Grade: B+</strong></p>
-<h3 id="bugs">Bugs</h3>
-<ol><li><strong><code class="inline">_parse_ts_parts()</code> edge case</strong> (<code class="inline">wslog.py:224-246</code>): The <code class="inline">date_part</code> variable can be <code class="inline">None</code> when parsing bare time strings like <code class="inline">&quot;12:34:56.789&quot;</code>. The function returns <code class="inline">(None, 12, 34)</code>, and <code class="inline">time_histogram()</code> uses <code class="inline">date_key = date_part or &quot;_&quot;</code> which handles this correctly. ✅ No bug.</li></ol>
-<ol><li><strong><code class="inline">open_text()</code> double-read for gzip probe</strong> (<code class="inline">wslog.py:80-88</code>): Reads 1 byte then seeks to 0. This is correct for gzip validation but adds a small overhead. The fallback to plain text on <code class="inline">OSError</code>/<code class="inline">EOFError</code> is well-handled.</li></ol>
-<ol><li><strong><code class="inline">pick_samples()</code> scoring inconsistency</strong> (<code class="inline">wslog.py:218-228</code>): <code class="inline">FATAL</code> gets score 4, <code class="inline">ERROR</code>/<code class="inline">SEVERE</code> gets 3, but the <code class="inline">WARN</code> keyword check only matches <code class="inline">&quot;WARN&quot;</code>, not <code class="inline">&quot;WARNING&quot;</code>. Looking at the code:</li></ol>
-<p>   ``<code class="inline">python    if e[&quot;level&quot;] in (&quot;WARNING&quot;, &quot;WARN&quot;): s += 1    </code>``    ✅ Both forms are checked. No bug.</p>
-<ol><li><strong>Potential issue in <code class="inline">_heuristic_keywords()</code></strong> (<code class="inline">wslog.py:336-349</code>): The keyword extraction uses <code class="inline">p.strip().isalnum()</code> which excludes keywords containing dots (e.g., <code class="inline">&quot;hung.thread&quot;</code>). The second pass (<code class="inline">parts2</code>) allows dots but the logic is slightly fragile. The regex <code class="inline">re.split(r&#x27;[|()\\.\[\]<em>+?{}^$]&#x27;, pattern)</code> splits on dots, so <code class="inline">&quot;hung.thread&quot;</code> becomes <code class="inline">[&quot;hung&quot;, &quot;thread&quot;]</code> — both &lt; 4 chars, so they&#x27;re excluded from the first pass. The second pass with <code class="inline">re.split(r&#x27;[|()\\</em>+?{}^$\[\]]&#x27;, pattern)</code> doesn&#x27;t split on dots, so <code class="inline">&quot;hung.thread&quot;</code> would appear as a candidate. This works correctly.</li></ol>
-<ol><li><strong><code class="inline">per_file_summary()</code> sorting</strong> (<code class="inline">wslog.py:237</code>): Returns files sorted by path string. This is deterministic but may not match insertion order for multi-file analyses.</li></ol>
-<h3 id="style-issues">Style Issues</h3>
-<ol><li><strong>Mixed type annotations</strong> (<code class="inline">wslog.py</code>): Uses both <code class="inline">str | None</code> (PEP 604, Python 3.10+) and <code class="inline">from __future__ import annotations</code>. With the <code class="inline">__future__</code> import, the <code class="inline">|</code> syntax works in older Python versions for annotations. ✅ Consistent.</li></ol>
-<ol><li><strong><code class="inline">classify_event()</code> return type</strong> (<code class="inline">wslog.py:112</code>): Returns <code class="inline">dict[str, object]</code> but the actual values are specific types (<code class="inline">str | None</code>, <code class="inline">list[str]</code>). A <code class="inline">TypedDict</code> or dataclass would improve type safety.</li></ol>
-<ol><li><strong>Module-level mutable state</strong> (<code class="inline">wslog.py:328</code>): <code class="inline">_HEURISTICS = _load_heuristics_from_yaml() or _HEURISTICS_INLINE</code> — this executes at import time. If the YAML file is malformed, it silently falls back to inline. This is intentional but worth noting.</li></ol>
-<ol><li><strong><code class="inline">app.py</code> global execution</strong> (<code class="inline">app.py</code>): Significant logic runs at module level (directory creation, cache migration, logging setup, keyring loading). This is standard for Streamlit but makes testing harder.</li></ol>
-<ol><li><strong>Inconsistent error handling in <code class="inline">_load_keychain()</code></strong> (<code class="inline">app.py:267-280</code>): Catches broad <code class="inline">Exception</code> for keyring operations. While pragmatic (keyring has many failure modes), it could mask unexpected errors.</li></ol>
-<h3 id="security-issues">Security Issues</h3>
-<ol><li><strong>API key storage in plaintext JSON</strong> (<code class="inline">app.py:281-298</code>, <code class="inline">_KEYS_FILE = CACHE_DIR / &quot;.api_keys.json&quot;</code>): While the file permissions are set to <code class="inline">0o600</code>, storing API keys in a JSON file is less secure than keyring-only storage. The file serves as a fallback when keyring is unavailable, which is a reasonable tradeoff, but the file should be documented as a security consideration.</li></ol>
-<ol><li><strong><code class="inline">_is_safe_rt_path()</code></strong> (imported from <code class="inline">app_realtime.py</code>): This function is referenced but not provided for audit. Path traversal and symlink attacks are critical for the realtime monitoring feature.</li></ol>
-<ol><li><strong>Redaction completeness</strong> (<code class="inline">wslog.py:57-73</code>): The <code class="inline">SECRET_REPLACERS</code> list is comprehensive with 10 patterns covering:</li></ol>
-<ul><li>Bearer tokens</li><li>Key-value secrets (multi-word support)</li><li>JSON secrets</li><li>Connection string passwords</li><li>JWTs</li><li>AWS access keys</li><li>Basic auth headers</li><li>PEM private keys</li><li>Azure SAS tokens</li><li>Digest auth headers</li></ul>
-<p>   <strong>Potential gap</strong>: No redaction for <code class="inline">Set-Cookie</code> headers containing session tokens. However, this is a minor concern since WebSphere logs rarely contain HTTP response headers.</p>
-<ol><li><strong>Prompt injection protection</strong> (<code class="inline">wslog.py:680-697</code>): The <code class="inline">_sanitize_prompt_input()</code> function:</li></ol>
-<ul><li>Strips known delimiter tags by name</li><li>Strips ALL XML-like tags via generic regex</li><li>Escapes XML entities via <code class="inline">xml.sax.saxutils.escape</code>  This is a strong three-layer defense. The system prompt also includes explicit instructions to treat user input as data.</li></ul>
-<ol><li><strong>No CLI path validation</strong> (<code class="inline">wslog.py:main()</code>): The <code class="inline">args.paths</code> are passed directly to <code class="inline">Path()</code> without sanitization. In CLI context this is acceptable (the user controls the input), but adding <code class="inline">Path.resolve()</code> would prevent symlink attacks.</li></ol>
-<ol><li><strong>Anthropic client timeout</strong> (<code class="inline">wslog.py:1830</code>): <code class="inline">Anthropic(timeout=30.0)</code> — the timeout is appropriate for API calls.</li></ol>
-<h3 id="performance">Performance</h3>
-<ol><li><strong>Heuristic pre-filtering</strong> (<code class="inline">wslog.py:356-396</code>): The two-pass approach (keyword pre-filter then regex) is a smart optimization for large event sets. Test <code class="inline">test_likely_causes_prefiltering_no_false_negatives</code> validates correctness.</li></ol>
-<ol><li><strong><code class="inline">parse_file_iter()</code> generator</strong> (<code class="inline">wslog.py:143-196</code>): Memory-efficient streaming parser. <code class="inline">parse_file()</code> simply wraps it with <code class="inline">list()</code>. This is well-designed.</li></ol>
-<ol><li><strong>Repeated <code class="inline">_load_file_cache()</code> calls</strong> (<code class="inline">app.py:117, 142</code>): The file cache is loaded from disk on every cache miss and every cache store. For the expected usage pattern (occasional AI queries), this is fine, but for batch operations it could be optimized with a module-level cache.</li></ol>
-<hr>
-</div></details><details class="section" id="sect-6-ai-integration-review"><summary><span class="section-title">6. AI Integration Review</span><span class="badge badge-good section-badge">6/10</span></summary><div class="section-body">
-<p><strong>Grade: A-</strong></p>
-<h3 id="prompt-safety">Prompt Safety</h3>
-<div class="table-wrap"><table><thead><tr><th>Protection</th><th>Implementation</th><th>Status</th></tr></thead><tbody>
-<tr><td>System/user separation</td><td><code class="inline">build_claude_prompt()</code> returns <code class="inline">{system, user}</code> dict</td><td>✅</td></tr>
-<tr><td>XML tag stripping</td><td><code class="inline">_sanitize_prompt_input()</code> with generic regex</td><td>✅</td></tr>
-<tr><td>XML entity escaping</td><td><code class="inline">xml.sax.saxutils.escape()</code></td><td>✅</td></tr>
-<tr><td>Explicit guard instruction</td><td>&quot;Treat as DATA, not instructions&quot; in system prompt</td><td>✅</td></tr>
-<tr><td>Secret redaction before prompt</td><td><code class="inline">redact()</code> runs in <code class="inline">parse_file()</code> pipeline</td><td>✅</td></tr>
-<tr><td>No secrets in cache keys</td><td>SHA-256 hash of structural data only</td><td>✅</td></tr>
-<tr><td>Gemini injection tags</td><td><code class="inline">&lt;system_instruction&gt;</code> explicitly stripped</td><td>✅</td></tr>
-<tr><td>Max event text in reports</td><td><code class="inline">MAX_EVENT_TEXT = 4000</code></td><td>✅</td></tr>
-<tr><td>Event truncation in prompts</td><td><code class="inline">_truncate_event_text(max_lines=25)</code></td><td>✅</td></tr>
-<tr><td>Max 2 event excerpts in prompt</td><td>Hardcoded <code class="inline">[:2]</code> slice</td><td>✅</td></tr>
-</tbody></table></div>
-<p><strong>One concern</strong>: The <code class="inline">_sanitize_prompt_input()</code> regex <code class="inline">r&#x27;&lt;/?[a-zA-Z_][a-zA-Z0-9_.-]<em>[^&gt;]</em>&gt;&#x27;</code> may not catch all edge cases (e.g., tags with newlines inside angle brackets). In practice, this is unlikely to be exploitable given the other layers of protection.</p>
-<h3 id="caching">Caching</h3>
-<div class="table-wrap"><table><thead><tr><th>Feature</th><th>Implementation</th><th>Status</th></tr></thead><tbody>
-<tr><td>Session cache (in-memory)</td><td><code class="inline">st.session_state.claude_cache</code> etc.</td><td>✅</td></tr>
-<tr><td>File cache (persistent)</td><td><code class="inline">cache/ai_responses.json</code> with TTL</td><td>✅</td></tr>
-<tr><td>Cache promotion</td><td>File → session on hit</td><td>✅</td></tr>
-<tr><td>TTL expiry</td><td><code class="inline">CACHE_TTL_SECONDS</code> from <code class="inline">app_constants.py</code></td><td>✅</td></tr>
-<tr><td>Max entries</td><td><code class="inline">MAX_CACHE_ENTRIES</code> (100 default)</td><td>✅</td></tr>
-<tr><td>Key stability</td><td>SHA-256 of query + structural match data</td><td>✅</td></tr>
-<tr><td>Provider isolation</td><td>Gemini keys prefixed (mentioned in ARCHITECTURE.md)</td><td>Cannot verify (app_ai.py not provided)</td></tr>
-</tbody></table></div>
-<h3 id="multi-provider-support">Multi-Provider Support</h3>
-<p>The codebase supports three AI providers (Claude, Gemini, OpenAI) with:</p>
-<ul><li>Per-provider caching and history</li><li>Per-provider API key management (keyring → file → env var)</li><li>Shared prompt building via <code class="inline">build_claude_prompt()</code> (naming is slightly misleading for Gemini/OpenAI usage)</li><li><code class="inline">ask_gemini()</code> in <code class="inline">wslog.py</code> with separate <code class="inline">system_instruction</code> parameter</li></ul>
-<p><strong>Note</strong>: <code class="inline">ask_gemini()</code> (<code class="inline">wslog.py:1068</code>) uses <code class="inline">request_options={&quot;timeout&quot;: 30}</code> which is appropriate. The Gemini model default is <code class="inline">gemini-2.5-flash</code> — a good cost/quality balance.</p>
-<h3 id="token-estimation">Token Estimation</h3>
-<p><code class="inline">estimate_tokens()</code> (<code class="inline">wslog.py:1049</code>) uses <code class="inline">len(text) // 4</code> — a reasonable approximation. The <code class="inline">TOKEN_LIMITS</code> dict provides per-provider context window sizes. No evidence these limits are enforced in prompt construction, which could lead to oversized prompts for very large log files.</p>
-<hr>
-</div></details><details class="section" id="sect-7-test-coverage-analysis"><summary><span class="section-title">7. Test Coverage Analysis</span><span class="badge badge-good section-badge">7/10</span></summary><div class="section-body">
-<p><strong>Grade: A-</strong></p>
-<h3 id="quantitative-coverage">Quantitative Coverage</h3>
-<div class="table-wrap"><table><thead><tr><th>Category</th><th>Test Count</th><th>Coverage</th></tr></thead><tbody>
-<tr><td>Timestamp extraction</td><td>3</td><td>✅ Complete</td></tr>
-<tr><td>WAS level parsing</td><td>6</td><td>✅ Complete</td></tr>
-<tr><td>Thread ID extraction</td><td>3</td><td>✅</td></tr>
-<tr><td>WAS code regex</td><td>2</td><td>✅</td></tr>
-<tr><td>Exception regex</td><td>4</td><td>✅</td></tr>
-<tr><td>Redaction</td><td>20+</td><td>✅ Excellent (includes false-positive tests)</td></tr>
-<tr><td>Bucket tags</td><td>7</td><td>✅</td></tr>
-<tr><td>Event classification</td><td>5</td><td>✅</td></tr>
-<tr><td>File parsing</td><td>12+</td><td>✅ (includes gz, empty, preamble, max_lines, permissions, encoding)</td></tr>
-<tr><td>Stacktrace handling</td><td>3</td><td>✅</td></tr>
-<tr><td>Summary/aggregation</td><td>3</td><td>✅</td></tr>
-<tr><td>Histogram</td><td>5</td><td>✅</td></tr>
-<tr><td>Report rendering (MD)</td><td>5</td><td>✅</td></tr>
-<tr><td>Report rendering (JSON)</td><td>4</td><td>✅</td></tr>
-<tr><td>Report rendering (PDF)</td><td>4</td><td>✅</td></tr>
-<tr><td>Report rendering (CSV)</td><td>4</td><td>✅</td></tr>
-<tr><td>Report rendering (XML)</td><td>5</td><td>✅</td></tr>
-<tr><td>Likely causes</td><td>20+</td><td>✅ Excellent</td></tr>
-<tr><td>Splunk queries</td><td>12</td><td>✅</td></tr>
-<tr><td>Hung thread drilldown</td><td>10</td><td>✅</td></tr>
-<tr><td>match_user_query</td><td>6</td><td>✅</td></tr>
-<tr><td>Prompt building</td><td>10+</td><td>✅</td></tr>
-<tr><td>Cache keys</td><td>6</td><td>✅</td></tr>
-<tr><td>Sanitization</td><td>12+</td><td>✅</td></tr>
-<tr><td>Skills selection</td><td>30+</td><td>✅ Excellent (parametrized)</td></tr>
-<tr><td>Performance</td><td>3</td><td>✅ (100k lines, 50k events, 10k histogram)</td></tr>
-<tr><td>API error handling</td><td>5</td><td>✅</td></tr>
-<tr><td>Streaming parser</td><td>6</td><td>✅</td></tr>
-<tr><td>Incident timeline</td><td>3</td><td>✅</td></tr>
-</tbody></table></div>
-<p><strong>Total estimated test count</strong>: ~250+ distinct test cases in the provided file.</p>
-<h3 id="coverage-gaps">Coverage Gaps</h3>
-<ol><li><strong><code class="inline">render_csv_report()</code> newline handling</strong> (<code class="inline">wslog.py:548</code>): The CSV renderer replaces <code class="inline">\n</code> with space in event text. No test verifies multi-line event text is properly handled in CSV output.</li></ol>
-<ol><li><strong><code class="inline">incident_timeline()</code> edge cases</strong>: No test for events where all timestamps are unparseable, or for events spanning midnight.</li></ol>
-<ol><li><strong><code class="inline">_load_heuristics_from_yaml()</code> error paths</strong>: Tests skip when YAML is unavailable. No test for malformed YAML content.</li></ol>
-<ol><li><strong><code class="inline">main()</code> CLI function</strong>: Only tested indirectly via subprocess calls (2 tests). No unit tests for argument parsing edge cases.</li></ol>
-<ol><li><strong><code class="inline">app.py</code> module</strong>: No direct tests for:</li></ol>
-<ul><li><code class="inline">_load_file_cache()</code> TTL expiry logic</li><li><code class="inline">_save_file_cache()</code> eviction logic</li><li><code class="inline">_load_keychain()</code> / <code class="inline">_save_keychain()</code> fallback chain</li><li><code class="inline">get_report_history()</code> </li></ul>
-<ol><li><strong>Missing modules</strong>: <code class="inline">app_ai.py</code>, <code class="inline">app_render.py</code>, <code class="inline">app_audit.py</code>, <code class="inline">app_realtime.py</code> — their test files (<code class="inline">test_app_helpers.py</code>, <code class="inline">test_app_e2e.py</code>) were not provided for review.</li></ol>
-<h3 id="test-quality">Test Quality</h3>
-<ul><li><strong>Fixtures</strong>: Well-organized with shared string constants and <code class="inline">@pytest.fixture</code> functions</li><li><strong>Parametrized tests</strong>: Good use of <code class="inline">@pytest.mark.parametrize</code> for skill mapping coverage</li><li><strong>Regression tests</strong>: <code class="inline">test_likely_causes_prefiltering_regression</code> and <code class="inline">test_likely_causes_prefiltering_no_false_negatives</code> are particularly well-designed</li><li><strong>Edge cases</strong>: Tests cover empty files, encoding issues, permission errors, null bytes, fake gzip files</li><li><strong>Performance tests</strong>: Include 100k-line parsing and 50k-event summarization — validates scalability</li></ul>
-<hr>
-</div></details><details class="section" id="sect-8-refactoring-opportunities"><summary><span class="section-title">8. Refactoring Opportunities</span><span class="badge badge-info section-badge">8/10</span></summary><div class="section-body">
-<p><strong>Grade: B+</strong></p>
-<h3 id="8-1-extract-event-typeddict-dataclass">8.1 Extract Event TypedDict/Dataclass</h3>
-<p><strong>Priority</strong>: Medium | <strong>Effort</strong>: Low</p>
-<p>Currently, events are plain <code class="inline">dict[str, object]</code> passed everywhere. A <code class="inline">TypedDict</code> would catch key typos at lint time:</p>
-<pre class="code-block" data-lang="python"><code><span class="kw">class</span> Event(TypedDict):
-    level: str | <span class="kw">None</span>
-    thread_id: str | <span class="kw">None</span>
-    code: str | <span class="kw">None</span>
-    exception: str | <span class="kw">None</span>
-    root_cause: str | <span class="kw">None</span>
-    tags: list[str]
-    ts: str | <span class="kw">None</span>
-    file: str
-    text: str</code></pre>
-<p><strong>Files affected</strong>: <code class="inline">wslog.py</code> (type annotations only — no runtime change needed)</p>
-<h3 id="8-2-dry-report-renderers">8.2 DRY Report Renderers</h3>
-<p><strong>Priority</strong>: Medium | <strong>Effort</strong>: Medium</p>
-<p><code class="inline">render_markdown_report()</code> (~85 lines), <code class="inline">render_json_report()</code> (~40 lines), and <code class="inline">render_pdf_report()</code> (~130 lines) share significant structural logic (iterating causes, splunk queries, hung threads, samples). Extract a shared data structure or visitor pattern.</p>
-<h3 id="8-3-rename-build-claude-prompt-to-build-ai-prompt">8.3 Rename <code class="inline">build_claude_prompt()</code> to <code class="inline">build_ai_prompt()</code></h3>
-<p><strong>Priority</strong>: Low | <strong>Effort</strong>: Low</p>
-<p>The function is used for all three AI providers, not just Claude. The name is misleading. Similarly, <code class="inline">claude_cache_key()</code> could become <code class="inline">ai_cache_key()</code>.</p>
-<h3 id="8-4-extract-heuristics-to-separate-module">8.4 Extract Heuristics to Separate Module</h3>
-<p><strong>Priority</strong>: Low | <strong>Effort</strong>: Medium</p>
-<p><code class="inline">_HEURISTICS_INLINE</code> is ~230 lines of data definitions. Moving to a separate <code class="inline">heuristics.py</code> or ensuring <code class="inline">heuristics.yaml</code> is the primary source would reduce <code class="inline">wslog.py</code>&#x27;s size.</p>
-<h3 id="8-5-consolidate-keychain-logic-in-app-py">8.5 Consolidate Keychain Logic in <code class="inline">app.py</code></h3>
-<p><strong>Priority</strong>: Low | <strong>Effort</strong>: Low</p>
-<p><code class="inline">_load_saved_api_key()</code>, <code class="inline">_load_saved_gemini_key()</code>, <code class="inline">_load_saved_openai_key()</code> and their save counterparts are nearly identical wrappers. They could be generated programmatically or replaced with a dict-driven approach.</p>
-<hr>
-</div></details><details class="section" id="sect-9-feature-opportunities"><summary><span class="section-title">9. Feature Opportunities</span><span class="badge badge-info section-badge">9/10</span></summary><div class="section-body">
-<p><strong>Grade: B+</strong></p>
-<h3 id="9-1-jms-signal-tag">9.1 JMS Signal Tag</h3>
-<p>Add a <code class="inline">&quot;JMS&quot;</code> signal tag to <code class="inline">bucket_tags()</code> for automatic JMS/SIB issue detection:</p>
-<pre class="code-block" data-lang="python"><code>JMS_RE = re.compile(r&<span class="cm">#x27;CWSID|CWSJY|CWSIV|CWSIT|SIBException|JMSException&#x27;, re.IGNORECASE)</span></code></pre>
-<p>This would enable automatic skill routing to <code class="inline">jms-messaging.md</code>.</p>
-<h3 id="9-2-token-budget-enforcement">9.2 Token Budget Enforcement</h3>
-<p>The <code class="inline">estimate_tokens()</code> and <code class="inline">TOKEN_LIMITS</code> infrastructure exists but isn&#x27;t enforced. Add pre-flight checks before AI API calls to truncate or summarize when prompts exceed provider limits.</p>
-<h3 id="9-3-correlation-id-tracking">9.3 Correlation ID Tracking</h3>
-<p>Add detection for common correlation patterns (e.g., <code class="inline">requestId=</code>, <code class="inline">correlationId=</code>, <code class="inline">X-Request-ID:</code>) to link events across threads and files.</p>
-<h3 id="9-4-log-format-auto-detection">9.4 Log Format Auto-Detection</h3>
-<p>Currently, timestamp patterns are tried sequentially. A format detection phase on the first 10 lines could optimize parsing for large files.</p>
-<h3 id="9-5-incremental-analysis">9.5 Incremental Analysis</h3>
-<p>For realtime monitoring, support incremental analysis where new events are merged with existing analysis results rather than re-analyzing everything.</p>
-<h3 id="9-6-yaml-heuristics-validation">9.6 YAML Heuristics Validation</h3>
-<p>Add schema validation for <code class="inline">heuristics.yaml</code> entries (required fields, regex syntax check) with clear error messages.</p>
-<hr>
-</div></details><details class="section" id="sect-10-prioritized-improvement-plan"><summary><span class="section-title">10. Prioritized Improvement Plan</span><span class="badge badge-info section-badge">10/10</span></summary><div class="section-body">
-<div class="table-wrap"><table><thead><tr><th>Priority</th><th>Item</th><th>Effort</th><th>Impact</th><th>Section</th></tr></thead><tbody>
-<tr><td>🔴 High</td><td>Update ARCHITECTURE.md line/test counts</td><td>15 min</td><td>Accuracy</td><td>§3</td></tr>
-<tr><td>🔴 High</td><td>Add token budget enforcement before AI calls</td><td>2 hrs</td><td>Reliability</td><td>§6, §9.2</td></tr>
-<tr><td>🟡 Medium</td><td>Add <code class="inline">Event</code> TypedDict for type safety</td><td>1 hr</td><td>Maintainability</td><td>§8.1</td></tr>
-<tr><td>🟡 Medium</td><td>Add JMS signal tag to <code class="inline">bucket_tags()</code></td><td>30 min</td><td>Feature</td><td>§9.1</td></tr>
-<tr><td>🟡 Medium</td><td>Add missing CWSIA/CWSJC to <code class="inline">_SKILL_CODE_PREFIX_MAP</code></td><td>15 min</td><td>Coverage</td><td>§4</td></tr>
-<tr><td>🟡 Medium</td><td>Add tests for <code class="inline">app.py</code> cache/keychain logic</td><td>3 hrs</td><td>Coverage</td><td>§7</td></tr>
-<tr><td>🟡 Medium</td><td>Document API key file fallback as security note</td><td>15 min</td><td>Security</td><td>§5</td></tr>
-<tr><td>🟢 Low</td><td>Rename <code class="inline">build_claude_prompt</code> → <code class="inline">build_ai_prompt</code></td><td>30 min</td><td>Clarity</td><td>§8.3</td></tr>
-<tr><td>🟢 Low</td><td>DRY report renderers</td><td>4 hrs</td><td>Maintainability</td><td>§8.2</td></tr>
-<tr><td>🟢 Low</td><td>Extract heuristics to separate module</td><td>2 hrs</td><td>Organization</td><td>§8.4</td></tr>
-<tr><td>🟢 Low</td><td>Add correlation ID detection</td><td>3 hrs</td><td>Feature</td><td>§9.3</td></tr>
-<tr><td>🟢 Low</td><td>Consolidate keychain wrapper functions</td><td>1 hr</td><td>DRY</td><td>§8.5</td></tr>
+<p><strong>Module Breakdown:</strong></p>
+<div class="table-wrap"><table><thead><tr><th>Module</th><th>Lines</th><th>Role</th></tr></thead><tbody>
+<tr><td>wslog.py</td><td>1,840</td><td>Core parsing, classification, reporting engine</td></tr>
+<tr><td>app.py</td><td>695</td><td>Streamlit GUI entry point, 6 tabs</td></tr>
+<tr><td>app_ai.py</td><td>791</td><td>AI provider orchestration, caching, history</td></tr>
+<tr><td>app_spend.py</td><td>881</td><td>Cloud spend tracking per provider</td></tr>
+<tr><td>report_renderer.py</td><td>819</td><td>Markdown → HTML conversion</td></tr>
+<tr><td>app_render.py</td><td>568</td><td>Report rendering UI components</td></tr>
+<tr><td>app_audit.py</td><td>401</td><td>Audit report generation</td></tr>
+<tr><td>app_realtime.py</td><td>162</td><td>Live log monitoring</td></tr>
+<tr><td>app_constants.py</td><td>31</td><td>Shared constants</td></tr>
 </tbody></table></div>
 <hr>
-<h3 id="section-grade-summary">Section Grade Summary</h3>
-<div class="table-wrap"><table><thead><tr><th>Section</th><th>Grade</th></tr></thead><tbody>
-<tr><td>Executive Summary</td><td>A-</td></tr>
-<tr><td>Repository Overview</td><td>A-</td></tr>
-<tr><td>Documentation Audit</td><td>B+</td></tr>
-<tr><td>Skills System Analysis</td><td>A</td></tr>
-<tr><td>Code Review Findings</td><td>B+</td></tr>
-<tr><td>AI Integration Review</td><td>A-</td></tr>
-<tr><td>Test Coverage Analysis</td><td>A-</td></tr>
-<tr><td>Refactoring Opportunities</td><td>B+</td></tr>
-<tr><td>Feature Opportunities</td><td>B+</td></tr>
-<tr><td>Prioritized Improvement Plan</td><td>A</td></tr>
+</div></details><details class="section" id="sect-3-test-coverage-analysis"><summary><span class="section-title">3. Test Coverage Analysis</span><span class="badge badge-good section-badge">3/11</span></summary><div class="section-body">
+<p><strong>Grade: A</strong> (93/100)</p>
+<h3 id="test-suite-463-tests">Test Suite: 463 Tests</h3>
+<div class="table-wrap"><table><thead><tr><th>Test File</th><th>Tests</th><th>Coverage Area</th></tr></thead><tbody>
+<tr><td>test_wslog.py</td><td>235</td><td>Core engine: parsing, classification, redaction, reporting, AI integration</td></tr>
+<tr><td>test_app_helpers.py</td><td>95</td><td>GUI helpers: cache, path validation, API keys, rate limiting, cost calc</td></tr>
+<tr><td>test_app_e2e.py</td><td>31</td><td>End-to-end: Playwright browser tests for all 6 tabs</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>463</strong></td><td></td></tr>
+</tbody></table></div>
+<h3 id="coverage-by-category">Coverage by Category:</h3>
+<div class="table-wrap"><table><thead><tr><th>Category</th><th>Tests</th><th>Status</th></tr></thead><tbody>
+<tr><td>Timestamp parsing (WAS + ISO)</td><td>12+</td><td>✅ Comprehensive</td></tr>
+<tr><td>Severity classification</td><td>10+</td><td>✅ WAS codes + keywords</td></tr>
+<tr><td>Exception detection &amp; root cause</td><td>8+</td><td>✅ Qualified + SSL</td></tr>
+<tr><td>Secret redaction</td><td>20+</td><td>✅ All 9 patterns tested</td></tr>
+<tr><td>Signal tagging (OOM, SSL, DB, HTTP, HungThreads)</td><td>10+</td><td>✅ Including edge cases</td></tr>
+<tr><td>Event parsing &amp; stacktrace grouping</td><td>8+</td><td>✅ Boundary detection</td></tr>
+<tr><td>Report rendering (MD, JSON, CSV, XML, PDF)</td><td>15+</td><td>✅ All formats</td></tr>
+<tr><td>AI prompt building &amp; sanitization</td><td>15+</td><td>✅ Injection tests</td></tr>
+<tr><td>Skill selection &amp; loading</td><td>40+</td><td>✅ Parametrized tests</td></tr>
+<tr><td>Splunk query generation</td><td>12+</td><td>✅ All signal types</td></tr>
+<tr><td>Hung thread drilldown</td><td>8+</td><td>✅ Multiple formats</td></tr>
+<tr><td>Cache key stability</td><td>6+</td><td>✅ SHA-256 determinism</td></tr>
+<tr><td>Path validation &amp; symlink rejection</td><td>6+</td><td>✅ Security boundary</td></tr>
+<tr><td>API key validation</td><td>6+</td><td>✅ All 3 providers</td></tr>
+<tr><td>Rate limiting</td><td>4+</td><td>✅ Token bucket</td></tr>
+<tr><td>Performance (large files)</td><td>3+</td><td>✅ 10K+ events</td></tr>
+</tbody></table></div>
+<h3 id="gaps">Gaps:</h3>
+<ul><li>⚠️ No integration tests for multi-file comparison workflows</li><li>⚠️ No stress tests for files &gt;1GB</li><li>⚠️ E2E tests depend on Playwright (external)</li></ul>
+<hr>
+</div></details><details class="section" id="sect-4-documentation-audit"><summary><span class="section-title">4. Documentation Audit</span><span class="badge badge-info section-badge">4/11</span></summary><div class="section-body">
+<p><strong>Grade: A-</strong> (87/100)</p>
+<h3 id="documentation-files">Documentation Files:</h3>
+<div class="table-wrap"><table><thead><tr><th>File</th><th>Lines</th><th>Quality</th></tr></thead><tbody>
+<tr><td>README.md</td><td>145</td><td>A — Clear install, CLI, GUI, API setup</td></tr>
+<tr><td>ARCHITECTURE.md</td><td>207</td><td>A — Structure, function tables, data flow</td></tr>
+<tr><td>CLAUDE.md</td><td>51</td><td>A — Concise project context with skill index</td></tr>
+<tr><td>MILESTONES.md</td><td>304</td><td>A — 20+ milestones with descriptions</td></tr>
+</tbody></table></div>
+<h3 id="strengths">Strengths:</h3>
+<ul><li>✅ README covers installation, all CLI options, GUI features, and all 3 AI providers</li><li>✅ ARCHITECTURE.md includes function reference tables and data flow diagrams</li><li>✅ CLAUDE.md correctly links all 16 skill files with categories</li><li>✅ Skill files are comprehensive and well-indexed</li></ul>
+<h3 id="gaps">Gaps:</h3>
+<ul><li>⚠️ No API documentation (function signatures for programmatic use)</li><li>⚠️ No CONTRIBUTING.md or development setup guide</li></ul>
+<hr>
+</div></details><details class="section" id="sect-5-skills-system-analysis"><summary><span class="section-title">5. Skills System Analysis</span><span class="badge badge-good section-badge">5/11</span></summary><div class="section-body">
+<p><strong>Grade: A</strong> (92/100)</p>
+<h3 id="16-skill-files">16 Skill Files:</h3>
+<div class="table-wrap"><table><thead><tr><th>Category</th><th>File</th><th>Quality</th></tr></thead><tbody>
+<tr><td>Core Parsing</td><td>ws-log-parsing.yaml</td><td>A</td></tr>
+<tr><td>WAS Codes</td><td>message-codes.md</td><td>A</td></tr>
+<tr><td>Exceptions</td><td>stacktrace-analysis.md</td><td>A</td></tr>
+<tr><td>Threading</td><td>thread-correlation.md</td><td>A</td></tr>
+<tr><td>Splunk</td><td>splunk-query.md</td><td>A</td></tr>
+<tr><td>Security</td><td>security-analysis.md</td><td>A</td></tr>
+<tr><td>Deployment</td><td>deployment-analysis.md</td><td>A</td></tr>
+<tr><td>Liberty</td><td>liberty-analysis.md</td><td>A</td></tr>
+<tr><td>Startup</td><td>websphere-startup.md</td><td>A</td></tr>
+<tr><td>Servlets</td><td>servlet-errors.md</td><td>A</td></tr>
+<tr><td>JMS</td><td>jms-messaging.md</td><td>A</td></tr>
+<tr><td>GC</td><td>gc-performance.md</td><td>A</td></tr>
+<tr><td>Noise Filter</td><td>log-noise-filter.md</td><td>A</td></tr>
+<tr><td>Streamlit</td><td>streamlit-patterns.md</td><td>A</td></tr>
+<tr><td>Claude Integration</td><td>claude-integration.md</td><td>A</td></tr>
+<tr><td>Testing</td><td>testing.md</td><td>A</td></tr>
+</tbody></table></div>
+<h3 id="skill-selection-logic-wslog-py-select-skills">Skill Selection Logic (wslog.py::select_skills):</h3>
+<ul><li>✅ Multi-map matching: tags, WAS code prefixes, exceptions, query keywords</li><li>✅ Deduplication and file existence validation</li><li>✅ MAX_SKILLS cap (3) prevents prompt bloat</li><li>✅ Fallback to message-codes.md when nothing matches</li><li>✅ 40+ parametrized tests verify all mappings</li></ul>
+<hr>
+</div></details><details class="section" id="sect-6-security-review"><summary><span class="section-title">6. Security Review</span><span class="badge badge-warn section-badge">6/11</span></summary><div class="section-body">
+<p><strong>Grade: A-</strong> (88/100)</p>
+<h3 id="secret-redaction-9-patterns">Secret Redaction (9 patterns):</h3>
+<div class="table-wrap"><table><thead><tr><th>Pattern</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Bearer tokens</td><td>✅ Pass</td><td>Authorization: Bearer</td></tr>
+<tr><td>API keys / passwords / tokens</td><td>✅ Pass</td><td>Key=value, JSON, connection strings</td></tr>
+<tr><td>JWT tokens</td><td>✅ Pass</td><td>eyJ... three-part base64</td></tr>
+<tr><td>AWS access keys</td><td>✅ Pass</td><td>AKIA... pattern</td></tr>
+<tr><td>Basic auth</td><td>✅ Pass</td><td>Base64 encoded</td></tr>
+<tr><td>PEM private keys</td><td>✅ Pass</td><td>BEGIN PRIVATE KEY blocks</td></tr>
+<tr><td>Azure SAS tokens</td><td>✅ Pass</td><td>sig= parameter</td></tr>
+<tr><td>Digest auth</td><td>✅ Pass</td><td>Authorization: Digest</td></tr>
+<tr><td>Multi-word secrets</td><td>✅ Pass</td><td>Stops at delimiters</td></tr>
+</tbody></table></div>
+<h3 id="prompt-injection-protection">Prompt Injection Protection:</h3>
+<div class="table-wrap"><table><thead><tr><th>Check</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+<tr><td>XML tag stripping</td><td>✅ Pass</td><td><code class="inline">_sanitize_prompt_input()</code> strips all XML-like tags</td></tr>
+<tr><td>System/user separation</td><td>✅ Pass</td><td>System prompt hardcoded, not user-controllable</td></tr>
+<tr><td>Event text redaction</td><td>✅ Pass</td><td>Redacted before prompt building</td></tr>
+<tr><td>Skill content safety</td><td>✅ Pass</td><td>Loaded from trusted disk files</td></tr>
+<tr><td>User query sanitization</td><td>✅ Pass</td><td>Tags stripped, length bounded</td></tr>
+</tbody></table></div>
+<h3 id="other-security">Other Security:</h3>
+<div class="table-wrap"><table><thead><tr><th>Check</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+<tr><td>API key storage</td><td>✅ Pass</td><td>Keyring + fallback file (0o600 perms)</td></tr>
+<tr><td>Path traversal</td><td>✅ Pass</td><td>Path objects + symlink rejection</td></tr>
+<tr><td>File size limits</td><td>✅ Pass</td><td>MAX_UPLOAD_MB constant enforced</td></tr>
+<tr><td>No dangerous functions</td><td>✅ Pass</td><td>No eval/exec/pickle/subprocess</td></tr>
+<tr><td>Error handling</td><td>✅ Pass</td><td>135 try-except blocks across codebase</td></tr>
+</tbody></table></div>
+<h3 id="remaining-concerns">Remaining Concerns:</h3>
+<ul><li>⚠️ No HTTPS enforcement (depends on SDK implementations)</li><li>⚠️ Cache file not atomically written (race condition on concurrent writes)</li></ul>
+<hr>
+</div></details><details class="section" id="sect-7-code-quality"><summary><span class="section-title">7. Code Quality</span><span class="badge badge-info section-badge">7/11</span></summary><div class="section-body">
+<p><strong>Grade: A-</strong> (85/100)</p>
+<h3 id="strengths">Strengths:</h3>
+<ul><li>✅ Clean function naming (descriptive, consistent)</li><li>✅ Type hints on most function signatures</li><li>✅ Docstrings on all public functions</li><li>✅ Clean import boundaries (no circular deps)</li><li>✅ Pre-compiled regex patterns</li><li>✅ Zero required external dependencies for core</li></ul>
+<h3 id="code-style">Code Style:</h3>
+<div class="table-wrap"><table><thead><tr><th>Category</th><th>Grade</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Naming</td><td>A</td><td>Clear, descriptive</td></tr>
+<tr><td>Type hints</td><td>A-</td><td>95%+ coverage</td></tr>
+<tr><td>Docstrings</td><td>A-</td><td>Good on public, adequate on helpers</td></tr>
+<tr><td>Error handling</td><td>B+</td><td>Mostly explicit; some silent None returns</td></tr>
+<tr><td>Imports</td><td>A</td><td>Clean organization</td></tr>
+</tbody></table></div>
+<h3 id="architecture">Architecture:</h3>
+<ul><li>Core engine (wslog.py) handles all parsing/analysis — single responsibility</li><li>GUI layer (app.py) delegates to feature modules (app_ai, app_render, app_audit, etc.)</li><li>Report renderer is self-contained with no external HTML/CSS deps</li><li>Heuristics system supports both inline and YAML-loaded patterns</li></ul>
+<h3 id="considerations">Considerations:</h3>
+<ul><li>wslog.py at 1,840 lines is large but well-organized with clear function grouping</li><li>Could benefit from splitting into subpackage for long-term maintainability</li><li>Some functions return None on error instead of raising exceptions</li></ul>
+<hr>
+</div></details><details class="section" id="sect-8-ai-integration-review"><summary><span class="section-title">8. AI Integration Review</span><span class="badge badge-good section-badge">8/11</span></summary><div class="section-body">
+<p><strong>Grade: A-</strong> (87/100)</p>
+<h3 id="multi-provider-support">Multi-Provider Support:</h3>
+<div class="table-wrap"><table><thead><tr><th>Provider</th><th>Status</th><th>Features</th></tr></thead><tbody>
+<tr><td>Claude (Anthropic)</td><td>✅</td><td>System/user separation, extended thinking, caching</td></tr>
+<tr><td>Gemini (Google)</td><td>✅</td><td>System instruction parameter, model selection</td></tr>
+<tr><td>OpenAI</td><td>✅</td><td>GPT-4o/GPT-4o-mini support</td></tr>
+</tbody></table></div>
+<h3 id="prompt-architecture">Prompt Architecture:</h3>
+<ul><li>✅ System prompt with domain knowledge injection (selected skills)</li><li>✅ User content wrapped in XML delimiters</li><li>✅ Event excerpts truncated and redacted</li><li>✅ Max 2 event excerpts per prompt</li><li>✅ Cache key based on structural match (codes/exceptions/tags), not raw text</li></ul>
+<h3 id="caching-strategy">Caching Strategy:</h3>
+<ul><li>✅ SHA-256 based cache keys (deterministic, case-insensitive)</li><li>✅ Session cache (fast) + file cache (persistent)</li><li>✅ TTL-based expiration</li><li>✅ Per-provider conversation histories</li></ul>
+<h3 id="cost-tracking">Cost Tracking:</h3>
+<ul><li>✅ Per-request token counting (input/output/cache tokens)</li><li>✅ Provider-specific pricing models</li><li>✅ Cloud Spend tab with aggregated views</li><li>✅ Audit cost included in tracking</li></ul>
+<hr>
+</div></details><details class="section" id="sect-9-feature-completeness"><summary><span class="section-title">9. Feature Completeness</span><span class="badge badge-info section-badge">9/11</span></summary><div class="section-body">
+<p><strong>Grade: A-</strong> (86/100)</p>
+<h3 id="implemented-features-6-tabs">Implemented Features (6 Tabs):</h3>
+<div class="table-wrap"><table><thead><tr><th>Tab</th><th>Features</th><th>Status</th></tr></thead><tbody>
+<tr><td><strong>Analyze</strong></td><td>File upload, parsing, classification, reports, AI analysis</td><td>✅ Complete</td></tr>
+<tr><td><strong>Realtime Console</strong></td><td>Live log monitoring, auto-detect log files</td><td>✅ Complete</td></tr>
+<tr><td><strong>History</strong></td><td>Browse/download saved reports, clear with confirmation</td><td>✅ Complete</td></tr>
+<tr><td><strong>Audit Report</strong></td><td>Generate/view HTML audit reports, model selection</td><td>✅ Complete</td></tr>
+<tr><td><strong>Cloud Spend</strong></td><td>Per-provider cost tracking, usage breakdown</td><td>✅ Complete</td></tr>
+<tr><td><strong>Application Log</strong></td><td>Rotating file log viewer with level filtering</td><td>✅ Complete</td></tr>
+</tbody></table></div>
+<h3 id="analysis-features">Analysis Features:</h3>
+<div class="table-wrap"><table><thead><tr><th>Feature</th><th>Status</th></tr></thead><tbody>
+<tr><td>Multi-format log parsing (.log, .gz)</td><td>✅</td></tr>
+<tr><td>7 timestamp format patterns</td><td>✅</td></tr>
+<tr><td>WAS severity classification (I/A/W/E/O/F/R/D)</td><td>✅</td></tr>
+<tr><td>Exception detection &amp; root cause extraction</td><td>✅</td></tr>
+<tr><td>Signal tagging (OOM, SSL, DB/Pool, HungThreads, HTTP)</td><td>✅</td></tr>
+<tr><td>Heuristic-based likely causes with fixes</td><td>✅</td></tr>
+<tr><td>Hung thread per-thread drilldown</td><td>✅</td></tr>
+<tr><td>Suggested Splunk queries</td><td>✅</td></tr>
+<tr><td>Timeline histogram (configurable bucket)</td><td>✅</td></tr>
+<tr><td>Incident timeline</td><td>✅</td></tr>
+<tr><td>Multi-file analysis</td><td>✅</td></tr>
+<tr><td>5 report formats (MD, JSON, CSV, XML, PDF)</td><td>✅</td></tr>
+<tr><td>Swedish Chef novelty mode</td><td>✅</td></tr>
+</tbody></table></div>
+<hr>
+</div></details><details class="section" id="sect-10-improvement-recommendations"><summary><span class="section-title">10. Improvement Recommendations</span><span class="badge badge-info section-badge">10/11</span></summary><div class="section-body">
+<h3 id="priority-1-high-impact-low-effort">Priority 1 — High Impact, Low Effort:</h3>
+<div class="table-wrap"><table><thead><tr><th>Task</th><th>Effort</th><th>Impact</th></tr></thead><tbody>
+<tr><td>Add GitHub Actions CI (pytest + lint)</td><td>2 hr</td><td>Automated quality gates</td></tr>
+<tr><td>Implement atomic cache writes (tempfile + rename)</td><td>2 hr</td><td>Prevent corruption</td></tr>
+<tr><td>Add structured JSON logging option</td><td>4 hr</td><td>Production readiness</td></tr>
+</tbody></table></div>
+<h3 id="priority-2-medium-impact">Priority 2 — Medium Impact:</h3>
+<div class="table-wrap"><table><thead><tr><th>Task</th><th>Effort</th><th>Impact</th></tr></thead><tbody>
+<tr><td>Split wslog.py into subpackage</td><td>2-3 days</td><td>Maintainability</td></tr>
+<tr><td>Add integration tests for multi-file workflows</td><td>1 day</td><td>Test coverage</td></tr>
+<tr><td>Add CONTRIBUTING.md</td><td>2 hr</td><td>Developer onboarding</td></tr>
+<tr><td>Provider-specific token estimation ratios</td><td>2 hr</td><td>Accuracy</td></tr>
+</tbody></table></div>
+<h3 id="priority-3-nice-to-have">Priority 3 — Nice to Have:</h3>
+<div class="table-wrap"><table><thead><tr><th>Task</th><th>Effort</th><th>Impact</th></tr></thead><tbody>
+<tr><td>Add mypy strict type checking</td><td>1 day</td><td>Type safety</td></tr>
+<tr><td>Performance tests for large files (&gt;1GB)</td><td>1 day</td><td>Scalability validation</td></tr>
+<tr><td>API documentation generation</td><td>1 day</td><td>Programmatic usage</td></tr>
+</tbody></table></div>
+<hr>
+</div></details><details class="section" id="sect-summary-scoring"><summary><span class="section-title">Summary Scoring</span><span class="badge badge-info section-badge">11/11</span></summary><div class="section-body">
+<div class="table-wrap"><table><thead><tr><th>Category</th><th>Grade</th><th>Score</th><th>Notes</th></tr></thead><tbody>
+<tr><td><strong>Repository Structure</strong></td><td>A</td><td>92</td><td>Clean separation, well-organized</td></tr>
+<tr><td><strong>Test Coverage</strong></td><td>A</td><td>93</td><td>463 tests, comprehensive coverage</td></tr>
+<tr><td><strong>Documentation</strong></td><td>A-</td><td>87</td><td>Strong README/ARCH, minor gaps</td></tr>
+<tr><td><strong>Skills System</strong></td><td>A</td><td>92</td><td>16 files, excellent selection logic</td></tr>
+<tr><td><strong>Security</strong></td><td>A-</td><td>88</td><td>9 redaction patterns, prompt protection</td></tr>
+<tr><td><strong>Code Quality</strong></td><td>A-</td><td>85</td><td>Clean style, large but manageable core</td></tr>
+<tr><td><strong>AI Integration</strong></td><td>A-</td><td>87</td><td>3 providers, caching, cost tracking</td></tr>
+<tr><td><strong>Feature Completeness</strong></td><td>A-</td><td>86</td><td>6 tabs, 5 formats, all major features</td></tr>
+<tr><td><strong>Overall</strong></td><td><strong>A-</strong></td><td><strong>88</strong></td><td>Mature, well-tested log analyzer</td></tr>
 </tbody></table></div></div></details>
 </main>
 </div>

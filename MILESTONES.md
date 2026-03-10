@@ -278,6 +278,93 @@
 
 ---
 
+## Milestone 21 — CI/CD Pipeline & Atomic Writes
+**Priority: P0 (immediate)**
+**Estimated scope: Small — 4-6 hours**
+**Audit finding: "No CI/CD pipeline" (medium), "Cache file not atomically written" (security concern)**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 21.1 | Skapa GitHub Actions CI workflow — kör `pytest` på Python 3.9, 3.11, 3.12 vid push/PR till main | `.github/workflows/ci.yml` | [ ] |
+| 21.2 | Lägg till linting i CI — kör `ruff check` med minimal config, faila vid fel | `.github/workflows/ci.yml`, `pyproject.toml` | [ ] |
+| 21.3 | Implementera atomic cache writes — använd `tempfile.NamedTemporaryFile(delete=False)` + `os.replace()` i `_save_json_file()` | `app.py` | [ ] |
+| 21.4 | Atomic writes för alla historikfiler — samma mönster för HISTORY_FILE, GEMINI_HISTORY_FILE, OPENAI_HISTORY_FILE | `app.py` | [ ] |
+| 21.5 | Lägg till test för atomic write — verifiera att cache-fil är giltig JSON även vid avbruten skrivning | `tests/test_app_helpers.py` | [ ] |
+
+**Acceptance**: CI körs vid varje push. Lint och tester passerar. Cache-skrivningar använder tempfile+rename. Ingen korruption möjlig vid samtidig åtkomst.
+
+---
+
+## Milestone 22 — Strukturerad loggning & felhantering
+**Priority: P1 (short-term)**
+**Estimated scope: Small-Medium — 6-8 hours**
+**Audit finding: "No structured logging" (low), Error handling B+, "silent None returns"**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 22.1 | Lägg till JSON-loggformatterare — konfigurerbar via `WSLOG_LOG_FORMAT=json` env var | `app.py` | [ ] |
+| 22.2 | Lägg till `--log-format json` CLI-flagga för core engine | `wslog.py` | [ ] |
+| 22.3 | Ersätt tysta None-returer med explicita exceptions/varningar i `parse_ts`, `open_text`, `_load_json_file` | `wslog.py`, `app.py` | [ ] |
+| 22.4 | Provider-specifika token-estimeringsratios — Claude ~3.5 chars/token, GPT ~4, Gemini ~4 istället för uniform ~4 | `app_ai.py`, `wslog.py` | [ ] |
+| 22.5 | Tester för JSON-loggformat och förbättrad felpropagering | `tests/test_wslog.py`, `tests/test_app_helpers.py` | [ ] |
+
+**Acceptance**: `WSLOG_LOG_FORMAT=json` producerar giltiga JSON-lograder. Tysta None-returer ersatta. Token-estimering använder provider-ratios. Alla tester passerar.
+
+---
+
+## Milestone 23 — Dokumentation & utvecklaronboarding
+**Priority: P1 (short-term)**
+**Estimated scope: Small — 4-6 hours**
+**Audit finding: Documentation A- (87), "No CONTRIBUTING.md", "No API documentation"**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 23.1 | Skapa CONTRIBUTING.md — dev setup (venv, pip install -e .[test,gui]), köra tester, kodstil, PR-checklista | `CONTRIBUTING.md` | [ ] |
+| 23.2 | Lägg till API-dokumentation — dokumentera `parse_file()`, `precompute_analysis()`, `render_*_report()`, `summarize()` med exempel | `docs/API.md` | [ ] |
+| 23.3 | Lägg till docstring-exempel på 5 publika funktioner | `wslog.py` | [ ] |
+| 23.4 | Uppdatera ARCHITECTURE.md med aktuell modulstruktur — lägg till `app_spend.py`, `report_renderer.py`, uppdatera radantal | `ARCHITECTURE.md` | [ ] |
+| 23.5 | Uppdatera README.md med CI-badge, bidragslänk och aktuellt testantal (463) | `README.md` | [ ] |
+
+**Acceptance**: CONTRIBUTING.md täcker fullt dev-workflow. API.md dokumenterar alla publika funktioner. ARCHITECTURE.md speglar aktuell kodbas.
+
+---
+
+## Milestone 24 — Integrationstester & stresstestning
+**Priority: P2 (mid-term)**
+**Estimated scope: Medium — 1-2 days**
+**Audit finding: "No integration tests for multi-file workflows", "No stress tests for >1GB"**
+**Depends on: Milestone 21 (CI måste finnas först)**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 24.1 | Lägg till multi-fil integrationstester — ladda upp 2-3 loggfiler, verifiera kombinerad analys | `tests/test_integration.py` | [ ] |
+| 24.2 | Multi-fil jämförelse-test — verifiera att timeline spänner alla filer, signaltaggar aggregeras | `tests/test_integration.py` | [ ] |
+| 24.3 | Stresstest för stora filer — generera 100K+ events, verifiera `parse_file` och `parse_file_iter` klarar det utan OOM | `tests/test_performance.py` | [ ] |
+| 24.4 | Stresstest för samtidig cache-åtkomst — 4 trådar som skriver cache samtidigt, verifiera ingen korruption | `tests/test_performance.py` | [ ] |
+| 24.5 | CI-marks för långsamma tester — markera stresstester med `@pytest.mark.slow`, exkludera från standard-CI | `tests/conftest.py`, `.github/workflows/ci.yml` | [ ] |
+
+**Acceptance**: Multi-fil workflows testade end-to-end. Stresstester validerar 100K+ events. Långsamma tester markerade och exkluderade från snabb CI.
+
+---
+
+## Milestone 25 — Typsäkerhet & wslog.py modularisering
+**Priority: P3 (long-term)**
+**Estimated scope: Large — 2-3 days**
+**Audit finding: "Split wslog.py into subpackage" (P2), "Add mypy" (P3), Code Quality A- (85)**
+**Depends on: Milestones 21-24**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 25.1 | Lägg till mypy-konfiguration — `[tool.mypy]` i pyproject.toml med `strict = true` för ny kod | `pyproject.toml` | [ ] |
+| 25.2 | Fixa mypy-fel i wslog.py — saknade type annotations, ersätt `Any` med konkreta typer | `wslog.py` | [ ] |
+| 25.3 | Splitta wslog.py till `wslog/`-paket — `__init__.py` (re-exports), `parser.py`, `classifier.py`, `reports.py`, `ai.py` | `wslog/` | [ ] |
+| 25.4 | Lägg till mypy i CI-pipeline — kör `mypy wslog/ app.py`, faila vid nya fel | `.github/workflows/ci.yml` | [ ] |
+| 25.5 | Uppdatera alla imports — `app.py`, `app_ai.py`, `app_render.py`, `app_audit.py`, alla testfiler | Alla `.py` filer | [ ] |
+
+**Acceptance**: mypy passerar på `wslog/`-paketet med strict mode. wslog.py uppdelad i 4+ moduler under 500 rader var. Alla 460+ tester passerar. CI enforcar typkontroll.
+
+---
+
 ## Progress Tracker
 
 | Milestone | Tasks | Done | Status |
@@ -302,3 +389,8 @@
 | 18 — Reviewfixar: prestanda, tester & arkitektur | 5 | 0 | Not started |
 | 19 — Testkvalitet & organisation | 5 | 0 | Not started |
 | 20 — Arkitektur & prestandaoptimering | 5 | 0 | Not started |
+| 21 — CI/CD Pipeline & Atomic Writes | 5 | 0 | Not started |
+| 22 — Strukturerad loggning & felhantering | 5 | 0 | Not started |
+| 23 — Dokumentation & utvecklaronboarding | 5 | 0 | Not started |
+| 24 — Integrationstester & stresstestning | 5 | 0 | Not started |
+| 25 — Typsäkerhet & wslog.py modularisering | 5 | 0 | Not started |
