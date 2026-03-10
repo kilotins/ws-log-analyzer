@@ -232,7 +232,7 @@ class TestSwedishChefMode:
         selectbox.click()
         page.wait_for_timeout(300)
         # Select "Swedish Chef" from the dropdown options
-        page.get_by_text("Swedish Chef", exact=True).click()
+        page.get_by_text("Swedish Chef (fun mode)", exact=True).click()
         page.wait_for_timeout(1000)
 
     def test_chef_model_in_dropdown(self, page):
@@ -244,7 +244,7 @@ class TestSwedishChefMode:
         selectbox.click()
         page.wait_for_timeout(300)
         # Verify Swedish Chef option exists
-        chef_option = page.get_by_text("Swedish Chef", exact=True)
+        chef_option = page.get_by_text("Swedish Chef (fun mode)", exact=True)
         assert chef_option.count() > 0
 
     def test_chef_mode_activates(self, page):
