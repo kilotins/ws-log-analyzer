@@ -276,34 +276,44 @@ def _run_audit_openai(api_key, model_id, max_tokens, compact=False):
     return response.choices[0].message.content, usage
 
 
-def _run_audit(model_label, log):
+def _run_audit(model_label, log, status=None):
     """Run a full audit and regenerate the HTML report."""
     from report_renderer import render_html
+
+    def _status_write(msg):
+        if status:
+            status.write(msg)
 
     app_dir = _get_app_dir()
     model_info = _AUDIT_MODELS[model_label]
     provider = model_info["provider"]
     compact = model_info.get("compact", False)
 
+    _status_write("Collecting source files...")
+
     if provider == "claude":
         if not st.session_state.api_key:
-            raise ValueError("Enter your Anthropic API key in the sidebar first.")
+            raise ValueError("Enter your Anthropic API key in the sidebar. Open **API Keys** to configure.")
+        _status_write(f"Sending to Claude ({model_info['id']})... this may take 1-2 minutes.")
         audit_md, usage = _run_audit_claude(
             st.session_state.api_key, model_info["id"], model_info["max_tokens"], compact=compact
         )
     elif provider == "gemini":
         gemini_key = st.session_state.gemini_api_key
         if not gemini_key:
-            raise ValueError("Enter your Gemini API key in the sidebar first.")
+            raise ValueError("Enter your Gemini API key in the sidebar. Open **API Keys** to configure.")
+        _status_write(f"Sending to Gemini ({model_info['id']})... this may take 1-2 minutes.")
         audit_md, usage = _run_audit_gemini(gemini_key, model_info["id"], compact=compact)
     else:
         openai_key = st.session_state.openai_api_key
         if not openai_key:
-            raise ValueError("Enter your OpenAI API key in the sidebar first.")
+            raise ValueError("Enter your OpenAI API key in the sidebar. Open **API Keys** to configure.")
+        _status_write(f"Sending to OpenAI ({model_info['id']})... this may take 1-2 minutes.")
         audit_md, usage = _run_audit_openai(
             openai_key, model_info["id"], model_info["max_tokens"], compact=compact
         )
 
+    _status_write("Tracking spend...")
     # Track spend (including cache tokens for Claude)
     record_spend(provider, model_info["id"], usage.get("input", 0), usage.get("output", 0),
                  source="audit", cache_creation=usage.get("cache_creation", 0),
@@ -312,6 +322,7 @@ def _run_audit(model_label, log):
     if not audit_md:
         raise ValueError("Model returned an empty response.")
 
+    _status_write("Generating report...")
     # Save markdown
     md_path = app_dir / "AUDIT_REPORT.md"
     md_path.write_text(audit_md, encoding="utf-8")

@@ -276,12 +276,18 @@ def render_incident_timeline(itl):
 _SAMPLES_PAGE_SIZE = 10
 
 
+_SEVERITY_ORDER = {"FATAL": 0, "SEVERE": 1, "ERROR": 2, "WARNING": 3, "WARN": 4,
+                   "INFO": 5, "AUDIT": 6, "DEBUG": 7, "UNKNOWN": 8}
+
+
 def render_samples(samples):
-    """Render sample events with pagination (first 10 by default)."""
+    """Render sample events sorted by severity, with pagination."""
     if not samples:
         st.caption("No events to display.")
         return
 
+    # Sort by severity (most critical first)
+    samples = sorted(samples, key=lambda e: _SEVERITY_ORDER.get(e.get("level") or "UNKNOWN", 8))
     total = len(samples)
     # Determine how many to show
     # Reset pagination when analysis changes
@@ -363,7 +369,10 @@ def _apply_event_filters(events, levels, code_prefix, exception_types, time_rang
 
 def render_event_filters(events):
     """Render event filter widgets inside an expander. Returns filtered events or None if no filters active."""
-    with st.expander("Event Filters", expanded=False):
+    _n_levels = len({e.get("level") or "UNKNOWN" for e in events})
+    _n_exc = len({e.get("exception") for e in events if e.get("exception")})
+    _filter_label = f"Event Filters — {_n_levels} severity levels, {_n_exc} exception types"
+    with st.expander(_filter_label, expanded=False):
         # Collect available values from events
         all_levels = sorted({e.get("level") or "UNKNOWN" for e in events})
         all_exceptions = sorted({e.get("exception") for e in events if e.get("exception")})
@@ -424,49 +433,63 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
                f"Report saved as `{a['report_name']}`.")
 
-    dl1, dl2, dl3, dl4, dl5 = st.columns(5)
+    # --- Event Filters (placed before downloads so filter state is known) ---
+    filtered_events = render_event_filters(a["events"])
+    _is_filtered = filtered_events is not None
+    _filter_note = ""
+    if _is_filtered:
+        _filter_note = f" (filtered: {len(filtered_events)} of {a['total_events']})"
+
+    if _filter_note:
+        st.info(f"Downloads contain the full unfiltered report.{_filter_note}")
+    dl1, dl2, dl3 = st.columns(3)
     with dl1:
         st.download_button(
-            label="Download Markdown",
+            label="Markdown",
             data=a["report_md"],
             file_name=a["report_name"],
             mime="text/markdown",
+            use_container_width=True,
         )
     with dl2:
         st.download_button(
-            label="Download JSON",
+            label="JSON",
             data=a["report_json"],
             file_name=a["report_name"].replace(".md", ".json"),
             mime="application/json",
+            use_container_width=True,
         )
     with dl3:
         st.download_button(
-            label="Download PDF",
+            label="PDF",
             data=a["report_pdf"],
             file_name=a["report_name"].replace(".md", ".pdf"),
             mime="application/pdf",
+            use_container_width=True,
         )
-    with dl4:
-        if a.get("report_csv"):
-            st.download_button(
-                label="Download CSV",
-                data=a["report_csv"],
-                file_name=a["report_name"].replace(".md", ".csv"),
-                mime="text/csv",
-            )
-    with dl5:
-        if a.get("report_xml"):
-            st.download_button(
-                label="Download XML",
-                data=a["report_xml"],
-                file_name=a["report_name"].replace(".md", ".xml"),
-                mime="application/xml",
-            )
+    if a.get("report_csv") or a.get("report_xml"):
+        dl4, dl5, _dl6 = st.columns(3)
+        with dl4:
+            if a.get("report_csv"):
+                st.download_button(
+                    label="CSV",
+                    data=a["report_csv"],
+                    file_name=a["report_name"].replace(".md", ".csv"),
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+        with dl5:
+            if a.get("report_xml"):
+                st.download_button(
+                    label="XML",
+                    data=a["report_xml"],
+                    file_name=a["report_name"].replace(".md", ".xml"),
+                    mime="application/xml",
+                    use_container_width=True,
+                )
 
     st.markdown("---")
 
-    # --- Event Filters ---
-    filtered_events = render_event_filters(a["events"])
     if filtered_events is not None:
         # Recompute analysis from filtered events without modifying original
         fa = precompute_analysis(

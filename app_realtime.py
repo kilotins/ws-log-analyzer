@@ -151,7 +151,8 @@ def _rt_live_view(log):
         highlighted = "<br>".join(_highlight_line(line) for line in buf)
         st.markdown(
             f'<div style="font-family:monospace;font-size:12px;'
-            f'background:#0e1117;color:#fafafa;padding:12px;'
+            f'background:var(--background-secondary, #0e1117);'
+            f'color:var(--text-color, #fafafa);padding:12px;'
             f'border-radius:4px;max-height:500px;overflow-y:auto;'
             f'white-space:pre-wrap;line-height:1.5">'
             f'{highlighted}</div>',
