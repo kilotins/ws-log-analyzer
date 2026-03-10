@@ -643,27 +643,17 @@ with tab_audit:
                 key="dl_audit_report",
             )
 
-    # Confirmation gate if report already exists
-    _needs_confirm = _run_clicked and _audit_html_path.is_file() and not st.session_state.get("_audit_confirmed")
-    if _needs_confirm:
-        st.warning("An audit report already exists. Running a new audit will overwrite it.")
-        _ac1, _ac2 = st.columns(2)
-        with _ac1:
-            if st.button("Overwrite and run", type="primary", use_container_width=True, key="confirm_audit"):
-                st.session_state._audit_confirmed = True
-                st.rerun()
-        with _ac2:
-            if st.button("Cancel", use_container_width=True, key="cancel_audit"):
-                st.session_state._audit_confirmed = False
-    _do_audit = _run_clicked and (not _audit_html_path.is_file() or st.session_state.get("_audit_confirmed"))
-    if _do_audit:
-        st.session_state._audit_confirmed = False
+    if _run_clicked:
         _provider = _AUDIT_MODELS[_audit_model]["provider"]
         _model_id = _AUDIT_MODELS[_audit_model]["id"]
+        log.info("audit Running audit report with %s (%s)...", _audit_model, _model_id)
+        st.toast(f"Starting audit with {_audit_model}...", icon="⏳")
         with st.status(f"Running audit with {_model_id}...", expanded=True) as _audit_status:
             try:
                 _fresh_html = _run_audit(_audit_model, log, status=_audit_status)
                 _audit_status.update(label="Audit complete!", state="complete")
+                log.info("audit Audit report complete (%s)", _model_id)
+                st.toast("Audit report complete!", icon="✅")
                 st.rerun()
             except Exception as ex:
                 log.error("audit Audit failed: %s", ex)
