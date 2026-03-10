@@ -121,7 +121,7 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
         ) as stream:
             for text in stream.text_stream:
                 chunks.append(text)
-                stream_placeholder.markdown("".join(chunks) + "...")
+                stream_placeholder.markdown("".join(chunks) + "\n\n*Streaming...*")
             final = stream.get_final_message()
         answer = "".join(chunks)
         usage = _extract_claude_usage(final.usage if final else None)
@@ -186,7 +186,7 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
         for chunk in response:
             if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                 chunks.append(chunk.choices[0].delta.content)
-                stream_placeholder.markdown("".join(chunks) + "...")
+                stream_placeholder.markdown("".join(chunks) + "\n\n*Streaming...*")
             if chunk.usage:
                 usage = {"input": chunk.usage.prompt_tokens, "output": chunk.usage.completion_tokens}
         answer = "".join(chunks)
@@ -358,7 +358,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
 
     if cached:
         _record_answer(cached)
-        status.update(label=f"Using cached {label} response", state="complete")
+        status.update(label=f"{label} analysis complete (cached)", state="complete")
         return
 
     if match["matched"]:
@@ -426,14 +426,17 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
             cache_r = usage.get("cache_read", 0)
             cost = estimate_cost(model_id, inp, out)
             cost_info = f" -- {inp:,}+{out:,} tokens (~${cost:.4f})"
+            cache_badge = ""
             if cache_c or cache_r:
                 cost_info += f" [cache W:{cache_c:,} R:{cache_r:,}]"
+                cache_badge = " (cached)" if cache_r > cache_c else ""
             if log:
                 log.info("%s tokens: %d in / %d out, cache: %d write / %d read, est cost: $%.4f",
                          label, inp, out, cache_c, cache_r, cost)
             from app_spend import record_spend
             record_spend(provider, model_id, inp, out, source="chat",
                          cache_creation=cache_c, cache_read=cache_r)
+            st.caption(f"{label}{cache_badge}: {inp:,} in + {out:,} out tokens — estimated cost **${cost:.4f}**")
         status.update(label=f"{label} analysis complete{cost_info}", state="complete")
     except ImportError as ex:
         status.update(label="Missing package", state="error")

@@ -337,62 +337,51 @@ if not st.session_state.api_key:
 
 with st.sidebar:
     st.header("Settings")
-    api_key = st.text_input(
-        "Anthropic API Key",
-        value=st.session_state.api_key,
-        type="password",
-        placeholder="sk-ant-...",
-        help="Required for Ask Claude. Get a key at console.anthropic.com/settings/keys",
-    )
-    if api_key != st.session_state.api_key:
-        _save_api_key(api_key)
-    st.session_state.api_key = api_key
-    if api_key:
-        st.success("API key set")
-    else:
-        st.caption("Enter your key to enable Ask Claude")
 
-    if not st.session_state.gemini_api_key:
-        st.session_state.gemini_api_key = _load_saved_gemini_key()
-    gemini_key = st.text_input(
-        "Gemini API Key",
-        value=st.session_state.gemini_api_key,
-        type="password",
-        placeholder="AIza...",
-        help="Required for Ask Gemini. Get a key at aistudio.google.com/apikey",
-    )
-    if gemini_key != st.session_state.gemini_api_key:
-        _save_gemini_key(gemini_key)
-    st.session_state.gemini_api_key = gemini_key
-    if gemini_key:
-        st.success("Gemini API key set")
-    else:
-        saved_gemini = _load_saved_gemini_key()
-        if saved_gemini:
-            st.caption("Loaded from keychain")
-        else:
-            st.caption("Set via GEMINI_API_KEY env var")
+    # Count configured keys for the expander label
+    _configured_keys = sum(1 for k in [
+        st.session_state.api_key,
+        st.session_state.gemini_api_key,
+        st.session_state.openai_api_key,
+    ] if k)
+    _keys_label = f"API Keys ({_configured_keys}/3 configured)" if _configured_keys else "API Keys (none configured)"
+    with st.expander(_keys_label, expanded=_configured_keys == 0):
+        api_key = st.text_input(
+            "Anthropic API Key",
+            value=st.session_state.api_key,
+            type="password",
+            placeholder="sk-ant-...",
+            help="Required for Ask Claude. Get a key at console.anthropic.com/settings/keys",
+        )
+        if api_key != st.session_state.api_key:
+            _save_api_key(api_key)
+        st.session_state.api_key = api_key
 
-    if not st.session_state.openai_api_key:
-        st.session_state.openai_api_key = _load_saved_openai_key()
-    openai_key = st.text_input(
-        "OpenAI API Key",
-        value=st.session_state.openai_api_key,
-        type="password",
-        placeholder="sk-...",
-        help="Required for OpenAI models. Get a key at platform.openai.com/api-keys",
-    )
-    if openai_key != st.session_state.openai_api_key:
-        _save_openai_key(openai_key)
-    st.session_state.openai_api_key = openai_key
-    if openai_key:
-        st.success("OpenAI API key set")
-    else:
-        saved_openai = _load_saved_openai_key()
-        if saved_openai:
-            st.caption("Loaded from keychain")
-        else:
-            st.caption("Set via OPENAI_API_KEY env var")
+        if not st.session_state.gemini_api_key:
+            st.session_state.gemini_api_key = _load_saved_gemini_key()
+        gemini_key = st.text_input(
+            "Gemini API Key",
+            value=st.session_state.gemini_api_key,
+            type="password",
+            placeholder="AIza...",
+            help="Required for Ask Gemini. Get a key at aistudio.google.com/apikey",
+        )
+        if gemini_key != st.session_state.gemini_api_key:
+            _save_gemini_key(gemini_key)
+        st.session_state.gemini_api_key = gemini_key
+
+        if not st.session_state.openai_api_key:
+            st.session_state.openai_api_key = _load_saved_openai_key()
+        openai_key = st.text_input(
+            "OpenAI API Key",
+            value=st.session_state.openai_api_key,
+            type="password",
+            placeholder="sk-...",
+            help="Required for OpenAI models. Get a key at platform.openai.com/api-keys",
+        )
+        if openai_key != st.session_state.openai_api_key:
+            _save_openai_key(openai_key)
+        st.session_state.openai_api_key = openai_key
 
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
@@ -654,14 +643,26 @@ with tab_audit:
                 key="dl_audit_report",
             )
 
-    if _run_clicked:
+    # Confirmation gate if report already exists
+    _needs_confirm = _run_clicked and _audit_html_path.is_file() and not st.session_state.get("_audit_confirmed")
+    if _needs_confirm:
+        st.warning("An audit report already exists. Running a new audit will overwrite it.")
+        _ac1, _ac2 = st.columns(2)
+        with _ac1:
+            if st.button("Overwrite and run", type="primary", use_container_width=True, key="confirm_audit"):
+                st.session_state._audit_confirmed = True
+                st.rerun()
+        with _ac2:
+            if st.button("Cancel", use_container_width=True, key="cancel_audit"):
+                st.session_state._audit_confirmed = False
+    _do_audit = _run_clicked and (not _audit_html_path.is_file() or st.session_state.get("_audit_confirmed"))
+    if _do_audit:
+        st.session_state._audit_confirmed = False
         _provider = _AUDIT_MODELS[_audit_model]["provider"]
         _model_id = _AUDIT_MODELS[_audit_model]["id"]
         with st.status(f"Running audit with {_model_id}...", expanded=True) as _audit_status:
-            _audit_status.write("Reading source files...")
             try:
-                _audit_status.write(f"Sending to {_provider.title()} for analysis (this may take a minute)...")
-                _fresh_html = _run_audit(_audit_model, log)
+                _fresh_html = _run_audit(_audit_model, log, status=_audit_status)
                 _audit_status.update(label="Audit complete!", state="complete")
                 st.rerun()
             except Exception as ex:
