@@ -1,4 +1,5 @@
 import json
+import logging
 import subprocess
 from pathlib import Path
 
@@ -763,3 +764,25 @@ def test_redact_authorization_digest_preserves_surrounding():
     result = redact(text)
     assert "credentials123" not in result
     assert "[2025-01-01 12:00:00]" in result
+
+
+# ── Warning logging on silent returns (22.3) ─────────────────────────
+
+def test_parse_ts_datetime_logs_debug_on_bad_input(caplog):
+    """parse_ts_datetime should log debug message for unparseable timestamps."""
+    with caplog.at_level(logging.DEBUG, logger="wslog"):
+        result = parse_ts_datetime("not-a-timestamp")
+    assert result is None
+    assert any("could not parse" in r.message for r in caplog.records)
+
+
+def test_open_text_logs_warning_on_fake_gz(tmp_path, caplog):
+    """open_text should log warning when .gz file is not valid gzip."""
+    fake_gz = tmp_path / "fake.log.gz"
+    fake_gz.write_text("this is not gzip data", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="wslog"):
+        f = open_text(fake_gz)
+        content = f.read()
+        f.close()
+    assert "this is not gzip data" in content
+    assert any("not valid gzip" in r.message for r in caplog.records)

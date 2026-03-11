@@ -302,11 +302,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 22.1 | Lägg till JSON-loggformatterare — konfigurerbar via `WSLOG_LOG_FORMAT=json` env var | `app.py` | [ ] |
-| 22.2 | Lägg till `--log-format json` CLI-flagga för core engine | `wslog.py` | [ ] |
-| 22.3 | Ersätt tysta None-returer med explicita exceptions/varningar i `parse_ts`, `open_text`, `_load_json_file` | `wslog.py`, `app.py` | [ ] |
-| 22.4 | Provider-specifika token-estimeringsratios — Claude ~3.5 chars/token, GPT ~4, Gemini ~4 istället för uniform ~4 | `app_ai.py`, `wslog.py` | [ ] |
-| 22.5 | Tester för JSON-loggformat och förbättrad felpropagering | `tests/test_wslog.py`, `tests/test_app_helpers.py` | [ ] |
+| 22.1 | Lägg till JSON-loggformatterare — konfigurerbar via `WSLOG_LOG_FORMAT=json` env var | `app.py` | [x] |
+| 22.2 | Lägg till `--log-format json` CLI-flagga för core engine | `wslog.py` | [x] |
+| 22.3 | Ersätt tysta None-returer med explicita exceptions/varningar i `parse_ts`, `open_text`, `_load_json_file` | `wslog.py`, `app.py` | [x] |
+| 22.4 | Provider-specifika token-estimeringsratios — Claude ~3.5 chars/token, GPT ~4, Gemini ~4 istället för uniform ~4 | `app_ai.py`, `wslog.py` | [x] |
+| 22.5 | Tester för JSON-loggformat och förbättrad felpropagering | `tests/test_parsing.py`, `tests/test_app_helpers.py` | [x] |
 
 **Acceptance**: `WSLOG_LOG_FORMAT=json` producerar giltiga JSON-lograder. Tysta None-returer ersatta. Token-estimering använder provider-ratios. Alla tester passerar.
 
@@ -390,7 +390,7 @@
 | 19 — Testkvalitet & organisation | 5 | 5 | Done |
 | 20 — Arkitektur & prestandaoptimering | 5 | 4 | Done (20.5 skipped) |
 | 21 — CI/CD Pipeline & Atomic Writes | 5 | 5 | Done |
-| 22 — Strukturerad loggning & felhantering | 5 | 3 | In progress |
+| 22 — Strukturerad loggning & felhantering | 5 | 5 | Done |
 | 23 — Dokumentation & utvecklaronboarding | 5 | 4 | In progress |
 | 24 — Integrationstester & stresstestning | 5 | 0 | Not started |
 | 25 — Typsäkerhet & wslog.py modularisering | 5 | 0 | Not started |
