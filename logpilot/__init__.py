@@ -1,4 +1,4 @@
-"""LogPilot — WebSphere/Java log parsing and triage.
+"""LogPilot — Log parsing and triage.
 
 This package re-exports all public symbols for backwards compatibility.
 Usage: ``from logpilot import parse_file, render_markdown_report``

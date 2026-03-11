@@ -285,7 +285,7 @@ st.set_page_config(page_title="LogPilot", page_icon="📋", layout="wide")
 st.title("LogPilot")
 
 # --- Sidebar: API key ---
-_KEYRING_SERVICE = "ws-log-analyzer"
+_KEYRING_SERVICE = "logpilot"
 _KEYRING_USERNAME = "anthropic_api_key"
 _KEYRING_GEMINI_USERNAME = "gemini_api_key"
 _KEYRING_OPENAI_USERNAME = "openai_api_key"
@@ -459,10 +459,10 @@ tab_analyze, tab_realtime, tab_history, tab_audit, tab_spend, tab_applog = st.ta
 
 with tab_analyze:
     uploaded_files = st.file_uploader(
-        "Upload WebSphere log file(s)",
+        "Upload log file(s)",
         type=["log", "gz"],
         accept_multiple_files=True,
-        help="SystemOut.log, SystemErr.log, or .gz compressed logs",
+        help="Application log files (.log or .gz compressed)",
     )
 
     col1, col2, col3 = st.columns(3)
@@ -561,7 +561,7 @@ with tab_analyze:
     if a is not None:
         render_report_sections(a, log=log, lookup_cache=_lookup_cache, store_cache=_store_cache)
     elif not uploaded_files:
-        st.info("Upload one or more WebSphere log files (.log or .gz) above, then click **Analyze** to generate a triage report.")
+        st.info("Upload one or more log files (.log or .gz) above, then click **Analyze** to generate a triage report.")
 
 with tab_realtime:
     st.session_state.rt_enabled = True

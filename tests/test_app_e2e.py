@@ -52,7 +52,7 @@ def page(browser, streamlit_server):
     p = browser.new_page()
     p.goto(APP_URL, wait_until="networkidle")
     # Wait for Streamlit to fully render
-    p.wait_for_selector("h1:has-text('WebSphere Log Analyzer')", timeout=DEFAULT_TIMEOUT)
+    p.wait_for_selector("h1:has-text('LogPilot')", timeout=DEFAULT_TIMEOUT)
     yield p
     p.close()
 
@@ -84,7 +84,7 @@ class TestAppLoads:
         assert "LogPilot" in heading.text_content()
 
     def test_file_uploader_visible(self, page):
-        uploader = page.get_by_text("Upload WebSphere log file")
+        uploader = page.get_by_text("Upload log file")
         assert uploader.is_visible()
 
     def test_settings_sidebar(self, page):

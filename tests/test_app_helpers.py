@@ -388,7 +388,7 @@ class TestKeychainHelpers:
         with mock.patch.dict(sys.modules, {"keyring": mock_keyring}):
             result = _load_keychain("test_user", "TEST_ENV_VAR")
         assert result == "sk-secret-123"
-        mock_keyring.get_password.assert_called_once_with("ws-log-analyzer", "test_user")
+        mock_keyring.get_password.assert_called_once_with("logpilot", "test_user")
 
     def test_load_keychain_falls_back_to_env(self, monkeypatch):
         # Simulate keyring not installed
@@ -414,7 +414,7 @@ class TestKeychainHelpers:
         with mock.patch.dict(sys.modules, {"keyring": mock_keyring}):
             _save_keychain("test_user", "new-key-789", label="Test")
         mock_keyring.set_password.assert_called_once_with(
-            "ws-log-analyzer", "test_user", "new-key-789"
+            "logpilot", "test_user", "new-key-789"
         )
 
     def test_save_keychain_deletes_when_empty(self):
@@ -422,7 +422,7 @@ class TestKeychainHelpers:
         with mock.patch.dict(sys.modules, {"keyring": mock_keyring}):
             _save_keychain("test_user", "", label="Test")
         mock_keyring.delete_password.assert_called_once_with(
-            "ws-log-analyzer", "test_user"
+            "logpilot", "test_user"
         )
 
     def test_save_keychain_handles_exception(self):
