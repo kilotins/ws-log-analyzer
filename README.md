@@ -113,7 +113,7 @@ pip install -e ".[gui,claude,gemini,openai,test,e2e]"
 pytest
 ```
 
-476 tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, Gemini integration, OpenAI integration, skill auto-selection, report generation (Markdown/JSON/CSV/XML/PDF), app helpers, keychain management, symlink rejection, API key validation, rate limiting, and 31 Playwright end-to-end tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+496 tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, Gemini integration, OpenAI integration, skill auto-selection, report generation (Markdown/JSON/CSV/XML/PDF), app helpers, keychain management, symlink rejection, API key validation, rate limiting, and 31 Playwright end-to-end tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## AI Provider Setup
 

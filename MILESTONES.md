@@ -337,11 +337,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 24.1 | Lägg till multi-fil integrationstester — ladda upp 2-3 loggfiler, verifiera kombinerad analys | `tests/test_integration.py` | [ ] |
-| 24.2 | Multi-fil jämförelse-test — verifiera att timeline spänner alla filer, signaltaggar aggregeras | `tests/test_integration.py` | [ ] |
-| 24.3 | Stresstest för stora filer — generera 100K+ events, verifiera `parse_file` och `parse_file_iter` klarar det utan OOM | `tests/test_performance.py` | [ ] |
-| 24.4 | Stresstest för samtidig cache-åtkomst — 4 trådar som skriver cache samtidigt, verifiera ingen korruption | `tests/test_performance.py` | [ ] |
-| 24.5 | CI-marks för långsamma tester — markera stresstester med `@pytest.mark.slow`, exkludera från standard-CI | `tests/conftest.py`, `.github/workflows/ci.yml` | [ ] |
+| 24.1 | Lägg till multi-fil integrationstester — ladda upp 2-3 loggfiler, verifiera kombinerad analys | `tests/test_integration.py` | [x] |
+| 24.2 | Multi-fil jämförelse-test — verifiera att timeline spänner alla filer, signaltaggar aggregeras | `tests/test_integration.py` | [x] |
+| 24.3 | Stresstest för stora filer — generera 100K+ events, verifiera `parse_file` och `parse_file_iter` klarar det utan OOM | `tests/test_performance.py` | [x] |
+| 24.4 | Stresstest för samtidig cache-åtkomst — 4 trådar som skriver cache samtidigt, verifiera ingen korruption | `tests/test_performance.py` | [x] |
+| 24.5 | CI-marks för långsamma tester — markera stresstester med `@pytest.mark.slow`, exkludera från standard-CI | `tests/conftest.py`, `.github/workflows/ci.yml` | [x] |
 
 **Acceptance**: Multi-fil workflows testade end-to-end. Stresstester validerar 100K+ events. Långsamma tester markerade och exkluderade från snabb CI.
 
@@ -392,5 +392,5 @@
 | 21 — CI/CD Pipeline & Atomic Writes | 5 | 5 | Done |
 | 22 — Strukturerad loggning & felhantering | 5 | 5 | Done |
 | 23 — Dokumentation & utvecklaronboarding | 5 | 5 | Done |
-| 24 — Integrationstester & stresstestning | 5 | 0 | Not started |
+| 24 — Integrationstester & stresstestning | 5 | 5 | Done |
 | 25 — Typsäkerhet & wslog.py modularisering | 5 | 0 | Not started |

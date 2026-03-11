@@ -31,4 +31,4 @@ jobs:
         run: ruff check . || true
 
       - name: Run unit tests
-        run: pytest tests/ --ignore=tests/test_app_e2e.py -v --tb=short
+        run: pytest tests/ --ignore=tests/test_app_e2e.py -m "not slow" -v --tb=short
