@@ -8,7 +8,7 @@ import streamlit as st
 from datetime import datetime
 from pathlib import Path
 
-from wslog import ask_gemini, estimate_tokens
+from logpilot import ask_gemini, estimate_tokens
 from app_spend import record_spend
 
 
@@ -18,10 +18,10 @@ def _get_app_dir():
 
 
 _AUDIT_FILES_FULL = [
-    "wslog/parser.py", "wslog/analysis.py", "wslog/reports.py", "wslog/ai.py", "wslog/cli.py",
+    "logpilot/parser.py", "logpilot/analysis.py", "logpilot/reports.py", "logpilot/ai.py", "logpilot/cli.py",
     "app.py", "tests/test_wslog.py", "CLAUDE.md", "ARCHITECTURE.md",
 ]
-_AUDIT_FILES_COMPACT = ["wslog/parser.py", "wslog/analysis.py", "wslog/ai.py", "app.py", "CLAUDE.md"]
+_AUDIT_FILES_COMPACT = ["logpilot/parser.py", "logpilot/analysis.py", "logpilot/ai.py", "app.py", "CLAUDE.md"]
 _AUDIT_SKILL_DIRS = ["skills", ".claude/skills"]
 
 _AUDIT_MODELS = {
@@ -56,7 +56,7 @@ Include an overall grade at the top. Use this format for grades:
 
 Mark fixed issues with ~~strikethrough~~ ✅ Fixed.
 Be specific — reference file names, line numbers, and function names.
-Start the report with: # Technical Audit Report — WS Log Analyzer
+Start the report with: # Technical Audit Report — LogPilot
 """
 
 
@@ -340,7 +340,7 @@ def _run_audit(model_label, log, status=None):
         log.warning("audit Could not generate delta: %s", ex)
 
     # Convert to HTML
-    audit_html = render_html(audit_md, title="Technical Audit Report -- WS Log Analyzer")
+    audit_html = render_html(audit_md, title="Technical Audit Report -- LogPilot")
     html_path = app_dir / "AUDIT_REPORT.html"
     html_path.write_text(audit_html, encoding="utf-8")
 

@@ -1,4 +1,4 @@
-"""Streamlit GUI for the WebSphere Log Analyzer."""
+"""Streamlit GUI for LogPilot."""
 from __future__ import annotations
 
 import logging
@@ -9,7 +9,7 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 
-from wslog import (
+from logpilot import (
     parse_file, render_markdown_report, render_json_report,
     render_pdf_report, render_csv_report, render_xml_report,
     precompute_analysis, incident_timeline,
@@ -242,7 +242,6 @@ _STATE_DEFAULTS = {
     "openai_history": [],
     "debug_payload": False,
     "last_ai_call_ts": 0.0,
-    "swedish_chef": False,
     "rt_enabled": False,
     "rt_running": False,
     "rt_paused": False,
@@ -282,8 +281,8 @@ def get_report_history(limit=20):
 
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="WS Log Analyzer", page_icon="📋", layout="wide")
-st.title("WebSphere Log Analyzer")
+st.set_page_config(page_title="LogPilot", page_icon="📋", layout="wide")
+st.title("LogPilot")
 
 # --- Sidebar: API key ---
 _KEYRING_SERVICE = "ws-log-analyzer"

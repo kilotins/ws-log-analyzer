@@ -1,7 +1,7 @@
 [project]
-name = "ws-log-analyzer"
+name = "logpilot"
 version = "0.1.0"
-description = "WebSphere/Java log analyzer for quick triage"
+description = "LogPilot — WebSphere/Java log analyzer for quick triage"
 requires-python = ">=3.9"
 dependencies = []
 
@@ -15,11 +15,11 @@ test = ["pytest>=7"]
 e2e = ["pytest>=7", "playwright>=1.40"]
 
 [tool.setuptools]
-packages = ["wslog"]
+packages = ["logpilot"]
 py-modules = ["app"]
 
 [project.scripts]
-wslog = "wslog.cli:main"
+logpilot = "logpilot.cli:main"
 
 [tool.mypy]
 python_version = "3.9"

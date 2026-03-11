@@ -53,7 +53,7 @@ def render_markdown_report(events: list[dict], top_n: int = 10, samples_n: int =
     file_summary = a["file_summary"]
 
     md: list[str] = []
-    md.append("# WebSphere/Java Log Triage Report")
+    md.append("# LogPilot Triage Report")
     md.append("")
     md.append(f"- Files: {len(file_summary)}")
     md.append(f"- Parsed events: {s['total_events']}")
@@ -231,7 +231,7 @@ def render_pdf_report(events: list[dict], top_n: int = 10, samples_n: int = 5, h
     pdf.add_page()
 
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "WebSphere/Java Log Triage Report", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, "LogPilot Triage Report", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
     def heading(text: str, size: int = 13) -> None:

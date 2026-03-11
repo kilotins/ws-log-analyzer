@@ -6,9 +6,9 @@ import streamlit as st
 from datetime import datetime
 from pathlib import Path
 
-from wslog import (
+from logpilot import (
     match_user_query, build_claude_prompt, claude_cache_key,
-    SWEDISH_CHEF_STYLE, ask_gemini,
+    ask_gemini,
     estimate_tokens, TOKEN_LIMITS,
 )
 from app_constants import AI_RATE_LIMIT_SECONDS
@@ -94,7 +94,6 @@ AI_MODELS = {
     "Gemini 2.5 Pro": {"provider": "gemini", "model_id": "gemini-2.5-pro"},
     "GPT-4o": {"provider": "openai", "model_id": "gpt-4o"},
     "GPT-4o mini": {"provider": "openai", "model_id": "gpt-4o-mini"},
-    "Swedish Chef (fun mode)": {"provider": "openai_chef", "model_id": "gpt-4o-mini"},
 }
 
 
@@ -221,14 +220,11 @@ def build_ai_request_context(user_query: str, events: list[dict], provider: str 
     """Compute match, cache key, and prompt for an AI analysis request."""
     match = match_user_query(user_query, events)
     cache_key = claude_cache_key(user_query, match)
-    if st.session_state.swedish_chef:
-        cache_key += ":swedish_chef"
     if provider == "gemini":
         cache_key = "gemini:" + cache_key
     elif provider == "openai":
         cache_key = "openai:" + cache_key
-    style = SWEDISH_CHEF_STYLE if st.session_state.swedish_chef else None
-    prompt = build_claude_prompt(user_query, match, style=style)
+    prompt = build_claude_prompt(user_query, match)
     skills = prompt.get("skills", [])
     if skills and log:
         log.info("skills %s selected skills: %s", provider, ", ".join(skills))
@@ -474,104 +470,6 @@ def run_openai_analysis(user_query, events, processing_container, model_id="gpt-
                      log=log, lookup_cache=lookup_cache, store_cache=store_cache)
 
 
-# --- Chef sound/image helpers ---
-_APP_DIR = Path(__file__).parent
-_CHEF_SOUNDS_DIR = _APP_DIR / "assets" / "chef"
-_CHEF_IMAGE = _APP_DIR / "assets" / "chef" / "The_Swedish_Chef.jpg"
-
-
-def _get_all_chef_sounds_b64():
-    """Return all Chef sound clips as a list of base64 data URIs."""
-    import base64
-    if not _CHEF_SOUNDS_DIR.is_dir():
-        return []
-    clips = sorted(_CHEF_SOUNDS_DIR.glob("*.mp3"))
-    results = []
-    for clip in clips:
-        data = clip.read_bytes()
-        b64 = base64.b64encode(data).decode()
-        results.append(f"data:audio/mpeg;base64,{b64}")
-    return results
-
-
-def _get_chef_image_b64():
-    """Return the Chef image as a base64 data URI, or None."""
-    import base64
-    if not _CHEF_IMAGE.is_file():
-        return None
-    data = _CHEF_IMAGE.read_bytes()
-    ext = _CHEF_IMAGE.suffix.lower().lstrip(".")
-    mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "gif": "gif", "webp": "webp"}.get(ext, "jpeg")
-    b64 = base64.b64encode(data).decode()
-    return f"data:image/{mime};base64,{b64}"
-
-
-def _render_chef_sound_button():
-    """Render a clickable Swedish Chef image that plays a random sound clip."""
-    chef_img = _get_chef_image_b64()
-    chef_sounds = _get_all_chef_sounds_b64()
-    if not chef_img or not chef_sounds:
-        return
-
-    import json as _json
-    sounds_js = _json.dumps(chef_sounds)
-
-    import streamlit.components.v1 as components
-    components.html(f"""
-    <div style="display:inline-block">
-      <button id="chef-btn" onclick="playChef()" title="Bork bork bork!"
-        style="background:none;border:2px solid #555;border-radius:12px;
-               padding:6px;cursor:pointer;transition:all 0.3s;
-               display:flex;align-items:center;gap:8px">
-        <img id="chef-img" src="{chef_img}"
-             style="width:60px;height:60px;border-radius:8px;object-fit:cover;
-                    transition:transform 0.3s"
-             onmouseover="this.style.transform='scale(1.1) rotate(-5deg)'"
-             onmouseout="if(!playing)this.style.transform='scale(1)'" />
-        <span style="font-size:13px;color:inherit;text-align:left;line-height:1.3"
-              id="chef-label">Let zee Chef<br>explain zee problem!</span>
-      </button>
-    </div>
-    <script>
-      const chefSounds = {sounds_js};
-      let playing = false;
-      let currentAudio = null;
-      let lastIdx = -1;
-      function playChef() {{
-        if (playing && currentAudio) {{
-          currentAudio.pause();
-          currentAudio = null;
-          playing = false;
-          document.getElementById('chef-img').style.transform = 'scale(1)';
-          document.getElementById('chef-label').innerHTML = 'Let zee Chef<br>explain zee problem!';
-          document.getElementById('chef-btn').style.borderColor = '#555';
-          return;
-        }}
-        let idx = Math.floor(Math.random() * chefSounds.length);
-        if (chefSounds.length > 1 && idx === lastIdx) {{
-          idx = (idx + 1) % chefSounds.length;
-        }}
-        lastIdx = idx;
-        const audio = new Audio(chefSounds[idx]);
-        audio.volume = 0.7;
-        currentAudio = audio;
-        playing = true;
-        document.getElementById('chef-img').style.transform = 'scale(1.1) rotate(-5deg)';
-        document.getElementById('chef-label').innerHTML = 'Bork bork bork!<br><small>Click to stop</small>';
-        document.getElementById('chef-btn').style.borderColor = '#dc3545';
-        audio.onended = () => {{
-          playing = false;
-          currentAudio = null;
-          document.getElementById('chef-img').style.transform = 'scale(1)';
-          document.getElementById('chef-label').innerHTML = 'Let zee Chef<br>explain zee problem!';
-          document.getElementById('chef-btn').style.borderColor = '#555';
-        }};
-        audio.play();
-      }}
-    </script>
-    """, height=85)
-
-
 # --- AI response rendering ---
 
 def _render_claude_response(text):
@@ -666,10 +564,7 @@ def render_current_ai_analyses():
 
     if _has_claude:
         label = st.session_state.claude_query_label or "query"
-        expander_title = f"\U0001f373 Zee Chef's analysis \u2014 {label}" if st.session_state.swedish_chef else f"Claude analysis \u2014 {label}"
-        with st.expander(expander_title, expanded=_expand_claude):
-            if st.session_state.swedish_chef:
-                _render_chef_sound_button()
+        with st.expander(f"Claude analysis \u2014 {label}", expanded=_expand_claude):
             _render_claude_response(st.session_state.claude_answer)
 
     if _has_gemini:
@@ -679,11 +574,7 @@ def render_current_ai_analyses():
 
     if _has_openai:
         label = st.session_state.openai_query_label or "query"
-        _chef_openai = st.session_state.swedish_chef
-        expander_title = f"\U0001f373 Zee Chef's analysis \u2014 {label}" if _chef_openai else f"GPT analysis \u2014 {label}"
-        with st.expander(expander_title, expanded=_expand_openai):
-            if _chef_openai:
-                _render_chef_sound_button()
+        with st.expander(f"GPT analysis \u2014 {label}", expanded=_expand_openai):
             st.markdown(st.session_state.openai_answer)
 
 
@@ -692,15 +583,10 @@ def render_ai_history():
     claude_history = st.session_state.claude_history
     if len(claude_history) > 1:
         st.markdown("---")
-        if st.session_state.swedish_chef:
-            st.subheader("Previoos queries from zee Chef")
-        else:
-            st.subheader("Previous Claude queries")
+        st.subheader("Previous Claude queries")
         for _, entry in enumerate(reversed(claude_history[:-1])):
             hist_label = f"Claude \u2014 {entry['query']} ({entry['timestamp']})"
             with st.expander(hist_label):
-                if st.session_state.swedish_chef:
-                    _render_chef_sound_button()
                 _render_claude_response(entry["answer"])
 
     gemini_history = st.session_state.gemini_history
@@ -714,17 +600,11 @@ def render_ai_history():
 
     openai_history = st.session_state.openai_history
     if len(openai_history) > 1:
-        _chef_hist = st.session_state.swedish_chef
         st.markdown("---")
-        st.subheader("\U0001f373 Previ\u00f6oos Chef queries" if _chef_hist else "Previous GPT queries")
+        st.subheader("Previous GPT queries")
         for _, entry in enumerate(reversed(openai_history[:-1])):
-            if _chef_hist:
-                hist_label = f"\U0001f373 Zee Chef \u2014 {entry['query']} ({entry['timestamp']})"
-            else:
-                hist_label = f"GPT \u2014 {entry['query']} ({entry['timestamp']})"
+            hist_label = f"GPT \u2014 {entry['query']} ({entry['timestamp']})"
             with st.expander(hist_label):
-                if _chef_hist:
-                    _render_chef_sound_button()
                 st.markdown(entry["answer"])
 
 
@@ -759,8 +639,6 @@ def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
         )
 
     _model_info = AI_MODELS.get(selected_model, {})
-    _is_chef = _model_info.get("provider") == "openai_chef"
-    st.session_state.swedish_chef = _is_chef
 
     processing_container = st.container()
 

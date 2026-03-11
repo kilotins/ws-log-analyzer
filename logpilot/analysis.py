@@ -13,7 +13,7 @@ from .parser import (
     WAS_CODE_RE,
 )
 
-_log = logging.getLogger("wslog")
+_log = logging.getLogger("logpilot")
 
 
 def parse_ts_datetime(ts: str | None) -> datetime | None:

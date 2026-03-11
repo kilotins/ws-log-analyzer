@@ -2,7 +2,7 @@
 
 ```
 ws-log-analyzer/
-├── wslog.py              # Core engine + CLI (~1840 lines, all logic here)
+├── logpilot/             # Core engine package (parser, analysis, reports, ai, cli)
 ├── app.py                # Streamlit GUI entry point (~700 lines)
 ├── app_ai.py             # AI provider orchestration (~791 lines)
 ├── app_render.py         # Report rendering UI (~568 lines)
@@ -35,9 +35,9 @@ ws-log-analyzer/
 └── cache/                # AI response cache + history (runtime, gitignored)
 ```
 
-## `wslog.py` — Core Engine + CLI (~1759 lines)
+## `logpilot/` — Core Engine Package
 
-The entire analysis pipeline lives in one file with no required dependencies (stdlib only). It breaks down into four layers:
+The analysis pipeline lives in the `logpilot/` package with no required dependencies (stdlib only). It breaks down into four layers:
 
 ### Regex Layer
 
@@ -108,14 +108,13 @@ Functions that consume parsed events to produce insights:
 
 ## `app.py` — Streamlit GUI (split across modules)
 
-UI layer that imports from `wslog.py`. No analysis logic lives here. The GUI is split into modules: `app.py` (~658 lines, entry point and layout), `app_ai.py` (~665 lines, AI provider orchestration), `app_render.py` (~503 lines, report rendering), `app_audit.py` (~381 lines, audit report generation), `app_realtime.py` (~154 lines, realtime log monitoring), and `app_constants.py` (29 lines, shared constants).
+UI layer that imports from `logpilot`. No analysis logic lives here. The GUI is split into modules: `app.py` (~658 lines, entry point and layout), `app_ai.py` (~665 lines, AI provider orchestration), `app_render.py` (~503 lines, report rendering), `app_audit.py` (~381 lines, audit report generation), `app_realtime.py` (~154 lines, realtime log monitoring), and `app_constants.py` (29 lines, shared constants).
 
 ### Key GUI Features
 
 - **Three AI providers** — Claude, Gemini, and OpenAI with per-provider caching and history
 - **Incident timeline** — groups errors into time-windowed incidents
 - **Realtime log monitoring** — `@st.fragment(run_every=N)` polls a file for new events
-- **Swedish Chef mode** — novelty mode with sound clips and translated responses
 - **File browser** — browse uploaded log files
 - **Persistent API keys** — keyring → file fallback → env var, with 0o600 permissions
 - **API rate limiting** — configurable cooldown between AI calls
@@ -146,7 +145,6 @@ _STATE_DEFAULTS = {
     "openai_cache": {},         # cache key -> response text
     "openai_history": [],       # list of {query, answer, timestamp}
     "debug_payload": False,     # Show AI API request/response payloads
-    "swedish_chef": False,      # Swedish Chef response style
     "rt_enabled": False,        # Realtime log monitoring toggle
     "rt_running": False,        # Monitoring is actively polling
     "rt_paused": False,         # Monitoring is paused (keep offset)

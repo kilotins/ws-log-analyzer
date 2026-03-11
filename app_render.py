@@ -5,7 +5,7 @@ import re as _re
 import streamlit as st
 from pathlib import Path
 
-from wslog import render_histogram, precompute_analysis, render_pdf_report, render_csv_report, render_xml_report
+from logpilot import render_histogram, precompute_analysis, render_pdf_report, render_csv_report, render_xml_report
 from app_constants import LEVEL_COLORS
 
 
@@ -347,7 +347,7 @@ def _apply_event_filters(events, levels, code_prefix, exception_types, time_rang
     if time_range and len(time_range) == 2:
         t_start, t_end = time_range
         if t_start or t_end:
-            from wslog import parse_ts_datetime
+            from logpilot import parse_ts_datetime
             result = []
             for e in filtered:
                 ts = e.get("ts")
@@ -511,7 +511,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         display_hist = fa["hist"]
         display_samples = fa["samples"]
         display_events = filtered_events
-        from wslog import incident_timeline as _itl_fn
+        from logpilot import incident_timeline as _itl_fn
         display_itl = _itl_fn(filtered_events)
     else:
         display_summary = a["summary"]

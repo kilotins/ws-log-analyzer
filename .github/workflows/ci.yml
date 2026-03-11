@@ -31,7 +31,7 @@ jobs:
         run: ruff check . || true
 
       - name: Type check with mypy (informational)
-        run: mypy wslog/ --ignore-missing-imports || true
+        run: mypy logpilot/ --ignore-missing-imports || true
 
       - name: Run unit tests
         run: pytest tests/ --ignore=tests/test_app_e2e.py -m "not slow" -v --tb=short

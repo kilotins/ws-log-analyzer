@@ -8,7 +8,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, os.path.dirname(__file__))
 
-from wslog import (
+from logpilot import (
     extract_ts, redact, parse_file, parse_file_iter, classify_event, bucket_tags,
     _parse_ts_parts, parse_ts_datetime,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
@@ -530,7 +530,7 @@ def test_parse_file_permission_error(tmp_path, monkeypatch):
     p = tmp_path / "noperm.log"
     p.write_text("[10/12/15 21:22:04:257 CEST] 00000001 Comp I   CODE0001I: ok\n")
 
-    with patch("wslog.parser.open_text", side_effect=PermissionError("Permission denied")):
+    with patch("logpilot.parser.open_text", side_effect=PermissionError("Permission denied")):
         with pytest.raises(PermissionError):
             parse_file(p)
 
@@ -770,7 +770,7 @@ def test_redact_authorization_digest_preserves_surrounding():
 
 def test_parse_ts_datetime_logs_debug_on_bad_input(caplog):
     """parse_ts_datetime should log debug message for unparseable timestamps."""
-    with caplog.at_level(logging.DEBUG, logger="wslog"):
+    with caplog.at_level(logging.DEBUG, logger="logpilot"):
         result = parse_ts_datetime("not-a-timestamp")
     assert result is None
     assert any("could not parse" in r.message for r in caplog.records)
@@ -780,7 +780,7 @@ def test_open_text_logs_warning_on_fake_gz(tmp_path, caplog):
     """open_text should log warning when .gz file is not valid gzip."""
     fake_gz = tmp_path / "fake.log.gz"
     fake_gz.write_text("this is not gzip data", encoding="utf-8")
-    with caplog.at_level(logging.WARNING, logger="wslog"):
+    with caplog.at_level(logging.WARNING, logger="logpilot"):
         f = open_text(fake_gz)
         content = f.read()
         f.close()

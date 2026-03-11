@@ -1,6 +1,6 @@
-# Claude Code Project Context: WS Log Analyzer
+# Claude Code Project Context: LogPilot
 
-WebSphere/Java log analyzer that parses log files, extracts events with metadata (severity, exceptions, WAS codes, signal tags), and generates triage reports. Built as a single-file Python CLI with an optional Streamlit GUI.
+LogPilot is a WebSphere/Java log analyzer that parses log files, extracts events with metadata (severity, exceptions, WAS codes, signal tags), and generates triage reports. Built as a Python CLI with an optional Streamlit GUI.
 
 ## What This Tool Does
 
@@ -41,10 +41,21 @@ See [README.md](README.md) for installation, CLI options, and usage.
 | **Deploy** | `skills/deployment-analysis.md` — Deploy lifecycle, rollback indicators |
 | **Security** | `skills/security-analysis.md` — Auth failures, SSL, brute force detection |
 | **Noise** | `skills/log-noise-filter.md` — Safe-to-ignore patterns, noise heuristics |
+| **JSON Logs** | `skills/json-structured-logs.md` — Bunyan, Pino, structlog, zap, Docker/K8s, CloudWatch |
+| **nginx** | `skills/nginx-analysis.md` — Access/error logs, HTTP statuskoder, upstream-problem |
+| **Log4j** | `skills/log4j-analysis.md` — Log4j/Logback, Spring Boot, HikariCP, Kafka |
+| **Python** | `skills/python-logging-analysis.md` — Django, Flask, FastAPI, tracebacks, Celery |
+| **syslog** | `skills/syslog-analysis.md` — RFC 3164/5424, journald, OOM killer, systemd |
+| **Enonic XP** | `skills/enonic-xp-analysis.md` — server.log, Jetty request log, cluster health, repo/blob errors |
+| **OpenShift/K8s** | `skills/openshift-k8s-analysis.md` — CRI-O logs, pod lifecycle, operators, routes, audit |
+| **Docker** | `.claude/skills/docker-deployment.md` — Dockerfile, compose, volumes, security |
+| **Log Formats** | `.claude/skills/log-format-plugins.md` — LogFormat protocol, auto-detect, skapa nya format-plugins |
+| **Packaging** | `.claude/skills/python-packaging.md` — pyproject.toml, building, PyPI, entry points |
+| **Rebranding** | `.claude/skills/rebranding-guide.md` — Checklista för att byta projektnamn |
 
 ## Critical Gotchas
 
-- **Single-file core**: All parsing/analysis logic is in `wslog.py` — `app.py` only imports from it
+- **Modular core**: All parsing/analysis logic is in the `logpilot/` package (parser, analysis, reports, ai, cli) — `app.py` only imports from it
 - **No required deps**: Core runs on stdlib only. `anthropic`, `google-generativeai`, `openai`, `streamlit`, `pytest` are optional
 - **Event boundary heuristic**: New events start at timestamps, but stacktraces and `Caused by:` lines are kept with their parent event
 - **Secret redaction**: Runs on all event text before output — never expose raw log content

@@ -91,7 +91,7 @@ def _normalize(text):
     # Remove effort/file columns from table rows
     text = re.sub(r'\s*\d+\s*min\b', '', text)
     text = re.sub(r'\s*\d+\s*hr\b', '', text)
-    text = re.sub(r'\b(app|wslog|tests/)[\w./:-]*', '', text)
+    text = re.sub(r'\b(app|logpilot|wslog|tests/)[\w./:-]*', '', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text.lower()
 

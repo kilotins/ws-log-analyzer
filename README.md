@@ -1,4 +1,4 @@
-# WebSphere Log Analyzer
+# LogPilot
 
 CLI tool and Streamlit web GUI that analyzes WebSphere / Java logs and generates triage reports with actionable insights.
 
@@ -23,17 +23,17 @@ CLI tool and Streamlit web GUI that analyzes WebSphere / Java logs and generates
 
 ```bash
 # Basic analysis
-./wslog.py SystemOut.log
+python -m logpilot SystemOut.log
 
 # Multi-file with options
-./wslog.py SystemOut.log SystemErr.log --top 20 --samples 10 --hist-minutes 5
+python -m logpilot SystemOut.log SystemErr.log --top 20 --samples 10 --hist-minutes 5
 
 # JSON output
-./wslog.py SystemOut.log --format json
+python -m logpilot SystemOut.log --format json
 
 # AI root-cause analysis
-./wslog.py SystemOut.log --claude
-./wslog.py SystemOut.log --claude --model claude-sonnet-4-6
+python -m logpilot SystemOut.log --claude
+python -m logpilot SystemOut.log --claude --model claude-sonnet-4-6
 ```
 
 ### CLI Options
@@ -74,7 +74,6 @@ Open http://localhost:8501.
 - **Ask AI for help** — enter an error code or question, select Claude/Gemini/OpenAI from the model dropdown, get AI-powered analysis with Splunk suggestions
 - **AI caching** — repeated queries return instantly for all providers (session + file-based cache)
 - **Realtime log monitoring** — tail a log file and see new events as they arrive
-- **Swedish Chef mode** — novelty mode with sound clips and Muppet-style translated responses
 - **API keys in sidebar** — Anthropic, Gemini, and OpenAI keys (or `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` env vars). Keys persist via keyring + file fallback
 - **Download reports** — Markdown, JSON, CSV, XML, and PDF
 - **History tab** — browse and download previous reports, clear history
