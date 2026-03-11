@@ -17,8 +17,11 @@ def _get_app_dir():
     return Path(__file__).parent
 
 
-_AUDIT_FILES_FULL = ["wslog.py", "app.py", "tests/test_wslog.py", "CLAUDE.md", "ARCHITECTURE.md"]
-_AUDIT_FILES_COMPACT = ["wslog.py", "app.py", "CLAUDE.md"]  # For models with low TPM limits
+_AUDIT_FILES_FULL = [
+    "wslog/parser.py", "wslog/analysis.py", "wslog/reports.py", "wslog/ai.py", "wslog/cli.py",
+    "app.py", "tests/test_wslog.py", "CLAUDE.md", "ARCHITECTURE.md",
+]
+_AUDIT_FILES_COMPACT = ["wslog/parser.py", "wslog/analysis.py", "wslog/ai.py", "app.py", "CLAUDE.md"]
 _AUDIT_SKILL_DIRS = ["skills", ".claude/skills"]
 
 _AUDIT_MODELS = {

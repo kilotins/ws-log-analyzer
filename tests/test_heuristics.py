@@ -251,7 +251,7 @@ def test_multi_file_cli_output(sample_log, second_log, tmp_path):
     import subprocess
     out = tmp_path / "report.md"
     result = subprocess.run(
-        [sys.executable, "wslog.py", str(sample_log), str(second_log), "--out", str(out)],
+        [sys.executable, "-m", "wslog", str(sample_log), str(second_log), "--out", str(out)],
         capture_output=True, text=True,
         cwd=os.path.dirname(os.path.dirname(__file__)),
     )

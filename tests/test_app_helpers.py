@@ -639,7 +639,7 @@ class TestCollectAuditSources:
 
     def test_includes_main_files(self):
         result = _collect_audit_sources()
-        assert "wslog.py" in result
+        assert "wslog/" in result or "parser.py" in result
         assert "app.py" in result
 
     def test_compact_mode_shorter(self):

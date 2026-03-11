@@ -530,7 +530,7 @@ def test_parse_file_permission_error(tmp_path, monkeypatch):
     p = tmp_path / "noperm.log"
     p.write_text("[10/12/15 21:22:04:257 CEST] 00000001 Comp I   CODE0001I: ok\n")
 
-    with patch("wslog.open_text", side_effect=PermissionError("Permission denied")):
+    with patch("wslog.parser.open_text", side_effect=PermissionError("Permission denied")):
         with pytest.raises(PermissionError):
             parse_file(p)
 
