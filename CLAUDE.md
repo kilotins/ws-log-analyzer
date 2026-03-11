@@ -1,11 +1,11 @@
 # Claude Code Project Context: LogPilot
 
-LogPilot is a WebSphere/Java log analyzer that parses log files, extracts events with metadata (severity, exceptions, WAS codes, signal tags), and generates triage reports. Built as a Python CLI with an optional Streamlit GUI.
+LogPilot is a multi-format log analyzer with 8 format plugins (WAS, JSON, nginx, Log4j, Python, syslog, Enonic XP, Kubernetes/CRI-O). Parses log files, extracts events with metadata (severity, exceptions, codes, signal tags), and generates triage reports. Built as a Python CLI with an optional Streamlit GUI.
 
 ## What This Tool Does
 
-1. **Parses** WebSphere and Java log files (plain text or `.gz`) into structured events
-2. **Classifies** events by severity, WAS message codes, exceptions, root causes, and signal tags (OOM, HungThreads, DB/Pool, SSL, HTTP)
+1. **Parses** log files (plain text or `.gz`) with auto-detected format plugins into structured events
+2. **Classifies** events by severity, message codes, exceptions, root causes, and signal tags (OOM, HungThreads, DB/Pool, SSL, HTTP)
 3. **Generates** triage reports in Markdown, JSON, CSV, XML, and PDF with timeline histograms and prioritized samples
 4. **Redacts** secrets (bearer tokens, passwords, API keys) before output
 5. **Optional AI analysis** via Claude, Gemini, or OpenAI for root-cause suggestions
@@ -41,6 +41,8 @@ See [README.md](README.md) for installation, CLI options, and usage.
 | **Deploy** | `skills/deployment-analysis.md` — Deploy lifecycle, rollback indicators |
 | **Security** | `skills/security-analysis.md` — Auth failures, SSL, brute force detection |
 | **Noise** | `skills/log-noise-filter.md` — Safe-to-ignore patterns, noise heuristics |
+| **GC** | `skills/gc-performance.md` — GC tuning, OOM patterns, heap analysis |
+| **JMS** | `skills/jms-messaging.md` — JMS messaging, queue issues, connection factories |
 | **JSON Logs** | `skills/json-structured-logs.md` — Bunyan, Pino, structlog, zap, Docker/K8s, CloudWatch |
 | **nginx** | `skills/nginx-analysis.md` — Access/error logs, HTTP statuskoder, upstream-problem |
 | **Log4j** | `skills/log4j-analysis.md` — Log4j/Logback, Spring Boot, HikariCP, Kafka |
@@ -55,7 +57,7 @@ See [README.md](README.md) for installation, CLI options, and usage.
 
 ## Critical Gotchas
 
-- **Modular core**: All parsing/analysis logic is in the `logpilot/` package (parser, analysis, reports, ai, cli) — `app.py` only imports from it
+- **Modular core**: All parsing/analysis logic is in the `logpilot/` package (parser, analysis, reports, ai, cli, formats/) — `app*.py` only imports from it
 - **No required deps**: Core runs on stdlib only. `anthropic`, `google-generativeai`, `openai`, `streamlit`, `pytest` are optional
 - **Event boundary heuristic**: New events start at timestamps, but stacktraces and `Caused by:` lines are kept with their parent event
 - **Secret redaction**: Runs on all event text before output — never expose raw log content

@@ -1,7 +1,7 @@
 [project]
 name = "logpilot"
 version = "0.1.0"
-description = "LogPilot — WebSphere/Java log analyzer for quick triage"
+description = "LogPilot — Multi-format log analyzer with AI-powered triage (WAS, nginx, Log4j, Python, syslog, K8s, JSON, Enonic)"
 requires-python = ">=3.9"
 dependencies = []
 

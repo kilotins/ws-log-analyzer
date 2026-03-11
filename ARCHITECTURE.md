@@ -3,19 +3,27 @@
 ```
 ws-log-analyzer/
 ├── logpilot/             # Core engine package (parser, analysis, reports, ai, cli)
-├── app.py                # Streamlit GUI entry point (~700 lines)
-├── app_ai.py             # AI provider orchestration (~791 lines)
-├── app_render.py         # Report rendering UI (~568 lines)
-├── app_audit.py          # Audit report generation (~401 lines)
-├── app_spend.py          # Cloud spend tracking (~881 lines)
+├── app.py                # Streamlit GUI entry point (~863 lines)
+├── app_ai.py             # AI provider orchestration (~805 lines)
+├── app_render.py         # Report rendering UI (~559 lines)
+├── app_audit.py          # Audit report generation (~384 lines)
+├── app_spend.py          # Cost tracking & analytics (~869 lines)
 ├── app_realtime.py       # Realtime log monitoring (~162 lines)
 ├── app_constants.py      # Shared constants (31 lines)
 ├── report_renderer.py    # Markdown → HTML conversion (~819 lines)
-├── tests/
-│   ├── test_wslog.py     # 317 pytest unit tests for core engine
-│   ├── test_app_helpers.py  # 98 pytest unit tests for app helpers
-│   └── test_app_e2e.py   # 31 Playwright end-to-end tests
-├── skills/               # Domain knowledge (12 files)
+├── tests/                # 1019 tests across 18 test files
+│   ├── test_parsing.py          # Core parsing, redaction, timestamps
+│   ├── test_heuristics.py       # Heuristics, correlations, burst detection
+│   ├── test_ai_prompt.py        # AI prompt building, caching, skills
+│   ├── test_reports.py          # Report generation (all formats)
+│   ├── test_app_helpers.py      # GUI integration & state management
+│   ├── test_app_e2e.py          # Playwright end-to-end tests
+│   ├── test_format_*.py (7)     # Per-format plugin tests (nginx, log4j, json, python, syslog, enonic, k8s)
+│   ├── test_formats.py          # Format auto-detection & registry
+│   ├── test_integration.py      # Multi-file parsing, cross-format
+│   ├── test_local_ai.py         # Local AI endpoint tests
+│   └── test_performance.py      # Speed benchmarks
+├── skills/               # Domain knowledge (19 files)
 ├── .claude/
 │   └── skills/
 │       ├── ws-log-parsing.yaml
@@ -78,6 +86,7 @@ Functions that consume parsed events to produce insights:
 |----------|--------|
 | `render_markdown_report()` | Full Markdown triage report |
 | `render_json_report()` | Structured JSON equivalent |
+| `render_csv_report()` | CSV export with event-level detail |
 | `render_xml_report()` | XML export with SAX escaping and configurable text truncation |
 | `render_pdf_report()` | PDF report via `fpdf2` (long lines wrapped, non-latin1 chars handled) |
 
@@ -91,10 +100,11 @@ Functions that consume parsed events to produce insights:
 | `claude_cache_key()` | Stable cache key from query + match context — SHA-256 hashed so queries are not readable in the cache file |
 | `ask_gemini()` | Gemini API call with separate `system_instruction` parameter |
 | `incident_timeline()` | Groups errors into incidents within a configurable time window |
-| `select_skills()` | Picks relevant domain skill files based on tags, codes, exceptions, query |
+| `build_system_prompt()` | Dynamic format-aware system prompt (specialist role, Splunk sourcetype) |
+| `select_skills()` | Picks relevant domain skill files based on tags, codes, exceptions, query, format |
 | `load_skill_content()` | Reads and concatenates selected skill files for prompt injection |
 | `precompute_analysis()` | Computes all shared analysis data once for renderers |
-| `CLAUDE_SYSTEM_PROMPT` | System-level instructions separated from user content |
+| `CLAUDE_SYSTEM_PROMPT` | Default system prompt (backwards compatibility) |
 
 **Prompt injection protection:**
 - System instructions in separate `system` parameter for Claude, `system_instruction` for Gemini
@@ -108,11 +118,12 @@ Functions that consume parsed events to produce insights:
 
 ## `app.py` — Streamlit GUI (split across modules)
 
-UI layer that imports from `logpilot`. No analysis logic lives here. The GUI is split into modules: `app.py` (~658 lines, entry point and layout), `app_ai.py` (~665 lines, AI provider orchestration), `app_render.py` (~503 lines, report rendering), `app_audit.py` (~381 lines, audit report generation), `app_realtime.py` (~154 lines, realtime log monitoring), and `app_constants.py` (29 lines, shared constants).
+UI layer that imports from `logpilot`. No analysis logic lives here. The GUI is split into modules: `app.py` (~863 lines, entry point and layout), `app_ai.py` (~805 lines, AI provider orchestration), `app_render.py` (~559 lines, report rendering), `app_audit.py` (~384 lines, audit report generation), `app_spend.py` (~869 lines, cost tracking and analytics), `app_realtime.py` (~162 lines, realtime log monitoring), and `app_constants.py` (31 lines, shared constants).
 
 ### Key GUI Features
 
-- **Three AI providers** — Claude, Gemini, and OpenAI with per-provider caching and history
+- **Four AI providers** — Claude, Gemini, OpenAI, and local (OpenAI-compatible) with per-provider caching and history
+- **Cost tracking** — per-call spend tracking, CSV import (Anthropic/Google/OpenAI/local), donut charts
 - **Incident timeline** — groups errors into time-windowed incidents
 - **Realtime log monitoring** — `@st.fragment(run_every=N)` polls a file for new events
 - **File browser** — browse uploaded log files
@@ -168,8 +179,12 @@ Claude query history stored in `cache/claude_history.json` (max 50 entries), loa
 
 ### Tabs
 
-- **Analyze** — file upload, settings, collapsible report sections, incident timeline, Ask AI (Claude + Gemini)
+- **Analyze** — file upload, settings, collapsible report sections, incident timeline, Ask AI (Claude + Gemini + OpenAI + local)
+- **Realtime** — tail a log file and see new events as they arrive
 - **History** — browse/download previous reports, clear history
+- **Audit** — AI-driven code quality audit with versioned reports and delta comparison
+- **Spend** — cost tracking, CSV import, per-provider analytics
+- **App Log** — application log viewer with level filtering
 
 ### Directories
 
@@ -189,7 +204,7 @@ Log file(s)  →  parse_file()  →  List[event dicts]
                                     ├── time_histogram()  →  render_histogram()
                                     ├── pick_samples()
                                     ├── per_file_summary()
-                                    └── render_*_report()  (markdown / json / xml / pdf)
+                                    └── render_*_report()  (markdown / json / csv / xml / pdf)
 
 Ask AI:
   user_query  →  match_user_query()  →  build_claude_prompt()  →  Claude API  (via Anthropic SDK)
@@ -203,7 +218,7 @@ Each event dict contains: `level`, `thread_id`, `code`, `exception`, `root_cause
 
 - **Core**: Python 3.9+ stdlib only (re, gzip, json, collections, argparse, hashlib)
 - **PDF**: `fpdf2`
-- **GUI**: `streamlit`
+- **GUI**: `streamlit`, `plotly`
 - **AI (Claude)**: `anthropic`
 - **AI (Gemini)**: `google-generativeai`
 - **AI (OpenAI)**: `openai`
