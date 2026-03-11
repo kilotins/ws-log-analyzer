@@ -168,7 +168,8 @@ def test_likely_causes_has_fixes():
         make_event("J2CA0045E: pool exhausted"),
     ]
     causes = likely_causes(events)
-    assert len(causes) == 4
+    base_causes = [c for c in causes if not c["id"].startswith("corr-")]
+    assert len(base_causes) == 4
     for c in causes:
         assert len(c["fixes"]) >= 1
         assert c["cause"]
@@ -603,11 +604,12 @@ def test_likely_causes_prefiltering_regression():
     assert "db-pool" in ids
     assert "hung-threads" in ids
     assert "oom-gc" in ids
-    # Each should have count == 1
-    for r in results:
+    # Base heuristics each have count == 1
+    base_results = [r for r in results if not r["id"].startswith("corr-")]
+    for r in base_results:
         assert r["count"] == 1
-    # INFO event should not trigger any heuristic
-    assert len(results) == 4
+    # Correlations may also fire (e.g. corr-oom-pool from oom-gc + db-pool)
+    assert len(base_results) == 4
 
 
 def test_likely_causes_prefiltering_no_false_negatives():
@@ -634,12 +636,12 @@ def test_likely_causes_prefiltering_no_false_negatives():
     ]
     results = likely_causes(events)
     ids = {r["id"] for r in results}
-    # All 17 heuristics should match
-    expected_ids = {
+    # All 17 base heuristics should match (plus any correlations)
+    expected_base_ids = {
         "ssl-trust", "db-pool", "hung-threads", "oom-gc", "session-error",
         "classloader", "datasource-down", "servlet-error", "deploy-fail",
         "transaction-timeout", "authz-denied", "jndi-lookup-fail",
         "port-bind-fail", "ldap-connection-fail", "cert-expiry",
         "config-error", "context-root-conflict",
     }
-    assert ids == expected_ids
+    assert expected_base_ids.issubset(ids)
