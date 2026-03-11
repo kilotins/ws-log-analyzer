@@ -442,50 +442,35 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     if _filter_note:
         st.info(f"Downloads contain the full unfiltered report.{_filter_note}")
-    # Generate PDF/CSV/XML lazily (on-demand at download time)
+    # Generate reports lazily (on-demand at download time)
     events = a["events"]
     _pa = precompute_analysis(events, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
 
-    dl1, dl2, dl3 = st.columns(3)
-    with dl1:
-        st.download_button(
-            label="Markdown",
-            data=a["report_md"],
-            file_name=a["report_name"],
-            mime="text/markdown",
-            use_container_width=True,
+    _fmt_col, _dl_col = st.columns([1, 2])
+    with _fmt_col:
+        _export_fmt = st.selectbox(
+            "Export format",
+            ["Markdown", "JSON", "PDF", "CSV", "XML"],
+            key="export_format",
+            label_visibility="collapsed",
         )
-    with dl2:
+    with _dl_col:
+        _base = a["report_name"]
+        if _export_fmt == "Markdown":
+            _data, _fname, _mime = a["report_md"], _base, "text/markdown"
+        elif _export_fmt == "JSON":
+            _data, _fname, _mime = a["report_json"], _base.replace(".md", ".json"), "application/json"
+        elif _export_fmt == "PDF":
+            _data, _fname, _mime = render_pdf_report(events, _analysis=_pa), _base.replace(".md", ".pdf"), "application/pdf"
+        elif _export_fmt == "CSV":
+            _data, _fname, _mime = render_csv_report(events), _base.replace(".md", ".csv"), "text/csv"
+        else:  # XML
+            _data, _fname, _mime = render_xml_report(events), _base.replace(".md", ".xml"), "application/xml"
         st.download_button(
-            label="JSON",
-            data=a["report_json"],
-            file_name=a["report_name"].replace(".md", ".json"),
-            mime="application/json",
-            use_container_width=True,
-        )
-    with dl3:
-        st.download_button(
-            label="PDF",
-            data=render_pdf_report(events, _analysis=_pa),
-            file_name=a["report_name"].replace(".md", ".pdf"),
-            mime="application/pdf",
-            use_container_width=True,
-        )
-    dl4, dl5, _dl6 = st.columns(3)
-    with dl4:
-        st.download_button(
-            label="CSV",
-            data=render_csv_report(events),
-            file_name=a["report_name"].replace(".md", ".csv"),
-            mime="text/csv",
-            use_container_width=True,
-        )
-    with dl5:
-        st.download_button(
-            label="XML",
-            data=render_xml_report(events),
-            file_name=a["report_name"].replace(".md", ".xml"),
-            mime="application/xml",
+            label=f"Export {_export_fmt}",
+            data=_data,
+            file_name=_fname,
+            mime=_mime,
             use_container_width=True,
         )
 
