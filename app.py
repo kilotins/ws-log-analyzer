@@ -295,48 +295,66 @@ def get_report_history(limit=20):
 _FAVICON = str(_APP_DIR / "assets" / "favicon.svg")
 st.set_page_config(page_title="LogPilot", page_icon=_FAVICON, layout="wide")
 
-# --- Custom CSS ---
+# --- Custom CSS (Item Consulting inspired) ---
 st.markdown("""<style>
-    /* Clean typography */
-    [data-testid="stAppViewContainer"] { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    /* Typography — clean system sans-serif like item.no */
+    [data-testid="stAppViewContainer"] {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #0F172A;
+    }
+    h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; color: #0F172A; }
 
-    /* Sidebar styling */
+    /* Sidebar — light with subtle border */
     [data-testid="stSidebar"] { background-color: #F8FAFC; border-right: 1px solid #E2E8F0; }
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1 { font-size: 1.1rem; color: #1E293B; }
 
-    /* Metric cards */
+    /* Metric cards — clean with Item-style subtle shadow */
     [data-testid="stMetric"] {
         background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px;
-        padding: 12px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
-    [data-testid="stMetricValue"] { font-weight: 600; }
+    [data-testid="stMetricValue"] { font-weight: 700; color: #0F172A; }
+    [data-testid="stMetricLabel"] { font-size: 0.8rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em; }
 
-    /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] { gap: 4px; }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 6px 6px 0 0; padding: 8px 16px;
-        font-weight: 500; font-size: 0.9rem;
-    }
+    /* Tabs — clean minimal */
+    .stTabs [data-baseweb="tab-list"] { gap: 2px; border-bottom: 2px solid #E2E8F0; }
+    .stTabs [data-baseweb="tab"] { font-weight: 500; font-size: 0.9rem; padding: 8px 16px; }
+
+    /* Purple accent for links and active elements (Item brand) */
+    a { color: #7C3AED; }
+    a:hover { color: #6D28D9; }
 
     /* Expander headers */
-    [data-testid="stExpander"] summary { font-weight: 500; }
+    [data-testid="stExpander"] summary { font-weight: 600; }
 
     /* Subtle dividers */
     hr { border: none; border-top: 1px solid #E2E8F0; margin: 1rem 0; }
 
-    /* Sidebar footer */
-    .sidebar-footer { position: fixed; bottom: 0; padding: 12px 16px; font-size: 0.75rem; color: #94A3B8; }
-    .sidebar-footer a { color: #2563EB; text-decoration: none; }
+    /* Sidebar footer — Item dark style */
+    .sidebar-footer {
+        margin-top: 2rem; padding: 12px 0; font-size: 0.75rem; color: #64748B;
+        border-top: 1px solid #E2E8F0;
+    }
+    .sidebar-footer a { color: #7C3AED; text-decoration: none; font-weight: 500; }
     .sidebar-footer a:hover { text-decoration: underline; }
+
+    /* LogPilot header — compact inline */
+    .logpilot-header { display: flex; align-items: center; gap: 8px; margin-bottom: 0.25rem; }
+    .logpilot-header svg { width: 28px; height: 28px; flex-shrink: 0; }
+    .logpilot-header .title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; color: #0F172A; }
+    .logpilot-header .title span { color: #7C3AED; }
 </style>""", unsafe_allow_html=True)
 
-# --- Logo + Title ---
-_LOGO_PATH = _APP_DIR / "assets" / "logo.svg"
-if _LOGO_PATH.exists():
-    _logo_svg = _LOGO_PATH.read_text(encoding="utf-8")
-    st.markdown(f'<div style="margin-bottom:0.5rem">{_logo_svg}</div>', unsafe_allow_html=True)
-else:
-    st.title("LogPilot")
+# --- Compact header with inline logo ---
+st.markdown('''<div class="logpilot-header">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 16 L14 4 L18 4 L10 16 L18 28 L14 28 Z" fill="#7C3AED"/>
+        <path d="M14 16 L22 4 L26 4 L18 16 L26 28 L22 28 Z" fill="#34D399"/>
+    </svg>
+    <div>
+        <div class="title">Log<span>Pilot</span></div>
+        <div style="font-size:0.7rem;color:#64748B;letter-spacing:0.05em;margin-top:-2px">AI-Log Intelligence Platform</div>
+    </div>
+</div>''', unsafe_allow_html=True)
 
 # --- Sidebar: API key ---
 _KEYRING_SERVICE = "logpilot"
@@ -544,10 +562,9 @@ with st.sidebar:
         st.rerun()
 
     # --- Sidebar footer ---
-    st.markdown("---")
     st.markdown(
         '<div class="sidebar-footer">'
-        'v0.1.0 &middot; Powered by <a href="https://item.no" target="_blank">Item Consulting</a>'
+        'v0.1.0 &middot; <a href="https://item.no" target="_blank">Item Consulting</a>'
         '</div>',
         unsafe_allow_html=True,
     )
