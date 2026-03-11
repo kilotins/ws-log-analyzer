@@ -19,3 +19,11 @@ py-modules = ["wslog", "app"]
 
 [project.scripts]
 wslog = "wslog:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]

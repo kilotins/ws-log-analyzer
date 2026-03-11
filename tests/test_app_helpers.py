@@ -117,6 +117,27 @@ class TestSaveJsonFile:
         _save_json_file(f, data)
         assert _load_json_file(f, {}) == data
 
+    def test_atomic_write_no_partial_file(self, tmp_path):
+        """If _save_json_file fails mid-write, the original file is untouched."""
+        f = tmp_path / "safe.json"
+        original = {"version": 1}
+        _save_json_file(f, original)
+        # Try saving an unserializable object — should raise and leave original intact
+        with pytest.raises(TypeError):
+            _save_json_file(f, {"bad": object()})
+        assert json.loads(f.read_text(encoding="utf-8")) == original
+
+    def test_atomic_write_creates_parent_dirs(self, tmp_path):
+        f = tmp_path / "nested" / "dir" / "data.json"
+        _save_json_file(f, {"ok": True})
+        assert json.loads(f.read_text(encoding="utf-8")) == {"ok": True}
+
+    def test_atomic_write_no_temp_files_left(self, tmp_path):
+        f = tmp_path / "clean.json"
+        _save_json_file(f, {"data": 1})
+        files = list(tmp_path.iterdir())
+        assert len(files) == 1 and files[0].name == "clean.json"
+
 
 # ── _looks_like_splunk ────────────────────────────────────────────────────
 
@@ -273,7 +294,7 @@ class TestHighlightLine:
 
     def test_warn_highlighted(self):
         result = _highlight_line("WARN low memory")
-        assert 'color:#ffc107' in result
+        assert 'color:#D97706' in result
 
     def test_no_level_unchanged(self):
         line = "just a plain line with no level"
@@ -535,12 +556,18 @@ class TestCallClaudeApi:
         mock_anthropic = mock.MagicMock()
         mock_msg = mock.MagicMock()
         mock_msg.content = [mock.MagicMock(text="Hello from Claude")]
-        mock_msg.usage = mock.MagicMock(input_tokens=100, output_tokens=50)
+        mock_msg.usage = mock.MagicMock(
+            input_tokens=100, output_tokens=50,
+            cache_creation_input_tokens=10, cache_read_input_tokens=5,
+        )
         mock_anthropic.Anthropic.return_value.messages.create.return_value = mock_msg
         with mock.patch.dict(sys.modules, {"anthropic": mock_anthropic}):
             answer, usage = call_claude_api("key", "model", {"system": "s", "user": "u"})
         assert answer == "Hello from Claude"
-        assert usage == {"input": 100, "output": 50}
+        assert usage["input"] == 100
+        assert usage["output"] == 50
+        assert usage["cache_creation"] == 10
+        assert usage["cache_read"] == 5
 
     def test_empty_content_returns_none(self):
         mock_anthropic = mock.MagicMock()

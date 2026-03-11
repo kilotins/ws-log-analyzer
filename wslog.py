@@ -7,6 +7,7 @@ import json
 from collections import Counter
 from pathlib import Path
 from typing import IO
+import os
 import sys
 import hashlib
 from datetime import datetime, timedelta
@@ -1681,12 +1682,16 @@ TOKEN_LIMITS: dict[str, int] = {
 }
 
 
-def estimate_tokens(text: str) -> int:
-    """Rough token estimate: ~4 characters per token (industry standard approximation).
+_TOKEN_CHARS_PER_TOKEN = {"claude": 3.5, "gemini": 4.0, "openai": 4.0}
+
+
+def estimate_tokens(text: str, provider: str = "claude") -> int:
+    """Rough token estimate using provider-specific character ratios.
 
     No external tokenizer needed — suitable for pre-flight sanity checks.
     """
-    return len(text) // 4
+    ratio = _TOKEN_CHARS_PER_TOKEN.get(provider, 4.0)
+    return max(1, int(len(text) / ratio))
 
 
 def claude_cache_key(user_query: str, match_result: dict) -> str:
@@ -1750,7 +1755,11 @@ def main():
     ap.add_argument("--claude", action="store_true", help="Also ask Claude for root-cause suggestions (sanitized).")
     ap.add_argument("--model", default="claude-sonnet-4-6", help="Claude model to use with --claude.")
     ap.add_argument("-q", "--quiet", action="store_true", help="Suppress progress messages.")
+    ap.add_argument("--log-format", choices=["text", "json"], default="text", help="Log output format.")
     args = ap.parse_args()
+
+    if args.log_format == "json":
+        os.environ["WSLOG_LOG_FORMAT"] = "json"
 
     all_events = []
     for p in args.paths:

@@ -57,6 +57,17 @@ LOGS_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOGS_DIR / "app.log"
 
 
+class _JsonLogFormatter(logging.Formatter):
+    """Emit one JSON object per log line."""
+    def format(self, record):
+        import json as _json
+        return _json.dumps({
+            "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "msg": record.getMessage(),
+        }, ensure_ascii=False)
+
+
 def _setup_logging():
     """Configure application logging with rotating file handler."""
     logger = logging.getLogger("wslog_app")
@@ -66,10 +77,14 @@ def _setup_logging():
     handler = logging.handlers.RotatingFileHandler(
         LOG_FILE, maxBytes=1_000_000, backupCount=3, encoding="utf-8",
     )
-    handler.setFormatter(logging.Formatter(
-        "%(asctime)s %(levelname)-5s %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    ))
+    use_json = os.environ.get("WSLOG_LOG_FORMAT", "").lower() == "json"
+    if use_json:
+        handler.setFormatter(_JsonLogFormatter())
+    else:
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)-5s %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        ))
     logger.addHandler(handler)
     return logger
 
@@ -105,9 +120,24 @@ def _load_json_file(path: Path, default: object) -> object:
 
 
 def _save_json_file(path: Path, data: object) -> None:
-    """Save data as JSON."""
-    import json
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    """Save data as JSON atomically (tempfile + rename)."""
+    import json, tempfile, os
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_name = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=path.parent, suffix=".tmp", delete=False, encoding="utf-8"
+        ) as tmp:
+            tmp_name = tmp.name
+            json.dump(data, tmp, ensure_ascii=False, indent=2)
+        os.replace(tmp_name, str(path))
+    except Exception:
+        if tmp_name:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+        raise
 
 
 _CACHE_TTL_SECONDS = CACHE_TTL_SECONDS

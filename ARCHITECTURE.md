@@ -2,28 +2,33 @@
 
 ```
 ws-log-analyzer/
-├── wslog.py              # Core engine + CLI (~1759 lines, all logic here)
-├── app.py                # Streamlit GUI entry point (~658 lines)
-├── app_ai.py             # AI provider orchestration (~665 lines)
-├── app_render.py         # Report rendering UI (~503 lines)
-├── app_audit.py          # Audit report generation (~381 lines)
-├── app_realtime.py       # Realtime log monitoring (~154 lines)
-├── app_constants.py      # Shared constants (29 lines)
+├── wslog.py              # Core engine + CLI (~1840 lines, all logic here)
+├── app.py                # Streamlit GUI entry point (~700 lines)
+├── app_ai.py             # AI provider orchestration (~791 lines)
+├── app_render.py         # Report rendering UI (~568 lines)
+├── app_audit.py          # Audit report generation (~401 lines)
+├── app_spend.py          # Cloud spend tracking (~881 lines)
+├── app_realtime.py       # Realtime log monitoring (~162 lines)
+├── app_constants.py      # Shared constants (31 lines)
+├── report_renderer.py    # Markdown → HTML conversion (~819 lines)
 ├── tests/
-│   ├── test_wslog.py     # 306 pytest unit tests for core engine
-│   ├── test_app_helpers.py  # 92 pytest unit tests for app helpers
-│   └── test_app_e2e.py   # 27 Playwright end-to-end tests
-├── skills/               # Domain knowledge (10 files: message-codes, stacktrace-analysis, etc.)
+│   ├── test_wslog.py     # 317 pytest unit tests for core engine
+│   ├── test_app_helpers.py  # 98 pytest unit tests for app helpers
+│   └── test_app_e2e.py   # 31 Playwright end-to-end tests
+├── skills/               # Domain knowledge (12 files)
 ├── .claude/
 │   └── skills/
 │       ├── ws-log-parsing.yaml
 │       ├── streamlit-patterns.md
 │       ├── claude-integration.md
 │       └── testing.md
+├── .github/workflows/    # CI pipeline (pytest + ruff)
 ├── pyproject.toml        # Package config with optional deps
 ├── CLAUDE.md             # Claude Code project context
+├── CONTRIBUTING.md       # Developer onboarding guide
 ├── ARCHITECTURE.md       # This file
 ├── README.md
+├── MILESTONES.md         # Project milestones and progress tracker
 ├── uploads/              # Uploaded files (runtime, gitignored)
 ├── reports/              # Generated reports (runtime, gitignored)
 ├── scripts/              # Audit automation tooling (run_audit.py, compare_audits.py)
