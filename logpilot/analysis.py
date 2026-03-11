@@ -504,6 +504,420 @@ _HEURISTICS_INLINE = [
             "Check application.xml for correct context-root values.",
         ],
     },
+    # ── nginx / Apache ─────────────────────────────────────────────────
+    {
+        "id": "nginx-502",
+        "title": "Bad Gateway / Upstream Failure (nginx)",
+        "match": re.compile(
+            r'502 Bad Gateway|upstream timed out|upstream prematurely closed'
+            r'|connect\(\) failed.*upstream|no live upstreams',
+            re.IGNORECASE,
+        ),
+        "cause": "The backend server (upstream) is down, too slow, or rejecting connections.",
+        "fixes": [
+            "Check that the upstream service is running and listening on the configured port.",
+            "Increase proxy_read_timeout / proxy_connect_timeout in nginx.conf if the backend is slow.",
+            "Review upstream health checks — configure max_fails and fail_timeout.",
+        ],
+    },
+    {
+        "id": "nginx-rate-limit",
+        "title": "Rate Limiting / 429 Too Many Requests",
+        "match": re.compile(
+            r'429 Too Many Requests|limiting requests.*zone|rate limit exceeded',
+            re.IGNORECASE,
+        ),
+        "cause": "Clients are exceeding the configured request rate limit.",
+        "fixes": [
+            "Review limit_req_zone settings — increase burst or rate if traffic is legitimate.",
+            "Check if a single IP is generating excessive traffic (potential bot/attack).",
+            "Add limit_req_status 429 and a custom error page for user-friendly responses.",
+        ],
+    },
+    {
+        "id": "nginx-ssl-error",
+        "title": "SSL/TLS Handshake Error (nginx)",
+        "match": re.compile(
+            r'SSL_do_handshake\(\) failed|SSL routines.*alert'
+            r'|upstream SSL certificate verify error|no suitable key share',
+            re.IGNORECASE,
+        ),
+        "cause": "TLS handshake with client or upstream failed — protocol mismatch, expired cert, or untrusted CA.",
+        "fixes": [
+            "Check certificate expiry: openssl x509 -enddate -noout -in /path/to/cert.pem.",
+            "Verify ssl_protocols includes TLSv1.2 and TLSv1.3 — disable obsolete SSLv3/TLSv1.0.",
+            "For upstream verify errors, add the CA chain to proxy_ssl_trusted_certificate.",
+        ],
+    },
+    {
+        "id": "nginx-permission",
+        "title": "Permission Denied / Disk Full (nginx)",
+        "match": re.compile(
+            r'Permission denied|No space left on device|failed.*open\(\).*Permission'
+            r'|writev\(\) failed.*No space',
+            re.IGNORECASE,
+        ),
+        "cause": "nginx cannot read files or write to disk — permission issue or disk full.",
+        "fixes": [
+            "Check disk space: df -h. Clear old logs or cache files if full.",
+            "Verify nginx worker user has read permission on web root and write permission on temp/cache dirs.",
+            "Review SELinux/AppArmor policies if permissions look correct but access is denied.",
+        ],
+    },
+    # ── Log4j / Spring Boot ──────────────────────────────────────────
+    {
+        "id": "spring-startup-fail",
+        "title": "Spring Boot Application Startup Failure",
+        "match": re.compile(
+            r'APPLICATION FAILED TO START|Failed to start bean'
+            r'|BeanCreationException|UnsatisfiedDependencyException'
+            r'|ApplicationContextException',
+            re.IGNORECASE,
+        ),
+        "cause": "Spring context failed to initialize — missing bean, circular dependency, or misconfiguration.",
+        "fixes": [
+            "Check the Caused-by chain for the root exception (often a missing @Component or @Bean).",
+            "For circular dependencies, use @Lazy on one of the injection points or restructure the code.",
+            "Review application.yml for typos in property names — Spring Boot fails silently on many misconfigs.",
+        ],
+    },
+    {
+        "id": "hikari-pool",
+        "title": "HikariCP Connection Pool Exhaustion",
+        "match": re.compile(
+            r'HikariPool.*Connection is not available'
+            r'|HikariPool.*connection timeout|HikariPool.*pool.*shutdown'
+            r'|ActiveConnections.*exceeds',
+            re.IGNORECASE,
+        ),
+        "cause": "All database connections in the HikariCP pool are in use — new requests are waiting or timing out.",
+        "fixes": [
+            "Check for long-running transactions or queries holding connections (enable slow query log).",
+            "Increase spring.datasource.hikari.maximum-pool-size (default 10) if load is legitimate.",
+            "Set spring.datasource.hikari.leak-detection-threshold to detect connection leaks.",
+        ],
+    },
+    {
+        "id": "kafka-error",
+        "title": "Kafka Broker / Consumer Error",
+        "match": re.compile(
+            r'kafka.*Broker.*not available|kafka.*Rebalancing'
+            r'|kafka.*CommitFailedException|kafka.*TimeoutException'
+            r'|Failed to send.*ProducerRecord',
+            re.IGNORECASE,
+        ),
+        "cause": "Kafka broker is unreachable, consumer group is rebalancing, or message production failed.",
+        "fixes": [
+            "Verify Kafka broker connectivity: kafka-broker-api-versions --bootstrap-server HOST:9092.",
+            "For consumer rebalances, check max.poll.interval.ms and processing time — slow consumers trigger rebalance.",
+            "Review producer retries and acks configuration for send failures.",
+        ],
+    },
+    {
+        "id": "hibernate-error",
+        "title": "Hibernate / JPA Persistence Error",
+        "match": re.compile(
+            r'LazyInitializationException|StaleObjectStateException'
+            r'|ConstraintViolationException|OptimisticLockException'
+            r'|could not execute statement.*hibernate',
+            re.IGNORECASE,
+        ),
+        "cause": "JPA/Hibernate failed to persist or load data — lazy loading outside session, stale data, or constraint violation.",
+        "fixes": [
+            "LazyInitializationException: use @Transactional or fetch eagerly (JOIN FETCH in JPQL).",
+            "OptimisticLockException: implement retry logic or check for concurrent modifications.",
+            "ConstraintViolationException: check unique constraints and foreign keys in the database schema.",
+        ],
+    },
+    # ── Python / Django / Flask ──────────────────────────────────────
+    {
+        "id": "python-import",
+        "title": "Python Import / Module Error",
+        "match": re.compile(
+            r'ImportError|ModuleNotFoundError|No module named',
+            re.IGNORECASE,
+        ),
+        "cause": "A required Python module is not installed or not on the Python path.",
+        "fixes": [
+            "Install the missing module: pip install <module-name>.",
+            "Check that the virtual environment is activated and the correct Python is in use.",
+            "For relative imports, verify the package structure (__init__.py files) is correct.",
+        ],
+    },
+    {
+        "id": "django-db",
+        "title": "Django Database / ORM Error",
+        "match": re.compile(
+            r'OperationalError.*database|IntegrityError|ProgrammingError.*relation'
+            r'|django\.db.*Error|psycopg2\..*Error',
+            re.IGNORECASE,
+        ),
+        "cause": "Django cannot reach the database, or a query/migration failed.",
+        "fixes": [
+            "Check DATABASE settings in settings.py — verify host, port, name, and credentials.",
+            "Run pending migrations: python manage.py migrate.",
+            "For IntegrityError, check unique constraints and missing NOT NULL values.",
+        ],
+    },
+    {
+        "id": "django-template",
+        "title": "Template Rendering Error",
+        "match": re.compile(
+            r'TemplateSyntaxError|TemplateDoesNotExist|UndefinedError'
+            r'|jinja2.*Error',
+            re.IGNORECASE,
+        ),
+        "cause": "A template has a syntax error, is missing, or references an undefined variable.",
+        "fixes": [
+            "Check TEMPLATES DIRS and APP_DIRS settings in Django, or the template_folder in Flask.",
+            "For TemplateSyntaxError, look at the line number in the traceback.",
+            "For UndefinedError (Jinja2), ensure all variables are passed in the template context.",
+        ],
+    },
+    {
+        "id": "python-csrf",
+        "title": "CSRF / Authentication Failure",
+        "match": re.compile(
+            r'CSRF verification failed|Forbidden.*CSRF'
+            r'|PermissionDenied|AuthenticationFailed|401 Unauthorized',
+            re.IGNORECASE,
+        ),
+        "cause": "CSRF token validation failed, or a request lacks proper authentication credentials.",
+        "fixes": [
+            "Ensure {% csrf_token %} is in all POST forms (Django) or CSRF middleware is configured.",
+            "For API endpoints, use @csrf_exempt (Django) or exclude from CSRF if using token-based auth.",
+            "Check session/cookie settings: CSRF_COOKIE_SECURE, SESSION_COOKIE_SAMESITE.",
+        ],
+    },
+    {
+        "id": "celery-task-fail",
+        "title": "Celery Task Failure",
+        "match": re.compile(
+            r'celery.*Task.*raised|celery.*MaxRetriesExceededError'
+            r'|WorkerLostError|SoftTimeLimitExceeded|celery.*[Rr]ejected',
+            re.IGNORECASE,
+        ),
+        "cause": "A Celery background task failed, exceeded retries, or was killed due to time limit.",
+        "fixes": [
+            "Check the task traceback in the Celery worker log for the root exception.",
+            "For SoftTimeLimitExceeded, optimize the task or increase soft_time_limit.",
+            "For WorkerLostError, the worker process was killed (OOM?) — check system memory.",
+        ],
+    },
+    # ── syslog / Linux ───────────────────────────────────────────────
+    {
+        "id": "oom-killer",
+        "title": "Linux OOM Killer Invoked",
+        "match": re.compile(
+            r'oom-killer|oom_kill|Out of memory.*Killed process'
+            r'|invoked oom-killer|Killed process.*total-vm',
+            re.IGNORECASE,
+        ),
+        "cause": "The system ran out of memory and the kernel OOM killer terminated a process.",
+        "fixes": [
+            "Check which process was killed and its memory usage at time of kill.",
+            "Increase system RAM or configure swap if not present.",
+            "Set appropriate memory limits per process (cgroups/systemd MemoryMax) to protect critical services.",
+        ],
+    },
+    {
+        "id": "ssh-brute-force",
+        "title": "SSH Brute Force / Auth Failure",
+        "match": re.compile(
+            r'Failed password.*ssh|Invalid user.*sshd|maximum authentication attempts'
+            r'|pam_unix.*authentication failure|repeated.*failed.*login',
+            re.IGNORECASE,
+        ),
+        "cause": "Multiple failed SSH login attempts — potential brute-force attack or misconfigured credentials.",
+        "fixes": [
+            "Install and configure fail2ban to auto-block offending IPs.",
+            "Disable password authentication in sshd_config; use SSH keys only (PasswordAuthentication no).",
+            "Restrict SSH access by IP using AllowUsers/AllowGroups or firewall rules.",
+        ],
+    },
+    {
+        "id": "disk-full",
+        "title": "Disk Full / I/O Error",
+        "match": re.compile(
+            r'No space left on device|filesystem full|I/O error.*dev'
+            r'|EXT4-fs error|XFS.*error|read-only file system',
+            re.IGNORECASE,
+        ),
+        "cause": "A filesystem is full or experiencing I/O errors — writes are failing.",
+        "fixes": [
+            "Check disk usage: df -h and du -sh /var/log/* to find large files.",
+            "Clear old logs, temp files, or journal: journalctl --vacuum-size=100M.",
+            "For I/O errors, check dmesg for hardware failures and run filesystem checks.",
+        ],
+    },
+    {
+        "id": "systemd-service-fail",
+        "title": "systemd Service Failed to Start",
+        "match": re.compile(
+            r'Failed to start|entered failed state|service.*failed'
+            r'|Main process exited.*code=exited.*status=',
+            re.IGNORECASE,
+        ),
+        "cause": "A systemd service failed to start or crashed during runtime.",
+        "fixes": [
+            "Check service status and logs: systemctl status <service> && journalctl -u <service> -n 50.",
+            "Review ExecStart path and permissions — the binary must be executable.",
+            "Check for missing dependencies, port conflicts, or incorrect config files.",
+        ],
+    },
+    {
+        "id": "kernel-panic",
+        "title": "Kernel Panic / Hardware Error",
+        "match": re.compile(
+            r'Kernel panic|BUG:.*kernel|Hardware Error|Machine check'
+            r'|general protection fault',
+            re.IGNORECASE,
+        ),
+        "cause": "A kernel bug, hardware fault, or driver issue caused a critical system failure.",
+        "fixes": [
+            "Check if the kernel is up to date — many panics are fixed in newer versions.",
+            "Review dmesg for hardware errors (MCE, ECC memory errors, disk failures).",
+            "If reproducible, capture a kernel crash dump (kdump) for analysis.",
+        ],
+    },
+    # ── Kubernetes / OpenShift ───────────────────────────────────────
+    {
+        "id": "k8s-crashloop",
+        "title": "CrashLoopBackOff",
+        "match": re.compile(
+            r'CrashLoopBackOff|Back-off restarting failed container',
+            re.IGNORECASE,
+        ),
+        "cause": "A container keeps crashing and Kubernetes is backing off restarts.",
+        "fixes": [
+            "Check container logs: kubectl logs <pod> --previous to see the crash reason.",
+            "Common causes: missing config/secrets, wrong entrypoint, or app error on startup.",
+            "Verify liveness/readiness probes are not too aggressive (initialDelaySeconds).",
+        ],
+    },
+    {
+        "id": "k8s-oomkilled",
+        "title": "OOMKilled (Kubernetes)",
+        "match": re.compile(
+            r'OOMKilled|memory.*limit.*exceeded|cgroup.*oom',
+            re.IGNORECASE,
+        ),
+        "cause": "A container exceeded its memory limit and was killed by the kernel/cgroup OOM handler.",
+        "fixes": [
+            "Increase resources.limits.memory in the pod spec if the app genuinely needs more memory.",
+            "Profile the application to find memory leaks (heap dumps, memory profiler).",
+            "Set resources.requests.memory close to limits to ensure proper scheduling.",
+        ],
+    },
+    {
+        "id": "k8s-imagepull",
+        "title": "ImagePullBackOff / ErrImagePull",
+        "match": re.compile(
+            r'ImagePullBackOff|ErrImagePull|Failed to pull image'
+            r'|manifest.*not found|unauthorized.*registry',
+            re.IGNORECASE,
+        ),
+        "cause": "Kubernetes cannot pull the container image — wrong tag, missing image, or auth failure.",
+        "fixes": [
+            "Verify the image name and tag exist in the registry: docker pull <image>.",
+            "Check imagePullSecrets in the pod spec — the registry may require authentication.",
+            "For private registries, create a Secret: kubectl create secret docker-registry ...",
+        ],
+    },
+    {
+        "id": "k8s-scheduling",
+        "title": "Pod Scheduling Failure",
+        "match": re.compile(
+            r'FailedScheduling|Insufficient cpu|Insufficient memory'
+            r'|didn.t match Pod.s node.*selector|node.*taint.*not tolerated',
+            re.IGNORECASE,
+        ),
+        "cause": "No node has enough resources or matches the pod's scheduling constraints.",
+        "fixes": [
+            "Check node capacity: kubectl describe nodes | grep -A5 Allocated.",
+            "Reduce resource requests or add nodes to the cluster.",
+            "For taint/affinity issues, add tolerations or adjust nodeSelector.",
+        ],
+    },
+    {
+        "id": "k8s-mount-fail",
+        "title": "Volume Mount Failure (Kubernetes)",
+        "match": re.compile(
+            r'FailedMount|ProvisioningFailed|VolumeInUse'
+            r'|Unable to.*mount.*volume|MountVolume.*failed',
+            re.IGNORECASE,
+        ),
+        "cause": "A persistent volume could not be mounted — the PV/PVC is unavailable, in use, or misconfigured.",
+        "fixes": [
+            "Check PVC status: kubectl get pvc — ensure it is Bound.",
+            "For 'VolumeInUse', the previous pod may not have released the volume (ReadWriteOnce).",
+            "Verify the storage class exists and the provisioner is healthy.",
+        ],
+    },
+    {
+        "id": "openshift-route",
+        "title": "OpenShift Route / HAProxy Error",
+        "match": re.compile(
+            r'route not admitted|HAProxy.*no server available'
+            r'|503.*no server|[Rr]outer.*error',
+            re.IGNORECASE,
+        ),
+        "cause": "The OpenShift route cannot reach the backend service — pods are down or the route is misconfigured.",
+        "fixes": [
+            "Verify the target service and port exist: oc get svc <service>.",
+            "Check that pods backing the service are Ready: oc get pods -l app=<app>.",
+            "For TLS routes, verify the certificate matches the hostname.",
+        ],
+    },
+    # ── Enonic XP ────────────────────────────────────────────────────
+    {
+        "id": "enonic-cluster",
+        "title": "Enonic XP Cluster Health Issue",
+        "match": re.compile(
+            r'cluster\.health.*(?:RED|YELLOW)|ClusterHealth.*RED'
+            r'|MasterNotDiscoveredException|NoNodeAvailableException'
+            r'|NodeDisconnectedException',
+            re.IGNORECASE,
+        ),
+        "cause": "The Enonic XP / Elasticsearch cluster is unhealthy — nodes are missing or shards are unassigned.",
+        "fixes": [
+            "Check cluster health: curl localhost:2609/_cluster/health (or admin console).",
+            "For RED status, check for unassigned shards: _cluster/allocation/explain.",
+            "Verify all cluster nodes can reach each other on the discovery port (typically 9300).",
+        ],
+    },
+    {
+        "id": "enonic-repo",
+        "title": "Enonic XP Repository / Blob Error",
+        "match": re.compile(
+            r'RepositoryNotFoundException|NodeNotFoundException'
+            r'|BlobStoreException|BranchAlreadyExistException'
+            r'|blobStore.*error|snapshot.*failed',
+            re.IGNORECASE,
+        ),
+        "cause": "The Enonic XP repository or blob store is corrupted or inaccessible.",
+        "fixes": [
+            "Run a repository reindex from the Enonic admin console (or REST API).",
+            "Check disk space and permissions on the blob store directory ($XP_HOME/repo/blob).",
+            "If a snapshot failed, ensure sufficient disk space and try again.",
+        ],
+    },
+    {
+        "id": "enonic-content",
+        "title": "Enonic XP Content Error",
+        "match": re.compile(
+            r'ContentNotFoundException|ContentAlreadyExistsException'
+            r'|PublishContentException|ContentDataValidationException'
+            r'|ContentAccessException',
+            re.IGNORECASE,
+        ),
+        "cause": "A content operation failed — content not found, duplicate, or validation error.",
+        "fixes": [
+            "Check that the content path/ID exists in the expected branch (draft vs master).",
+            "For validation errors, review the content type schema and the submitted data.",
+            "For publish errors, check that the content and all references are valid.",
+        ],
+    },
 ]
 
 # Try YAML first; fall back to inline list if PyYAML is missing or file is absent
