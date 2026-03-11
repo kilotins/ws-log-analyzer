@@ -557,11 +557,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 37.1 | Skapa LogPilot-logo och favicon — clean, minimalistisk stil som matchar Item Consultings visuella identitet. SVG-logo för sidebar + PNG favicon | `assets/logo.svg`, `assets/favicon.png`, `.streamlit/config.toml` | [ ] |
-| 37.2 | Streamlit custom theme — Item-inspirerad färgpalett: professionell, ljust tema med mörkgrå text, accent-färger för nivåer (error=röd, warn=amber, info=blå). Konfigurera i `.streamlit/config.toml` | `.streamlit/config.toml`, `app_constants.py` | [ ] |
-| 37.3 | Custom CSS — typografi (clean sans-serif), sidebar-styling, kortlayout för metrics, rapportsektioner med subtila borders/shadows, responsiv layout | `app.py` (st.markdown CSS) | [ ] |
-| 37.4 | Rapport-branding — LogPilot-header i genererade PDF-rapporter, "Powered by LogPilot — Item Consulting" footer, professionell typografi i PDF/Markdown output | `logpilot/reports.py` | [ ] |
-| 37.5 | Landing page / About — "Powered by Item Consulting" sektion med länk till item.no, kort produktbeskrivning, versionsnummer i sidebar footer | `app.py` | [ ] |
+| 37.1 | Skapa LogPilot-logo och favicon — clean, minimalistisk stil som matchar Item Consultings visuella identitet. SVG-logo för sidebar + PNG favicon | `assets/logo.svg`, `assets/favicon.svg`, `.streamlit/config.toml` | [x] |
+| 37.2 | Streamlit custom theme — Item-inspirerad färgpalett: professionell, ljust tema med mörkgrå text, accent-färger för nivåer (error=röd, warn=amber, info=blå). Konfigurera i `.streamlit/config.toml` | `.streamlit/config.toml`, `app_constants.py` | [x] |
+| 37.3 | Custom CSS — typografi (clean sans-serif), sidebar-styling, kortlayout för metrics, rapportsektioner med subtila borders/shadows, responsiv layout | `app.py` (st.markdown CSS) | [x] |
+| 37.4 | Rapport-branding — LogPilot-header i genererade PDF-rapporter, "Powered by LogPilot — Item Consulting" footer, professionell typografi i PDF/Markdown output | `logpilot/reports.py` | [x] |
+| 37.5 | Landing page / About — "Powered by Item Consulting" sektion med länk till item.no, kort produktbeskrivning, versionsnummer i sidebar footer | `app.py` | [x] |
 
 **Acceptance**: Appen har professionellt utseende med LogPilot-logo, Item Consulting-branding, konsekvent färgschema. PDF-rapporter har branded header/footer. Inget kvar av hobby-/prototypkänsla.
 

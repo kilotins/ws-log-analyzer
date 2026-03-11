@@ -292,8 +292,51 @@ def get_report_history(limit=20):
 
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="LogPilot", page_icon="📋", layout="wide")
-st.title("LogPilot")
+_FAVICON = str(_APP_DIR / "assets" / "favicon.svg")
+st.set_page_config(page_title="LogPilot", page_icon=_FAVICON, layout="wide")
+
+# --- Custom CSS ---
+st.markdown("""<style>
+    /* Clean typography */
+    [data-testid="stAppViewContainer"] { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* Sidebar styling */
+    [data-testid="stSidebar"] { background-color: #F8FAFC; border-right: 1px solid #E2E8F0; }
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1 { font-size: 1.1rem; color: #1E293B; }
+
+    /* Metric cards */
+    [data-testid="stMetric"] {
+        background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px;
+        padding: 12px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    [data-testid="stMetricValue"] { font-weight: 600; }
+
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] { gap: 4px; }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 6px 6px 0 0; padding: 8px 16px;
+        font-weight: 500; font-size: 0.9rem;
+    }
+
+    /* Expander headers */
+    [data-testid="stExpander"] summary { font-weight: 500; }
+
+    /* Subtle dividers */
+    hr { border: none; border-top: 1px solid #E2E8F0; margin: 1rem 0; }
+
+    /* Sidebar footer */
+    .sidebar-footer { position: fixed; bottom: 0; padding: 12px 16px; font-size: 0.75rem; color: #94A3B8; }
+    .sidebar-footer a { color: #2563EB; text-decoration: none; }
+    .sidebar-footer a:hover { text-decoration: underline; }
+</style>""", unsafe_allow_html=True)
+
+# --- Logo + Title ---
+_LOGO_PATH = _APP_DIR / "assets" / "logo.svg"
+if _LOGO_PATH.exists():
+    _logo_svg = _LOGO_PATH.read_text(encoding="utf-8")
+    st.markdown(f'<div style="margin-bottom:0.5rem">{_logo_svg}</div>', unsafe_allow_html=True)
+else:
+    st.title("LogPilot")
 
 # --- Sidebar: API key ---
 _KEYRING_SERVICE = "logpilot"
@@ -499,6 +542,15 @@ with st.sidebar:
     elif st.button("Clear AI cache", help="Clear cached Claude/Gemini/OpenAI responses and history"):
         st.session_state._confirm_clear_cache = True
         st.rerun()
+
+    # --- Sidebar footer ---
+    st.markdown("---")
+    st.markdown(
+        '<div class="sidebar-footer">'
+        'v0.1.0 &middot; Powered by <a href="https://item.no" target="_blank">Item Consulting</a>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 
 # --- Tabs ---

@@ -164,6 +164,10 @@ def render_markdown_report(events: list[dict], top_n: int = 10, samples_n: int =
         md.append("```")
         md.append("")
 
+    md.append("")
+    md.append("---")
+    md.append("*Powered by LogPilot — [Item Consulting](https://item.no)*")
+
     return "\n".join(md)
 
 
@@ -226,12 +230,35 @@ def render_pdf_report(events: list[dict], top_n: int = 10, samples_n: int = 5, h
     def _latin1_safe(text: str) -> str:
         return text.encode("latin-1", errors="replace").decode("latin-1")
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    class _BrandedPDF(FPDF):
+        def header(self):
+            self.set_font("Helvetica", "", 7)
+            self.set_text_color(148, 163, 184)  # #94A3B8
+            self.cell(0, 6, "LogPilot Triage Report", align="L")
+            self.cell(0, 6, "item.no", align="R", new_x="LMARGIN", new_y="NEXT")
+            self.set_draw_color(226, 232, 240)  # #E2E8F0
+            self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
+            self.ln(4)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font("Helvetica", "", 7)
+            self.set_text_color(148, 163, 184)
+            self.cell(0, 10, f"Page {self.page_no()}/{{nb}}", align="L")
+            self.cell(0, 10, "Powered by LogPilot - Item Consulting", align="R")
+
+    pdf = _BrandedPDF()
+    pdf.alias_nb_pages()
+    pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
 
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "LogPilot Triage Report", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(30, 41, 59)  # #1E293B
+    pdf.cell(0, 12, "LogPilot Triage Report", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(100, 116, 139)  # #64748B
+    pdf.cell(0, 6, "Log Intelligence Platform", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(30, 41, 59)
     pdf.ln(4)
 
     def heading(text: str, size: int = 13) -> None:

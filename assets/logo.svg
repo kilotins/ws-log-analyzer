@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <!-- Compass/navigation icon -->
+  <circle cx="24" cy="24" r="20" stroke="#2563EB" stroke-width="2.5" fill="none"/>
+  <path d="M24 8 L26 22 L24 26 L22 22 Z" fill="#2563EB"/>
+  <path d="M24 40 L22 26 L24 22 L26 26 Z" fill="#94A3B8"/>
+  <path d="M8 24 L22 22 L26 24 L22 26 Z" fill="#94A3B8"/>
+  <path d="M40 24 L26 26 L22 24 L26 22 Z" fill="#2563EB"/>
+  <circle cx="24" cy="24" r="3" fill="#2563EB"/>
+  <!-- Text -->
+  <text x="52" y="20" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1E293B">Log</text>
+  <text x="79" y="20" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#2563EB">Pilot</text>
+  <text x="52" y="35" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#64748B">Log Intelligence Platform</text>
+</svg>
