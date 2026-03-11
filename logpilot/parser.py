@@ -15,7 +15,7 @@ MAX_EVENT_TEXT = 4000  # Max characters of event text in reports
 # --- Common patterns (WebSphere / Java-ish) ---
 TS_PATTERNS = [
     # WebSphere classic: [10/12/15 21:22:04:257 CEST]
-    re.compile(r'\[(?P<ts>\d{1,2}/\d{1,2}/\d{2,4}\s+\d{2}:\d{2}:\d{2}:\d{3})\s+\w+\]'),
+    re.compile(r'\[(?P<ts>\d{1,2}/\d{1,2}/\d{2,4}\s+\d{1,2}:\d{2}:\d{2}:\d{3})\s+\w+\]'),
     # ISO / WebSphere common: 2025-03-05 12:34:56:789 or 2025-03-05T12:34:56.789
     re.compile(r'(?P<ts>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[,:.]\d{3,6})?)'),
 ]

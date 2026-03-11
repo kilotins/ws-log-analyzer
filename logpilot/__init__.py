@@ -40,7 +40,8 @@ from .reports import (
 # --- ai ---
 from .ai import (
     match_user_query, _truncate_event_text, _sanitize_prompt_input,
-    CLAUDE_SYSTEM_PROMPT,
+    CLAUDE_SYSTEM_PROMPT, build_system_prompt,
+    _FORMAT_SPECIALIST, _FORMAT_PLACEHOLDER, _SKILL_FORMAT_MAP,
     _SKILLS_DIR, _SKILL_TAG_MAP, _SKILL_CODE_PREFIX_MAP,
     _SKILL_EXCEPTION_MAP, _SKILL_QUERY_KEYWORDS,
     _discover_skills, select_skills, load_skill_content,

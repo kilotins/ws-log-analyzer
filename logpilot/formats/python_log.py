@@ -99,10 +99,17 @@ _CELERY_RE = re.compile(
 _OOM_PY_RE = re.compile(r'MemoryError|Killed|killed\s+process', re.IGNORECASE)
 
 
+_TS_GENERIC_RE = re.compile(
+    r'^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[.,]\d{3}\s+'
+    r'(?:DEBUG|INFO|WARNING|ERROR|CRITICAL)\b'
+)
+
+
 def _has_timestamp(line: str) -> bool:
     """Return True if line starts with a recognized Python log timestamp."""
     return bool(
         _STDLIB_RE.match(line)
+        or _TS_GENERIC_RE.match(line)
         or _DJANGO_RE.match(line)
         or _GUNICORN_RE.match(line)
         or _UVICORN_RE.match(line)
@@ -160,42 +167,49 @@ class PythonFormat:
     name = "python"
     description = "Python logging (stdlib, Django, Flask, FastAPI)"
 
+    # Python ecosystem identifiers that distinguish from Java/Logback
+    _PYTHON_IDENTIFIERS_RE = re.compile(
+        r'\b(?:django|celery|flask|gunicorn|uvicorn|fastapi'
+        r'|werkzeug|requests\.|urllib3|pip|setuptools'
+        r'|Traceback \(most recent call last\)'
+        r'|\.py:\d+|\.py", line \d+)\b'
+    )
+
     def detect(self, lines: list[str]) -> float:
         """Score based on Python logging patterns in sample lines."""
         if not lines:
             return 0.0
         score = 0
+        python_markers = 0
         for line in lines:
             # stdlib format: timestamp - name - LEVEL - message
             if _STDLIB_RE.match(line):
                 score += 4
-                continue
             # Django dev server: [date] "METHOD path HTTP/x.x" status
-            if _DJANGO_RE.match(line):
+            elif _DJANGO_RE.match(line):
                 score += 4
-                continue
             # gunicorn: [timestamp +tz] [pid] [LEVEL] message
-            if _GUNICORN_RE.match(line):
+            elif _GUNICORN_RE.match(line):
                 score += 4
-                continue
             # uvicorn access log: LEVEL: ip - "METHOD path" status
-            if _UVICORN_ACCESS_RE.match(line):
+            elif _UVICORN_ACCESS_RE.match(line):
                 score += 3
-                continue
             # uvicorn/general: LEVEL:module:message or LEVEL: message
-            if _UVICORN_RE.match(line):
+            elif _UVICORN_RE.match(line):
                 score += 2
-                continue
             # Python traceback lines
-            if _TRACEBACK_HEAD_RE.match(line):
+            elif _TRACEBACK_HEAD_RE.match(line):
                 score += 2
-                continue
-            if _TRACEBACK_FILE_RE.match(line):
+            elif _TRACEBACK_FILE_RE.match(line):
                 score += 1
-                continue
-            if _PY_EXC_RE.match(line.strip()):
+            elif _PY_EXC_RE.match(line.strip()):
                 score += 1
-                continue
+
+            # Python ecosystem bonus (helps beat log4j for Python logs)
+            if self._PYTHON_IDENTIFIERS_RE.search(line):
+                python_markers += 1
+                score += 2
+
         # Normalize: max ~4 per line, want 0-1
         return min(score / (len(lines) * 3), 1.0)
 

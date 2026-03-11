@@ -10,6 +10,7 @@ from logpilot import (
     match_user_query, build_claude_prompt, claude_cache_key,
     ask_gemini,
     estimate_tokens, TOKEN_LIMITS,
+    _FORMAT_PLACEHOLDER,
 )
 from app_constants import AI_RATE_LIMIT_SECONDS
 
@@ -308,6 +309,17 @@ _API_CALLERS = {
 
 
 
+def detect_dominant_format(events: list[dict]) -> str:
+    """Detect the most common log format from parsed events."""
+    if not events:
+        return ""
+    from collections import Counter
+    formats = Counter(e.get("format", "") for e in events if e.get("format"))
+    if not formats:
+        return ""
+    return formats.most_common(1)[0][0]
+
+
 def build_ai_request_context(user_query: str, events: list[dict], provider: str = "claude", log=None) -> dict:
     """Compute match, cache key, and prompt for an AI analysis request."""
     match = match_user_query(user_query, events)
@@ -318,10 +330,11 @@ def build_ai_request_context(user_query: str, events: list[dict], provider: str 
         cache_key = "openai:" + cache_key
     elif provider == "local":
         cache_key = "local:" + cache_key
-    prompt = build_claude_prompt(user_query, match)
+    detected_format = detect_dominant_format(events)
+    prompt = build_claude_prompt(user_query, match, detected_format=detected_format)
     skills = prompt.get("skills", [])
     if skills and log:
-        log.info("skills %s selected skills: %s", provider, ", ".join(skills))
+        log.info("skills %s selected skills: %s (format: %s)", provider, ", ".join(skills), detected_format or "unknown")
     return match, cache_key, prompt
 
 
@@ -730,9 +743,12 @@ def render_ai_responses():
 
 def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
     """Render AI analysis input, API calls, and response history."""
+    detected_format = detect_dominant_format(events)
+    placeholder = _FORMAT_PLACEHOLDER.get(detected_format,
+        "e.g. error code, exception name, or troubleshooting question")
     user_query = st.text_input(
-        "Ask an AI assistant about an error code, exception, or troubleshooting question",
-        placeholder="e.g. CWPKI0022E, SSLHandshakeException, why are threads hanging?",
+        "Ask an AI assistant about an error, exception, or troubleshooting question",
+        placeholder=placeholder,
         key="claude_query_input",
     )
 

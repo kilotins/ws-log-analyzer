@@ -85,6 +85,9 @@ def _save_console_data(data: dict):
 def _detect_csv_provider(content: str) -> str | None:
     """Auto-detect CSV provider from header or content."""
     first_line = content.split("\n", 1)[0].lower()
+    # Local spend export (from this app)
+    if "timestamp" in first_line and "cache_creation" in first_line:
+        return "local"
     if "cost_usd" in first_line and "token_type" in first_line:
         return "anthropic"
     if "service description" in first_line or "service id" in first_line:
@@ -665,9 +668,9 @@ def render_spend_tab():
     st.divider()
 
     # --- 2. Import CSV ---
-    with st.expander("Import Cloud Spend Data CSV", expanded=False):
-        st.caption("Upload cost exports from Anthropic Console, Google Cloud Billing, or OpenAI Platform. "
-                   "Format is auto-detected.")
+    with st.expander("Import Spend Data CSV", expanded=False):
+        st.caption("Upload cost exports from Anthropic Console, Google Cloud Billing, OpenAI Platform, "
+                   "or a previously exported local spend CSV. Format is auto-detected.")
         uploaded_csv = st.file_uploader(
             "Upload cost CSV", type=["csv"], key="console_csv_upload",
             accept_multiple_files=True,
@@ -695,9 +698,21 @@ def render_spend_tab():
                         console_data["openai"] = rows
                         _save_console_data(console_data)
                         imported = True
+                elif provider == "local":
+                    entries = _import_local_csv(content)
+                    if entries:
+                        existing = _load_entries()
+                        existing_ts = {e["ts"] for e in existing}
+                        new_entries = [e for e in entries if e["ts"] not in existing_ts]
+                        if new_entries:
+                            existing.extend(new_entries)
+                            _save_entries(existing)
+                            imported = True
+                        else:
+                            st.info(f"{f.name}: All entries already exist.")
                 else:
                     st.error(f"Could not detect CSV format for {f.name}. "
-                             "Supported: Anthropic, Google Cloud, OpenAI.")
+                             "Supported: Anthropic, Google Cloud, OpenAI, Local export.")
             if imported:
                 st.rerun()
 
@@ -706,14 +721,6 @@ def render_spend_tab():
     with st.expander(local_label, expanded=not local_entries):
         if not local_entries:
             st.info("No API calls recorded yet. Use the AI analysis or audit features to start tracking.")
-            uploaded_local = st.file_uploader("Import a previously exported local spend CSV",
-                                              type=["csv"], key="import_local_csv_empty")
-            if uploaded_local:
-                content = uploaded_local.getvalue().decode("utf-8")
-                imported = _import_local_csv(content)
-                if imported:
-                    _save_entries(imported)
-                    st.rerun()
         else:
             total_calls = len(local_entries)
             total_input = sum(e["input_tokens"] for e in local_entries)
@@ -809,15 +816,12 @@ def render_spend_tab():
 
             st.divider()
             csv_data = _export_local_csv(local_entries)
-            btn1, btn2, btn3 = st.columns(3)
+            btn1, btn2 = st.columns(2)
             with btn1:
-                st.download_button("Export CSV", data=csv_data,
+                st.download_button("Export Local Spend", data=csv_data,
                                    file_name=f"local_spend_{datetime.now().strftime('%Y-%m-%d')}.csv",
                                    mime="text/csv", use_container_width=True)
             with btn2:
-                if st.button("Import CSV", key="import_local_btn", use_container_width=True):
-                    st.session_state._show_local_import = True
-            with btn3:
                 if st.session_state.get("_confirm_clear_local"):
                     st.warning("Delete all local spend data?")
                     cc1, cc2 = st.columns(2)
@@ -830,27 +834,9 @@ def render_spend_tab():
                         if st.button("Cancel", use_container_width=True, key="cancel_clear_local"):
                             st.session_state._confirm_clear_local = False
                             st.rerun()
-                elif st.button("Clear", type="secondary", use_container_width=True):
+                elif st.button("Clear Local Spend", type="secondary", use_container_width=True):
                     st.session_state._confirm_clear_local = True
                     st.rerun()
-
-            if st.session_state.get("_show_local_import"):
-                uploaded_local = st.file_uploader("Upload a previously exported local spend CSV",
-                                                  type=["csv"], key="import_local_csv")
-                if uploaded_local:
-                    content = uploaded_local.getvalue().decode("utf-8")
-                    imported = _import_local_csv(content)
-                    if imported:
-                        existing = _load_entries()
-                        existing_ts = {e["ts"] for e in existing}
-                        new_entries = [e for e in imported if e["ts"] not in existing_ts]
-                        if new_entries:
-                            existing.extend(new_entries)
-                            _save_entries(existing)
-                            st.session_state._show_local_import = False
-                            st.rerun()
-                        else:
-                            st.info("All entries already exist.")
 
     # --- 4. Console provider details ---
     if anthropic_rows:
