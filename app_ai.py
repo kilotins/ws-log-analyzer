@@ -104,18 +104,19 @@ def estimate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float
     return (input_tokens * costs[0] + output_tokens * costs[1]) / 1_000_000
 
 
-def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
+def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                    timeout: float = 120.0, max_tokens: int = 2048) -> tuple[str, dict]:
     """Make the actual Claude API call with optional streaming. Returns (answer, usage_dict)."""
     try:
         from anthropic import Anthropic
     except ImportError:
         raise ImportError("The `anthropic` package is not installed. Install with: `pip install anthropic`")
-    client = Anthropic(api_key=api_key, timeout=120.0)
+    client = Anthropic(api_key=api_key, timeout=timeout)
 
     if stream_placeholder:
         chunks = []
         with client.messages.stream(
-            model=model_id, max_tokens=2048,
+            model=model_id, max_tokens=max_tokens,
             system=prompt["system"],
             messages=[{"role": "user", "content": prompt["user"]}],
         ) as stream:
@@ -128,7 +129,7 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
         return (answer or None, usage)
 
     message = client.messages.create(
-        model=model_id, max_tokens=2048,
+        model=model_id, max_tokens=max_tokens,
         system=prompt["system"],
         messages=[{"role": "user", "content": prompt["user"]}],
     )
@@ -150,9 +151,10 @@ def _extract_claude_usage(usage) -> dict:
     }
 
 
-def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
+def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                    timeout: float = 120.0, max_tokens: int = 2048) -> tuple[str, dict]:
     """Make the actual Gemini API call. Returns (answer, usage_dict). Streaming not supported."""
-    answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id)
+    answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id, timeout=timeout)
     # Gemini SDK doesn't return token usage, so estimate from prompt/response text
     usage = {}
     if answer:
@@ -164,18 +166,19 @@ def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
     return (answer or None, usage)
 
 
-def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None) -> tuple[str, dict]:
+def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                    timeout: float = 120.0, max_tokens: int = 2048) -> tuple[str, dict]:
     """Make the actual OpenAI API call with optional streaming. Returns (answer, usage_dict)."""
     try:
         from openai import OpenAI
     except ImportError:
         raise ImportError("The `openai` package is not installed. Install with: `pip install openai`")
-    client = OpenAI(api_key=api_key, timeout=120.0)
+    client = OpenAI(api_key=api_key, timeout=timeout)
 
     if stream_placeholder:
         chunks = []
         response = client.chat.completions.create(
-            model=model_id, max_completion_tokens=2048, stream=True,
+            model=model_id, max_completion_tokens=max_tokens, stream=True,
             stream_options={"include_usage": True},
             messages=[
                 {"role": "system", "content": prompt["system"]},
@@ -193,7 +196,7 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
         return (answer or None, usage)
 
     response = client.chat.completions.create(
-        model=model_id, max_completion_tokens=2048,
+        model=model_id, max_completion_tokens=max_tokens,
         messages=[
             {"role": "system", "content": prompt["system"]},
             {"role": "user", "content": prompt["user"]},

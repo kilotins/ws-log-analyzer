@@ -750,7 +750,7 @@ def test_build_claude_prompt_empty_query():
 def test_discover_skills_returns_md_files():
     """_discover_skills should return a list of .md filenames from the skills/ directory."""
     result = _discover_skills()
-    assert isinstance(result, list)
+    assert isinstance(result, (list, tuple))
     assert len(result) > 0
     for name in result:
         assert name.endswith(".md"), f"Expected .md file, got: {name}"

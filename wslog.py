@@ -10,6 +10,7 @@ from typing import IO
 import os
 import sys
 import hashlib
+import functools
 from datetime import datetime, timedelta
 
 # --- Constants ---
@@ -96,7 +97,14 @@ def open_text(path: Path) -> IO[str]:
             return path.open("r", errors="ignore")
     return path.open("r", errors="ignore")
 
+_REDACT_FAST_CHECK = re.compile(
+    r'(?i)(bearer|api[_-]?key|token|secret|password|passwd|credential|pwd|eyJ|AKIA|basic\s+[A-Za-z0-9]|BEGIN.*PRIVATE|sig=|digest\s)',
+)
+
+
 def redact(s: str) -> str:
+    if not _REDACT_FAST_CHECK.search(s):
+        return s
     for rx, repl in SECRET_REPLACERS:
         s = rx.sub(repl, s)
     return s
@@ -289,12 +297,19 @@ def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str,
       - window_seconds: the window used
     Returns None if no error events with timestamps exist.
     """
+    # Pre-parse all timestamps once to avoid repeated parse_ts_datetime() calls
+    ts_cache: dict[str, object] = {}
+    for e in events:
+        ts = e.get("ts")
+        if ts and ts not in ts_cache:
+            ts_cache[ts] = parse_ts_datetime(ts)
+
     # Find first error event with a parseable timestamp
     trigger = None
     trigger_dt = None
     for e in events:
         if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
-            dt = parse_ts_datetime(e.get("ts"))
+            dt = ts_cache.get(e.get("ts"))
             if dt:
                 trigger = e
                 trigger_dt = dt
@@ -303,10 +318,9 @@ def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str,
     if not trigger:
         return None
 
-    window = timedelta(seconds=window_seconds)
     window_events = []
     for e in events:
-        dt = parse_ts_datetime(e.get("ts"))
+        dt = ts_cache.get(e.get("ts"))
         if not dt:
             continue
         offset = (dt - trigger_dt).total_seconds()
@@ -1548,11 +1562,12 @@ _SKILL_QUERY_KEYWORDS = {
 }
 
 
-def _discover_skills() -> list[str]:
-    """Scan the skills/ directory and return a sorted list of available .md filenames."""
+@functools.lru_cache(maxsize=1)
+def _discover_skills() -> tuple[str, ...]:
+    """Scan the skills/ directory and return available .md filenames (cached)."""
     if not _SKILLS_DIR.is_dir():
-        return []
-    return sorted(f.name for f in _SKILLS_DIR.iterdir() if f.is_file() and f.suffix == ".md")
+        return ()
+    return tuple(sorted(f.name for f in _SKILLS_DIR.iterdir() if f.is_file() and f.suffix == ".md"))
 
 
 def select_skills(match_result: dict, user_query: str = "") -> list[str]:

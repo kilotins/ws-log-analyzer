@@ -232,48 +232,28 @@ def _collect_audit_sources(compact=False):
     return "Perform a full technical audit of the following codebase.\n\n" + "\n\n".join(file_contents)
 
 
+_AUDIT_TIMEOUT = 300.0
+
+
 def _run_audit_claude(api_key, model_id, max_tokens, compact=False):
     """Run audit via Claude API. Returns (text, usage_dict)."""
-    from anthropic import Anthropic
-    from app_ai import _extract_claude_usage
-    client = Anthropic(api_key=api_key, timeout=300.0)
-    message = client.messages.create(
-        model=model_id,
-        max_tokens=max_tokens,
-        system=_AUDIT_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": _collect_audit_sources(compact=compact)}],
-    )
-    usage = _extract_claude_usage(message.usage)
-    return message.content[0].text, usage
+    from app_ai import call_claude_api
+    prompt = {"system": _AUDIT_SYSTEM_PROMPT, "user": _collect_audit_sources(compact=compact)}
+    return call_claude_api(api_key, model_id, prompt, timeout=_AUDIT_TIMEOUT, max_tokens=max_tokens)
 
 
 def _run_audit_gemini(api_key, model_id, compact=False):
     """Run audit via Gemini API. Returns (text, usage_dict)."""
-    prompt_text = _collect_audit_sources(compact=compact)
-    answer = ask_gemini(prompt_text, api_key=api_key, system=_AUDIT_SYSTEM_PROMPT, model=model_id, timeout=300)
-    usage = {"input": estimate_tokens(_AUDIT_SYSTEM_PROMPT + prompt_text), "output": estimate_tokens(answer)}
-    return answer, usage
+    from app_ai import call_gemini_api
+    prompt = {"system": _AUDIT_SYSTEM_PROMPT, "user": _collect_audit_sources(compact=compact)}
+    return call_gemini_api(api_key, model_id, prompt, timeout=_AUDIT_TIMEOUT)
 
 
 def _run_audit_openai(api_key, model_id, max_tokens, compact=False):
     """Run audit via OpenAI API. Returns (text, usage_dict)."""
-    try:
-        from openai import OpenAI
-    except ImportError:
-        raise ImportError("The openai package is not installed. Install with: pip install openai")
-    client = OpenAI(api_key=api_key, timeout=300.0)
-    response = client.chat.completions.create(
-        model=model_id,
-        max_completion_tokens=max_tokens,
-        messages=[
-            {"role": "system", "content": _AUDIT_SYSTEM_PROMPT},
-            {"role": "user", "content": _collect_audit_sources(compact=compact)},
-        ],
-    )
-    usage = {"input": 0, "output": 0}
-    if response.usage:
-        usage = {"input": response.usage.prompt_tokens, "output": response.usage.completion_tokens}
-    return response.choices[0].message.content, usage
+    from app_ai import call_openai_api
+    prompt = {"system": _AUDIT_SYSTEM_PROMPT, "user": _collect_audit_sources(compact=compact)}
+    return call_openai_api(api_key, model_id, prompt, timeout=_AUDIT_TIMEOUT, max_tokens=max_tokens)
 
 
 def _run_audit(model_label, log, status=None):
