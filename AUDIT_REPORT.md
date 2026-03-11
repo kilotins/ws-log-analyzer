@@ -1,4 +1,4 @@
-# Technical Audit Report — WS Log Analyzer
+# Technical Audit Report — LogPilot
 
 **Generated:** 2026-03-10 | **Auditor:** Claude Opus 4.6
 
