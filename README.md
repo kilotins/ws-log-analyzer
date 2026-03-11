@@ -4,7 +4,7 @@ CLI tool and Streamlit web GUI that analyzes WebSphere / Java logs and generates
 
 ## Features
 
-- **Log parsing** — WebSphere classic and ISO timestamp formats, `.log` and `.gz` files, multi-file support
+- **Log parsing** — 8 format plugins: WebSphere/Liberty, JSON (Bunyan/Pino/structlog/zap), nginx, Log4j/Logback, Python (Django/Flask/FastAPI), syslog/journald, Enonic XP, Kubernetes/CRI-O. Supports `.log` and `.gz` files, multi-file, auto-detection
 - **Event classification** — severity levels, WAS message codes, Java exceptions with root cause extraction
 - **Signal tagging** — OOM/GC, HungThreads, DB/Pool, SSL/TLS, HTTP errors
 - **Likely Causes & Fixes** — heuristic pattern matching with suggested remediation steps
@@ -46,8 +46,13 @@ python -m logpilot SystemOut.log --claude --model claude-sonnet-4-6
 | `--format` | markdown | Output format (markdown / json) |
 | `--out` | report.md | Output file path |
 | `--max-lines` | unlimited | Limit lines per file |
+| `--log-type` | auto | Force log type (was, json, nginx, log4j, python, syslog, enonic, crio) |
+| `--list-formats` | off | List available log format plugins and exit |
 | `--claude` | off | Enable AI root-cause analysis |
 | `--model` | claude-sonnet-4-6 | Claude model to use |
+| `--ai-endpoint` | — | Local AI endpoint URL (e.g. http://localhost:1234/v1) |
+| `--ai-model` | — | Local AI model name |
+| `--log-format` | text | Log output format (text / json) |
 | `-q` | off | Suppress progress messages |
 
 ## GUI Usage
@@ -84,8 +89,11 @@ Open http://localhost:8501.
 # Core only (no dependencies)
 pip install -e .
 
-# With GUI
+# With GUI (includes charts)
 pip install -e ".[gui]"
+
+# With GUI + PDF export
+pip install -e ".[gui,pdf]"
 
 # With Claude AI analysis
 pip install -e ".[claude]"
@@ -112,7 +120,7 @@ pip install -e ".[gui,claude,gemini,openai,test,e2e]"
 pytest
 ```
 
-496 tests covering parsing, classification, redaction, heuristics, Splunk queries, hung thread analysis, caching, prompt injection protection, Gemini integration, OpenAI integration, skill auto-selection, report generation (Markdown/JSON/CSV/XML/PDF), app helpers, keychain management, symlink rejection, API key validation, rate limiting, and 31 Playwright end-to-end tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+1019 tests across 18 test files covering parsing, classification, redaction, heuristics, correlations, all 8 format plugins, Splunk queries, hung thread analysis, caching, prompt injection protection, AI integration (Claude/Gemini/OpenAI/local), skill auto-selection, report generation (Markdown/JSON/CSV/XML/PDF), app helpers, keychain management, symlink rejection, API key validation, rate limiting, and Playwright end-to-end tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## AI Provider Setup
 
