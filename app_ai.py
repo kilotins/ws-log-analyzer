@@ -52,6 +52,18 @@ PROVIDER_CONFIG = {
         "api_key_error": "Enter your OpenAI API key in the sidebar or set OPENAI_API_KEY env var.",
         "api_key_prefix": "sk-",
     },
+    "local": {
+        "label": "Local AI",
+        "cache_key": "local_cache",
+        "answer_key": "local_answer",
+        "query_label_key": "local_query_label",
+        "history_key": "local_history",
+        "api_key_field": "local_api_key",
+        "save_history": None,  # Set by init_provider_config()
+        "extract_splunk": False,
+        "api_key_error": "",
+        "api_key_prefix": "",  # No prefix validation for local
+    },
 }
 
 
@@ -94,6 +106,15 @@ AI_MODELS = {
     "Gemini 2.5 Pro": {"provider": "gemini", "model_id": "gemini-2.5-pro"},
     "GPT-4o": {"provider": "openai", "model_id": "gpt-4o"},
     "GPT-4o mini": {"provider": "openai", "model_id": "gpt-4o-mini"},
+    "Local AI (custom)": {"provider": "local", "model_id": ""},
+}
+
+# Presets for local/inhouse AI servers
+LOCAL_AI_PRESETS = {
+    "LM Studio": {"base_url": "http://localhost:1234/v1", "api_key": "lm-studio"},
+    "Ollama": {"base_url": "http://localhost:11434/v1", "api_key": "ollama"},
+    "vLLM": {"base_url": "http://localhost:8000/v1", "api_key": "vllm"},
+    "Custom": {"base_url": "", "api_key": ""},
 }
 
 
@@ -208,10 +229,81 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
     return (answer or None, usage)
 
 
+def call_local_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                    timeout: float = 120.0, max_tokens: int = 2048,
+                    base_url: str | None = None) -> tuple[str, dict]:
+    """Call a local/inhouse OpenAI-compatible API (LM Studio, Ollama, vLLM, etc.).
+
+    Uses the OpenAI SDK with a custom base_url. The api_key can be any
+    non-empty string for servers that don't require authentication.
+    """
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ImportError("The `openai` package is not installed. Install with: `pip install openai`")
+
+    if not base_url:
+        # Read from session state or env
+        try:
+            import streamlit as _st
+            base_url = getattr(_st.session_state, "local_ai_endpoint", "") or ""
+        except Exception:
+            pass
+        if not base_url:
+            import os
+            base_url = os.environ.get("LOGPILOT_AI_ENDPOINT", "http://localhost:1234/v1")
+
+    if not model_id:
+        try:
+            import streamlit as _st
+            model_id = getattr(_st.session_state, "local_ai_model", "") or ""
+        except Exception:
+            pass
+        if not model_id:
+            import os
+            model_id = os.environ.get("LOGPILOT_AI_MODEL", "default")
+
+    # Local servers often don't need a real API key
+    client = OpenAI(api_key=api_key or "not-needed", base_url=base_url, timeout=timeout)
+
+    if stream_placeholder:
+        chunks = []
+        response = client.chat.completions.create(
+            model=model_id, max_completion_tokens=max_tokens, stream=True,
+            messages=[
+                {"role": "system", "content": prompt["system"]},
+                {"role": "user", "content": prompt["user"]},
+            ],
+        )
+        usage = {}
+        for chunk in response:
+            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                chunks.append(chunk.choices[0].delta.content)
+                stream_placeholder.markdown("".join(chunks) + "\n\n*Streaming...*")
+            if hasattr(chunk, "usage") and chunk.usage:
+                usage = {"input": chunk.usage.prompt_tokens, "output": chunk.usage.completion_tokens}
+        answer = "".join(chunks)
+        return (answer or None, usage)
+
+    response = client.chat.completions.create(
+        model=model_id, max_completion_tokens=max_tokens,
+        messages=[
+            {"role": "system", "content": prompt["system"]},
+            {"role": "user", "content": prompt["user"]},
+        ],
+    )
+    answer = response.choices[0].message.content
+    usage = {}
+    if response.usage:
+        usage = {"input": response.usage.prompt_tokens, "output": response.usage.completion_tokens}
+    return (answer or None, usage)
+
+
 _API_CALLERS = {
     "claude": call_claude_api,
     "gemini": call_gemini_api,
     "openai": call_openai_api,
+    "local": call_local_api,
 }
 
 
@@ -224,6 +316,8 @@ def build_ai_request_context(user_query: str, events: list[dict], provider: str 
         cache_key = "gemini:" + cache_key
     elif provider == "openai":
         cache_key = "openai:" + cache_key
+    elif provider == "local":
+        cache_key = "local:" + cache_key
     prompt = build_claude_prompt(user_query, match)
     skills = prompt.get("skills", [])
     if skills and log:
@@ -367,7 +461,11 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
         status.write(f"No exact match -- sending general question to {label}.")
 
     api_key = getattr(st.session_state, cfg["api_key_field"], "")
-    if not api_key:
+    if provider == "local":
+        # Local providers don't require an API key — use a placeholder
+        if not api_key:
+            api_key = getattr(st.session_state, "local_ai_api_key", "") or "not-needed"
+    elif not api_key:
         status.update(label=f"No {label} API key set", state="error")
         st.error(cfg["api_key_error"])
         return
@@ -470,6 +568,13 @@ def run_openai_analysis(user_query, events, processing_container, model_id="gpt-
                      log=log, lookup_cache=lookup_cache, store_cache=store_cache)
 
 
+def run_local_analysis(user_query, events, processing_container, model_id="",
+                       log=None, lookup_cache=None, store_cache=None):
+    """Run local/inhouse AI analysis via OpenAI-compatible API."""
+    _run_ai_analysis("local", model_id, user_query, events, processing_container,
+                     log=log, lookup_cache=lookup_cache, store_cache=store_cache)
+
+
 # --- AI response rendering ---
 
 def _render_claude_response(text):
@@ -543,39 +648,39 @@ def _render_claude_response(text):
 
 
 def render_current_ai_analyses():
-    """Render expanders for current Claude, Gemini, and GPT results."""
+    """Render expanders for current Claude, Gemini, GPT, and Local AI results."""
     _has_claude = bool(st.session_state.claude_answer)
     _has_gemini = bool(st.session_state.gemini_answer)
     _has_openai = bool(st.session_state.openai_answer)
-    if not _has_claude and not _has_gemini and not _has_openai:
+    _has_local = bool(st.session_state.get("local_answer"))
+    if not _has_claude and not _has_gemini and not _has_openai and not _has_local:
         return
 
-    _count = sum([_has_claude, _has_gemini, _has_openai])
-    _expand_claude = _has_claude and _count == 1
-    _expand_gemini = _has_gemini and _count == 1
-    _expand_openai = _has_openai and _count == 1
-    if _count > 1:
-        _expand_claude = False
-        _expand_gemini = False
-        _expand_openai = _has_openai
+    _count = sum([_has_claude, _has_gemini, _has_openai, _has_local])
+    _expand_last = _count == 1
 
     st.markdown("---")
     st.subheader("Current AI analyses")
 
     if _has_claude:
         label = st.session_state.claude_query_label or "query"
-        with st.expander(f"Claude analysis \u2014 {label}", expanded=_expand_claude):
+        with st.expander(f"Claude analysis \u2014 {label}", expanded=_expand_last and _has_claude):
             _render_claude_response(st.session_state.claude_answer)
 
     if _has_gemini:
         label = st.session_state.gemini_query_label or "query"
-        with st.expander(f"Gemini analysis \u2014 {label}", expanded=_expand_gemini):
+        with st.expander(f"Gemini analysis \u2014 {label}", expanded=_expand_last and _has_gemini):
             st.markdown(st.session_state.gemini_answer)
 
     if _has_openai:
         label = st.session_state.openai_query_label or "query"
-        with st.expander(f"GPT analysis \u2014 {label}", expanded=_expand_openai):
+        with st.expander(f"GPT analysis \u2014 {label}", expanded=_expand_last and _has_openai):
             st.markdown(st.session_state.openai_answer)
+
+    if _has_local:
+        label = st.session_state.get("local_query_label") or "query"
+        with st.expander(f"Local AI analysis \u2014 {label}", expanded=_expand_last and _has_local):
+            st.markdown(st.session_state.local_answer)
 
 
 def render_ai_history():
@@ -604,6 +709,15 @@ def render_ai_history():
         st.subheader("Previous GPT queries")
         for _, entry in enumerate(reversed(openai_history[:-1])):
             hist_label = f"GPT \u2014 {entry['query']} ({entry['timestamp']})"
+            with st.expander(hist_label):
+                st.markdown(entry["answer"])
+
+    local_history = st.session_state.get("local_history", [])
+    if len(local_history) > 1:
+        st.markdown("---")
+        st.subheader("Previous Local AI queries")
+        for _, entry in enumerate(reversed(local_history[:-1])):
+            hist_label = f"Local AI \u2014 {entry['query']} ({entry['timestamp']})"
             with st.expander(hist_label):
                 st.markdown(entry["answer"])
 
@@ -651,6 +765,9 @@ def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
         elif provider == "gemini":
             run_gemini_analysis(user_query, events, processing_container, model_id=model_id,
                                log=log, lookup_cache=lookup_cache, store_cache=store_cache)
+        elif provider == "local":
+            run_local_analysis(user_query, events, processing_container, model_id=model_id,
+                              log=log, lookup_cache=lookup_cache, store_cache=store_cache)
         else:
             run_openai_analysis(user_query, events, processing_container, model_id=model_id,
                                log=log, lookup_cache=lookup_cache, store_cache=store_cache)

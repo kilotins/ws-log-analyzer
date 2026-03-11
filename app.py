@@ -101,6 +101,7 @@ if _old_cache.exists() and not (CACHE_DIR / "ai_responses.json").exists():
 HISTORY_FILE = CACHE_DIR / "claude_history.json"
 GEMINI_HISTORY_FILE = CACHE_DIR / "gemini_history.json"
 OPENAI_HISTORY_FILE = CACHE_DIR / "openai_history.json"
+LOCAL_HISTORY_FILE = CACHE_DIR / "local_history.json"
 
 
 MAX_CACHE_ENTRIES = _MAX_CACHE_ENTRIES_DEFAULT
@@ -182,6 +183,7 @@ _PROVIDER_HISTORY_FILES = {
     "claude": HISTORY_FILE,
     "gemini": GEMINI_HISTORY_FILE,
     "openai": OPENAI_HISTORY_FILE,
+    "local": LOCAL_HISTORY_FILE,
 }
 
 # Initialize the save_history callbacks in PROVIDER_CONFIG now that history files are set up
@@ -189,6 +191,7 @@ init_provider_config({
     "claude": lambda hist: _save_provider_history(HISTORY_FILE, hist),
     "gemini": lambda hist: _save_provider_history(GEMINI_HISTORY_FILE, hist),
     "openai": lambda hist: _save_provider_history(OPENAI_HISTORY_FILE, hist),
+    "local": lambda hist: _save_provider_history(LOCAL_HISTORY_FILE, hist),
 })
 
 
@@ -232,6 +235,14 @@ _STATE_DEFAULTS = {
     "api_key": "",
     "gemini_api_key": "",
     "openai_api_key": "",
+    "local_answer": None,
+    "local_query_label": None,
+    "local_cache": {},
+    "local_history": [],
+    "local_ai_endpoint": "http://localhost:1234/v1",
+    "local_ai_model": "",
+    "local_ai_api_key": "not-needed",
+    "local_api_key": "",
     "gemini_answer": None,
     "gemini_query_label": None,
     "gemini_cache": {},
@@ -375,7 +386,7 @@ with st.sidebar:
         st.session_state.gemini_api_key,
         st.session_state.openai_api_key,
     ] if k)
-    _keys_label = f"API Keys ({_configured_keys}/3 configured)" if _configured_keys else "API Keys (none configured)"
+    _keys_label = f"Cloud API Keys ({_configured_keys}/3 configured)" if _configured_keys else "Cloud API Keys (none configured)"
     with st.expander(_keys_label, expanded=_configured_keys == 0):
         api_key = st.text_input(
             "Anthropic API Key",
@@ -414,11 +425,45 @@ with st.sidebar:
             _save_openai_key(openai_key)
         st.session_state.openai_api_key = openai_key
 
+    from app_ai import LOCAL_AI_PRESETS
+    with st.expander("Local / Inhouse AI", expanded=False):
+        _preset = st.selectbox(
+            "Preset",
+            list(LOCAL_AI_PRESETS.keys()),
+            key="local_ai_preset",
+            help="Select your local AI server type",
+        )
+        _preset_cfg = LOCAL_AI_PRESETS[_preset]
+        _default_url = _preset_cfg["base_url"] or st.session_state.local_ai_endpoint
+        _default_key = _preset_cfg["api_key"] or st.session_state.local_ai_api_key
+
+        st.session_state.local_ai_endpoint = st.text_input(
+            "Endpoint URL",
+            value=_default_url,
+            placeholder="http://localhost:1234/v1",
+            help="OpenAI-compatible API endpoint",
+            key="local_endpoint_input",
+        )
+        st.session_state.local_ai_model = st.text_input(
+            "Model name",
+            value=st.session_state.local_ai_model,
+            placeholder="e.g. llama-3.1-8b, mistral-7b, qwen2.5",
+            help="Model ID as shown in your local server",
+            key="local_model_input",
+        )
+        st.session_state.local_ai_api_key = st.text_input(
+            "API Key (optional)",
+            value=_default_key,
+            placeholder="not-needed",
+            help="Most local servers don't require an API key",
+            key="local_key_input",
+        )
+
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
         "Enable AI debug payloads",
         value=st.session_state.debug_payload,
-        help="Show request/response payloads for Claude and Gemini API calls",
+        help="Show request/response payloads for AI API calls",
     )
     if st.session_state.get("_confirm_clear_cache"):
         st.warning("Clear all AI caches and history?")
@@ -438,6 +483,10 @@ with st.sidebar:
                 st.session_state.openai_answer = None
                 st.session_state.openai_query_label = None
                 st.session_state.openai_history = []
+                st.session_state.local_cache = {}
+                st.session_state.local_answer = None
+                st.session_state.local_query_label = None
+                st.session_state.local_history = []
                 CACHE_FILE.unlink(missing_ok=True)
                 for _hpath in _PROVIDER_HISTORY_FILES.values():
                     _hpath.unlink(missing_ok=True)

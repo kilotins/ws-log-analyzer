@@ -28,6 +28,8 @@ def main() -> None:
     ap.add_argument("--log-format", choices=["text", "json"], default="text", help="Log output format.")
     ap.add_argument("--log-type", default=None, help="Force log type (e.g. was, json, nginx, log4j). Auto-detects if omitted.")
     ap.add_argument("--list-formats", action="store_true", help="List available log format plugins and exit.")
+    ap.add_argument("--ai-endpoint", default=None, help="Local AI endpoint URL (e.g. http://localhost:1234/v1). Also: LOGPILOT_AI_ENDPOINT env var.")
+    ap.add_argument("--ai-model", default=None, help="Local AI model name. Also: LOGPILOT_AI_MODEL env var.")
     args = ap.parse_args()
 
     if args.log_format == "json":
@@ -74,13 +76,9 @@ def main() -> None:
     if not args.quiet:
         print(f"Wrote report: {out_path}")
 
-    if args.claude:
-        try:
-            from anthropic import Anthropic
-        except ImportError:
-            print("anthropic package not installed. Install with: pip install anthropic", file=sys.stderr)
-            sys.exit(1)
-
+    # AI analysis — build shared prompt
+    _use_ai = args.claude or args.ai_endpoint or args.ai_model
+    if _use_ai:
         summary = summarize(all_events, args.top)
         cli_match = {
             "matched": True,
@@ -103,14 +101,52 @@ def main() -> None:
             "If data seems truncated, note assumptions."
         )
         user_content = f"<user_query>{cli_instruction}</user_query>\n\n<report>\n{safe_report}\n</report>"
+        full_prompt = {"system": prompt["system"], "user": user_content}
+
+    if args.ai_endpoint or args.ai_model:
+        # Local AI via OpenAI-compatible endpoint
+        endpoint = args.ai_endpoint or os.environ.get("LOGPILOT_AI_ENDPOINT", "http://localhost:1234/v1")
+        model_name = args.ai_model or os.environ.get("LOGPILOT_AI_MODEL", "default")
+
+        try:
+            from openai import OpenAI
+        except ImportError:
+            print("openai package not installed. Install with: pip install openai", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            client = OpenAI(api_key="not-needed", base_url=endpoint, timeout=120.0)
+            response = client.chat.completions.create(
+                model=model_name,
+                max_completion_tokens=4096,
+                messages=[
+                    {"role": "system", "content": full_prompt["system"]},
+                    {"role": "user", "content": full_prompt["user"]},
+                ],
+            )
+            analysis = response.choices[0].message.content
+            analysis_path = out_path.parent / "ai-analysis.md"
+            analysis_path.write_text(analysis, encoding="utf-8")
+            if not args.quiet:
+                print(f"Wrote ai-analysis.md ({model_name} via {endpoint}): {analysis_path}")
+        except (ImportError, OSError, ValueError, RuntimeError) as ex:
+            print(f"Local AI call failed: {ex}", file=sys.stderr)
+            print(f"Tip: ensure {endpoint} is running.", file=sys.stderr)
+
+    elif args.claude:
+        try:
+            from anthropic import Anthropic
+        except ImportError:
+            print("anthropic package not installed. Install with: pip install anthropic", file=sys.stderr)
+            sys.exit(1)
 
         try:
             client = Anthropic(timeout=30.0)
             message = client.messages.create(
                 model=args.model,
                 max_tokens=4096,
-                system=prompt["system"],  # type: ignore[arg-type]
-                messages=[{"role": "user", "content": user_content}],
+                system=full_prompt["system"],  # type: ignore[arg-type]
+                messages=[{"role": "user", "content": full_prompt["user"]}],
             )
             analysis = message.content[0].text  # type: ignore[union-attr]
             analysis_path = out_path.parent / "claude-analysis.md"

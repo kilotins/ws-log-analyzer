@@ -574,11 +574,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 38.1 | Lägg till "Custom / Local" provider — ny post i `PROVIDER_CONFIG` och `AI_MODELS` med konfigurerbara fält: `base_url`, `model_id`, `api_key` (valfri). Default: `http://localhost:1234/v1` (LM Studio) | `app_ai.py` | [ ] |
-| 38.2 | Uppdatera `call_openai_api()` med `base_url`-stöd — skicka `base_url` till `OpenAI(base_url=...)`. Alla OpenAI-kompatibla servrar (LM Studio, Ollama, vLLM, text-generation-inference) stöds automatiskt | `app_ai.py` | [ ] |
-| 38.3 | Sidebar-konfiguration i GUI — fält för endpoint-URL, modellnamn, valfri API-nyckel. Förifyllda presets: LM Studio (`localhost:1234`), Ollama (`localhost:11434`), custom. Spara i settings | `app.py`, `app_ai.py` | [ ] |
-| 38.4 | CLI-stöd — `--ai-endpoint URL --ai-model MODEL` flaggor i `logpilot` CLI. Env vars: `LOGPILOT_AI_ENDPOINT`, `LOGPILOT_AI_MODEL` | `logpilot/cli.py` | [ ] |
-| 38.5 | Tester — mock lokal endpoint, testa connection refused gracefully, testa att vanliga providers inte påverkas, testa preset-konfiguration | `tests/test_app_helpers.py` | [ ] |
+| 38.1 | Lägg till "Custom / Local" provider — ny post i `PROVIDER_CONFIG` och `AI_MODELS` med konfigurerbara fält: `base_url`, `model_id`, `api_key` (valfri). Default: `http://localhost:1234/v1` (LM Studio) | `app_ai.py` | [x] |
+| 38.2 | Skapa `call_local_api()` med `base_url`-stöd — skicka `base_url` till `OpenAI(base_url=...)`. Alla OpenAI-kompatibla servrar (LM Studio, Ollama, vLLM, text-generation-inference) stöds automatiskt | `app_ai.py` | [x] |
+| 38.3 | Sidebar-konfiguration i GUI — fält för endpoint-URL, modellnamn, valfri API-nyckel. Förifyllda presets: LM Studio (`localhost:1234`), Ollama (`localhost:11434`), custom. Spara i settings | `app.py`, `app_ai.py` | [x] |
+| 38.4 | CLI-stöd — `--ai-endpoint URL --ai-model MODEL` flaggor i `logpilot` CLI. Env vars: `LOGPILOT_AI_ENDPOINT`, `LOGPILOT_AI_MODEL` | `logpilot/cli.py` | [x] |
+| 38.5 | Tester — mock lokal endpoint, testa connection refused gracefully, testa att vanliga providers inte påverkas, testa preset-konfiguration | `tests/test_local_ai.py` | [x] |
 
 **Acceptance**: Användare kan peka LogPilot mot LM Studio, Ollama eller valfri OpenAI-kompatibel server. Fungerar utan API-nyckel för lokala servrar. Loggar skickas aldrig till molnet om lokal modell är vald. Befintliga Claude/Gemini/OpenAI-providers opåverkade.
 
@@ -625,4 +625,4 @@
 | 35 — Enonic XP-loggar | 5 | 0 | Not started |
 | 36 — OpenShift / Kubernetes-loggar | 5 | 0 | Not started |
 | 37 — Item Consulting design & branding | 5 | 0 | Not started |
-| 38 — Lokal/inhouse AI (LM Studio, Ollama) | 5 | 0 | Not started |
+| 38 — Lokal/inhouse AI (LM Studio, Ollama) | 5 | 5 | Done |
