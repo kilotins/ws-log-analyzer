@@ -114,8 +114,10 @@ def _load_json_file(path: Path, default: object) -> object:
         try:
             import json
             return json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            pass
+        except json.JSONDecodeError as e:
+            log.warning("_load_json_file: corrupt JSON in %s: %s", path.name, e)
+        except OSError as e:
+            log.warning("_load_json_file: could not read %s: %s", path.name, e)
     return default
 
 

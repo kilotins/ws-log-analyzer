@@ -1,5 +1,7 @@
 """Tests for helper functions in app.py that don't require a running Streamlit server."""
 import json
+import logging
+import os
 import sys
 import types
 from pathlib import Path
@@ -964,3 +966,53 @@ class TestTimeoutErrorHandling:
         with mock.patch.dict(sys.modules, {"anthropic": mock_anthropic}):
             with pytest.raises((ConnectionError, Exception)):
                 call_claude_api("key", "model", {"system": "s", "user": "u"})
+
+
+# ── JSON log format ───────────────────────────────────────────────────
+
+class TestJsonLogFormatter:
+    def test_json_formatter_produces_valid_json(self):
+        import json as _json
+        from app import _JsonLogFormatter
+        formatter = _JsonLogFormatter()
+        record = logging.LogRecord(
+            name="test", level=logging.ERROR, pathname="", lineno=0,
+            msg="something broke", args=(), exc_info=None,
+        )
+        output = formatter.format(record)
+        parsed = _json.loads(output)
+        assert parsed["level"] == "ERROR"
+        assert parsed["msg"] == "something broke"
+        assert "ts" in parsed
+
+    def test_json_formatter_with_args(self):
+        import json as _json
+        from app import _JsonLogFormatter
+        formatter = _JsonLogFormatter()
+        record = logging.LogRecord(
+            name="test", level=logging.INFO, pathname="", lineno=0,
+            msg="file %s has %d events", args=("server.log", 42), exc_info=None,
+        )
+        output = formatter.format(record)
+        parsed = _json.loads(output)
+        assert "server.log" in parsed["msg"]
+        assert "42" in parsed["msg"]
+
+    def test_json_format_env_toggle(self, monkeypatch, tmp_path):
+        """WSLOG_LOG_FORMAT=json activates JSON formatter."""
+        monkeypatch.setenv("WSLOG_LOG_FORMAT", "json")
+        from app import _JsonLogFormatter
+        use_json = os.environ.get("WSLOG_LOG_FORMAT", "").lower() == "json"
+        assert use_json is True
+
+
+# ── Warning logging on silent returns (22.3) ─────────────────────────
+
+class TestLoadJsonFileWarningLogging:
+    def test_corrupt_json_logs_warning(self, tmp_path, caplog):
+        f = tmp_path / "bad.json"
+        f.write_text("{not valid", encoding="utf-8")
+        with caplog.at_level(logging.WARNING, logger="wslog_app"):
+            result = _load_json_file(f, {})
+        assert result == {}
+        assert any("corrupt JSON" in r.message for r in caplog.records)

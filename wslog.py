@@ -11,6 +11,9 @@ import os
 import sys
 import hashlib
 import functools
+import logging
+
+_log = logging.getLogger("wslog")
 from datetime import datetime, timedelta
 
 # --- Constants ---
@@ -93,7 +96,7 @@ def open_text(path: Path) -> IO[str]:
             f.seek(0)
             return f
         except (OSError, EOFError):
-            # Not a valid gzip file — try as plain text
+            _log.warning("open_text: %s has .gz suffix but is not valid gzip, falling back to plain text", path.name)
             return path.open("r", errors="ignore")
     return path.open("r", errors="ignore")
 
@@ -284,6 +287,7 @@ def parse_ts_datetime(ts: str | None) -> datetime | None:
                 continue
     except (ValueError, TypeError, AttributeError):
         pass
+    _log.debug("parse_ts_datetime: could not parse timestamp %r", ts)
     return None
 
 
