@@ -319,11 +319,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 23.1 | Skapa CONTRIBUTING.md — dev setup (venv, pip install -e .[test,gui]), köra tester, kodstil, PR-checklista | `CONTRIBUTING.md` | [ ] |
-| 23.2 | Lägg till API-dokumentation — dokumentera `parse_file()`, `precompute_analysis()`, `render_*_report()`, `summarize()` med exempel | `docs/API.md` | [ ] |
-| 23.3 | Lägg till docstring-exempel på 5 publika funktioner | `wslog.py` | [ ] |
-| 23.4 | Uppdatera ARCHITECTURE.md med aktuell modulstruktur — lägg till `app_spend.py`, `report_renderer.py`, uppdatera radantal | `ARCHITECTURE.md` | [ ] |
-| 23.5 | Uppdatera README.md med CI-badge, bidragslänk och aktuellt testantal (463) | `README.md` | [ ] |
+| 23.1 | Skapa CONTRIBUTING.md — dev setup (venv, pip install -e .[test,gui]), köra tester, kodstil, PR-checklista | `CONTRIBUTING.md` | [x] |
+| 23.2 | Lägg till API-dokumentation — dokumentera `parse_file()`, `precompute_analysis()`, `render_*_report()`, `summarize()` med exempel | `docs/API.md` | [x] |
+| 23.3 | Lägg till docstring-exempel på 5 publika funktioner | `wslog.py` | [x] |
+| 23.4 | Uppdatera ARCHITECTURE.md med aktuell modulstruktur — lägg till `app_spend.py`, `report_renderer.py`, uppdatera radantal | `ARCHITECTURE.md` | [x] |
+| 23.5 | Uppdatera README.md med CI-badge, bidragslänk och aktuellt testantal (476) | `README.md` | [x] |
 
 **Acceptance**: CONTRIBUTING.md täcker fullt dev-workflow. API.md dokumenterar alla publika funktioner. ARCHITECTURE.md speglar aktuell kodbas.
 
@@ -391,6 +391,6 @@
 | 20 — Arkitektur & prestandaoptimering | 5 | 4 | Done (20.5 skipped) |
 | 21 — CI/CD Pipeline & Atomic Writes | 5 | 5 | Done |
 | 22 — Strukturerad loggning & felhantering | 5 | 5 | Done |
-| 23 — Dokumentation & utvecklaronboarding | 5 | 4 | In progress |
+| 23 — Dokumentation & utvecklaronboarding | 5 | 5 | Done |
 | 24 — Integrationstester & stresstestning | 5 | 0 | Not started |
 | 25 — Typsäkerhet & wslog.py modularisering | 5 | 0 | Not started |
