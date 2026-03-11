@@ -170,7 +170,7 @@ def test_per_file_summary_multi(tmp_path):
 def test_json_output(sample_log, tmp_path):
     out = tmp_path / "report.json"
     result = subprocess.run(
-        [sys.executable, "wslog.py", str(sample_log), "--format", "json", "--out", str(out)],
+        [sys.executable, "-m", "wslog", str(sample_log), "--format", "json", "--out", str(out)],
         capture_output=True, text=True,
         cwd=os.path.dirname(os.path.dirname(__file__)),
     )

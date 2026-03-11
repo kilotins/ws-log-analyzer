@@ -15,10 +15,19 @@ test = ["pytest>=7"]
 e2e = ["pytest>=7", "playwright>=1.40"]
 
 [tool.setuptools]
-py-modules = ["wslog", "app"]
+packages = ["wslog"]
+py-modules = ["app"]
 
 [project.scripts]
-wslog = "wslog:main"
+wslog = "wslog.cli:main"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120
