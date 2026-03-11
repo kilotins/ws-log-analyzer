@@ -446,11 +446,12 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     events = a["events"]
     _pa = precompute_analysis(events, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
 
+    st.subheader("Export Log Analysis Report")
     _fmt_col, _dl_col = st.columns([1, 2])
     with _fmt_col:
         _export_fmt = st.selectbox(
             "Export format",
-            ["Markdown", "JSON", "PDF", "CSV", "XML"],
+            ["PDF", "Markdown", "JSON", "CSV", "XML"],
             key="export_format",
             label_visibility="collapsed",
         )
@@ -467,7 +468,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         else:  # XML
             _data, _fname, _mime = render_xml_report(events), _base.replace(".md", ".xml"), "application/xml"
         st.download_button(
-            label=f"Export {_export_fmt}",
+            label=f"Export Log Analysis Report ({_export_fmt})",
             data=_data,
             file_name=_fname,
             mime=_mime,
