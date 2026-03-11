@@ -67,7 +67,7 @@ _ENONIC_FULL_RE = re.compile(r'\bcom\.enonic\.xp\.', re.IGNORECASE)
 # Enonic domain keywords
 _ENONIC_KEYWORDS_RE = re.compile(
     r'\b(?:blobStore|blobStores|repository|repositoryService'
-    r'|elasticsearch|cluster\.health|cluster\.state'
+    r'|com\.enonic\.xp\.elasticsearch|cluster\.health|cluster\.state'
     r'|node\.(?:started|stopped|connected|disconnected)'
     r'|reindex|snapshot|dump|load|vacuum'
     r'|content\.(?:create|update|delete|publish|unpublish)'
