@@ -170,25 +170,39 @@ def classify_event(text: str) -> dict[str, Any]:
     }
 
 
-def parse_file_iter(path: Path, max_lines: int | None = None):  # type: ignore[no-untyped-def]
+def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None):  # type: ignore[no-untyped-def]
     """Generator-based parser that yields event dicts one at a time.
 
-    Uses the same logic as parse_file() (flush, classify_event, stacktrace
-    handling) but yields instead of accumulating, so arbitrarily large files
-    can be processed without holding all events in memory.
+    Args:
+        path: Path to the log file.
+        max_lines: Limit lines read (speed/safety).
+        format_name: Explicit format name (e.g. "was", "json"). If None, auto-detects.
+
+    Uses format plugins for timestamp extraction, level detection, and
+    continuation line detection. Falls back to WAS format if no format
+    scores above threshold.
     """
+    from .formats import detect_format, get_format
+
+    # Resolve format
+    if format_name:
+        fmt = get_format(format_name)
+    else:
+        fmt = detect_format(path)
+
     current: list[str] = []
-    current_meta: dict[str, Any] = {"file": str(path), "first_ts": None}
+    current_meta: dict[str, Any] = {"file": str(path), "first_ts": None, "format": fmt.name}
     has_stacktrace = False
     seen_first_ts = False
 
     def _build_event() -> dict[str, Any]:
         text = "\n".join(current)
         text = redact(text)
-        meta = classify_event(text)
+        meta = fmt.classify_event(text)
         meta["file"] = current_meta["file"]
         meta["ts"] = current_meta["first_ts"]
         meta["text"] = text
+        meta["format"] = current_meta["format"]
         return meta
 
     with open_text(path) as f:
@@ -196,13 +210,13 @@ def parse_file_iter(path: Path, max_lines: int | None = None):  # type: ignore[n
             if max_lines is not None and i > max_lines:
                 break
             line = line.rstrip("\n")
-            ts = extract_ts(line)
+            ts = fmt.extract_ts(line)
 
-            if ts and current and not STACK_LINE_RE.match(line) and not CAUSED_BY_RE.match(line):
+            if ts and current and not fmt.is_continuation(line):
                 if seen_first_ts:
                     yield _build_event()
                 current = []
-                current_meta = {"file": str(path), "first_ts": None}
+                current_meta = {"file": str(path), "first_ts": None, "format": fmt.name}
                 has_stacktrace = False
 
             if ts and current_meta["first_ts"] is None:
@@ -214,7 +228,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None):  # type: ignore[n
                 if seen_first_ts:
                     yield _build_event()
                 current = []
-                current_meta = {"file": str(path), "first_ts": None}
+                current_meta = {"file": str(path), "first_ts": None, "format": fmt.name}
                 has_stacktrace = False
                 continue
 
@@ -227,9 +241,12 @@ def parse_file_iter(path: Path, max_lines: int | None = None):  # type: ignore[n
         yield _build_event()
 
 
-def parse_file(path: Path, max_lines: int | None = None) -> list[dict[str, Any]]:
+def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None) -> list[dict[str, Any]]:
     """Parse a log file and return a list of event dicts.
 
-    Delegates to parse_file_iter() internally.
+    Args:
+        path: Path to the log file.
+        max_lines: Limit lines read (speed/safety).
+        format_name: Explicit format name (e.g. "was", "json"). If None, auto-detects.
     """
-    return list(parse_file_iter(path, max_lines=max_lines))
+    return list(parse_file_iter(path, max_lines=max_lines, format_name=format_name))

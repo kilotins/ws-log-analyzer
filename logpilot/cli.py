@@ -15,7 +15,7 @@ from .ai import build_claude_prompt, _sanitize_prompt_input
 def main() -> None:
     """CLI entry point: parse log files, generate triage report."""
     ap = argparse.ArgumentParser(description="LogPilot — Log analyzer (quick triage).")
-    ap.add_argument("paths", nargs="+", help="Log files (supports .gz). Globs allowed by shell.")
+    ap.add_argument("paths", nargs="*", help="Log files (supports .gz). Globs allowed by shell.")
     ap.add_argument("--max-lines", type=int, default=None, help="Limit lines per file (speed/safety).")
     ap.add_argument("--top", type=int, default=10, help="Top-N items in summary.")
     ap.add_argument("--samples", type=int, default=5, help="How many sample events to print.")
@@ -26,10 +26,22 @@ def main() -> None:
     ap.add_argument("--model", default="claude-sonnet-4-6", help="Claude model to use with --claude.")
     ap.add_argument("-q", "--quiet", action="store_true", help="Suppress progress messages.")
     ap.add_argument("--log-format", choices=["text", "json"], default="text", help="Log output format.")
+    ap.add_argument("--log-type", default=None, help="Force log type (e.g. was, json, nginx, log4j). Auto-detects if omitted.")
+    ap.add_argument("--list-formats", action="store_true", help="List available log format plugins and exit.")
     args = ap.parse_args()
 
     if args.log_format == "json":
         os.environ["WSLOG_LOG_FORMAT"] = "json"
+
+    if args.list_formats:
+        from .formats import list_formats
+        print("Available log format plugins:")
+        for f in list_formats():
+            print(f"  {f['name']:12s}  {f['description']}")
+        return
+
+    if not args.paths:
+        ap.error("the following arguments are required: paths")
 
     all_events: list[dict] = []
     for p in args.paths:
@@ -37,7 +49,7 @@ def main() -> None:
         if not path.exists():
             print(f"Skip (not found): {path}", file=sys.stderr)
             continue
-        file_events = parse_file(path, args.max_lines)
+        file_events = parse_file(path, args.max_lines, format_name=args.log_type)
         if not args.quiet:
             print(f"  {path.name}: {len(file_events)} events", file=sys.stderr)
         all_events.extend(file_events)
