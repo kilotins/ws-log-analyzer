@@ -268,13 +268,13 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 20.1 | Konsolidera audit-AI-anrop — återanvänd `PROVIDER_CONFIG` / `call_*_api` från `app_ai.py` i `app_audit.py` istället för duplicerade funktioner | `app_audit.py`, `app_ai.py` | [ ] |
-| 20.2 | Cacha `incident_timeline()` timestamp-parsing — undvik upprepad `parse_ts_datetime()` per event | `wslog.py` | [ ] |
-| 20.3 | Early-exit i `redact()` — snabbkolla om vanliga secretmönster finns innan 11 regex-substitutioner körs | `wslog.py` | [ ] |
-| 20.4 | Cacha `_discover_skills()` med `lru_cache` — undvik filsystem-scan vid varje `select_skills()`-anrop | `wslog.py` | [ ] |
-| 20.5 | Använd `parse_file_iter()` i GUI för filer >50MB — streama events istället för att ladda alla i minnet | `app.py` | [ ] |
+| 20.1 | Konsolidera audit-AI-anrop — återanvänd `PROVIDER_CONFIG` / `call_*_api` från `app_ai.py` i `app_audit.py` istället för duplicerade funktioner | `app_audit.py`, `app_ai.py` | [x] |
+| 20.2 | Cacha `incident_timeline()` timestamp-parsing — undvik upprepad `parse_ts_datetime()` per event | `wslog.py` | [x] |
+| 20.3 | Early-exit i `redact()` — snabbkolla om vanliga secretmönster finns innan 11 regex-substitutioner körs | `wslog.py` | [x] |
+| 20.4 | Cacha `_discover_skills()` med `lru_cache` — undvik filsystem-scan vid varje `select_skills()`-anrop | `wslog.py` | [x] |
+| 20.5 | Använd `parse_file_iter()` i GUI för filer >50MB — streama events istället för att ladda alla i minnet | `app.py` | [—] Skippat — `precompute_analysis()` kräver alla events i minnet, minimal vinst |
 
-**Acceptance**: Ingen duplicerad AI-anropslogik. Timestamp-parsing cachad. Redaction snabbare för normala loggar. Skill-discovery cachad. Stora filer streamade. Alla tester passerar.
+**Acceptance**: Ingen duplicerad AI-anropslogik. Timestamp-parsing cachad. Redaction snabbare för normala loggar. Skill-discovery cachad. ~~Stora filer streamade.~~ Alla tester passerar (436 passed).
 
 ---
 
@@ -388,7 +388,7 @@
 | 17 — Skalbarhet & prestanda | 5 | 5 | Done |
 | 18 — Reviewfixar: prestanda, tester & arkitektur | 5 | 5 | Done |
 | 19 — Testkvalitet & organisation | 5 | 5 | Done |
-| 20 — Arkitektur & prestandaoptimering | 5 | 0 | Not started |
+| 20 — Arkitektur & prestandaoptimering | 5 | 4 | Done (20.5 skipped) |
 | 21 — CI/CD Pipeline & Atomic Writes | 5 | 5 | Done |
 | 22 — Strukturerad loggning & felhantering | 5 | 3 | In progress |
 | 23 — Dokumentation & utvecklaronboarding | 5 | 4 | In progress |
