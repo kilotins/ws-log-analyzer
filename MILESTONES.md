@@ -455,11 +455,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 31.1 | Implementera `PythonFormat` — detecta `%(asctime)s %(levelname)s %(name)s %(message)s` och varianter | `logpilot/formats/python_log.py` | [ ] |
-| 31.2 | Python traceback-hantering — `Traceback (most recent call last):`, `File "..."`, exception chaining (`__cause__`) | `logpilot/formats/python_log.py` | [ ] |
-| 31.3 | Django/Flask-specifikt — request loggar, 500 errors, ORM queries, migration errors | `logpilot/formats/python_log.py` | [ ] |
-| 31.4 | Heuristiker — ImportError, ModuleNotFoundError, DatabaseError, template errors, CSRF failures | `heuristics.yaml` | [ ] |
-| 31.5 | Tester — stdlib logging, Django, Flask, uvicorn/gunicorn, tracebacks med chaining | `tests/test_format_python.py` | [ ] |
+| 31.1 | Implementera `PythonFormat` — detecta `%(asctime)s %(levelname)s %(name)s %(message)s` och varianter | `logpilot/formats/python_log.py` | [x] |
+| 31.2 | Python traceback-hantering — `Traceback (most recent call last):`, `File "..."`, exception chaining (`__cause__`) | `logpilot/formats/python_log.py` | [x] |
+| 31.3 | Django/Flask-specifikt — request loggar, 500 errors, ORM queries, migration errors | `logpilot/formats/python_log.py` | [x] |
+| 31.4 | Heuristiker — ImportError, ModuleNotFoundError, DatabaseError, template errors, CSRF failures | `heuristics.yaml` | [x] |
+| 31.5 | Tester — stdlib logging, Django, Flask, uvicorn/gunicorn, tracebacks med chaining | `tests/test_format_python.py` | [x] |
 
 **Acceptance**: Python-loggar med tracebacks detectas. Django/Flask-specifika mönster identifieras.
 
@@ -472,11 +472,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 32.1 | Implementera `SyslogFormat` — RFC 3164 (`Mon DD HH:MM:SS host process[pid]: msg`) och RFC 5424 | `logpilot/formats/syslog.py` | [ ] |
-| 32.2 | journald JSON-export — `journalctl -o json` format med `_SYSTEMD_UNIT`, `PRIORITY`, `MESSAGE` | `logpilot/formats/syslog.py` | [ ] |
-| 32.3 | Facility/severity-mappning — kern, auth, daemon, etc. → tags | `logpilot/formats/syslog.py` | [ ] |
-| 32.4 | Heuristiker — OOM killer, segfault, service failed, disk full, auth failures | `heuristics.yaml` | [ ] |
-| 32.5 | Tester — RFC 3164, RFC 5424, journald JSON, mixed facilities | `tests/test_format_syslog.py` | [ ] |
+| 32.1 | Implementera `SyslogFormat` — RFC 3164 (`Mon DD HH:MM:SS host process[pid]: msg`) och RFC 5424 | `logpilot/formats/syslog.py` | [x] |
+| 32.2 | journald JSON-export — `journalctl -o json` format med `_SYSTEMD_UNIT`, `PRIORITY`, `MESSAGE` | `logpilot/formats/syslog.py` | [x] |
+| 32.3 | Facility/severity-mappning — kern, auth, daemon, etc. → tags | `logpilot/formats/syslog.py` | [x] |
+| 32.4 | Heuristiker — OOM killer, segfault, service failed, disk full, auth failures | `heuristics.yaml` | [x] |
+| 32.5 | Tester — RFC 3164, RFC 5424, journald JSON, mixed facilities | `tests/test_format_syslog.py` | [x] |
 
 **Acceptance**: syslog (båda RFC) och journald JSON-export parsas. OOM killer och systemd-failures identifieras.
 
@@ -523,11 +523,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 35.1 | Implementera `EnonicFormat` — detecta Logback-mönster med `HH:mm:ss.SSS` timestamp (saknar datum!), `%logger{36}` | `logpilot/formats/enonic.py` | [ ] |
-| 35.2 | Datuminferens — härleda datum från filnamn (`server.2025-03-11.0.log`) eller rolling-pattern, fallback till filens modifieringsdatum | `logpilot/formats/enonic.py` | [ ] |
-| 35.3 | Enonic-specifika heuristiker — Cluster health RED/YELLOW, BlobStoreException, NodeNotFoundException, ScriptExecutionException, ApplicationInstallException | `heuristics.yaml` | [ ] |
-| 35.4 | Jetty request log-stöd — parsa NCSA Extended format från `jetty-*.request.log`, koppla till `NginxFormat` eller egen parser | `logpilot/formats/enonic.py` | [ ] |
-| 35.5 | Tester — server.log med/utan datum, Jetty request log, cluster health-mönster, blob errors | `tests/test_format_enonic.py` | [ ] |
+| 35.1 | Implementera `EnonicFormat` — detecta Logback-mönster med `HH:mm:ss.SSS` timestamp (saknar datum!), `%logger{36}` | `logpilot/formats/enonic.py` | [x] |
+| 35.2 | Datuminferens — härleda datum från filnamn (`server.2025-03-11.0.log`) eller rolling-pattern, fallback till filens modifieringsdatum | `logpilot/formats/enonic.py` | [x] |
+| 35.3 | Enonic-specifika heuristiker — Cluster health RED/YELLOW, BlobStoreException, NodeNotFoundException, ScriptExecutionException, ApplicationInstallException | `heuristics.yaml` | [x] |
+| 35.4 | Jetty request log-stöd — parsa NCSA Extended format från `jetty-*.request.log`, koppla till `NginxFormat` eller egen parser | `logpilot/formats/enonic.py` | [x] |
+| 35.5 | Tester — server.log med/utan datum, Jetty request log, cluster health-mönster, blob errors | `tests/test_format_enonic.py` | [x] |
 
 **Acceptance**: Enonic XP `server.log` och Jetty request-loggar detectas och parsas. Cluster health-problem och repo-errors identifieras med signal tags.
 
