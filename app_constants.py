@@ -2,14 +2,14 @@
 
 # Level-to-color mapping used by incident timeline and realtime monitor
 LEVEL_COLORS = {
-    "FATAL": "#dc3545",
-    "ERROR": "#dc3545",
-    "SEVERE": "#dc3545",
+    "FATAL": "#DC2626",
+    "ERROR": "#DC2626",
+    "SEVERE": "#DC2626",
     "WARNING": "#D97706",
     "WARN": "#D97706",
-    "INFO": "#0d6efd",
+    "INFO": "#7C3AED",
     "AUDIT": "#0891B2",
-    "DEBUG": "#adb5bd",
+    "DEBUG": "#94A3B8",
 }
 
 # Realtime monitor buffer size (max lines kept in memory)

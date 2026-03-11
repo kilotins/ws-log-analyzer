@@ -287,12 +287,12 @@ class TestGetReportHistory:
 class TestHighlightLine:
     def test_error_highlighted(self):
         result = _highlight_line("2024-01-01 ERROR something broke")
-        assert 'color:#dc3545' in result
+        assert 'color:#DC2626' in result
         assert "ERROR" in result
 
     def test_info_highlighted(self):
         result = _highlight_line("INFO server started")
-        assert 'color:#0d6efd' in result
+        assert 'color:#7C3AED' in result
 
     def test_warn_highlighted(self):
         result = _highlight_line("WARN low memory")
@@ -310,7 +310,7 @@ class TestHighlightLine:
         assert "<script>" not in result
         assert "&lt;script&gt;" in result
         # ERROR should still be highlighted
-        assert 'color:#dc3545' in result
+        assert 'color:#DC2626' in result
 
 
 # ── _is_safe_rt_path ─────────────────────────────────────────────────────
