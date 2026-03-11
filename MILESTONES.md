@@ -387,11 +387,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 27.1 | Skapa `LogFormat`-protokoll/baseklass — definierar `name`, `detect(line)`, `extract_ts(line)`, `extract_level(line)`, `classify_event(text)`, `bucket_tags(text)` | `logpilot/formats/base.py` | [ ] |
-| 27.2 | Migrera WAS-parser till `WASFormat` — flytta WAS-specifika regex och logik från `parser.py` till `logpilot/formats/was.py` | `logpilot/formats/was.py` | [ ] |
-| 27.3 | Skapa format-registry med auto-detect — `detect_format(file)` läser första 50 rader och rankar matchande format, fallback till generisk Java-parser | `logpilot/formats/__init__.py` | [ ] |
-| 27.4 | Uppdatera `parse_file()` att använda format-registry — auto-detect eller `--format` flag i CLI | `logpilot/parser.py`, `logpilot/cli.py` | [ ] |
-| 27.5 | Tester för format-plugin-systemet — test auto-detect, test fallback, test explicit format-val, test att WAS-tester fortfarande passerar | `tests/test_formats.py` | [ ] |
+| 27.1 | Skapa `LogFormat`-protokoll/baseklass — definierar `name`, `detect(line)`, `extract_ts(line)`, `extract_level(line)`, `classify_event(text)`, `bucket_tags(text)` | `logpilot/formats/base.py` | [x] |
+| 27.2 | Migrera WAS-parser till `WASFormat` — flytta WAS-specifika regex och logik från `parser.py` till `logpilot/formats/was.py` | `logpilot/formats/was.py` | [x] |
+| 27.3 | Skapa format-registry med auto-detect — `detect_format(file)` läser första 50 rader och rankar matchande format, fallback till generisk Java-parser | `logpilot/formats/__init__.py` | [x] |
+| 27.4 | Uppdatera `parse_file()` att använda format-registry — auto-detect eller `--format` flag i CLI | `logpilot/parser.py`, `logpilot/cli.py` | [x] |
+| 27.5 | Tester för format-plugin-systemet — test auto-detect, test fallback, test explicit format-val, test att WAS-tester fortfarande passerar | `tests/test_formats.py` | [x] |
 
 **Acceptance**: `parse_file()` auto-detectar loggformat. WAS-format fungerar exakt som förut. Nytt format kan läggas till genom att skapa en klass som implementerar `LogFormat`. CLI har `--format` flag.
 
@@ -613,8 +613,8 @@
 | 23 — Dokumentation & utvecklaronboarding | 5 | 5 | Done |
 | 24 — Integrationstester & stresstestning | 5 | 5 | Done |
 | 25 — Typsäkerhet & wslog.py modularisering | 5 | 5 | Done |
-| 26 — Rebranding: LogPilot | 5 | 0 | Not started |
-| 27 — Pluggbar parser-arkitektur | 5 | 0 | Not started |
+| 26 — Rebranding: LogPilot | 5 | 5 | Done |
+| 27 — Pluggbar parser-arkitektur | 5 | 5 | Done |
 | 28 — JSON structured logs | 5 | 0 | Not started |
 | 29 — nginx / Apache access & error logs | 5 | 0 | Not started |
 | 30 — Log4j/Logback (Spring Boot, Enonic) | 5 | 0 | Not started |
