@@ -386,11 +386,11 @@
 | 15 — Testtäckning: E2E & kantfall | 5 | 5 | Done |
 | 16 — Robusthet & Splunk-parsing | 5 | 5 | Done |
 | 17 — Skalbarhet & prestanda | 5 | 5 | Done |
-| 18 — Reviewfixar: prestanda, tester & arkitektur | 5 | 0 | Not started |
+| 18 — Reviewfixar: prestanda, tester & arkitektur | 5 | 5 | Done |
 | 19 — Testkvalitet & organisation | 5 | 0 | Not started |
 | 20 — Arkitektur & prestandaoptimering | 5 | 0 | Not started |
-| 21 — CI/CD Pipeline & Atomic Writes | 5 | 0 | Not started |
-| 22 — Strukturerad loggning & felhantering | 5 | 0 | Not started |
-| 23 — Dokumentation & utvecklaronboarding | 5 | 0 | Not started |
+| 21 — CI/CD Pipeline & Atomic Writes | 5 | 5 | Done |
+| 22 — Strukturerad loggning & felhantering | 5 | 3 | In progress |
+| 23 — Dokumentation & utvecklaronboarding | 5 | 4 | In progress |
 | 24 — Integrationstester & stresstestning | 5 | 0 | Not started |
 | 25 — Typsäkerhet & wslog.py modularisering | 5 | 0 | Not started |

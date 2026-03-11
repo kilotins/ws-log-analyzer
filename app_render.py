@@ -5,7 +5,7 @@ import re as _re
 import streamlit as st
 from pathlib import Path
 
-from wslog import render_histogram, precompute_analysis
+from wslog import render_histogram, precompute_analysis, render_pdf_report, render_csv_report, render_xml_report
 from app_constants import LEVEL_COLORS
 
 
@@ -442,6 +442,10 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     if _filter_note:
         st.info(f"Downloads contain the full unfiltered report.{_filter_note}")
+    # Generate PDF/CSV/XML lazily (on-demand at download time)
+    events = a["events"]
+    _pa = precompute_analysis(events, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
+
     dl1, dl2, dl3 = st.columns(3)
     with dl1:
         st.download_button(
@@ -462,42 +466,43 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     with dl3:
         st.download_button(
             label="PDF",
-            data=a["report_pdf"],
+            data=render_pdf_report(events, _analysis=_pa),
             file_name=a["report_name"].replace(".md", ".pdf"),
             mime="application/pdf",
             use_container_width=True,
         )
-    if a.get("report_csv") or a.get("report_xml"):
-        dl4, dl5, _dl6 = st.columns(3)
-        with dl4:
-            if a.get("report_csv"):
-                st.download_button(
-                    label="CSV",
-                    data=a["report_csv"],
-                    file_name=a["report_name"].replace(".md", ".csv"),
-                    mime="text/csv",
-                    use_container_width=True,
-                )
-        with dl5:
-            if a.get("report_xml"):
-                st.download_button(
-                    label="XML",
-                    data=a["report_xml"],
-                    file_name=a["report_name"].replace(".md", ".xml"),
-                    mime="application/xml",
-                    use_container_width=True,
-                )
+    dl4, dl5, _dl6 = st.columns(3)
+    with dl4:
+        st.download_button(
+            label="CSV",
+            data=render_csv_report(events),
+            file_name=a["report_name"].replace(".md", ".csv"),
+            mime="text/csv",
+            use_container_width=True,
+        )
+    with dl5:
+        st.download_button(
+            label="XML",
+            data=render_xml_report(events),
+            file_name=a["report_name"].replace(".md", ".xml"),
+            mime="application/xml",
+            use_container_width=True,
+        )
 
     st.markdown("---")
 
     if filtered_events is not None:
-        # Recompute analysis from filtered events without modifying original
-        fa = precompute_analysis(
-            filtered_events,
-            top_n=a.get("top_n", 10),
-            samples_n=a.get("samples_n", 5),
-            hist_minutes=a.get("hist_minutes", 1),
-        )
+        # Memoize filtered analysis by event count to avoid recomputing on every rerun
+        _filter_key = f"_fa_{len(filtered_events)}_{id(filtered_events)}"
+        fa = st.session_state.get(_filter_key)
+        if fa is None:
+            fa = precompute_analysis(
+                filtered_events,
+                top_n=a.get("top_n", 10),
+                samples_n=a.get("samples_n", 5),
+                hist_minutes=a.get("hist_minutes", 1),
+            )
+            st.session_state[_filter_key] = fa
         display_summary = fa["summary"]
         display_error_count = sum(1 for e in filtered_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
         display_causes = fa["causes"]

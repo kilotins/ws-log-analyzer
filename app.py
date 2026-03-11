@@ -516,9 +516,6 @@ with tab_analyze:
             samples = pa["samples"]
             report_md = render_markdown_report(all_events, _analysis=pa)
             report_json = render_json_report(all_events, _analysis=pa)
-            report_pdf = render_pdf_report(all_events, _analysis=pa)
-            report_csv = render_csv_report(all_events)
-            report_xml = render_xml_report(all_events)
             report_name = f"report_{ts}.md"
             (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
 
@@ -547,9 +544,6 @@ with tab_analyze:
                 "total_events": len(all_events),
                 "report_md": report_md,
                 "report_json": report_json,
-                "report_pdf": report_pdf,
-                "report_csv": report_csv,
-                "report_xml": report_xml,
                 "report_name": report_name,
                 "top_n": top_n,
                 "samples_n": samples_n,

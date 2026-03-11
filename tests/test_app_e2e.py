@@ -151,15 +151,12 @@ class TestAskAI:
             page.wait_for_timeout(500)
         assert input_field.is_visible()
 
-    def test_analyze_button_disabled_without_input(self, page):
+    def test_ask_ai_section_visible_after_analysis(self, page):
         _upload_file(page)
         _click_analyze(page)
-        # The analyze button inside "Ask AI" is just "Analyze"
-        page.wait_for_selector("text=Ask AI for help", timeout=DEFAULT_TIMEOUT)
-        btn = page.locator('[key="ai_analyze_btn"], button:has-text("Analyze")').last
-        # Without text input, the AI analyze button should be disabled
-        ai_btn = page.locator('button[data-testid="stButton"]:has-text("Analyze")').last
-        assert ai_btn.is_disabled() or True  # Button may not render as disabled in all Streamlit versions
+        # The "Ask AI for help" section should appear after analysis
+        ask_ai = page.locator("text=Ask AI for help")
+        expect(ask_ai.first).to_be_visible(timeout=DEFAULT_TIMEOUT)
 
     def test_code_button_populates_input(self, page):
         _upload_file(page)
@@ -170,8 +167,8 @@ class TestAskAI:
         code_btn.wait_for(timeout=DEFAULT_TIMEOUT)
         code_btn.scroll_into_view_if_needed()
         code_btn.click()
-        page.wait_for_timeout(3000)
         input_field = page.get_by_placeholder("CWPKI0022E")
+        expect(input_field).not_to_be_empty(timeout=DEFAULT_TIMEOUT)
         input_field.scroll_into_view_if_needed()
         val = input_field.input_value()
         assert len(val) > 0, f"Expected code in input, got empty string"
@@ -308,12 +305,12 @@ class TestErrorFlows:
         try:
             file_input = page.locator('input[type="file"]')
             file_input.set_input_files(empty_path)
-            page.wait_for_timeout(2000)
+            page.wait_for_selector('button:has-text("Analyze")', timeout=DEFAULT_TIMEOUT)
             # Click Analyze — the app should handle the empty file gracefully
             analyze_btn = page.get_by_role("button", name="Analyze", exact=True)
             if analyze_btn.is_visible() and analyze_btn.is_enabled():
                 analyze_btn.click()
-                page.wait_for_timeout(3000)
+                page.wait_for_selector("body", timeout=DEFAULT_TIMEOUT)
             # Should show some feedback — error, warning, or "0" events
             body = page.text_content("body")
             assert ("error" in body.lower()
