@@ -14,9 +14,12 @@ from typing import IO
 
 from .base import LogFormat
 from .crio import CRIOFormat
+from .enonic import EnonicFormat
 from .json_log import JSONFormat
 from .log4j import Log4jFormat
 from .nginx import NginxFormat
+from .python_log import PythonFormat
+from .syslog import SyslogFormat
 from .was import WASFormat
 
 # --- Registry ---
@@ -27,6 +30,9 @@ _FORMATS: list[LogFormat] = [
     NginxFormat(),
     Log4jFormat(),
     CRIOFormat(),
+    PythonFormat(),
+    SyslogFormat(),
+    EnonicFormat(),
 ]
 
 _FORMAT_MAP: dict[str, LogFormat] = {f.name: f for f in _FORMATS}
