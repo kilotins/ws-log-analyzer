@@ -14,7 +14,7 @@ from .parser import WAS_CODE_RE
 MAX_SKILLS = 3
 
 CLAUDE_SYSTEM_PROMPT = "\n".join([
-    "You are a senior Java/WebSphere operations engineer helping a user troubleshoot.",
+    "You are a senior operations engineer helping a user troubleshoot application logs.",
     "Answer concisely. Structure your response as:",
     "1. **What this usually means**",
     "2. **Most likely causes**",

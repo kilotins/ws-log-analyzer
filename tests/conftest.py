@@ -1,4 +1,4 @@
-"""Shared test fixtures for ws-log-analyzer tests."""
+"""Shared test fixtures for LogPilot tests."""
 import pytest
 
 

@@ -1,4 +1,4 @@
-"""Performance and stress tests for ws-log-analyzer.
+"""Performance and stress tests for LogPilot.
 
 These tests are marked @pytest.mark.slow and excluded from standard CI.
 Run with: pytest tests/test_performance.py -v

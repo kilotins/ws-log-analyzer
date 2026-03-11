@@ -729,7 +729,7 @@ def render_html(md_text: str, title: str = "Audit Report") -> str:
 <div class="layout">
 <nav>
   <div class="nav-title">Audit Report</div>
-  <div class="nav-subtitle">WS Log Analyzer &middot; {timestamp}</div>
+  <div class="nav-subtitle">LogPilot &middot; {timestamp}</div>
   <div class="search-box">
     <input type="text" id="report-search" placeholder="Search report..." autocomplete="off">
     <div class="search-count"></div>
