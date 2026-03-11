@@ -13,7 +13,10 @@ from pathlib import Path
 from typing import IO
 
 from .base import LogFormat
+from .crio import CRIOFormat
 from .json_log import JSONFormat
+from .log4j import Log4jFormat
+from .nginx import NginxFormat
 from .was import WASFormat
 
 # --- Registry ---
@@ -21,6 +24,9 @@ from .was import WASFormat
 _FORMATS: list[LogFormat] = [
     WASFormat(),
     JSONFormat(),
+    NginxFormat(),
+    Log4jFormat(),
+    CRIOFormat(),
 ]
 
 _FORMAT_MAP: dict[str, LogFormat] = {f.name: f for f in _FORMATS}
