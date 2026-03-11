@@ -2549,21 +2549,24 @@ def test_sanitize_strips_tags_with_attributes():
 # ── estimate_tokens() ────────────────────────────────────────────────
 
 def test_estimate_tokens_empty_string():
-    """Empty string returns 0 tokens."""
-    assert estimate_tokens("") == 0
+    """Empty string returns minimum 1 token."""
+    assert estimate_tokens("") == 1
 
 
 def test_estimate_tokens_short_string():
-    """"hello" (5 chars) returns 5 // 4 = 1."""
+    """"hello" (5 chars) with default claude ratio (3.5) = 1."""
     assert estimate_tokens("hello") == 1
 
 
 def test_estimate_tokens_longer_string():
-    """Longer strings return len // 4."""
+    """Longer strings use provider-specific ratios."""
     text = "a" * 100
-    assert estimate_tokens(text) == 25
-    text2 = "x" * 17
-    assert estimate_tokens(text2) == 4  # 17 // 4 = 4
+    # Default (claude): 100 / 3.5 = 28
+    assert estimate_tokens(text) == 28
+    # OpenAI: 100 / 4.0 = 25
+    assert estimate_tokens(text, provider="openai") == 25
+    # Gemini: 100 / 4.0 = 25
+    assert estimate_tokens(text, provider="gemini") == 25
 
 
 # ── _load_heuristics_from_yaml() ─────────────────────────────────────
