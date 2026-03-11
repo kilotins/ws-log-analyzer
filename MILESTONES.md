@@ -404,11 +404,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 28.1 | Implementera `JSONFormat` — detectar JSON-rader, extraherar `level`/`msg`/`timestamp`/`error`/`stack_trace` med flexibla fältnamn | `logpilot/formats/json_log.py` | [ ] |
-| 28.2 | Stöd vanliga JSON-logg-bibliotek — Bunyan, Pino, structlog, loguru, zap, Winston (mappa deras fältnamn) | `logpilot/formats/json_log.py` | [ ] |
-| 28.3 | Docker/K8s JSON-loggar — hantera `{"log":"...","stream":"stderr","time":"..."}` wrapper-format | `logpilot/formats/json_log.py` | [ ] |
-| 28.4 | Heuristiker för JSON-loggar — t.ex. connection refused, timeout, OOM i JSON-meddelanden | `heuristics.yaml` | [ ] |
-| 28.5 | Tester — detect, parse, multi-format filer, nästlade JSON, trasiga rader | `tests/test_format_json.py` | [ ] |
+| 28.1 | Implementera `JSONFormat` — detectar JSON-rader, extraherar `level`/`msg`/`timestamp`/`error`/`stack_trace` med flexibla fältnamn | `logpilot/formats/json_log.py` | [x] |
+| 28.2 | Stöd vanliga JSON-logg-bibliotek — Bunyan, Pino, structlog, loguru, zap, Winston (mappa deras fältnamn) | `logpilot/formats/json_log.py` | [x] |
+| 28.3 | Docker/K8s JSON-loggar — hantera `{"log":"...","stream":"stderr","time":"..."}` wrapper-format | `logpilot/formats/json_log.py` | [x] |
+| 28.4 | Heuristiker för JSON-loggar — t.ex. connection refused, timeout, OOM i JSON-meddelanden | `heuristics.yaml` | [x] |
+| 28.5 | Tester — detect, parse, multi-format filer, nästlade JSON, trasiga rader | `tests/test_format_json.py` | [x] |
 
 **Acceptance**: JSON-loggar från Docker, structlog, Bunyan, zap detectas och parsas automatiskt. Trasiga JSON-rader hanteras gracefully.
 
@@ -615,7 +615,7 @@
 | 25 — Typsäkerhet & wslog.py modularisering | 5 | 5 | Done |
 | 26 — Rebranding: LogPilot | 5 | 5 | Done |
 | 27 — Pluggbar parser-arkitektur | 5 | 5 | Done |
-| 28 — JSON structured logs | 5 | 0 | Not started |
+| 28 — JSON structured logs | 5 | 5 | Done |
 | 29 — nginx / Apache access & error logs | 5 | 0 | Not started |
 | 30 — Log4j/Logback (Spring Boot, Enonic) | 5 | 0 | Not started |
 | 31 — Python logging (Django/Flask) | 5 | 0 | Not started |

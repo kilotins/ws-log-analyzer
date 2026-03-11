@@ -13,12 +13,14 @@ from pathlib import Path
 from typing import IO
 
 from .base import LogFormat
+from .json_log import JSONFormat
 from .was import WASFormat
 
 # --- Registry ---
 # New formats are registered here. Order doesn't matter — detect() scores decide.
 _FORMATS: list[LogFormat] = [
     WASFormat(),
+    JSONFormat(),
 ]
 
 _FORMAT_MAP: dict[str, LogFormat] = {f.name: f for f in _FORMATS}
