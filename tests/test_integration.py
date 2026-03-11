@@ -6,7 +6,7 @@ import pytest
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from wslog import (
+from logpilot import (
     parse_file, precompute_analysis, render_markdown_report,
     render_json_report, render_csv_report, render_xml_report,
     incident_timeline, summarize,

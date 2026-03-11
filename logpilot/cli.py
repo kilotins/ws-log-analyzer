@@ -1,4 +1,4 @@
-"""CLI entry point for wslog."""
+"""CLI entry point for logpilot."""
 from __future__ import annotations
 
 import argparse
@@ -14,7 +14,7 @@ from .ai import build_claude_prompt, _sanitize_prompt_input
 
 def main() -> None:
     """CLI entry point: parse log files, generate triage report."""
-    ap = argparse.ArgumentParser(description="WebSphere/Java log analyzer (quick triage).")
+    ap = argparse.ArgumentParser(description="LogPilot — WebSphere/Java log analyzer (quick triage).")
     ap.add_argument("paths", nargs="+", help="Log files (supports .gz). Globs allowed by shell.")
     ap.add_argument("--max-lines", type=int, default=None, help="Limit lines per file (speed/safety).")
     ap.add_argument("--top", type=int, default=10, help="Top-N items in summary.")

@@ -79,9 +79,9 @@ def _click_analyze(page):
 
 class TestAppLoads:
     def test_title_visible(self, page):
-        assert page.title() == "WS Log Analyzer"
+        assert page.title() == "LogPilot"
         heading = page.locator("h1").first
-        assert "WebSphere Log Analyzer" in heading.text_content()
+        assert "LogPilot" in heading.text_content()
 
     def test_file_uploader_visible(self, page):
         uploader = page.get_by_text("Upload WebSphere log file")
@@ -217,52 +217,6 @@ class TestIncidentTimeline:
                page.get_by_text("first error", exact=False).first.count() > 0
 
 
-class TestSwedishChefMode:
-    """Swedish Chef mode is activated by selecting 'Swedish Chef' from the AI model dropdown."""
-
-    def _select_chef_model(self, page):
-        """Select Swedish Chef from the AI model dropdown."""
-        # The model dropdown is inside the "Ask AI for help" expander
-        page.wait_for_selector("text=Ask AI for help", timeout=DEFAULT_TIMEOUT)
-        # Find the AI Model selectbox and change it
-        selectbox = page.locator('[data-testid="stSelectbox"]').first
-        selectbox.click()
-        page.wait_for_timeout(300)
-        # Select "Swedish Chef" from the dropdown options
-        page.get_by_text("Swedish Chef (fun mode)", exact=True).click()
-        page.wait_for_timeout(1000)
-
-    def test_chef_model_in_dropdown(self, page):
-        _upload_file(page)
-        _click_analyze(page)
-        page.wait_for_selector("text=Ask AI for help", timeout=DEFAULT_TIMEOUT)
-        # Open the model dropdown
-        selectbox = page.locator('[data-testid="stSelectbox"]').first
-        selectbox.click()
-        page.wait_for_timeout(300)
-        # Verify Swedish Chef option exists
-        chef_option = page.get_by_text("Swedish Chef (fun mode)", exact=True)
-        assert chef_option.count() > 0
-
-    def test_chef_mode_activates(self, page):
-        _upload_file(page)
-        _click_analyze(page)
-        self._select_chef_model(page)
-        # After selecting Chef model, the page should show Chef-related content
-        body = page.text_content("body")
-        assert "Swedish Chef" in body or "Chef" in body
-
-    def test_chef_mode_shows_chef_image(self, page):
-        _upload_file(page)
-        _click_analyze(page)
-        self._select_chef_model(page)
-        page.wait_for_timeout(1000)
-        # Check if the clickable chef image appears
-        body = page.text_content("body")
-        # Chef mode should activate some Chef-related UI elements
-        assert "Chef" in body
-
-
 class TestRealtimeMonitoring:
     def test_realtime_console_tab_exists(self, page):
         tab = page.get_by_role("tab", name="Realtime Console")
@@ -334,7 +288,7 @@ class TestErrorFlows:
             # The uploader may reject or accept; either way the app should not crash
             body = page.text_content("body")
             # Page should still have the main heading (not crashed)
-            assert "WebSphere Log Analyzer" in body
+            assert "LogPilot" in body
         finally:
             Path(jpg_path).unlink(missing_ok=True)
 
@@ -364,4 +318,4 @@ class TestApiSectionNoKey:
         buttons = page.locator('button:has-text("Analyze")')
         assert buttons.count() >= 1
         # Page should not crash
-        assert "WebSphere Log Analyzer" in page.text_content("body")
+        assert "LogPilot" in page.text_content("body")

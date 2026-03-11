@@ -9,7 +9,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, os.path.dirname(__file__))
 
-from wslog import (
+from logpilot import (
     parse_file, summarize, pick_samples, time_histogram, render_histogram,
     per_file_summary, render_markdown_report, render_json_report,
     render_pdf_report, render_csv_report, render_xml_report,
@@ -170,7 +170,7 @@ def test_per_file_summary_multi(tmp_path):
 def test_json_output(sample_log, tmp_path):
     out = tmp_path / "report.json"
     result = subprocess.run(
-        [sys.executable, "-m", "wslog", str(sample_log), "--format", "json", "--out", str(out)],
+        [sys.executable, "-m", "logpilot", str(sample_log), "--format", "json", "--out", str(out)],
         capture_output=True, text=True,
         cwd=os.path.dirname(os.path.dirname(__file__)),
     )
@@ -191,7 +191,7 @@ def test_json_output(sample_log, tmp_path):
 
 def test_render_markdown_report(sample_events):
     report = render_markdown_report(sample_events, top_n=5, samples_n=3, hist_minutes=1)
-    assert "# WebSphere/Java Log Triage Report" in report
+    assert "# LogPilot Triage Report" in report
     assert "Parsed events: 5" in report
     assert "## Top Levels" in report
     assert "## Top WebSphere/Liberty Codes" in report

@@ -8,12 +8,12 @@ instructions: |
 
   ## Architecture
 
-  All logic lives in `wslog.py`. Three layers:
+  All logic lives in the `logpilot/` package. Three layers:
   1. **Regex layer** (module-level compiled patterns) — timestamp, level, codes, exceptions, signals
   2. **Parsing layer** (`parse_file()`) — splits log into events, classifies each
   3. **Reporting layer** (`summarize()`, `render_*_report()`) — aggregates and formats
 
-  `app.py` is a thin Streamlit UI that only imports from `wslog.py`. Never add logic to `app.py`.
+  `app.py` is a thin Streamlit UI that only imports from `logpilot`. Never add logic to `app.py`.
 
   ## Event Boundary Heuristic
 

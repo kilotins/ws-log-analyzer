@@ -2,7 +2,7 @@
 
 ## Prompt Structure
 
-All prompts are built in `wslog.py` via `build_claude_prompt()`. The system prompt
+All prompts are built in `logpilot/ai.py` via `build_claude_prompt()`. The system prompt
 enforces a 5-section response structure:
 
 1. **What this usually means**
@@ -10,9 +10,6 @@ enforces a 5-section response structure:
 3. **What to check next**
 4. **Suggested Splunk searches** (each in its own ```spl block)
 5. **Confidence / limitations**
-
-Optional style modifiers (e.g., `SWEDISH_CHEF_STYLE`) are appended to the system prompt
-via the `style=` parameter. Never modify the base `CLAUDE_SYSTEM_PROMPT` for style changes.
 
 ## Security (Prompt Injection Protection)
 
@@ -38,8 +35,6 @@ Two cache layers:
 
 On file cache hit, promote to session cache. File cache survives new analyses;
 session state resets. "Clear Claude cache" button clears both.
-
-Swedish Chef mode appends `:swedish_chef` to the cache key.
 
 ## API Call Pattern
 

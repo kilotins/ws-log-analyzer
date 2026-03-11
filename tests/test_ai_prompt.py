@@ -6,7 +6,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, os.path.dirname(__file__))
 
-from wslog import (
+from logpilot import (
     match_user_query, build_claude_prompt, claude_cache_key,
     _truncate_event_text, _sanitize_prompt_input,
     select_skills, load_skill_content, MAX_SKILLS,
@@ -164,7 +164,7 @@ def test_truncate_event_text_long():
 
 def test_prompt_uses_already_redacted_text(tmp_path):
     """Events from parse_file are redacted; prompt should contain redacted text."""
-    from wslog import parse_file
+    from logpilot import parse_file
     log = tmp_path / "secret.log"
     log.write_text("[10/12/15 21:22:04:257 CEST] 00000001 Comp E   ERR0001E: password=s3cret123\n")
     events = parse_file(log)
@@ -273,7 +273,7 @@ def test_claude_cache_key_no_secrets():
 
 def test_ask_gemini_accepts_system_parameter():
     """ask_gemini signature accepts separate system and prompt parameters."""
-    from wslog import ask_gemini
+    from logpilot import ask_gemini
     sig = inspect.signature(ask_gemini)
     assert "system" in sig.parameters
     assert "prompt" in sig.parameters
@@ -616,7 +616,7 @@ def test_estimate_tokens_longer_string():
 
 def test_ask_gemini_raises_without_key(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    from wslog import ask_gemini
+    from logpilot import ask_gemini
     with pytest.raises(ValueError, match="GEMINI_API_KEY"):
         ask_gemini("test", api_key="")
 
@@ -629,7 +629,7 @@ def test_ask_gemini_raises_import_error(monkeypatch):
             raise ImportError("mock")
         return real_import(name, *args, **kwargs)
     monkeypatch.setattr(builtins, "__import__", mock_import)
-    from wslog import ask_gemini
+    from logpilot import ask_gemini
     with pytest.raises(ImportError, match="google-generativeai"):
         ask_gemini("test", api_key="fake-key")
 
@@ -659,7 +659,7 @@ def test_ask_gemini_calls_api_correctly(monkeypatch):
     monkeypatch.setitem(sys.modules, "google", mock_google)
     monkeypatch.setitem(sys.modules, "google.generativeai", mock_genai)
 
-    from wslog import ask_gemini
+    from logpilot import ask_gemini
     result = ask_gemini("hello world", api_key="test-key", system="be helpful")
 
     assert result == "mock response"
@@ -694,7 +694,7 @@ def test_ask_gemini_no_system_instruction(monkeypatch):
     monkeypatch.setitem(sys.modules, "google", mock_google)
     monkeypatch.setitem(sys.modules, "google.generativeai", mock_genai)
 
-    from wslog import ask_gemini
+    from logpilot import ask_gemini
     ask_gemini("test", api_key="key", system="")
 
     assert "system_instruction" not in calls["model_kwargs"]
@@ -706,7 +706,7 @@ def test_ask_gemini_no_system_instruction(monkeypatch):
 def test_ask_gemini_missing_key(monkeypatch):
     """ask_gemini raises ValueError when no API key is provided."""
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    from wslog import ask_gemini
+    from logpilot import ask_gemini
     with pytest.raises(ValueError):
         ask_gemini("test", api_key="", system="")
 
@@ -722,7 +722,7 @@ def test_ask_gemini_import_error(monkeypatch):
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", mock_import)
-    from wslog import ask_gemini
+    from logpilot import ask_gemini
     with pytest.raises(ImportError, match="google-generativeai"):
         ask_gemini("test", api_key="fake-key", system="")
 
@@ -770,6 +770,6 @@ def test_select_skills_filters_nonexistent():
     match_result = {"tags": ["OOM/GC"], "codes": [], "exceptions": []}
     skills = select_skills(match_result)
     # All returned skills should actually exist
-    from wslog import _SKILLS_DIR
+    from logpilot import _SKILLS_DIR
     for s in skills:
         assert (_SKILLS_DIR / s).is_file(), f"Returned skill does not exist: {s}"

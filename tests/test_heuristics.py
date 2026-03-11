@@ -7,7 +7,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, os.path.dirname(__file__))
 
-from wslog import (
+from logpilot import (
     parse_file, likely_causes, suggested_splunk_queries,
     hung_thread_drilldown, _extract_hung_thread_name, _extract_stack_sample,
     render_markdown_report, render_json_report,
@@ -251,7 +251,7 @@ def test_multi_file_cli_output(sample_log, second_log, tmp_path):
     import subprocess
     out = tmp_path / "report.md"
     result = subprocess.run(
-        [sys.executable, "-m", "wslog", str(sample_log), str(second_log), "--out", str(out)],
+        [sys.executable, "-m", "logpilot", str(sample_log), str(second_log), "--out", str(out)],
         capture_output=True, text=True,
         cwd=os.path.dirname(os.path.dirname(__file__)),
     )

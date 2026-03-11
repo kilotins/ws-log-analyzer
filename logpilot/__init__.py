@@ -1,7 +1,7 @@
-"""WS Log Analyzer — WebSphere/Java log parsing and triage.
+"""LogPilot — WebSphere/Java log parsing and triage.
 
 This package re-exports all public symbols for backwards compatibility.
-Usage: ``from wslog import parse_file, render_markdown_report``
+Usage: ``from logpilot import parse_file, render_markdown_report``
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ from .reports import (
 # --- ai ---
 from .ai import (
     match_user_query, _truncate_event_text, _sanitize_prompt_input,
-    CLAUDE_SYSTEM_PROMPT, SWEDISH_CHEF_STYLE,
+    CLAUDE_SYSTEM_PROMPT,
     _SKILLS_DIR, _SKILL_TAG_MAP, _SKILL_CODE_PREFIX_MAP,
     _SKILL_EXCEPTION_MAP, _SKILL_QUERY_KEYWORDS,
     _discover_skills, select_skills, load_skill_content,
@@ -69,7 +69,7 @@ __all__ = [
     "render_json_report", "render_markdown_report",
     "render_csv_report", "render_xml_report", "render_pdf_report",
     # ai
-    "match_user_query", "CLAUDE_SYSTEM_PROMPT", "SWEDISH_CHEF_STYLE",
+    "match_user_query", "CLAUDE_SYSTEM_PROMPT",
     "select_skills", "load_skill_content", "build_claude_prompt",
     "TOKEN_LIMITS", "estimate_tokens", "claude_cache_key", "ask_gemini",
     "MAX_SKILLS",

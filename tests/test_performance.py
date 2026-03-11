@@ -12,7 +12,7 @@ import pytest
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from wslog import parse_file, parse_file_iter, precompute_analysis, redact
+from logpilot import parse_file, parse_file_iter, precompute_analysis, redact
 
 
 def _generate_log_lines(n_events: int) -> str:

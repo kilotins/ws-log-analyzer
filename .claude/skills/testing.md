@@ -13,7 +13,7 @@
 - Test regexes directly for pattern matching
 - Use `parse_file()` for integration tests
 - Every new signal tag needs a `test_bucket_tags_*` test
-- Every new function in `wslog.py` needs tests
+- Every new function in the `logpilot/` package needs tests
 
 Current count: 392+ tests.
 

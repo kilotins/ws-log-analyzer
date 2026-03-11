@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import IO, Any
 
-_log = logging.getLogger("wslog")
+_log = logging.getLogger("logpilot")
 
 # --- Constants ---
 MAX_EVENT_TEXT = 4000  # Max characters of event text in reports

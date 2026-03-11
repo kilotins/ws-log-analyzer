@@ -1,14 +1,14 @@
-# Streamlit UI Patterns for WS Log Analyzer
+# Streamlit UI Patterns for LogPilot
 
 ## Architecture
 
-`app.py` is the Streamlit GUI. It is a thin UI layer that imports all logic from `wslog.py`.
+`app.py` is the Streamlit GUI. It is a thin UI layer that imports all logic from `logpilot`.
 Never add parsing, analysis, or prompt-building logic to `app.py`.
 
 ## Session State Conventions
 
 - All state keys are defined in `_STATE_DEFAULTS` dict at the top of `app.py`
-- Use `snake_case` for all keys: `claude_answer`, `rt_enabled`, `swedish_chef`
+- Use `snake_case` for all keys: `claude_answer`, `rt_enabled`
 - Initialize with `for key, default in _STATE_DEFAULTS.items()` loop
 - Never access a session state key without first ensuring it has a default
 
@@ -58,7 +58,6 @@ Set explicit `height=` to avoid iframe sizing issues.
 
 ```
 app.py          — All Streamlit UI code
-assets/chef/    — Swedish Chef sound clips and image
 logs/app.log    — Rotating application log (gitignored)
 cache/          — Claude response cache (gitignored)
 reports/        — Generated reports (gitignored)
