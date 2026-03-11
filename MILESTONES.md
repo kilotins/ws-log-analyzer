@@ -421,11 +421,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 29.1 | Implementera `NginxFormat` — Combined Log Format (CLF), detecta access-loggar (`"GET /path HTTP/1.1" 200`). Täcker även Apache CLF och Jetty NCSA. | `logpilot/formats/nginx.py` | [ ] |
-| 29.2 | Nginx error log-stöd — `YYYY/MM/DD HH:MM:SS [level] pid#tid: *cid message` + Apache ErrorLog format | `logpilot/formats/nginx.py` | [ ] |
-| 29.3 | HTTP-analys — top endpoints, statuskoder (4xx/5xx breakdown), response times, upstream errors | `logpilot/formats/nginx.py` | [ ] |
-| 29.4 | Heuristiker — 502 bad gateway, 499 client closed, upstream timeout, rate limiting (429), Apache mod_security | `heuristics.yaml` | [ ] |
-| 29.5 | Tester — nginx access, nginx error, Apache combined, Apache error, Jetty NCSA, custom log_format | `tests/test_format_nginx.py` | [ ] |
+| 29.1 | Implementera `NginxFormat` — Combined Log Format (CLF), detecta access-loggar (`"GET /path HTTP/1.1" 200`). Täcker även Apache CLF och Jetty NCSA. | `logpilot/formats/nginx.py` | [x] |
+| 29.2 | Nginx error log-stöd — `YYYY/MM/DD HH:MM:SS [level] pid#tid: *cid message` + Apache ErrorLog format | `logpilot/formats/nginx.py` | [x] |
+| 29.3 | HTTP-analys — top endpoints, statuskoder (4xx/5xx breakdown), response times, upstream errors | `logpilot/formats/nginx.py` | [x] |
+| 29.4 | Heuristiker — 502 bad gateway, 499 client closed, upstream timeout, rate limiting (429), Apache mod_security | `heuristics.yaml` | [x] |
+| 29.5 | Tester — nginx access, nginx error, Apache combined, Apache error, Jetty NCSA, custom log_format | `tests/test_format_nginx.py` | [x] |
 
 **Acceptance**: nginx/Apache/Jetty access+error loggar detectas och parsas. Rapport visar top endpoints, statuskoder, och upstream-problem.
 
@@ -438,11 +438,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 30.1 | Implementera `Log4jFormat` — detecta `%d{ISO8601} %-5level [%thread] %logger - %msg`, vanliga layouter | `logpilot/formats/log4j.py` | [ ] |
-| 30.2 | Spring Boot-specifikt — Actuator health, startup-timing, bean creation errors, auto-config failures | `logpilot/formats/log4j.py` | [ ] |
-| 30.3 | Stacktrace-hantering — återanvänd befintlig `STACK_LINE_RE`/`CAUSED_BY_RE` från base, MDC-kontext | `logpilot/formats/log4j.py` | [ ] |
-| 30.4 | Heuristiker — Spring context failure, Hibernate errors, connection pool exhaustion, bean circular deps | `heuristics.yaml` | [ ] |
-| 30.5 | Tester — Log4j default, Logback, Spring Boot, Kafka broker logs | `tests/test_format_log4j.py` | [ ] |
+| 30.1 | Implementera `Log4jFormat` — detecta `%d{ISO8601} %-5level [%thread] %logger - %msg`, vanliga layouter | `logpilot/formats/log4j.py` | [x] |
+| 30.2 | Spring Boot-specifikt — Actuator health, startup-timing, bean creation errors, auto-config failures | `logpilot/formats/log4j.py` | [x] |
+| 30.3 | Stacktrace-hantering — återanvänd befintlig `STACK_LINE_RE`/`CAUSED_BY_RE` från base, MDC-kontext | `logpilot/formats/log4j.py` | [x] |
+| 30.4 | Heuristiker — Spring context failure, Hibernate errors, connection pool exhaustion, bean circular deps | `heuristics.yaml` | [x] |
+| 30.5 | Tester — Log4j default, Logback, Spring Boot, Kafka broker logs | `tests/test_format_log4j.py` | [x] |
 
 **Acceptance**: Log4j/Logback-loggar detectas automatiskt. Spring Boot-specifika problem identifieras. Befintliga Java-stacktrace-funktioner återanvänds.
 
@@ -540,11 +540,11 @@
 
 | # | Task | File(s) | Status |
 |---|------|---------|--------|
-| 36.1 | Implementera `CRIOFormat` — detecta CRI-O container log format (`timestamp stream flag message`), hantera partiella rader (`P` flag) | `logpilot/formats/crio.py` | [ ] |
-| 36.2 | Kubernetes metadata-envelope — parsa forwarded logs med `kubernetes.namespace_name`, `pod_name`, `container_name`, `labels` | `logpilot/formats/crio.py` | [ ] |
-| 36.3 | klog-format — parsa Go/Kubernetes operator-loggar (`[IWEF]MMDD HH:MM:SS.ffffff pid file:line] message`) | `logpilot/formats/crio.py` | [ ] |
-| 36.4 | K8s/OpenShift-heuristiker — CrashLoopBackOff, OOMKilled, ImagePullBackOff, FailedMount, route 503, HAProxy errors | `heuristics.yaml` | [ ] |
-| 36.5 | Tester — CRI-O format, partiella rader, klog, K8s metadata envelope, pod lifecycle errors | `tests/test_format_k8s.py` | [ ] |
+| 36.1 | Implementera `CRIOFormat` — detecta CRI-O container log format (`timestamp stream flag message`), hantera partiella rader (`P` flag) | `logpilot/formats/crio.py` | [x] |
+| 36.2 | Kubernetes metadata-envelope — parsa forwarded logs med `kubernetes.namespace_name`, `pod_name`, `container_name`, `labels` | `logpilot/formats/crio.py` | [x] |
+| 36.3 | klog-format — parsa Go/Kubernetes operator-loggar (`[IWEF]MMDD HH:MM:SS.ffffff pid file:line] message`) | `logpilot/formats/crio.py` | [x] |
+| 36.4 | K8s/OpenShift-heuristiker — CrashLoopBackOff, OOMKilled, ImagePullBackOff, FailedMount, route 503, HAProxy errors | `heuristics.yaml` | [x] |
+| 36.5 | Tester — CRI-O format, partiella rader, klog, K8s metadata envelope, pod lifecycle errors | `tests/test_format_k8s.py` | [x] |
 
 **Acceptance**: CRI-O container-loggar, klog operator-loggar och Kubernetes metadata-envelopes parsas. Pod lifecycle-problem (CrashLoop, OOM, scheduling) identifieras.
 
