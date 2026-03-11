@@ -677,6 +677,31 @@ with tab_analyze:
 
     a = st.session_state.analysis
     if a is not None:
+        # Re-compute analysis if display parameters changed
+        _params_changed = (
+            a.get("top_n") != top_n
+            or a.get("samples_n") != samples_n
+            or a.get("hist_minutes") != hist_minutes
+        )
+        if _params_changed and a.get("events"):
+            _events = a["events"]
+            _pa = precompute_analysis(_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+            _report_md = render_markdown_report(_events, _analysis=_pa)
+            _report_json = render_json_report(_events, _analysis=_pa)
+            a.update({
+                "summary": _pa["summary"],
+                "file_summary": _pa["file_summary"],
+                "causes": _pa["causes"],
+                "hist": _pa["hist"],
+                "splunk": _pa["splunk"],
+                "hung": _pa["hung"],
+                "samples": _pa["samples"],
+                "report_md": _report_md,
+                "report_json": _report_json,
+                "top_n": top_n,
+                "samples_n": samples_n,
+                "hist_minutes": hist_minutes,
+            })
         render_report_sections(a, log=log, lookup_cache=_lookup_cache, store_cache=_store_cache)
     elif not uploaded_files:
         st.info("Upload one or more log files (.log or .gz) above, then click **Analyze** to generate a triage report.")
