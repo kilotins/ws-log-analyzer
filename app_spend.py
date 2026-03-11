@@ -585,6 +585,8 @@ def _render_cost_donut(totals: dict):
 
 def _import_local_csv(content: str) -> list[dict]:
     """Import local spend entries from a previously exported CSV."""
+    if not isinstance(content, str):
+        return []
     reader = csv.DictReader(io.StringIO(content))
     entries = []
     for row in reader:
