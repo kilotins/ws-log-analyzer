@@ -352,7 +352,7 @@ st.markdown('''<div class="logpilot-header">
     </svg>
     <div>
         <div class="title">Log<span>Pilot</span></div>
-        <div style="font-size:0.7rem;color:#64748B;letter-spacing:0.05em;margin-top:-2px">AI-Log Intelligence Platform</div>
+        <div style="font-size:0.7rem;color:#64748B;letter-spacing:0.05em;margin-top:-2px">Log Intelligence Ai-Platform</div>
     </div>
 </div>''', unsafe_allow_html=True)
 
