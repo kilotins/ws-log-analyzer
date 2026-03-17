@@ -337,8 +337,6 @@ def render_cross_system_timeline(events: list[dict], cascades: list[dict] | None
     if not timed or len(sources) < 2:
         return
 
-    st.subheader("Cross-System Timeline")
-
     severity_order = ["FATAL", "SEVERE", "ERROR", "WARNING", "WARN", "INFO", "AUDIT", "DEBUG", "UNKNOWN"]
     severity_colors = {
         "FATAL": "#DC2626", "SEVERE": "#DC2626", "ERROR": "#EF4444",
@@ -703,8 +701,9 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     # --- 5. Cross-System Timeline (multi-source only) ---
     _sources = set(e.get("system_label", "") for e in display_events)
     if len(_sources) >= 2:
-        cascades = a.get("cascades", [])
-        render_cross_system_timeline(display_events, cascades)
+        with st.expander(f"Cross-System Timeline ({len(_sources)} sources)"):
+            cascades = a.get("cascades", [])
+            render_cross_system_timeline(display_events, cascades)
 
     # --- 6. Incident Timeline ---
     itl_label = "Incident Timeline"
