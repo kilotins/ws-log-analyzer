@@ -652,11 +652,19 @@ with tab_analyze:
                 try:
                     _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
                     events = parse_file(upload_path, max_lines=max_lines, format_name=_fmt_name)
+                    # Add system label (filename stem without timestamp prefix)
+                    _stem = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
+                    for ev in events:
+                        ev["system_label"] = _stem
                     all_events.extend(events)
                     log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
                 except Exception as ex:
                     log.error("analysis Failed to parse %s: %s", uploaded.name, ex)
                     st.error(f"Failed to parse {uploaded.name}: {ex}")
+
+        # Sort all events chronologically across files
+        from logpilot.analysis import sort_events_chronologically
+        sort_events_chronologically(all_events)
 
         if not all_events:
             st.error("No log events found. Possible causes: files may be empty, contain no recognizable timestamps, or use an unsupported format.")
