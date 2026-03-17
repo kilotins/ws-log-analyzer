@@ -264,6 +264,9 @@ _STATE_DEFAULTS = {
     "rt_buffer": None,
     "_samples_show_all": False,
     "_samples_total": 0,
+    "_context_event_idx": -1,
+    "_triage_answer": None,
+    "_triage_model": None,
 }
 
 _EXPECTED_STATE_KEYS = set(_STATE_DEFAULTS.keys())
@@ -704,6 +707,7 @@ with tab_analyze:
                 "splunk": splunk,
                 "hung": hung,
                 "samples": samples,
+                "cascades": pa.get("cascades", []),
                 "incident_timeline": itl,
                 "total_events": len(all_events),
                 "report_md": report_md,

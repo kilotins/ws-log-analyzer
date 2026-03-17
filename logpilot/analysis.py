@@ -1341,6 +1341,104 @@ def _extract_stack_sample(text: str, max_lines: int = 5) -> list[str]:
     return lines
 
 
+# --- Cross-system cascade patterns ---
+_CASCADE_PATTERNS: list[dict[str, Any]] = [
+    {"upstream_tags": {"DB/Pool"}, "downstream_tags": {"HTTP"}, "max_delay_s": 30,
+     "label": "Database failure → HTTP errors"},
+    {"upstream_tags": {"SSL/TLS"}, "downstream_tags": {"HTTP"}, "max_delay_s": 10,
+     "label": "SSL failure → connection errors"},
+    {"upstream_tags": {"OOM/GC"}, "downstream_tags": {"HungThreads"}, "max_delay_s": 60,
+     "label": "Memory pressure → thread starvation"},
+    {"upstream_tags": {"OOM/GC"}, "downstream_tags": {"HTTP"}, "max_delay_s": 60,
+     "label": "Memory pressure → HTTP errors"},
+    {"upstream_tags": {"DB/Pool"}, "downstream_tags": {"HungThreads"}, "max_delay_s": 30,
+     "label": "Database exhaustion → hung threads"},
+    {"upstream_tags": {"HungThreads"}, "downstream_tags": {"HTTP"}, "max_delay_s": 15,
+     "label": "Hung threads → HTTP timeouts"},
+]
+
+
+def detect_cross_system_cascades(events: list[dict], max_delay_s: int = 60) -> list[dict[str, Any]]:
+    """Detect error cascades across different system sources.
+
+    Looks for temporal patterns where errors in one system are followed by
+    errors in another system within a time window, matching known cascade patterns.
+
+    Returns list of cascade dicts:
+        {pattern, upstream_event, downstream_events, delay_seconds, confidence}
+    """
+    # Need events sorted by ts_utc with at least 2 sources
+    error_events = [e for e in events if e.get("level") in ERROR_LEVELS and e.get("ts_utc")]
+    if len(error_events) < 2:
+        return []
+
+    sources = set(e.get("system_label", "") for e in error_events)
+    if len(sources) < 2:
+        return []
+
+    # Parse ts_utc to float for fast comparison
+    timed_errors: list[tuple[float, dict]] = []
+    for e in error_events:
+        try:
+            dt = datetime.fromisoformat(e["ts_utc"])
+            timed_errors.append((dt.timestamp(), e))
+        except (ValueError, TypeError):
+            continue
+
+    timed_errors.sort(key=lambda x: x[0])
+    cascades: list[dict[str, Any]] = []
+    seen_pairs: set[tuple[str, str, str]] = set()  # (pattern_label, upstream_source, downstream_source)
+
+    for i, (t_up, e_up) in enumerate(timed_errors):
+        up_tags = set(e_up.get("tags", []))
+        up_source = e_up.get("system_label", "")
+        if not up_tags:
+            continue
+
+        for pattern in _CASCADE_PATTERNS:
+            if not pattern["upstream_tags"] & up_tags:
+                continue
+
+            # Look for downstream events in other sources within the delay window
+            downstream = []
+            for j in range(i + 1, len(timed_errors)):
+                t_down, e_down = timed_errors[j]
+                delay = t_down - t_up
+                if delay > pattern["max_delay_s"]:
+                    break
+                if delay < 0:
+                    continue
+
+                down_source = e_down.get("system_label", "")
+                if down_source == up_source:
+                    continue  # Same source, not a cross-system cascade
+
+                down_tags = set(e_down.get("tags", []))
+                if pattern["downstream_tags"] & down_tags:
+                    downstream.append({"event": e_down, "delay_s": round(delay, 1)})
+
+            if downstream:
+                pair_key = (pattern["label"], up_source, downstream[0]["event"].get("system_label", ""))
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
+
+                confidence = min(0.9, 0.5 + 0.1 * len(downstream))
+                cascades.append({
+                    "pattern": pattern["label"],
+                    "upstream_event": e_up,
+                    "upstream_source": up_source,
+                    "downstream_events": downstream[:5],  # Limit to 5
+                    "downstream_source": downstream[0]["event"].get("system_label", ""),
+                    "delay_seconds": downstream[0]["delay_s"],
+                    "confidence": confidence,
+                })
+
+    # Sort by confidence descending
+    cascades.sort(key=lambda c: -c["confidence"])
+    return cascades[:10]  # Top 10 cascades
+
+
 def hung_thread_drilldown(events: list[dict]) -> list[dict[str, Any]]:
     """Analyze hung/stuck thread events. Returns list of thread info dicts sorted by count."""
     threads: dict[str, dict] = {}
@@ -1480,6 +1578,56 @@ def per_source_summary(events: list[dict]) -> list[dict[str, Any]]:
     return result
 
 
+def correlate_by_trace_id(events: list[dict]) -> dict[str, list[dict]]:
+    """Group events by shared trace/correlation IDs across sources.
+
+    Returns dict mapping trace_id -> list of events, only including
+    IDs that appear in events from 2+ different system_labels.
+    """
+    # Build trace_id -> events mapping
+    id_events: dict[str, list[dict]] = {}
+    for e in events:
+        for tid in e.get("trace_ids", []):
+            if tid not in id_events:
+                id_events[tid] = []
+            id_events[tid].append(e)
+
+    # Keep only cross-system correlations
+    cross_system: dict[str, list[dict]] = {}
+    for tid, evts in id_events.items():
+        sources = set(e.get("system_label", "") for e in evts)
+        if len(sources) >= 2:
+            # Sort by timestamp
+            cross_system[tid] = sorted(evts, key=lambda e: e.get("ts_utc") or "")
+
+    return cross_system
+
+
+def find_cross_system_chains(events: list[dict], max_chains: int = 10) -> list[dict]:
+    """Find request flows that span multiple systems via trace IDs.
+
+    Returns list of chain dicts:
+        {trace_id, systems, event_count, has_errors, events}
+    """
+    correlations = correlate_by_trace_id(events)
+
+    chains = []
+    for tid, evts in correlations.items():
+        systems = list(dict.fromkeys(e.get("system_label", "unknown") for e in evts))
+        has_errors = any(e.get("level") in ERROR_LEVELS for e in evts)
+        chains.append({
+            "trace_id": tid,
+            "systems": systems,
+            "event_count": len(evts),
+            "has_errors": has_errors,
+            "events": evts,
+        })
+
+    # Sort: errors first, then by event count
+    chains.sort(key=lambda c: (not c["has_errors"], -c["event_count"]))
+    return chains[:max_chains]
+
+
 def precompute_analysis(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1) -> dict[str, Any]:
     """Compute all shared analysis data once. Returns a dict."""
     s = summarize(events, top_n)
@@ -1489,6 +1637,7 @@ def precompute_analysis(events: list[dict], top_n: int = 10, samples_n: int = 5,
     causes = likely_causes(events)
     splunk = suggested_splunk_queries(s, causes, hist)
     hung = hung_thread_drilldown(events)
+    cascades = detect_cross_system_cascades(events)
     return {
         "summary": s,
         "samples": samples,
@@ -1497,4 +1646,5 @@ def precompute_analysis(events: list[dict], top_n: int = 10, samples_n: int = 5,
         "causes": causes,
         "splunk": splunk,
         "hung": hung,
+        "cascades": cascades,
     }

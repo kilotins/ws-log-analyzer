@@ -250,7 +250,16 @@ class JSONFormat:
 
         tags = self.bucket_tags(full_text)
 
-        return {
+        # Extract trace/correlation IDs from structured fields
+        trace_ids = []
+        for key in ("trace_id", "traceId", "request_id", "requestId",
+                     "correlation_id", "correlationId", "x-request-id",
+                     "span_id", "spanId"):
+            val = obj.get(key)
+            if val and isinstance(val, str):
+                trace_ids.append(val.lower())
+
+        result = {
             "level": level,
             "thread_id": thread_id,
             "code": code,
@@ -258,6 +267,9 @@ class JSONFormat:
             "root_cause": root_cause,
             "tags": sorted(tags),
         }
+        if trace_ids:
+            result["trace_ids"] = trace_ids
+        return result
 
     def _classify_text(self, text: str) -> dict[str, Any]:
         """Fallback text-based classification for non-JSON content."""

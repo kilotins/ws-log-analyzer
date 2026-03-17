@@ -57,6 +57,30 @@ DB_POOL_RE = re.compile(r'connection pool|J2CA|pool.*exhaust|Timeout waiting for
 SSL_RE = re.compile(r'SSLHandshakeException|handshake_failure|PKIX path building failed|unable to find valid certification path', re.IGNORECASE)
 HTTP_RE = re.compile(r'(?<![:/.])(?<!\d)\b(4\d\d|5\d\d)\b.*\b(HTTP|SRVE)\b|\b(HTTP|SRVE)\b.*(?<![:/.])(?<!\d)\b(4\d\d|5\d\d)\b', re.IGNORECASE)
 
+# Trace/correlation ID patterns
+TRACE_ID_PATTERNS = [
+    # UUID format: 8-4-4-4-12 hex
+    re.compile(r'(?:correlation[_-]?id|request[_-]?id|trace[_-]?id|x-request-id|x-correlation-id)["\s:=]+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', re.IGNORECASE),
+    # OpenTelemetry 32-char hex trace ID
+    re.compile(r'(?:trace[_-]?id)["\s:=]+([0-9a-f]{32})', re.IGNORECASE),
+    # Generic UUID in text (less specific, used as fallback)
+    re.compile(r'\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b', re.IGNORECASE),
+]
+
+
+def extract_trace_ids(text: str) -> list[str]:
+    """Extract trace/correlation IDs from event text. Returns deduplicated list."""
+    ids: list[str] = []
+    seen: set[str] = set()
+    for rx in TRACE_ID_PATTERNS:
+        for m in rx.finditer(text):
+            tid = m.group(1).lower()
+            if tid not in seen:
+                seen.add(tid)
+                ids.append(tid)
+    return ids
+
+
 # Secret redaction patterns
 SECRET_REPLACERS = [
     (re.compile(r'(?i)\b(authorization:\s*bearer)\s+[A-Za-z0-9._\-/+=]+'), r'\1 [REDACTED]'),
@@ -223,6 +247,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
         meta["text"] = text
         meta["format"] = current_meta["format"]
         meta["tz_hint"] = current_meta.get("tz_hint")
+        meta["trace_ids"] = extract_trace_ids(text)
         return meta
 
     with open_text(path) as f:

@@ -803,3 +803,83 @@ def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
 
     # AI responses are rendered by render_ai_responses() outside the expander
     # to avoid scrolling issues with long content inside expanders.
+
+
+def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=None):
+    """Render the 'Analyze all logs' cross-system triage button."""
+    from logpilot.ai import build_cross_system_prompt, estimate_tokens
+    import time
+
+    events = a.get("events", [])
+    sources = set(e.get("system_label", "") for e in events)
+    if len(sources) < 2:
+        return  # Only for multi-source
+
+    st.subheader("AI Cross-System Triage")
+    st.caption(f"Analyze all {len(events)} events from {len(sources)} sources in one AI call.")
+
+    # Model selection
+    _model_col, _btn_col = st.columns([1, 1])
+    with _model_col:
+        _triage_model = st.selectbox(
+            "Model",
+            list(AI_MODELS.keys()),
+            key="triage_model",
+            label_visibility="collapsed",
+        )
+
+    with _btn_col:
+        _triage_clicked = st.button("Analyze All Logs", type="primary", key="triage_btn",
+                                    use_container_width=True)
+
+    # Show cached result if available
+    _triage_answer = st.session_state.get("_triage_answer")
+
+    if _triage_clicked:
+        model_info = AI_MODELS[_triage_model]
+        provider = model_info["provider"]
+        model_id = model_info["model_id"]
+
+        # Check API key
+        key_map = {"claude": "api_key", "gemini": "gemini_api_key", "openai": "openai_api_key"}
+        api_key = getattr(st.session_state, key_map.get(provider, "api_key"), "")
+
+        if provider in ("claude", "gemini", "openai") and not api_key:
+            st.error(f"No {provider} API key configured. Set it in the sidebar.")
+            return
+
+        prompt = build_cross_system_prompt(events)
+        est_tokens = estimate_tokens(prompt["system"] + prompt["user"])
+
+        with st.status(f"Running cross-system triage with {_triage_model}...", expanded=True) as status:
+            st.write(f"Estimated prompt: ~{est_tokens:,} tokens")
+
+            try:
+                if provider == "claude":
+                    answer, usage = call_claude_api(api_key, model_id, prompt)
+                elif provider == "gemini":
+                    answer, usage = call_gemini_api(api_key, model_id, prompt)
+                elif provider == "openai":
+                    answer, usage = call_openai_api(api_key, model_id, prompt)
+                else:
+                    st.error("Local AI not supported for cross-system triage yet.")
+                    return
+
+                st.session_state._triage_answer = answer
+                st.session_state._triage_model = _triage_model
+                _triage_answer = answer
+                status.update(label="Triage complete!", state="complete")
+
+                if log:
+                    log.info("triage Cross-system triage complete (%s)", model_id)
+            except Exception as ex:
+                status.update(label="Triage failed", state="error")
+                st.error(f"AI call failed: {ex}")
+                if log:
+                    log.error("triage Cross-system triage failed: %s", ex)
+                return
+
+    if _triage_answer:
+        _model_label = st.session_state.get("_triage_model", "AI")
+        st.markdown(f"**Cross-System Triage** ({_model_label}):")
+        st.markdown(_triage_answer)

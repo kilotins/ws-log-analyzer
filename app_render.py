@@ -297,7 +297,7 @@ _SEVERITY_ORDER = {"FATAL": 0, "SEVERE": 1, "ERROR": 2, "WARNING": 3, "WARN": 4,
                    "INFO": 5, "AUDIT": 6, "DEBUG": 7, "UNKNOWN": 8}
 
 
-def render_samples(samples):
+def render_samples(samples, all_events=None):
     """Render sample events sorted by severity, with pagination."""
     if not samples:
         st.caption("No events to display.")
@@ -337,12 +337,180 @@ def render_samples(samples):
         if parts:
             st.text("  " + " | ".join(parts))
         st.code(e["text"][:4000], language="text")
+        if all_events is not None and e.get("ts_utc"):
+            if st.button("Show context", key=f"ctx_sample_{idx}"):
+                try:
+                    ev_idx = all_events.index(e)
+                except ValueError:
+                    ev_idx = -1
+                st.session_state._context_event_idx = ev_idx
 
     # Show "Show all" button if there are more samples
     if total > _SAMPLES_PAGE_SIZE and not show_all:
         if st.button(f"Show all {total} samples", key="samples_show_all_btn"):
             st.session_state["_samples_show_all"] = True
             st.rerun()
+
+
+def render_cross_system_timeline(events: list[dict], cascades: list[dict] | None = None):
+    """Render a Plotly scatter timeline showing events from all sources, color-coded by severity."""
+    import plotly.graph_objects as go
+    from logpilot.analysis import parse_ts_datetime
+
+    # Filter to events with timestamps and multiple sources
+    timed = [e for e in events if e.get("ts_utc")]
+    sources = sorted(set(e.get("system_label", "unknown") for e in timed))
+
+    if not timed or len(sources) < 2:
+        return  # Only show for multi-source analysis
+
+    st.subheader("Cross-System Timeline")
+
+    # Color map for severity
+    severity_colors = {
+        "FATAL": "#DC2626", "ERROR": "#DC2626", "SEVERE": "#DC2626",
+        "WARNING": "#F59E0B", "WARN": "#F59E0B",
+        "INFO": "#6B7280", "DEBUG": "#9CA3AF",
+    }
+
+    fig = go.Figure()
+
+    # One trace per severity level for the legend
+    level_groups: dict[str, dict] = {}
+    for e in timed:
+        level = e.get("level") or "UNKNOWN"
+        display_level = level if level in severity_colors else "INFO"
+        if display_level not in level_groups:
+            level_groups[display_level] = {"x": [], "y": [], "text": [], "customdata": []}
+
+        level_groups[display_level]["x"].append(e["ts_utc"])
+        level_groups[display_level]["y"].append(e.get("system_label", "unknown"))
+
+        # Hover text
+        code = e.get("code") or ""
+        exc = e.get("exception") or ""
+        preview = (e.get("text") or "")[:120].replace("<", "&lt;")
+        hover = f"<b>{level}</b> {code} {exc}<br>{preview}"
+        level_groups[display_level]["text"].append(hover)
+        level_groups[display_level]["customdata"].append(events.index(e) if e in events else -1)
+
+    for level, data in level_groups.items():
+        color = severity_colors.get(level, "#6B7280")
+        fig.add_trace(go.Scatter(
+            x=data["x"], y=data["y"],
+            mode="markers",
+            marker=dict(size=8 if level in ("ERROR", "SEVERE", "FATAL") else 5,
+                       color=color, opacity=0.8),
+            name=level,
+            hovertemplate="%{text}<extra></extra>",
+            text=data["text"],
+            customdata=data["customdata"],
+        ))
+
+    # Add cascade arrows if available
+    if cascades:
+        for c in cascades[:5]:
+            up = c.get("upstream_event", {})
+            for de in c.get("downstream_events", [])[:2]:
+                down = de.get("event", {})
+                if up.get("ts_utc") and down.get("ts_utc"):
+                    fig.add_annotation(
+                        x=down["ts_utc"], y=down.get("system_label", ""),
+                        ax=up["ts_utc"], ay=up.get("system_label", ""),
+                        xref="x", yref="y", axref="x", ayref="y",
+                        showarrow=True, arrowhead=2, arrowsize=1.5,
+                        arrowcolor="#EF4444", arrowwidth=2, opacity=0.6,
+                    )
+
+    fig.update_layout(
+        height=max(250, 100 * len(sources)),
+        margin=dict(l=10, r=10, t=10, b=10),
+        xaxis_title="Time (UTC)",
+        yaxis=dict(categoryorder="array", categoryarray=list(reversed(sources))),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode="closest",
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_cascade_section(cascades: list[dict]):
+    """Render detected cross-system cascade chains."""
+    if not cascades:
+        return
+
+    st.subheader(f"Cross-System Cascades ({len(cascades)} detected)")
+    for i, c in enumerate(cascades):
+        conf_pct = int(c.get("confidence", 0) * 100)
+        with st.expander(
+            f"{c['pattern']} — {c['upstream_source']} → {c['downstream_source']} "
+            f"(+{c['delay_seconds']}s, {conf_pct}% confidence)",
+            expanded=(i == 0),
+        ):
+            # Upstream event
+            up = c.get("upstream_event", {})
+            st.markdown(f"**Upstream** ({c['upstream_source']}): `{up.get('code', '')}` "
+                       f"{up.get('exception', '')} — {(up.get('text', '')[:200])}")
+
+            # Downstream events
+            for de in c.get("downstream_events", []):
+                ev = de.get("event", {})
+                st.markdown(f"**→ Downstream** ({ev.get('system_label', '')}, +{de['delay_s']}s): "
+                           f"`{ev.get('code', '')}` {ev.get('exception', '')} — {(ev.get('text', '')[:200])}")
+
+
+def render_context_view(selected_idx: int, events: list[dict], window_seconds: int = 30):
+    """Show surrounding events from ALL sources around a selected event."""
+    if selected_idx < 0 or selected_idx >= len(events):
+        return
+
+    selected = events[selected_idx]
+    sel_ts = selected.get("ts_utc")
+    if not sel_ts:
+        st.warning("Selected event has no timestamp — cannot show context.")
+        return
+
+    from datetime import datetime, timedelta, timezone
+    try:
+        sel_dt = datetime.fromisoformat(sel_ts)
+    except ValueError:
+        return
+
+    window_start = (sel_dt - timedelta(seconds=window_seconds)).isoformat()
+    window_end = (sel_dt + timedelta(seconds=window_seconds)).isoformat()
+
+    context_events = [
+        e for e in events
+        if e.get("ts_utc") and window_start <= e["ts_utc"] <= window_end
+    ]
+
+    st.markdown(f"**Context view** — ±{window_seconds}s around selected event "
+               f"({len(context_events)} events from {len(set(e.get('system_label', '') for e in context_events))} sources)")
+
+    # Build table data
+    rows = []
+    for e in context_events:
+        is_selected = (e is selected)
+        level = e.get("level", "")
+        source = e.get("system_label", "")
+        ts_display = e.get("ts", "") or e.get("ts_utc", "")
+        code = e.get("code") or ""
+        exc = e.get("exception") or ""
+        preview = (e.get("text", "")[:100]).replace("\n", " ")
+
+        marker = "→ " if is_selected else "  "
+        rows.append({
+            "": marker,
+            "Time": ts_display[:19] if len(ts_display) > 19 else ts_display,
+            "Source": source,
+            "Level": level,
+            "Code": code,
+            "Exception": exc,
+            "Preview": preview,
+        })
+
+    if rows:
+        st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
 def _apply_event_filters(events, levels, code_prefix, exception_types, time_range, sources: list[str] | None = None):
@@ -560,6 +728,11 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     from app_ai import render_ai_responses
     render_ai_responses()
 
+    _sources = set(e.get("system_label", "") for e in display_events)
+    if len(_sources) >= 2:
+        from app_ai import render_analyze_all_button
+        render_analyze_all_button(a, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
+
     claude_splunk_count = sum(len(e.get("splunk_queries", []))
                                for e in st.session_state.claude_history)
     splunk_label = f"Suggested Splunk Searches ({len(display_splunk)} baseline"
@@ -592,4 +765,19 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         render_incident_timeline(display_itl)
 
     with st.expander(f"Event Samples ({len(display_samples)} shown)"):
-        render_samples(display_samples)
+        render_samples(display_samples, all_events=display_events)
+
+    # Cross-system timeline (only for multi-source)
+    _sources = set(e.get("system_label", "") for e in display_events)
+    if len(_sources) >= 2:
+        cascades = a.get("cascades", [])
+        render_cross_system_timeline(display_events, cascades)
+        render_cascade_section(cascades)
+
+    # Context view (if an event was selected)
+    _ctx_idx = st.session_state.get("_context_event_idx", -1)
+    if _ctx_idx >= 0:
+        render_context_view(_ctx_idx, a["events"])
+        if st.button("Close context view"):
+            st.session_state._context_event_idx = -1
+            st.rerun()

@@ -12,9 +12,11 @@ from .parser import (
     WAS_CODE_RE, EXC_HEAD_RE, STACK_LINE_RE, CAUSED_BY_RE,
     OOM_RE, HUNG_THREAD_RE, HUNG_THREAD_NAME_RE,
     DB_POOL_RE, SSL_RE, HTTP_RE,
+    TRACE_ID_PATTERNS,
     SECRET_REPLACERS, _REDACT_FAST_CHECK,
     TZ_OFFSET_RE, TZ_ABBREV_RE,
     open_text, redact, extract_ts, extract_tz, bucket_tags, classify_event,
+    extract_trace_ids,
     parse_file_iter, parse_file,
 )
 
@@ -30,6 +32,8 @@ from .analysis import (
     _SPLUNK_PREFIX,
     _extract_hung_thread_name, _extract_stack_sample,
     hung_thread_drilldown, suggested_splunk_queries,
+    _CASCADE_PATTERNS, detect_cross_system_cascades,
+    correlate_by_trace_id, find_cross_system_chains,
     precompute_analysis,
 )
 
@@ -47,7 +51,8 @@ from .ai import (
     _SKILLS_DIR, _SKILL_TAG_MAP, _SKILL_CODE_PREFIX_MAP,
     _SKILL_EXCEPTION_MAP, _SKILL_QUERY_KEYWORDS,
     _discover_skills, select_skills, load_skill_content,
-    build_claude_prompt, TOKEN_LIMITS, _TOKEN_CHARS_PER_TOKEN,
+    build_claude_prompt, build_cross_system_prompt,
+    TOKEN_LIMITS, _TOKEN_CHARS_PER_TOKEN,
     estimate_tokens, claude_cache_key, ask_gemini,
     MAX_SKILLS,
 )
@@ -60,22 +65,25 @@ __all__ = [
     "MAX_EVENT_TEXT", "TS_PATTERNS", "LEVEL_RE", "WAS_LEVEL_RE", "WAS_LEVEL_MAP",
     "WAS_THREAD_RE", "WAS_CODE_RE", "EXC_HEAD_RE", "STACK_LINE_RE", "CAUSED_BY_RE",
     "OOM_RE", "HUNG_THREAD_RE", "HUNG_THREAD_NAME_RE",
-    "DB_POOL_RE", "SSL_RE", "HTTP_RE", "SECRET_REPLACERS",
+    "DB_POOL_RE", "SSL_RE", "HTTP_RE", "TRACE_ID_PATTERNS", "SECRET_REPLACERS",
     "TZ_OFFSET_RE", "TZ_ABBREV_RE",
     "open_text", "redact", "extract_ts", "extract_tz", "bucket_tags", "classify_event",
+    "extract_trace_ids",
     "parse_file_iter", "parse_file",
     # analysis
     "parse_ts_datetime", "normalize_ts_utc", "sort_events_chronologically",
     "summarize", "incident_timeline",
     "time_histogram", "render_histogram", "pick_samples", "per_file_summary", "per_source_summary",
     "likely_causes", "hung_thread_drilldown", "suggested_splunk_queries",
+    "detect_cross_system_cascades",
+    "correlate_by_trace_id", "find_cross_system_chains",
     "precompute_analysis",
     # reports
     "render_json_report", "render_markdown_report",
     "render_csv_report", "render_xml_report", "render_pdf_report",
     # ai
     "match_user_query", "CLAUDE_SYSTEM_PROMPT",
-    "select_skills", "load_skill_content", "build_claude_prompt",
+    "select_skills", "load_skill_content", "build_claude_prompt", "build_cross_system_prompt",
     "TOKEN_LIMITS", "estimate_tokens", "claude_cache_key", "ask_gemini",
     "MAX_SKILLS",
     # cli
