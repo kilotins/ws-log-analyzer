@@ -132,6 +132,8 @@ def main() -> None:
             except (ImportError, OSError, ValueError, RuntimeError) as ex:
                 print(f"Local AI call failed: {ex}", file=sys.stderr)
                 print(f"Tip: ensure {endpoint} is running.", file=sys.stderr)
+            except Exception as ex:
+                print(f"Local AI call failed: {type(ex).__name__}: {ex}", file=sys.stderr)
 
         elif args.claude:
             try:
@@ -145,7 +147,7 @@ def main() -> None:
                 message = client.messages.create(
                     model=args.model,
                     max_tokens=4096,
-                    system=full_prompt["system"],  # type: ignore[arg-type]
+                    system=[{"type": "text", "text": full_prompt["system"], "cache_control": {"type": "ephemeral"}}],  # type: ignore[arg-type]
                     messages=[{"role": "user", "content": full_prompt["user"]}],
                 )
                 analysis = message.content[0].text  # type: ignore[union-attr]
@@ -158,3 +160,5 @@ def main() -> None:
             except (ImportError, OSError, ValueError, RuntimeError) as ex:
                 print(f"Claude API call failed: {ex}", file=sys.stderr)
                 print("Tip: ensure ANTHROPIC_API_KEY is set.", file=sys.stderr)
+            except Exception as ex:
+                print(f"Claude API call failed: {type(ex).__name__}: {ex}", file=sys.stderr)
