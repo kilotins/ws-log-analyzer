@@ -479,7 +479,7 @@ def test_classify_event_no_level():
 
 def test_parse_ts_parts_was():
     result = _parse_ts_parts("10/12/15 21:22:04:257")
-    assert result == ("10/12/15", 21, 22)
+    assert result == ("2015-10-12", 21, 22)
 
 
 def test_parse_ts_parts_iso():

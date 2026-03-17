@@ -13,7 +13,9 @@ from .parser import (
     WAS_CODE_RE,
 )
 
-_log = logging.getLogger("logpilot")
+_log = logging.getLogger(__name__)
+
+ERROR_LEVELS = ("ERROR", "SEVERE", "FATAL")
 
 
 def parse_ts_datetime(ts: str | None) -> datetime | None:
@@ -76,7 +78,7 @@ def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str,
     trigger = None
     trigger_dt = None
     for e in events:
-        if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
+        if e.get("level") in ERROR_LEVELS:
             dt = ts_cache.get(e.get("ts", ""))
             if dt:
                 trigger = e
@@ -111,6 +113,10 @@ def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str,
 
 def _parse_ts_parts(ts: str) -> tuple[str | None, int, int] | None:
     """Extract (date_str, hour, minute) from a timestamp string. Returns None on failure."""
+    dt = parse_ts_datetime(ts)
+    if dt:
+        return (dt.strftime("%Y-%m-%d"), dt.hour, dt.minute)
+    # Fallback for formats parse_ts_datetime doesn't cover
     try:
         parts = ts.split()
         if len(parts) > 1:
@@ -155,7 +161,7 @@ def time_histogram(events: list[dict], bucket_minutes: int = 1) -> list[tuple[st
         if key not in buckets:
             buckets[key] = {"total": 0, "errors": 0}
         buckets[key]["total"] += 1
-        if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
+        if e.get("level") in ERROR_LEVELS:
             buckets[key]["errors"] += 1
 
     if not buckets:
@@ -215,7 +221,7 @@ def per_file_summary(events: list[dict]) -> list[tuple[str, int, int]]:
         if f not in files:
             files[f] = {"total": 0, "errors": 0}
         files[f]["total"] += 1
-        if e.get("level") in ("ERROR", "SEVERE", "FATAL"):
+        if e.get("level") in ERROR_LEVELS:
             files[f]["errors"] += 1
     return [(f, files[f]["total"], files[f]["errors"]) for f in sorted(files)]
 
@@ -1072,7 +1078,7 @@ _CORRELATIONS: list[dict[str, Any]] = [
 
 def _detect_burst(events: list[dict], window_seconds: float = 120.0, threshold: int = 50) -> list[dict[str, Any]]:
     """Detect error bursts — many errors in a short time window."""
-    error_events = [e for e in events if e.get("level") in ("ERROR", "SEVERE", "FATAL")]
+    error_events = [e for e in events if e.get("level") in ERROR_LEVELS]
     if len(error_events) < threshold:
         return []
 
