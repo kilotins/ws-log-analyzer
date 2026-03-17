@@ -128,6 +128,23 @@ def _save_json_file(path: Path, data: object) -> None:
         raise
 
 
+_LOCAL_SETTINGS_FILE = CACHE_DIR / ".local_ai_settings.json"
+
+def _load_local_ai_settings() -> dict:
+    """Load saved local AI settings from disk."""
+    return _load_json_file(_LOCAL_SETTINGS_FILE, {})
+
+def _save_local_ai_settings(endpoint: str, model: str, api_key: str, preset: str) -> None:
+    """Persist local AI settings to disk."""
+    try:
+        data = {"endpoint": str(endpoint), "model": str(model),
+                "api_key": str(api_key), "preset": str(preset)}
+        _save_json_file(_LOCAL_SETTINGS_FILE, data)
+        log.info("settings Local AI settings saved")
+    except Exception:
+        pass  # Silently skip during test/mock environments
+
+
 _CACHE_TTL_SECONDS = CACHE_TTL_SECONDS
 
 
@@ -273,6 +290,16 @@ for _prov, _hpath in _PROVIDER_HISTORY_FILES.items():
     _hkey = f"{_prov}_history" if _prov != "claude" else "claude_history"
     if not st.session_state[_hkey]:
         st.session_state[_hkey] = _load_provider_history(_hpath)
+
+# Load persisted local AI settings on fresh session
+_saved_local = _load_local_ai_settings()
+if _saved_local:
+    if not st.session_state.local_ai_endpoint or st.session_state.local_ai_endpoint == "http://localhost:1234/v1":
+        st.session_state.local_ai_endpoint = _saved_local.get("endpoint", st.session_state.local_ai_endpoint)
+    if not st.session_state.local_ai_model:
+        st.session_state.local_ai_model = _saved_local.get("model", "")
+    if st.session_state.local_ai_api_key == "not-needed":
+        st.session_state.local_ai_api_key = _saved_local.get("api_key", "not-needed")
 
 
 def get_report_history(limit=20):
@@ -489,13 +516,20 @@ with st.sidebar:
         _preset_cfg = LOCAL_AI_PRESETS[_preset]
         _default_url = _preset_cfg["base_url"] or st.session_state.local_ai_endpoint
 
-        st.session_state.local_ai_endpoint = st.text_input(
+        _local_endpoint = st.text_input(
             "Endpoint URL",
             value=_default_url,
             placeholder="http://localhost:1234/v1",
             help="OpenAI-compatible API endpoint",
             key="local_endpoint_input",
         )
+        if _local_endpoint != st.session_state.local_ai_endpoint:
+            st.session_state.local_ai_endpoint = _local_endpoint
+            # Reset connection status when endpoint changes
+            st.session_state._local_conn_status = "not_tested"
+            st.session_state._local_models = []
+            _save_local_ai_settings(_local_endpoint, st.session_state.local_ai_model,
+                                     st.session_state.local_ai_api_key, _preset)
 
         # --- Test Connection + Refresh ---
         _btn_col, _status_col = st.columns([1, 2])
@@ -512,9 +546,10 @@ with st.sidebar:
             st.session_state._local_conn_error = result["error"]
             st.session_state._local_models = result["models"]
             if result["models"]:
-                # Auto-select first model if none set
                 if not st.session_state.local_ai_model or st.session_state.local_ai_model not in result["models"]:
                     st.session_state.local_ai_model = result["models"][0]
+                _save_local_ai_settings(_endpoint, st.session_state.local_ai_model,
+                                         _api_key, _preset)
                 st.rerun()
 
         with _status_col:
@@ -543,32 +578,45 @@ with st.sidebar:
             with _model_col:
                 _current = st.session_state.local_ai_model
                 _idx = _discovered.index(_current) if _current in _discovered else 0
-                st.session_state.local_ai_model = st.selectbox(
+                _selected_model = st.selectbox(
                     "Model",
                     _discovered,
                     index=_idx,
                     key="local_model_select",
                     label_visibility="collapsed",
                 )
+                if _selected_model != st.session_state.local_ai_model:
+                    st.session_state.local_ai_model = _selected_model
+                    _save_local_ai_settings(_endpoint, _selected_model,
+                                             _api_key, _preset)
         else:
-            st.session_state.local_ai_model = st.text_input(
+            _manual_model = st.text_input(
                 "Model name",
                 value=st.session_state.local_ai_model,
                 placeholder="e.g. llama-3.1-8b, mistral-7b, qwen2.5",
                 help="Model ID as shown in your local server",
                 key="local_model_input",
             )
+            if _manual_model != st.session_state.local_ai_model:
+                st.session_state.local_ai_model = _manual_model
+                _save_local_ai_settings(_endpoint, _manual_model,
+                                         _api_key, _preset)
 
         # --- Advanced (API key) ---
         with st.expander("Advanced", expanded=False):
             _default_key = _preset_cfg["api_key"] or st.session_state.local_ai_api_key
-            st.session_state.local_ai_api_key = st.text_input(
+            _local_key = st.text_input(
                 "API Key (optional)",
                 value=_default_key,
                 placeholder="not-needed",
                 help="Most local servers don't require an API key",
                 key="local_key_input",
             )
+            if _local_key != st.session_state.local_ai_api_key:
+                st.session_state.local_ai_api_key = _local_key
+                _save_local_ai_settings(st.session_state.local_ai_endpoint,
+                                         st.session_state.local_ai_model,
+                                         _local_key, _preset)
 
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
