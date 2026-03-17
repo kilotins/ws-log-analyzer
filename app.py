@@ -762,6 +762,12 @@ with tab_analyze:
                 old_file.unlink()
                 log.info("upload Cleaned old upload: %s", old_file.name)
 
+        # Parse each uploaded file
+        for uploaded in uploaded_files:
+            safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
+            _hash = _hl.md5(uploaded.getvalue()).hexdigest()[:10]
+            upload_path = UPLOADS_DIR / f"{_hash}_{safe_name}"
+
             with st.spinner(f"Parsing {uploaded.name}..."):
                 try:
                     _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
