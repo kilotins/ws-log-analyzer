@@ -6,14 +6,14 @@
 - **E2E tests**: `playwright` — `tests/test_app_e2e.py`
 - **Fixtures**: `tests/fixtures/sample.log` (git add -f, since *.log is gitignored)
 
-Current count: **1034+ tests**.
+Current count: **1004+ tests**.
 
 ## Test File Overview
 
 | File                      | Covers                                                        |
 |---------------------------|---------------------------------------------------------------|
 | `test_parsing.py`         | `parse_file()`, event boundaries, redaction, gzip fallback   |
-| `test_reports.py`         | All report renderers (Markdown, JSON, CSV, XML, PDF)         |
+| `test_reports.py`         | All report renderers (Markdown, JSON, HTML, PDF) + AI content |
 | `test_ai_prompt.py`       | Format-aware AI prompt construction, `_sanitize_prompt_input` |
 | `test_app_helpers.py`     | Streamlit helper functions, session state utilities           |
 | `test_local_ai.py`        | Local AI provider calls, token estimation                     |
