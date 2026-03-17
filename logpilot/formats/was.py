@@ -19,10 +19,11 @@ TS_PATTERNS = [
 ]
 
 # Single-letter severity after thread ID: [ts] threadid Component X
-WAS_LEVEL_RE = re.compile(r'\]\s+[0-9a-f]+\s+\S+\s+([IAWEOFRD])\s')
+WAS_LEVEL_RE = re.compile(r'\]\s+[0-9a-f]+\s+\S+\s+([IAWEOFRDN])\s')
 WAS_LEVEL_MAP = {
     'I': 'INFO', 'A': 'AUDIT', 'W': 'WARNING', 'E': 'ERROR',
     'O': 'STDOUT', 'F': 'FATAL', 'R': 'REPORT', 'D': 'DEBUG',
+    'N': 'NOTICE',
 }
 
 WAS_THREAD_RE = re.compile(r'\]\s+([0-9a-f]{8})\s+')

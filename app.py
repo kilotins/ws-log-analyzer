@@ -267,6 +267,7 @@ _STATE_DEFAULTS = {
     "openai_cache": {},
     "openai_history": [],
     "debug_payload": False,
+    "_ai_probe_log": [],  # list of {ts, type, provider, model, request, response, error}
     "last_ai_call_ts": 0.0,
     "rt_enabled": False,
     "rt_running": False,
@@ -279,6 +280,11 @@ _STATE_DEFAULTS = {
     "_context_event_idx": -1,
     "_triage_answer": None,
     "_triage_model": None,
+    "_audit_delta": None,
+    "_local_prev_preset": None,
+    "_local_saved_preset": None,
+    "_local_settings_loaded": False,
+    "local_ai_preset": "LM Studio",
 }
 
 _EXPECTED_STATE_KEYS = set(_STATE_DEFAULTS.keys())
@@ -638,9 +644,9 @@ with st.sidebar:
 
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
-        "Enable AI debug payloads",
+        "Debug mode",
         value=st.session_state.debug_payload,
-        help="Show request/response payloads for AI API calls",
+        help="Show Application Log and AI Probe tabs for debugging",
     )
     if st.session_state.get("_confirm_clear_cache"):
         st.warning("Clear all AI caches and history?")
@@ -694,10 +700,10 @@ with st.sidebar:
 # --- Tabs ---
 _tab_names = ["Analyze", "Realtime Console", "History", "Audit Report", "Cloud Spend"]
 if st.session_state.debug_payload:
-    _tab_names.append("Application Log")
+    _tab_names.append("Debug")
 _tabs = st.tabs(_tab_names)
 tab_analyze, tab_realtime, tab_history, tab_audit, tab_spend = _tabs[:5]
-tab_applog = _tabs[5] if len(_tabs) > 5 else None
+tab_debug = _tabs[5] if len(_tabs) > 5 else None
 
 with tab_analyze:
     uploaded_files = st.file_uploader(
@@ -1019,22 +1025,60 @@ with tab_audit:
 with tab_spend:
     render_spend_tab()
 
-if tab_applog is not None:
-    with tab_applog:
-        _log_level_filter = st.selectbox(
-            "Filter by level",
-            ["ALL", "INFO", "WARNING", "ERROR"],
-            key="log_level_filter",
-        )
-        if LOG_FILE.exists():
-            _raw_lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()
-            if _log_level_filter != "ALL":
-                _raw_lines = [l for l in _raw_lines if f" {_log_level_filter:<5s}" in l
-                              or f" {_log_level_filter} " in l]
-            _display_lines = _raw_lines[-100:]
-            if _display_lines:
-                st.code("\n".join(_display_lines), language="log")
+if tab_debug is not None:
+    with tab_debug:
+        _debug_sub_applog, _debug_sub_probe = st.tabs(["Application Log", "Probe"])
+
+        with _debug_sub_applog:
+            _log_level_filter = st.selectbox(
+                "Filter by level",
+                ["ALL", "INFO", "WARNING", "ERROR"],
+                key="log_level_filter",
+            )
+            if LOG_FILE.exists():
+                _raw_lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()
+                if _log_level_filter != "ALL":
+                    _raw_lines = [l for l in _raw_lines if f" {_log_level_filter:<5s}" in l
+                                  or f" {_log_level_filter} " in l]
+                _display_lines = _raw_lines[-100:]
+                if _display_lines:
+                    st.code("\n".join(_display_lines), language="log")
+                else:
+                    st.caption("No matching log entries.")
             else:
-                st.caption("No matching log entries.")
-        else:
-            st.info("No application log yet. The log will appear here as you use the app.")
+                st.info("No application log yet. The log will appear here as you use the app.")
+
+        with _debug_sub_probe:
+            _probe_log = st.session_state.get("_ai_probe_log", [])
+            if _probe_log:
+                if st.button("Clear Probe Log", key="clear_probe_log"):
+                    st.session_state._ai_probe_log = []
+                    st.rerun()
+                for _entry in reversed(_probe_log):
+                    _ts = _entry.get("ts", "")
+                    _type = _entry.get("type", "")
+                    _provider = _entry.get("provider", "")
+                    _model = _entry.get("model", "")
+                    _error = _entry.get("error")
+                    _icon = "!" if _error else ">"
+                    _header = f"[{_icon}] {_ts}  {_type}  ({_provider} / {_model})"
+                    if _error:
+                        _header += f"  ERROR: {_error[:80]}"
+                    with st.expander(_header, expanded=False):
+                        _req = _entry.get("request", "")
+                        _resp = _entry.get("response", "")
+                        if _req:
+                            st.markdown("**Request payload**")
+                            st.code(_req[:20000], language="text")
+                            st.button("Copy request", key=f"copy_req_{_entry['ts']}_{id(_entry)}",
+                                      on_click=lambda r=_req: st.session_state.update({"_clipboard": r}))
+                        if _resp:
+                            st.markdown("**Response payload**")
+                            st.code(_resp[:20000], language="markdown")
+                            st.button("Copy response", key=f"copy_resp_{_entry['ts']}_{id(_entry)}",
+                                      on_click=lambda r=_resp: st.session_state.update({"_clipboard": r}))
+                        if _error:
+                            st.markdown("**Error**")
+                            st.code(_error, language="text")
+            else:
+                st.info("No AI calls recorded yet. Use Ask AI, Cross-System Triage, or Audit Report to see payloads here.")

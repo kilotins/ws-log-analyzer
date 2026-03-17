@@ -1024,10 +1024,191 @@ _HEURISTICS_INLINE = [
             "For publish errors, check that the content and all references are valid.",
         ],
     },
+    # ── JSON / Structured Logs ────────────────────────────────────────
+    {
+        "id": "json-fatal-error",
+        "title": "Fatal Error in Structured Logs",
+        "match": re.compile(
+            r'"level"\s*:\s*"(?:fatal|emergency|critical)"'
+            r'|"severity"\s*:\s*"(?:CRITICAL|EMERGENCY|ALERT)"',
+            re.IGNORECASE,
+        ),
+        "cause": "A fatal/critical error was logged in structured (JSON) logs — the application may be crashing.",
+        "fixes": [
+            "Check the 'error', 'message', or 'stack' field in the JSON entry for the root cause.",
+            "Review recent deployments or config changes that may have triggered the failure.",
+            "Check application health endpoints and restart if necessary.",
+        ],
+    },
+    {
+        "id": "json-unhandled-rejection",
+        "title": "Unhandled Promise Rejection / Exception",
+        "match": re.compile(
+            r'unhandledRejection|uncaughtException|unhandled.*promise'
+            r'|ECONNREFUSED|ENOTFOUND|ETIMEDOUT',
+            re.IGNORECASE,
+        ),
+        "cause": "An unhandled exception or promise rejection crashed or destabilized the Node.js process.",
+        "fixes": [
+            "Add global error handlers: process.on('unhandledRejection') and process.on('uncaughtException').",
+            "For ECONNREFUSED/ENOTFOUND, check that the target service is running and DNS resolves correctly.",
+            "Use a process manager (PM2, nodemon) to auto-restart on crashes.",
+        ],
+    },
+    # ── Generic / Cross-Format Patterns ───────────────────────────────
+    {
+        "id": "connection-refused",
+        "title": "Connection Refused",
+        "match": re.compile(
+            r'Connection refused|ECONNREFUSED|connect\(\) failed'
+            r'|Failed to connect|could not connect',
+            re.IGNORECASE,
+        ),
+        "cause": "A connection to a remote service was actively refused — the service is down or not listening.",
+        "fixes": [
+            "Verify the target service is running and listening on the expected host:port.",
+            "Check firewall rules and security groups between the source and target.",
+            "Review service health checks and restart the target service if needed.",
+        ],
+    },
+    {
+        "id": "dns-resolution-fail",
+        "title": "DNS Resolution Failure",
+        "match": re.compile(
+            r'Name or service not known|NXDOMAIN|DNS.*resolution.*fail'
+            r'|getaddrinfo.*failed|ENOTFOUND|UnknownHostException'
+            r'|could not resolve.*host',
+            re.IGNORECASE,
+        ),
+        "cause": "DNS lookup failed — the hostname cannot be resolved to an IP address.",
+        "fixes": [
+            "Check /etc/resolv.conf and DNS server configuration.",
+            "Verify the hostname is correct and exists in DNS (dig/nslookup).",
+            "For Kubernetes, check CoreDNS pods and service DNS (svc.cluster.local).",
+        ],
+    },
+    {
+        "id": "timeout-generic",
+        "title": "Connection or Request Timeout",
+        "match": re.compile(
+            r'timed?\s*out|timeout.*exceeded|read timeout|connect timeout'
+            r'|deadline exceeded|context deadline|RequestTimeout'
+            r'|SocketTimeoutException|TimeoutError',
+            re.IGNORECASE,
+        ),
+        "cause": "A connection or request timed out — the remote service is too slow or unreachable.",
+        "fixes": [
+            "Check the target service's health and response times.",
+            "Increase timeout values if the service is expected to be slow (batch jobs, large queries).",
+            "Add circuit breaker logic to fail fast instead of waiting for timeout.",
+        ],
+    },
+    {
+        "id": "http-5xx-generic",
+        "title": "HTTP 5xx Server Errors",
+        "match": re.compile(
+            r'\b50[0-9]\b.*(?:Internal Server Error|Bad Gateway|Service Unavailable|Gateway Timeout)'
+            r'|HTTP/\d[\d.]*"\s+5\d\d\b'
+            r'|\bstatus[=: ]+5\d\d\b',
+            re.IGNORECASE,
+        ),
+        "cause": "The server returned 5xx errors — indicates server-side failures.",
+        "fixes": [
+            "Check application logs for exceptions at the time of the 5xx responses.",
+            "For 502/503, verify upstream services and load balancer health checks.",
+            "For 504, increase upstream timeout settings or investigate slow backend.",
+        ],
+    },
+    {
+        "id": "http-4xx-spike",
+        "title": "HTTP 4xx Client Errors",
+        "match": re.compile(
+            r'\b40[0-9]\b.*(?:Not Found|Unauthorized|Forbidden|Method Not Allowed|Too Many Requests)'
+            r'|HTTP/\d[\d.]*"\s+4\d\d\b'
+            r'|\bstatus[=: ]+4\d\d\b',
+            re.IGNORECASE,
+        ),
+        "cause": "Multiple client errors detected — may indicate broken links, auth issues, or API changes.",
+        "fixes": [
+            "For 401/403, check authentication/authorization configuration.",
+            "For 404, verify URLs and routing configuration — a recent deployment may have changed paths.",
+            "For 429, review rate limiting settings or identify the excessive client.",
+        ],
+    },
+    {
+        "id": "repeated-exception",
+        "title": "Recurring Exception Pattern",
+        "match": re.compile(
+            r'(?:Exception|Error|Traceback|panic:).*(?:Exception|Error|Traceback|panic:)',
+            re.IGNORECASE,
+        ),
+        "cause": "The same exception type is repeating — likely an unresolved bug triggered on every request/cycle.",
+        "fixes": [
+            "Identify the most common exception from the top exceptions list and fix the root cause.",
+            "If the exception is non-critical, add proper handling to prevent log noise.",
+            "Check if the exception started after a recent deployment.",
+        ],
+    },
+    {
+        "id": "network-unreachable",
+        "title": "Network Unreachable / Host Down",
+        "match": re.compile(
+            r'Network is unreachable|No route to host|Host is down'
+            r'|ENETUNREACH|EHOSTUNREACH|connection reset by peer'
+            r'|Broken pipe|EPIPE|ECONNRESET',
+            re.IGNORECASE,
+        ),
+        "cause": "Network connectivity failed — the remote host or network is unreachable.",
+        "fixes": [
+            "Check network connectivity: ping, traceroute, or curl to the target host.",
+            "Review firewall rules, security groups, and network ACLs.",
+            "For 'connection reset by peer', the remote service may be crashing or overloaded.",
+        ],
+    },
+    {
+        "id": "auth-failure-generic",
+        "title": "Authentication Failure",
+        "match": re.compile(
+            r'authentication fail|login fail|invalid credentials|bad password'
+            r'|access denied|unauthorized|auth.*error|invalid.*token',
+            re.IGNORECASE,
+        ),
+        "cause": "Authentication failed — credentials may be incorrect, expired, or the auth service is down.",
+        "fixes": [
+            "Check if credentials or API tokens have expired and need rotation.",
+            "Verify the authentication service is healthy and reachable.",
+            "For repeated failures from the same source, investigate potential brute-force attempts.",
+        ],
+    },
+    {
+        "id": "resource-exhaustion",
+        "title": "Resource Exhaustion (File Descriptors / Processes)",
+        "match": re.compile(
+            r'Too many open files|EMFILE|ENFILE|cannot fork'
+            r'|resource temporarily unavailable|EAGAIN'
+            r'|max.*open.*files|ulimit',
+            re.IGNORECASE,
+        ),
+        "cause": "The system or process has exhausted a resource limit (file descriptors, processes, etc.).",
+        "fixes": [
+            "Check current limits: ulimit -n (files), ulimit -u (processes).",
+            "Increase limits in /etc/security/limits.conf or the systemd unit (LimitNOFILE).",
+            "Look for resource leaks: unclosed file handles, socket connections, or spawned processes.",
+        ],
+    },
 ]
 
 # Try YAML first; fall back to inline list if PyYAML is missing or file is absent
-_HEURISTICS = _load_heuristics_from_yaml() or _HEURISTICS_INLINE
+def _merge_heuristics() -> list[dict]:
+    """Merge YAML and inline heuristics. YAML entries override inline by id."""
+    yaml_h = _load_heuristics_from_yaml()
+    if not yaml_h:
+        return _HEURISTICS_INLINE
+    yaml_ids = {h["id"] for h in yaml_h}
+    # YAML overrides inline for matching IDs; inline-only heuristics are kept
+    return yaml_h + [h for h in _HEURISTICS_INLINE if h["id"] not in yaml_ids]
+
+_HEURISTICS = _merge_heuristics()
 
 
 def _heuristic_keywords(h: dict) -> list[str]:
@@ -1173,7 +1354,183 @@ _CORRELATIONS: list[dict[str, Any]] = [
             "If a node was replaced, it may need to rejoin the cluster and resync data.",
         ],
     },
+    {
+        "id": "corr-timeout-5xx",
+        "requires": ["timeout-generic", "http-5xx-generic"],
+        "title": "Timeouts Causing HTTP 5xx Errors",
+        "cause": "Backend timeouts are resulting in 5xx errors returned to clients.",
+        "fixes": [
+            "Identify which backend service is timing out and fix the bottleneck.",
+            "Increase timeout thresholds as a short-term mitigation.",
+            "Add circuit breakers to prevent cascading timeout failures.",
+        ],
+    },
+    {
+        "id": "corr-dns-timeout",
+        "requires": ["dns-resolution-fail", "timeout-generic"],
+        "title": "DNS Failures Causing Timeouts",
+        "cause": "DNS resolution failures are causing connection timeouts to downstream services.",
+        "fixes": [
+            "Fix DNS resolution first — timeouts are a downstream symptom.",
+            "Check DNS server health and /etc/resolv.conf configuration.",
+            "For Kubernetes, verify CoreDNS pods are healthy: kubectl get pods -n kube-system.",
+        ],
+    },
+    {
+        "id": "corr-connrefused-5xx",
+        "requires": ["connection-refused", "http-5xx-generic"],
+        "title": "Connection Refused Causing HTTP 5xx",
+        "cause": "A backend service is refusing connections, resulting in 5xx errors to clients.",
+        "fixes": [
+            "Restart or fix the refusing backend service.",
+            "Check if the service crashed or is still starting up.",
+            "Verify port configuration matches between proxy and backend.",
+        ],
+    },
+    {
+        "id": "corr-auth-4xx",
+        "requires": ["auth-failure-generic", "http-4xx-spike"],
+        "title": "Authentication Failures Driving 4xx Errors",
+        "cause": "Authentication failures are causing a spike in 401/403 client errors.",
+        "fixes": [
+            "Check if credentials, tokens, or certificates were recently rotated.",
+            "Verify the authentication/identity provider is healthy.",
+            "Review access control configuration for recent changes.",
+        ],
+    },
+    {
+        "id": "corr-resource-timeout",
+        "requires": ["resource-exhaustion", "timeout-generic"],
+        "title": "Resource Exhaustion Causing Timeouts",
+        "cause": "Exhausted system resources (file descriptors, processes) are causing connections to time out.",
+        "fixes": [
+            "Fix the resource leak or increase limits as immediate mitigation.",
+            "Check for connection/file handle leaks in the application code.",
+            "Increase ulimits and monitor resource usage trends.",
+        ],
+    },
 ]
+
+
+# --- Incident group definitions ---
+_INCIDENT_GROUPS: list[dict[str, Any]] = [
+    {
+        "id": "incident-oom-cascade",
+        "name": "Memory Exhaustion Cascade",
+        "trigger_ids": {"oom-gc", "oom-killer", "k8s-oomkilled"},
+        "effect_ids": {"hung-threads", "db-pool", "hikari-pool", "servlet-error",
+                       "transaction-timeout", "http-5xx-generic", "k8s-crashloop"},
+        "narrative": "Memory exhaustion triggered a cascade of failures: {effects}. "
+                     "Fix the memory issue first — other errors are symptoms.",
+    },
+    {
+        "id": "incident-auth-failure",
+        "name": "Authentication / Security Failure",
+        "trigger_ids": {"authz-denied", "auth-failure-generic", "ssh-brute-force",
+                        "ldap-connection-fail", "python-csrf"},
+        "effect_ids": {"http-4xx-spike", "cert-expiry", "ssl-trust", "nginx-ssl-error"},
+        "narrative": "Authentication or security failures detected: {effects}. "
+                     "Check credential validity, certificate expiry, and auth service health.",
+    },
+    {
+        "id": "incident-timeout-cascade",
+        "name": "Timeout / Connectivity Cascade",
+        "trigger_ids": {"timeout-generic", "connection-refused", "dns-resolution-fail",
+                        "network-unreachable", "datasource-down"},
+        "effect_ids": {"hung-threads", "db-pool", "hikari-pool", "http-5xx-generic",
+                       "nginx-502", "transaction-timeout", "servlet-error"},
+        "narrative": "Connectivity problems caused downstream timeouts and failures: {effects}. "
+                     "Identify the unreachable service and restore connectivity.",
+    },
+    {
+        "id": "incident-deploy-failure",
+        "name": "Deployment / Startup Failure",
+        "trigger_ids": {"deploy-fail", "spring-startup-fail", "config-error",
+                        "port-bind-fail", "context-root-conflict", "k8s-imagepull",
+                        "systemd-service-fail"},
+        "effect_ids": {"classloader", "jndi-lookup-fail", "http-5xx-generic",
+                       "k8s-crashloop", "k8s-scheduling"},
+        "narrative": "A deployment or startup failure triggered related errors: {effects}. "
+                     "Review the deployment configuration and fix the root startup issue.",
+    },
+    {
+        "id": "incident-network",
+        "name": "Network / Connectivity Failure",
+        "trigger_ids": {"connection-refused", "dns-resolution-fail", "network-unreachable"},
+        "effect_ids": {"timeout-generic", "http-5xx-generic", "nginx-502",
+                       "datasource-down", "ldap-connection-fail", "kafka-error"},
+        "narrative": "Network connectivity failures caused service disruptions: {effects}. "
+                     "Check network infrastructure, DNS, and firewall rules.",
+    },
+    {
+        "id": "incident-database",
+        "name": "Database / Persistence Failure",
+        "trigger_ids": {"datasource-down", "db-pool", "hikari-pool", "django-db",
+                        "hibernate-error"},
+        "effect_ids": {"transaction-timeout", "hung-threads", "http-5xx-generic",
+                       "servlet-error", "spring-startup-fail"},
+        "narrative": "Database connectivity or persistence issues caused application failures: {effects}. "
+                     "Check database health, connection pool settings, and query performance.",
+    },
+]
+
+
+def group_into_incidents(causes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Group related likely causes into incident groups.
+
+    Returns dict with:
+      - groups: list of incident dicts with trigger, effects, narrative
+      - ungrouped: list of causes that don't fit any incident group
+    """
+    if not causes:
+        return {"groups": [], "ungrouped": []}
+
+    cause_ids = {c["id"] for c in causes}
+    cause_by_id = {c["id"]: c for c in causes}
+    used_ids: set[str] = set()
+    groups: list[dict[str, Any]] = []
+
+    for ig in _INCIDENT_GROUPS:
+        trigger_matches = ig["trigger_ids"] & cause_ids
+        effect_matches = ig["effect_ids"] & cause_ids
+        if not trigger_matches:
+            continue
+
+        # Build trigger and effects lists
+        triggers = [cause_by_id[cid] for cid in trigger_matches]
+        effects = [cause_by_id[cid] for cid in effect_matches]
+        all_ids = trigger_matches | effect_matches
+
+        # Skip if this group would duplicate a group that already covers these
+        if all_ids <= used_ids:
+            continue
+
+        # Build narrative
+        effect_names = [cause_by_id[cid]["title"] for cid in effect_matches] if effect_matches else []
+        narrative = ig["narrative"].format(
+            effects=", ".join(effect_names) if effect_names else "no downstream effects detected"
+        )
+
+        total_count = sum(c["count"] for c in triggers) + sum(c["count"] for c in effects)
+
+        groups.append({
+            "id": ig["id"],
+            "name": ig["name"],
+            "narrative": narrative,
+            "triggers": triggers,
+            "effects": effects,
+            "total_count": total_count,
+        })
+        used_ids |= all_ids
+
+    # Sort groups by total event count (most impactful first)
+    groups.sort(key=lambda g: -g["total_count"])
+
+    # Ungrouped causes (skip correlation entries — they're explained by their parent causes)
+    ungrouped = [c for c in causes if c["id"] not in used_ids
+                 and not c.get("correlated_from")]
+
+    return {"groups": groups, "ungrouped": ungrouped}
 
 
 def _detect_burst(events: list[dict], window_seconds: float = 120.0, threshold: int = 50) -> list[dict[str, Any]]:
