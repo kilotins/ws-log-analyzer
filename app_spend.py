@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 import time
 import streamlit as st
 from datetime import datetime
@@ -18,8 +19,8 @@ _SPEND_FILE = Path(__file__).parent / "cache" / "cloud_spend.json"
 _CONSOLE_COSTS_FILE = Path(__file__).parent / "cache" / "console_costs.json"
 _MAX_ENTRIES = 5000
 
-# SEK to USD approximate rate (updated manually)
-_SEK_TO_USD = 0.095
+# SEK to USD approximate rate — override via LOGPILOT_SEK_TO_USD env var
+_SEK_TO_USD = float(os.environ.get("LOGPILOT_SEK_TO_USD", "0.095"))
 
 
 def _estimate_cost(model_id: str, input_tokens: int, output_tokens: int,

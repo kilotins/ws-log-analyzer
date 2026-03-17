@@ -9,11 +9,13 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from logpilot import (
     parse_file, likely_causes, suggested_splunk_queries,
-    hung_thread_drilldown, _extract_hung_thread_name, _extract_stack_sample,
+    hung_thread_drilldown,
     render_markdown_report, render_json_report,
-    incident_timeline, _load_heuristics_from_yaml,
+    incident_timeline,
     per_file_summary, summarize,
 )
+from logpilot.splunk import _extract_hung_thread_name, _extract_stack_sample
+from logpilot.heuristics import _load_heuristics_from_yaml
 from conftest import make_event, empty_match
 
 # --- Shared fixtures ---

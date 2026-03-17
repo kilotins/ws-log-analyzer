@@ -13,7 +13,7 @@ from .parser import (
     OOM_RE, HUNG_THREAD_RE, HUNG_THREAD_NAME_RE,
     DB_POOL_RE, SSL_RE, HTTP_RE,
     TRACE_ID_PATTERNS,
-    SECRET_REPLACERS, _REDACT_FAST_CHECK,
+    SECRET_REPLACERS,
     TZ_OFFSET_RE, TZ_ABBREV_RE,
     open_text, redact, extract_ts, extract_tz, bucket_tags, classify_event,
     extract_trace_ids,
@@ -22,18 +22,14 @@ from .parser import (
 
 # --- analysis ---
 from .analysis import (
-    parse_ts_datetime, _parse_ts_parts,
+    parse_ts_datetime,
     normalize_ts_utc, sort_events_chronologically,
     summarize, incident_timeline,
     time_histogram, render_histogram,
     pick_samples, per_file_summary, per_source_summary,
-    _load_heuristics_from_yaml, _merge_heuristics, _HEURISTICS_INLINE, _HEURISTICS,
-    _INCIDENT_GROUPS, group_into_incidents,
-    _heuristic_keywords, likely_causes,
-    _SPLUNK_PREFIX,
-    _extract_hung_thread_name, _extract_stack_sample,
+    group_into_incidents, likely_causes,
     hung_thread_drilldown, suggested_splunk_queries,
-    _CASCADE_PATTERNS, detect_cross_system_cascades,
+    detect_cross_system_cascades,
     correlate_by_trace_id, find_cross_system_chains,
     precompute_analysis,
 )
@@ -46,14 +42,11 @@ from .reports import (
 
 # --- ai ---
 from .ai import (
-    match_user_query, _truncate_event_text, _sanitize_prompt_input,
+    match_user_query,
     CLAUDE_SYSTEM_PROMPT, build_system_prompt,
-    _FORMAT_SPECIALIST, _FORMAT_PLACEHOLDER, _SKILL_FORMAT_MAP,
-    _SKILLS_DIR, _SKILL_TAG_MAP, _SKILL_CODE_PREFIX_MAP,
-    _SKILL_EXCEPTION_MAP, _SKILL_QUERY_KEYWORDS,
-    _discover_skills, select_skills, load_skill_content,
+    select_skills, load_skill_content,
     build_claude_prompt, build_cross_system_prompt,
-    TOKEN_LIMITS, _TOKEN_CHARS_PER_TOKEN,
+    TOKEN_LIMITS,
     estimate_tokens, claude_cache_key, triage_cache_key, ask_gemini,
     MAX_SKILLS,
 )
@@ -73,7 +66,7 @@ __all__ = [
     "parse_file_iter", "parse_file",
     # analysis
     "parse_ts_datetime", "normalize_ts_utc", "sort_events_chronologically",
-    "summarize", "incident_timeline", "per_source_summary",
+    "summarize", "incident_timeline",
     "time_histogram", "render_histogram", "pick_samples", "per_file_summary", "per_source_summary",
     "group_into_incidents",
     "likely_causes", "hung_thread_drilldown", "suggested_splunk_queries",
