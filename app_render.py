@@ -1,42 +1,11 @@
 """Report section renderers for the Streamlit GUI."""
 from __future__ import annotations
 
-import re as _re
 import streamlit as st
 from pathlib import Path
 
 from logpilot import render_histogram, precompute_analysis, render_pdf_report, render_csv_report, render_xml_report, per_source_summary
 from app_constants import LEVEL_COLORS
-
-
-def _looks_like_splunk(code):
-    """Heuristic: does this code block look like a Splunk query?"""
-    lower = code.lower()
-    return any(kw in lower for kw in ("index=", "sourcetype=", "| timechart", "| stats",
-                                       "| table", "| where", "| eval"))
-
-
-def _split_combined_splunk(code):
-    """Split a code block containing multiple -- separated Splunk queries.
-
-    Returns list of {description, query} dicts. If no -- separators found,
-    returns a single entry.
-    """
-    chunks = _re.split(r'^-- +', code, flags=_re.MULTILINE)
-    if len(chunks) <= 1:
-        return [{"description": "Splunk query", "query": code.strip()}]
-
-    results = []
-    for chunk in chunks:
-        chunk = chunk.strip()
-        if not chunk:
-            continue
-        lines = chunk.split("\n", 1)
-        desc = lines[0].strip()
-        query = lines[1].strip() if len(lines) > 1 else ""
-        if query and _looks_like_splunk(query):
-            results.append({"description": desc, "query": query})
-    return results
 
 
 def _on_copy_code(code):
@@ -123,35 +92,6 @@ def render_likely_causes(causes):
                 st.markdown(f"- {fix}")
     else:
         st.caption("No known issue patterns detected.")
-
-
-def _render_splunk_query(sq, idx):
-    """Render a single Splunk query as a numbered card."""
-    st.markdown(f"**{idx}. {sq['description']}**")
-    st.code(sq["query"], language="spl")
-
-
-def render_splunk_section(splunk):
-    """Render baseline Splunk searches + Claude-enhanced searches from history."""
-    st.subheader("Baseline searches")
-    if splunk:
-        for idx, sq in enumerate(splunk, 1):
-            _render_splunk_query(sq, idx)
-    else:
-        st.caption("No baseline Splunk queries generated.")
-
-    history = st.session_state.claude_history
-    entries_with_splunk = [e for e in history if e.get("splunk_queries")]
-    if entries_with_splunk:
-        st.markdown("---")
-        st.subheader("Claude-enhanced searches")
-        for h_idx, entry in enumerate(entries_with_splunk):
-            st.markdown(f"***{entry['query']}** ({entry['timestamp']})*")
-            for q_idx, sq in enumerate(entry["splunk_queries"], 1):
-                _render_splunk_query(sq, q_idx)
-    else:
-        st.markdown("---")
-        st.caption("Run an AI analysis to get context-aware Splunk searches.")
 
 
 def render_hung_threads(hung):
@@ -696,7 +636,6 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         display_summary = fa["summary"]
         display_error_count = sum(1 for e in filtered_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
         display_causes = fa["causes"]
-        display_splunk = fa["splunk"]
         display_hung = fa["hung"]
         display_hist = fa["hist"]
         display_samples = fa["samples"]
@@ -707,7 +646,6 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         display_summary = a["summary"]
         display_error_count = a["error_count"]
         display_causes = a["causes"]
-        display_splunk = a["splunk"]
         display_hung = a["hung"]
         display_hist = a["hist"]
         display_samples = a["samples"]

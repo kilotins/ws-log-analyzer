@@ -72,7 +72,7 @@ __all__ = [
     "parse_file_iter", "parse_file",
     # analysis
     "parse_ts_datetime", "normalize_ts_utc", "sort_events_chronologically",
-    "summarize", "incident_timeline",
+    "summarize", "incident_timeline", "per_source_summary",
     "time_histogram", "render_histogram", "pick_samples", "per_file_summary", "per_source_summary",
     "likely_causes", "hung_thread_drilldown", "suggested_splunk_queries",
     "detect_cross_system_cascades",
@@ -82,7 +82,7 @@ __all__ = [
     "render_json_report", "render_markdown_report",
     "render_csv_report", "render_xml_report", "render_pdf_report",
     # ai
-    "match_user_query", "CLAUDE_SYSTEM_PROMPT",
+    "match_user_query", "CLAUDE_SYSTEM_PROMPT", "build_system_prompt",
     "select_skills", "load_skill_content", "build_claude_prompt", "build_cross_system_prompt",
     "TOKEN_LIMITS", "estimate_tokens", "claude_cache_key", "ask_gemini",
     "MAX_SKILLS",

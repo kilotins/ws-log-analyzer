@@ -1,10 +1,8 @@
 """AI provider orchestration module for the Streamlit GUI."""
 from __future__ import annotations
 
-import re as _re
 import streamlit as st
 from datetime import datetime
-from pathlib import Path
 
 from logpilot import (
     match_user_query, build_claude_prompt, claude_cache_key,
@@ -25,7 +23,6 @@ PROVIDER_CONFIG = {
         "history_key": "claude_history",
         "api_key_field": "api_key",
         "save_history": None,  # Set by init_provider_config()
-        "extract_splunk": False,
         "api_key_error": "Enter your Anthropic API key in the sidebar.",
         "api_key_prefix": "sk-ant-",
     },
@@ -37,7 +34,6 @@ PROVIDER_CONFIG = {
         "history_key": "gemini_history",
         "api_key_field": "gemini_api_key",
         "save_history": None,  # Set by init_provider_config()
-        "extract_splunk": False,
         "api_key_error": "Enter your Gemini API key in the sidebar or set GEMINI_API_KEY env var.",
         "api_key_prefix": "AI",
     },
@@ -49,7 +45,6 @@ PROVIDER_CONFIG = {
         "history_key": "openai_history",
         "api_key_field": "openai_api_key",
         "save_history": None,  # Set by init_provider_config()
-        "extract_splunk": False,
         "api_key_error": "Enter your OpenAI API key in the sidebar or set OPENAI_API_KEY env var.",
         "api_key_prefix": "sk-",
     },
@@ -61,7 +56,6 @@ PROVIDER_CONFIG = {
         "history_key": "local_history",
         "api_key_field": "local_api_key",
         "save_history": None,  # Set by init_provider_config()
-        "extract_splunk": False,
         "api_key_error": "",
         "api_key_prefix": "",  # No prefix validation for local
     },
@@ -338,88 +332,6 @@ def build_ai_request_context(user_query: str, events: list[dict], provider: str 
     return match, cache_key, prompt
 
 
-def extract_splunk_from_response(text):
-    """Extract Splunk queries from a Claude response.
-
-    Uses a line-by-line state-machine parser that handles nested fences
-    and inline backticks correctly.
-
-    Returns list of {description, query} dicts.
-    """
-    from app_render import _looks_like_splunk, _split_combined_splunk
-
-    results = []
-    lines = text.split("\n")
-    in_block = False
-    fence_len = 0  # backtick length of the opening fence
-    block_lang = ""
-    block_lines = []
-    preceding_text = []  # non-code lines before the current block
-
-    for line in lines:
-        stripped = line.strip()
-        # Check if this line is a fence (3+ backticks at start)
-        if stripped.startswith("```"):
-            tick_count = 0
-            for ch in stripped:
-                if ch == "`":
-                    tick_count += 1
-                else:
-                    break
-
-            if not in_block:
-                # Opening fence
-                in_block = True
-                fence_len = tick_count
-                block_lang = stripped[tick_count:].strip().lower()
-                block_lines = []
-            elif tick_count >= fence_len:
-                # Closing fence (must be at least as long as opening)
-                in_block = False
-                code = "\n".join(block_lines).strip()
-                if block_lang in ("spl", "splunk", "") and code and _looks_like_splunk(code):
-                    split = _split_combined_splunk(code)
-                    if len(split) > 1:
-                        results.extend(split)
-                    else:
-                        # Use preceding text as description
-                        desc = ""
-                        for prev_line in reversed(preceding_text):
-                            candidate = prev_line.strip().strip("*").strip("#").strip()
-                            if candidate:
-                                desc = candidate
-                                break
-                        results.append({"description": desc or "Splunk query", "query": code})
-                block_lines = []
-                block_lang = ""
-                fence_len = 0
-                preceding_text = []
-            else:
-                # Nested fence (shorter than opening) — treat as content
-                block_lines.append(line)
-        elif in_block:
-            block_lines.append(line)
-        else:
-            preceding_text.append(line)
-
-    # If a code block was never closed, still check its content
-    if in_block and block_lines:
-        code = "\n".join(block_lines).strip()
-        if block_lang in ("spl", "splunk", "") and code and _looks_like_splunk(code):
-            split = _split_combined_splunk(code)
-            if len(split) > 1:
-                results.extend(split)
-            else:
-                desc = ""
-                for prev_line in reversed(preceding_text):
-                    candidate = prev_line.strip().strip("*").strip("#").strip()
-                    if candidate:
-                        desc = candidate
-                        break
-                results.append({"description": desc or "Splunk query", "query": code})
-
-    return results
-
 
 def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list[dict],
                      processing_container, log=None, lookup_cache=None, store_cache=None) -> None:
@@ -455,8 +367,6 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
             "answer": answer,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
         }
-        if cfg["extract_splunk"]:
-            entry["splunk_queries"] = extract_splunk_from_response(answer)
         hist = getattr(st.session_state, cfg["history_key"])
         if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
             hist.append(entry)
@@ -591,12 +501,10 @@ def run_local_analysis(user_query, events, processing_container, model_id="",
 # --- AI response rendering ---
 
 def _render_claude_response(text):
-    """Render Claude response with separate copyable blocks for each Splunk query.
+    """Render AI response with prose and fenced code blocks.
 
     Uses a line-by-line state-machine parser that handles nested fences correctly.
     """
-    from app_render import _looks_like_splunk, _split_combined_splunk
-
     lines = text.split("\n")
     in_block = False
     fence_len = 0
@@ -614,16 +522,7 @@ def _render_claude_response(text):
         code_text = code_text.strip()
         if not code_text:
             return
-        if lang in ("spl", "splunk", "") and _looks_like_splunk(code_text):
-            queries = _split_combined_splunk(code_text)
-            if len(queries) > 1:
-                for sq in queries:
-                    st.markdown(f"**{sq['description']}**")
-                    st.code(sq["query"], language="spl")
-            else:
-                st.code(code_text, language="spl")
-        else:
-            st.code(code_text, language=lang or None)
+        st.code(code_text, language=lang or None)
 
     for line in lines:
         stripped = line.strip()
@@ -808,7 +707,6 @@ def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
 def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=None):
     """Render the 'Analyze all logs' cross-system triage button."""
     from logpilot.ai import build_cross_system_prompt, estimate_tokens
-    import time
 
     events = a.get("events", [])
     sources = set(e.get("system_label", "") for e in events)
@@ -836,17 +734,28 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
     _triage_answer = st.session_state.get("_triage_answer")
 
     if _triage_clicked:
+        import time as _time
+        now = _time.time()
+        elapsed = now - st.session_state.last_ai_call_ts
+        if elapsed < AI_RATE_LIMIT_SECONDS:
+            st.warning(f"Rate limit: wait {AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
+            return
+        st.session_state.last_ai_call_ts = now
+
         model_info = AI_MODELS[_triage_model]
         provider = model_info["provider"]
         model_id = model_info["model_id"]
 
         # Check API key
-        key_map = {"claude": "api_key", "gemini": "gemini_api_key", "openai": "openai_api_key"}
+        key_map = {"claude": "api_key", "gemini": "gemini_api_key", "openai": "openai_api_key",
+                   "local": "local_ai_api_key"}
         api_key = getattr(st.session_state, key_map.get(provider, "api_key"), "")
 
-        if provider in ("claude", "gemini", "openai") and not api_key:
+        if not api_key and provider != "local":
             st.error(f"No {provider} API key configured. Set it in the sidebar.")
             return
+        if provider == "local" and not api_key:
+            api_key = "not-needed"
 
         prompt = build_cross_system_prompt(events)
         est_tokens = estimate_tokens(prompt["system"] + prompt["user"])
@@ -861,8 +770,10 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                     answer, usage = call_gemini_api(api_key, model_id, prompt)
                 elif provider == "openai":
                     answer, usage = call_openai_api(api_key, model_id, prompt)
+                elif provider == "local":
+                    answer, usage = call_local_api(api_key, model_id, prompt)
                 else:
-                    st.error("Local AI not supported for cross-system triage yet.")
+                    st.error(f"Unsupported provider: {provider}")
                     return
 
                 st.session_state._triage_answer = answer

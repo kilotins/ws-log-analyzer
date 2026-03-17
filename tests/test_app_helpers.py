@@ -54,25 +54,30 @@ sys.modules["streamlit.components.v1"] = mock.MagicMock()
 from app import (                       # noqa: E402
     _load_json_file,
     _save_json_file,
-    _looks_like_splunk,
-    _split_combined_splunk,
-    extract_splunk_from_response,
     get_report_history,
-    _highlight_line,
-    _is_safe_rt_path,
     _load_keychain,
     _save_keychain,
     _load_provider_history,
     _save_provider_history,
+)
+from app_ai import (                    # noqa: E402
     PROVIDER_CONFIG,
     estimate_cost,
-    _extract_signatures,
     call_claude_api,
     call_openai_api,
     call_gemini_api,
+)
+from app_realtime import (              # noqa: E402
+    _highlight_line,
+    _is_safe_rt_path,
+)
+from app_audit import (                 # noqa: E402
+    _extract_signatures,
     _collect_audit_sources,
+)
+from app_constants import AI_RATE_LIMIT_SECONDS  # noqa: E402
+from app import (                       # noqa: E402
     _PROVIDER_HISTORY_FILES,
-    AI_RATE_LIMIT_SECONDS,
     _CACHE_TTL_SECONDS,
     _load_file_cache,
     _save_file_cache,
@@ -139,110 +144,6 @@ class TestSaveJsonFile:
         _save_json_file(f, {"data": 1})
         files = list(tmp_path.iterdir())
         assert len(files) == 1 and files[0].name == "clean.json"
-
-
-# ── _looks_like_splunk ────────────────────────────────────────────────────
-
-class TestLooksLikeSplunk:
-    @pytest.mark.parametrize("code", [
-        'index=was_logs sourcetype=websphere',
-        'search index=main | timechart count by severity',
-        '| stats count by host',
-        'index=prod | table _time host message',
-        'index=prod | where severity="ERROR"',
-        '| eval duration=end-start',
-    ])
-    def test_recognises_splunk_queries(self, code):
-        assert _looks_like_splunk(code) is True
-
-    @pytest.mark.parametrize("code", [
-        'System.out.println("hello");',
-        'SELECT * FROM logs WHERE level = "ERROR"',
-        'curl -X GET http://localhost:8080',
-        '',
-    ])
-    def test_rejects_non_splunk(self, code):
-        assert _looks_like_splunk(code) is False
-
-
-# ── _split_combined_splunk ────────────────────────────────────────────────
-
-class TestSplitCombinedSplunk:
-    def test_single_query_no_separator(self):
-        code = 'index=was_logs | stats count by host'
-        result = _split_combined_splunk(code)
-        assert len(result) == 1
-        assert result[0]["query"] == code
-
-    def test_multiple_queries_split(self):
-        code = (
-            "-- Error count by host\n"
-            "index=was_logs severity=ERROR | stats count by host\n"
-            "-- Timechart of errors\n"
-            "index=was_logs severity=ERROR | timechart count"
-        )
-        result = _split_combined_splunk(code)
-        assert len(result) == 2
-        assert result[0]["description"] == "Error count by host"
-        assert "stats count by host" in result[0]["query"]
-        assert result[1]["description"] == "Timechart of errors"
-        assert "timechart count" in result[1]["query"]
-
-    def test_empty_string(self):
-        result = _split_combined_splunk("")
-        assert len(result) == 1
-        assert result[0]["query"] == ""
-
-
-# ── extract_splunk_from_response ─────────────────────────────────────────
-
-class TestExtractSplunkFromResponse:
-    def test_extracts_fenced_splunk_query(self):
-        text = (
-            "Here is a useful Splunk query:\n"
-            "```spl\n"
-            "index=was_logs severity=ERROR | stats count by host\n"
-            "```\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert len(result) == 1
-        assert "stats count by host" in result[0]["query"]
-
-    def test_extracts_unlabelled_fence_with_splunk_content(self):
-        text = (
-            "Try this:\n"
-            "```\n"
-            "index=prod | table _time host message\n"
-            "```\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert len(result) == 1
-
-    def test_ignores_non_splunk_code_blocks(self):
-        text = (
-            "Example Java code:\n"
-            "```java\n"
-            "System.out.println(\"hello\");\n"
-            "```\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert result == []
-
-    def test_no_code_blocks(self):
-        text = "No code blocks here, just plain text."
-        result = extract_splunk_from_response(text)
-        assert result == []
-
-    def test_uses_preceding_text_as_description(self):
-        text = (
-            "**Error rate query**\n"
-            "```spl\n"
-            "index=was_logs | stats count by severity\n"
-            "```\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert len(result) == 1
-        assert "Error rate query" in result[0]["description"]
 
 
 # ── get_report_history ────────────────────────────────────────────────────
@@ -479,13 +380,9 @@ class TestProviderConfig:
         cfg = PROVIDER_CONFIG[provider]
         required = ["label", "cache_key", "answer_key", "query_label_key",
                      "history_key", "api_key_field", "save_history",
-                     "extract_splunk", "api_key_error"]
+                     "api_key_error"]
         for key in required:
             assert key in cfg, f"Missing key '{key}' in {provider} config"
-
-    def test_no_provider_extracts_splunk(self):
-        for provider, cfg in PROVIDER_CONFIG.items():
-            assert cfg["extract_splunk"] is False, f"{provider} should not extract splunk"
 
 
 # ── estimate_cost ───────────────────────────────────────────────────────
@@ -709,111 +606,6 @@ class TestCacheTTL:
 
     def test_ttl_is_seven_days(self):
         assert _CACHE_TTL_SECONDS == 7 * 24 * 60 * 60
-
-
-# ── Splunk extraction edge cases (16.5) ──────────────────────────────
-
-class TestExtractSplunkEdgeCases:
-    def test_nested_fences_inner_treated_as_content(self):
-        """A ``` fence inside a ```` fence should be treated as content, not a boundary."""
-        text = (
-            "Here is an example:\n"
-            "````spl\n"
-            "```\n"
-            "index=was_logs | stats count by host\n"
-            "```\n"
-            "````\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert len(result) == 1
-        assert "stats count by host" in result[0]["query"]
-
-    def test_nested_fences_outer_not_splunk(self):
-        """Inner ``` fence inside ```` should not be extracted separately."""
-        text = (
-            "Outer block:\n"
-            "````markdown\n"
-            "```spl\n"
-            "index=was_logs | stats count\n"
-            "```\n"
-            "````\n"
-        )
-        result = extract_splunk_from_response(text)
-        # The outer block is 'markdown' lang, not splunk, so nothing extracted
-        assert result == []
-
-    def test_inline_backticks_not_treated_as_code_block(self):
-        """Inline backticks like `index=foo` should not trigger code block parsing."""
-        text = (
-            "Use `index=was_logs | stats count` in your search.\n"
-            "Also try `sourcetype=websphere`.\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert result == []
-
-    def test_empty_code_block(self):
-        """An empty code block should not produce any results."""
-        text = (
-            "Empty block:\n"
-            "```spl\n"
-            "```\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert result == []
-
-    def test_empty_unlabelled_code_block(self):
-        """An empty unlabelled code block should not produce any results."""
-        text = (
-            "Nothing here:\n"
-            "```\n"
-            "```\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert result == []
-
-    def test_unclosed_code_block_with_splunk(self):
-        """A code block with no closing fence should still extract Splunk content."""
-        text = (
-            "Unclosed block:\n"
-            "```spl\n"
-            "index=was_logs severity=ERROR | table _time host message\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert len(result) == 1
-        assert "table _time host message" in result[0]["query"]
-
-    def test_unclosed_code_block_non_splunk(self):
-        """An unclosed non-Splunk code block should not produce results."""
-        text = (
-            "Unclosed Java:\n"
-            "```java\n"
-            "System.out.println(\"hello\");\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert result == []
-
-    def test_multiple_blocks_mixed(self):
-        """Multiple code blocks, some Splunk some not, with nested fences."""
-        text = (
-            "First query:\n"
-            "```spl\n"
-            "index=was_logs | stats count\n"
-            "```\n"
-            "\n"
-            "Some Java:\n"
-            "```java\n"
-            "throw new Exception();\n"
-            "```\n"
-            "\n"
-            "Second query:\n"
-            "```\n"
-            "index=prod | where severity=\"ERROR\"\n"
-            "```\n"
-        )
-        result = extract_splunk_from_response(text)
-        assert len(result) == 2
-        assert "stats count" in result[0]["query"]
-        assert "severity" in result[1]["query"]
 
 
 # ── 15.3 — _lookup_cache / _store_cache ──────────────────────────────────
