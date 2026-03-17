@@ -194,7 +194,7 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
         chunks = []
         with client.messages.stream(
             model=model_id, max_tokens=max_tokens,
-            system=prompt["system"],
+            system=[{"type": "text", "text": prompt["system"], "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": prompt["user"]}],
         ) as stream:
             for text in stream.text_stream:
@@ -207,7 +207,7 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     message = client.messages.create(
         model=model_id, max_tokens=max_tokens,
-        system=prompt["system"],
+        system=[{"type": "text", "text": prompt["system"], "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt["user"]}],
     )
     if not message.content:
