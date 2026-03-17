@@ -354,9 +354,9 @@ def build_claude_prompt(user_query: str, match_result: dict, style: str | None =
     if match_result["matched"]:
         parts.append("<context>")
         if detected_format:
-            spec = _FORMAT_SPECIALIST.get(detected_format, ("", ""))
-            if spec[0]:
-                parts.append(f"Log format: {spec[0]}")
+            role = _FORMAT_SPECIALIST.get(detected_format, "")
+            if role:
+                parts.append(f"Log format: {role}")
         if match_result["codes"]:
             parts.append(f"Matching codes: {', '.join(match_result['codes'])}")
         if match_result["exceptions"]:
@@ -374,9 +374,9 @@ def build_claude_prompt(user_query: str, match_result: dict, style: str | None =
             parts.append("")
     else:
         if detected_format:
-            spec = _FORMAT_SPECIALIST.get(detected_format, ("", ""))
-            if spec[0]:
-                parts.append(f"Log format: {spec[0]}")
+            role = _FORMAT_SPECIALIST.get(detected_format, "")
+            if role:
+                parts.append(f"Log format: {role}")
         parts.append("No exact match was found in the current log. Provide general guidance.")
         parts.append("")
 

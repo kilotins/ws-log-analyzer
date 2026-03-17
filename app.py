@@ -11,37 +11,19 @@ from pathlib import Path
 
 from logpilot import (
     parse_file, render_markdown_report, render_json_report,
-    render_pdf_report, render_csv_report, render_xml_report,
     precompute_analysis, incident_timeline,
 )
 from logpilot.formats import list_formats
 
 # --- Extracted modules ---
 from app_ai import (
-    PROVIDER_CONFIG, TOKEN_COSTS, AI_MODELS,
-    estimate_cost, call_claude_api, call_gemini_api, call_openai_api,
-    AI_RATE_LIMIT_SECONDS, build_ai_request_context,
-    extract_splunk_from_response,
-    run_claude_analysis, run_gemini_analysis, run_openai_analysis,
+    PROVIDER_CONFIG, AI_MODELS, LOCAL_AI_PRESETS,
     init_provider_config,
 )
-from app_render import (
-    _looks_like_splunk, _split_combined_splunk,
-    render_code_row, render_summary, render_report_sections,
-    render_splunk_section,
-)
+from app_render import render_report_sections
 from app_constants import CACHE_TTL_SECONDS, MAX_CACHE_ENTRIES as _MAX_CACHE_ENTRIES_DEFAULT, MAX_UPLOAD_MB
-from app_realtime import (
-    _LEVEL_COLORS, _LEVEL_HIGHLIGHT_RE, _highlight_line,
-    _is_safe_rt_path, _rt_poll, _rt_live_view, _RT_BUFFER_SIZE,
-)
-from app_audit import (
-    _AUDIT_MODELS, _AUDIT_SYSTEM_PROMPT, _AUDIT_LIGHT_CSS,
-    _AUDIT_FILES_FULL, _AUDIT_FILES_COMPACT,
-    _extract_signatures, _collect_audit_sources,
-    _run_audit_claude, _run_audit_gemini, _run_audit_openai,
-    _run_audit, _COMPACT_MAX_LINES,
-)
+from app_realtime import _rt_live_view, _RT_BUFFER_SIZE
+from app_audit import _AUDIT_MODELS, _AUDIT_LIGHT_CSS, _run_audit
 from app_spend import render_spend_tab
 
 # --- Paths and directories ---
@@ -245,7 +227,6 @@ _STATE_DEFAULTS = {
     "local_ai_endpoint": "http://localhost:1234/v1",
     "local_ai_model": "",
     "local_ai_api_key": "not-needed",
-    "local_api_key": "",
     "gemini_answer": None,
     "gemini_query_label": None,
     "gemini_cache": {},
@@ -492,7 +473,6 @@ with st.sidebar:
             _save_openai_key(openai_key)
         st.session_state.openai_api_key = openai_key
 
-    from app_ai import LOCAL_AI_PRESETS
     with st.expander("Local / Inhouse AI", expanded=False):
         _preset = st.selectbox(
             "Preset",
@@ -678,7 +658,6 @@ with tab_analyze:
             file_summary = pa["file_summary"]
             causes = pa["causes"]
             hist = pa["hist"]
-            splunk = pa["splunk"]
             hung = pa["hung"]
             samples = pa["samples"]
             report_md = render_markdown_report(all_events, _analysis=pa)
@@ -704,7 +683,6 @@ with tab_analyze:
                 "file_summary": file_summary,
                 "causes": causes,
                 "hist": hist,
-                "splunk": splunk,
                 "hung": hung,
                 "samples": samples,
                 "cascades": pa.get("cascades", []),
@@ -742,7 +720,6 @@ with tab_analyze:
                 "file_summary": _pa["file_summary"],
                 "causes": _pa["causes"],
                 "hist": _pa["hist"],
-                "splunk": _pa["splunk"],
                 "hung": _pa["hung"],
                 "samples": _pa["samples"],
                 "report_md": _report_md,
