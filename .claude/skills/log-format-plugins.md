@@ -14,6 +14,8 @@ logpilot/formats/
     log4j.py         # Log4j/Logback (Spring Boot, Kafka)
     python_log.py    # Python logging (Django, Flask, tracebacks)
     syslog.py        # syslog RFC 3164/5424, journald
+    enonic.py        # Enonic XP server.log + Jetty request logs
+    crio.py          # CRI-O / Kubernetes container runtime logs
 ```
 
 ## LogFormat Protocol
@@ -194,6 +196,7 @@ All formats must produce events with this schema:
 {
     "file": str,           # Source file path
     "ts": str | None,      # Timestamp string (format-native)
+    "ts_utc": str | None,  # ISO 8601 UTC timestamp (added by analysis pipeline)
     "level": str | None,   # Normalized: ERROR, WARN, INFO, DEBUG
     "thread_id": str | None,
     "code": str | None,    # Format-specific code (WAS code, HTTP status, etc.)
@@ -202,6 +205,8 @@ All formats must produce events with this schema:
     "tags": list[str],     # Signal tags: OOM/GC, HungThreads, SSL/TLS, etc.
     "text": str,           # Full event text (redacted)
     "format": str,         # Which format parsed this: "was", "nginx", "json", etc.
+    "system_label": str,   # Source label for cross-system analysis (e.g., "spring-backend")
+    "trace_ids": dict,     # Extracted trace IDs: {"trace_id": "abc", "span_id": "def", ...}
 }
 ```
 
