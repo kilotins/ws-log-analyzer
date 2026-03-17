@@ -440,10 +440,10 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     if _is_filtered:
         _filter_note = f" (filtered: {len(filtered_events)} of {a['total_events']})"
 
-    if _filter_note:
-        st.info(f"Downloads contain the full unfiltered report.{_filter_note}")
-    # Generate reports lazily (on-demand at download time)
-    events = a["events"]
+    # Use filtered events for export when filter is active
+    events = filtered_events if _is_filtered else a["events"]
+    if _is_filtered:
+        st.info(f"Exports contain filtered data ({len(filtered_events)} of {a['total_events']} events).")
     _pa = precompute_analysis(events, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
 
     st.subheader("Export Log Analysis Report")
@@ -457,10 +457,13 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         )
     with _dl_col:
         _base = a["report_name"]
+        from logpilot import render_markdown_report, render_json_report
         if _export_fmt == "Markdown":
-            _data, _fname, _mime = a["report_md"], _base, "text/markdown"
+            _md = render_markdown_report(events, _analysis=_pa) if _is_filtered else a["report_md"]
+            _data, _fname, _mime = _md, _base, "text/markdown"
         elif _export_fmt == "JSON":
-            _data, _fname, _mime = a["report_json"], _base.replace(".md", ".json"), "application/json"
+            _json = render_json_report(events, _analysis=_pa) if _is_filtered else a["report_json"]
+            _data, _fname, _mime = _json, _base.replace(".md", ".json"), "application/json"
         elif _export_fmt == "PDF":
             _data, _fname, _mime = render_pdf_report(events, _analysis=_pa), _base.replace(".md", ".pdf"), "application/pdf"
         elif _export_fmt == "CSV":

@@ -1,0 +1,11 @@
+2024-10-15 08:30:01,123 INFO django.server "GET / HTTP/1.1" 200 4523
+2024-10-15 08:30:05,456 INFO celery.worker Beat: Waking up in 5.0 seconds.
+2024-10-15 08:31:12,789 WARNING django.request Not Found: /api/v2/legacy
+2024-10-15 08:31:45,001 ERROR celery.app.trace Task orders.tasks.process_payment[abc123] raised unexpected: ConnectionError('Connection refused')
+Traceback (most recent call last):
+  File "/app/orders/tasks.py", line 42, in process_payment
+    response = requests.post(PAYMENT_URL, json=payload, timeout=10)
+  File "/venv/lib/python3.11/site-packages/requests/api.py", line 115, in post
+    return request("POST", url, data=data, json=json, **kwargs)
+ConnectionError: HTTPConnectionPool(host='payment.internal', port=8080): Max retries exceeded
+2024-10-15 08:32:00,567 INFO django.server "GET /health HTTP/1.1" 200 15

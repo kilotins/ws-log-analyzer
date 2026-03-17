@@ -611,7 +611,7 @@ with tab_analyze:
             help="Limit lines read per file. Lower = faster parsing, higher = more complete analysis.",
         )
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         top_n = st.number_input("Top-N items", min_value=1, max_value=50, value=10,
                                 help="Number of top exceptions, message codes, and signal tags shown in the summary.")
@@ -621,6 +621,9 @@ with tab_analyze:
     with col3:
         hist_minutes = st.number_input("Histogram bucket (min)", min_value=1, max_value=60, value=1,
                                        help="Time resolution for the timeline histogram.")
+    with col4:
+        timeline_window = st.number_input("Timeline window (sec)", min_value=5, max_value=300, value=30,
+                                          help="Seconds before/after the first error to include in the incident timeline.")
 
     if uploaded_files and st.button("Analyze", type="primary"):
         total_size = sum(f.size for f in uploaded_files)
@@ -680,7 +683,7 @@ with tab_analyze:
                 log.info("analysis Top exceptions: %s", ", ".join(f"{e}({n})" for e, n in s["exceptions"][:5]))
             log.info("analysis Report saved: %s", report_name)
 
-            itl = incident_timeline(all_events)
+            itl = incident_timeline(all_events, window_seconds=timeline_window)
 
             st.session_state.analysis = {
                 "events": all_events,

@@ -1,0 +1,9 @@
+2024-10-15 08:30:01,123 INFO  c.e.x.l.f.LogbackConfigurator - Log configuration loaded
+2024-10-15 08:30:05,456 INFO  o.e.j.s.Server - jetty-9.4.51; built: 2023-02-17
+2024-10-15 08:30:10,789 INFO  c.e.x.r.n.NodeService - Cluster health: GREEN, nodes: 3
+2024-10-15 08:31:12,001 WARN  c.e.x.r.n.NodeService - Cluster health changed: GREEN -> YELLOW (1 node unresponsive)
+2024-10-15 08:31:45,234 ERROR c.e.x.r.RepositoryService - Failed to read blob
+com.enonic.xp.repository.RepositoryException: Blob not found: abc123def456
+	at com.enonic.xp.repo.impl.storage.BlobStore.getBlob(BlobStore.java:45)
+	at com.enonic.xp.repo.impl.node.NodeServiceImpl.getById(NodeServiceImpl.java:112)
+2024-10-15 08:32:00,567 INFO  c.e.x.w.impl.WebAppHandler - Request: GET /admin/portal 200 (12ms)

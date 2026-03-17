@@ -1,0 +1,6 @@
+{"timestamp":"2024-10-15T08:30:01.123Z","level":"info","msg":"Server starting on port 3000","pid":1234}
+{"timestamp":"2024-10-15T08:30:02.456Z","level":"info","msg":"Connected to database","pid":1234,"host":"db-primary.internal"}
+{"timestamp":"2024-10-15T08:31:10.789Z","level":"warn","msg":"High memory usage detected","pid":1234,"memory_pct":87.5}
+{"timestamp":"2024-10-15T08:31:45.001Z","level":"error","msg":"Request timeout","pid":1234,"path":"/api/orders","duration_ms":30012,"error":"ETIMEDOUT"}
+{"timestamp":"2024-10-15T08:31:46.234Z","level":"error","msg":"Connection refused","pid":1234,"host":"cache-01.internal","port":6379,"error":"ECONNREFUSED"}
+{"timestamp":"2024-10-15T08:32:00.567Z","level":"info","msg":"Health check OK","pid":1234,"uptime_sec":119}

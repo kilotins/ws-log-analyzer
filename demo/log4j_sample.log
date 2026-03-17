@@ -1,0 +1,12 @@
+2024-10-15 08:30:01.123 INFO  [main] c.a.Application - Application started in 3.45 seconds
+2024-10-15 08:30:02.456 INFO  [main] c.z.h.HikariDataSource - HikariPool-1 - Starting...
+2024-10-15 08:30:03.789 INFO  [main] c.z.h.HikariDataSource - HikariPool-1 - Start completed.
+2024-10-15 08:31:12.001 WARN  [http-nio-8080-exec-5] c.z.h.pool.HikariPool - HikariPool-1 - Connection is not available, request timed out after 30000ms.
+2024-10-15 08:31:12.123 ERROR [http-nio-8080-exec-5] c.a.s.OrderService - Failed to process order
+org.springframework.dao.DataAccessResourceFailureException: Could not get JDBC Connection
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:82)
+	at com.app.service.OrderService.processOrder(OrderService.java:67)
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+2024-10-15 08:31:45.234 WARN  [scheduling-1] c.a.h.HealthCheck - Database health check failed
+2024-10-15 08:32:00.567 INFO  [http-nio-8080-exec-1] c.a.c.StatusController - Status endpoint hit
