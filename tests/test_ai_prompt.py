@@ -8,10 +8,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from logpilot import (
     match_user_query, build_claude_prompt, claude_cache_key,
-    _truncate_event_text, _sanitize_prompt_input,
     select_skills, load_skill_content, MAX_SKILLS,
-    estimate_tokens, _discover_skills,
+    estimate_tokens,
 )
+from logpilot.ai import _truncate_event_text, _sanitize_prompt_input, _discover_skills
 from conftest import make_event, empty_match
 
 
@@ -768,6 +768,6 @@ def test_select_skills_filters_nonexistent():
     match_result = {"tags": ["OOM/GC"], "codes": [], "exceptions": []}
     skills = select_skills(match_result)
     # All returned skills should actually exist
-    from logpilot import _SKILLS_DIR
+    from logpilot.ai import _SKILLS_DIR
     for s in skills:
         assert (_SKILLS_DIR / s).is_file(), f"Returned skill does not exist: {s}"

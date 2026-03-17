@@ -1,7 +1,7 @@
 """Tests for incident grouping, new heuristics, and YAML/inline merge."""
 import re
 import pytest
-from logpilot.analysis import (
+from logpilot.heuristics import (
     group_into_incidents, _INCIDENT_GROUPS, _HEURISTICS, _HEURISTICS_INLINE,
     _merge_heuristics, likely_causes, _CORRELATIONS,
 )

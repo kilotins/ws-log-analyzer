@@ -68,7 +68,7 @@ class TestDetectBurst:
     """Tests for logpilot.analysis._detect_burst."""
 
     def test_no_burst_below_threshold(self):
-        from logpilot.analysis import _detect_burst
+        from logpilot.heuristics import _detect_burst
 
         # 10 error events — well below default threshold of 50
         events = [_make_event("ERROR: something bad", ts=_iso_ts(i * 5)) for i in range(10)]
@@ -76,7 +76,7 @@ class TestDetectBurst:
         assert result == []
 
     def test_burst_detected_above_threshold(self):
-        from logpilot.analysis import _detect_burst
+        from logpilot.heuristics import _detect_burst
 
         # 60 error events within a 60-second window — threshold 50
         events = [_make_event("ERROR: cascade failure", ts=_iso_ts(i)) for i in range(60)]
@@ -86,7 +86,7 @@ class TestDetectBurst:
         assert result[0]["count"] >= 50
 
     def test_burst_with_was_classic_timestamps(self):
-        from logpilot.analysis import _detect_burst
+        from logpilot.heuristics import _detect_burst
 
         # 55 errors all within 30 seconds — WAS classic timestamp format
         events = [_make_event("ERROR: OutOfMemoryError", ts=_was_ts(i)) for i in range(55)]
@@ -95,14 +95,14 @@ class TestDetectBurst:
         assert result[0]["severity"] == "critical"
 
     def test_burst_with_iso_timestamps(self):
-        from logpilot.analysis import _detect_burst
+        from logpilot.heuristics import _detect_burst
 
         events = [_make_event("SEVERE: connection refused", ts=_iso_ts(i * 2)) for i in range(55)]
         result = _detect_burst(events, window_seconds=120.0, threshold=50)
         assert len(result) == 1
 
     def test_no_burst_events_spread_out(self):
-        from logpilot.analysis import _detect_burst
+        from logpilot.heuristics import _detect_burst
 
         # 55 errors but each 10 minutes apart — should not trigger 2-minute window
         events = [_make_event("ERROR: timeout", ts=_iso_ts(i * 600)) for i in range(55)]
@@ -110,13 +110,13 @@ class TestDetectBurst:
         assert result == []
 
     def test_empty_events_list(self):
-        from logpilot.analysis import _detect_burst
+        from logpilot.heuristics import _detect_burst
 
         result = _detect_burst([])
         assert result == []
 
     def test_burst_only_counts_error_levels(self):
-        from logpilot.analysis import _detect_burst
+        from logpilot.heuristics import _detect_burst
 
         # 60 INFO events — should never trigger (burst only counts ERROR/SEVERE/FATAL)
         events = [_make_event("INFO: normal operation", level="INFO", ts=_iso_ts(i)) for i in range(60)]

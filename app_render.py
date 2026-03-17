@@ -187,11 +187,7 @@ def _severity_bar_chart(times, levels, title_suffix="", trigger_dt=None, height=
 
     # Bucket events by time + severity
     severity_order = ["FATAL", "SEVERE", "ERROR", "WARNING", "WARN", "INFO", "AUDIT", "DEBUG", "UNKNOWN"]
-    severity_colors = {
-        "FATAL": "#DC2626", "SEVERE": "#DC2626", "ERROR": "#EF4444",
-        "WARNING": "#F59E0B", "WARN": "#F59E0B",
-        "INFO": "#7C3AED", "AUDIT": "#0891B2", "DEBUG": "#94A3B8", "UNKNOWN": "#6B7280",
-    }
+    severity_colors = LEVEL_COLORS
 
     buckets: dict[int, Counter] = {}
     for t, lvl in zip(times, levels):
@@ -370,11 +366,7 @@ def render_cross_system_timeline(events: list[dict], cascades: list[dict] | None
         return
 
     severity_order = ["FATAL", "SEVERE", "ERROR", "WARNING", "WARN", "INFO", "AUDIT", "DEBUG", "UNKNOWN"]
-    severity_colors = {
-        "FATAL": "#DC2626", "SEVERE": "#DC2626", "ERROR": "#EF4444",
-        "WARNING": "#F59E0B", "WARN": "#F59E0B",
-        "INFO": "#7C3AED", "AUDIT": "#0891B2", "DEBUG": "#94A3B8", "UNKNOWN": "#6B7280",
-    }
+    severity_colors = LEVEL_COLORS
 
     # Determine global time range and bucket size
     all_dts = [dt for _, dt in timed]

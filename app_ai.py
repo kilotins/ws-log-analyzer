@@ -8,8 +8,8 @@ from logpilot import (
     match_user_query, build_claude_prompt, claude_cache_key, triage_cache_key,
     ask_gemini,
     estimate_tokens, TOKEN_LIMITS,
-    _FORMAT_PLACEHOLDER,
 )
+from logpilot.ai import _FORMAT_PLACEHOLDER
 from app_constants import AI_RATE_LIMIT_SECONDS
 
 

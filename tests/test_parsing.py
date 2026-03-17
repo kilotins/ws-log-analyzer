@@ -10,10 +10,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from logpilot import (
     extract_ts, redact, parse_file, parse_file_iter, classify_event, bucket_tags,
-    _parse_ts_parts, parse_ts_datetime,
+    parse_ts_datetime,
     EXC_HEAD_RE, WAS_LEVEL_RE, WAS_LEVEL_MAP, WAS_CODE_RE, WAS_THREAD_RE,
     LEVEL_RE, HUNG_THREAD_RE, open_text,
 )
+from logpilot.analysis import _parse_ts_parts
 from conftest import make_event, empty_match
 
 # --- Shared fixtures ---
