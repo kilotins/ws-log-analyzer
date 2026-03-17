@@ -51,5 +51,5 @@ message = client.messages.create(
 
 ## API Key Storage
 
-Stored in macOS Keychain via `keyring.set_password("ws-log-analyzer", "anthropic_api_key", key)`.
+Stored in macOS Keychain via `keyring.set_password("logpilot", "anthropic_api_key", key)`.
 Falls back to in-memory session state if keyring is unavailable.
