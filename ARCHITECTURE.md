@@ -3,17 +3,18 @@
 ```
 ws-log-analyzer/
 ├── logpilot/             # Core engine package (parser, analysis, reports, ai, cli)
-├── app.py                # Streamlit GUI entry point (~863 lines)
-├── app_ai.py             # AI provider orchestration (~805 lines)
-├── app_render.py         # Report rendering UI (~559 lines)
-├── app_audit.py          # Audit report generation (~384 lines)
+├── app.py                # Streamlit GUI entry point (~1084 lines)
+├── app_ai.py             # AI provider orchestration (~885 lines)
+├── app_render.py         # Report rendering UI (~813 lines)
+├── app_audit.py          # Audit report generation (~411 lines)
 ├── app_spend.py          # Cost tracking & analytics (~869 lines)
 ├── app_realtime.py       # Realtime log monitoring (~162 lines)
 ├── app_constants.py      # Shared constants (31 lines)
 ├── report_renderer.py    # Markdown → HTML conversion (~819 lines)
-├── tests/                # 1019 tests across 18 test files
+├── tests/                # 1032 tests across 20 test files
 │   ├── test_parsing.py          # Core parsing, redaction, timestamps
 │   ├── test_heuristics.py       # Heuristics, correlations, burst detection
+│   ├── test_incidents.py        # Incident grouping, new heuristics, merge logic
 │   ├── test_ai_prompt.py        # AI prompt building, caching, skills
 │   ├── test_reports.py          # Report generation (all formats)
 │   ├── test_app_helpers.py      # GUI integration & state management
@@ -22,6 +23,7 @@ ws-log-analyzer/
 │   ├── test_formats.py          # Format auto-detection & registry
 │   ├── test_integration.py      # Multi-file parsing, cross-format
 │   ├── test_local_ai.py         # Local AI endpoint tests
+│   ├── test_audit_gaps.py       # Audit-driven gap coverage
 │   └── test_performance.py      # Speed benchmarks
 ├── skills/               # Domain knowledge (19 files)
 ├── .claude/
@@ -73,7 +75,8 @@ Functions that consume parsed events to produce insights:
 | Function | Purpose |
 |----------|---------|
 | `summarize()` | Counter-based aggregation of levels, codes, exceptions, tags |
-| `likely_causes()` | Heuristic pattern matching against `_HEURISTICS` list (SSL, JDBC, hung threads, OOM) |
+| `likely_causes()` | Heuristic pattern matching: 58 patterns, 17 correlations, burst detection, severity scoring |
+| `group_into_incidents()` | Groups related causes into incident chains (OOM cascade, auth failure, timeout cascade, etc.) |
 | `suggested_splunk_queries()` | Generates 3-8 Splunk queries based on summary, causes, and timeline |
 | `hung_thread_drilldown()` | Per-thread analysis: counts, first/last timestamps, stack samples, Splunk queries |
 | `time_histogram()` | Date-aware bucketing with configurable minute intervals |
@@ -86,8 +89,7 @@ Functions that consume parsed events to produce insights:
 |----------|--------|
 | `render_markdown_report()` | Full Markdown triage report |
 | `render_json_report()` | Structured JSON equivalent |
-| `render_csv_report()` | CSV export with event-level detail |
-| `render_xml_report()` | XML export with SAX escaping and configurable text truncation |
+| `render_html_report()` | Branded HTML report with CSS styling and AI content |
 | `render_pdf_report()` | PDF report via `fpdf2` (long lines wrapped, non-latin1 chars handled) |
 
 ### AI Integration (Claude + Gemini + OpenAI)
@@ -118,7 +120,7 @@ Functions that consume parsed events to produce insights:
 
 ## `app.py` — Streamlit GUI (split across modules)
 
-UI layer that imports from `logpilot`. No analysis logic lives here. The GUI is split into modules: `app.py` (~863 lines, entry point and layout), `app_ai.py` (~805 lines, AI provider orchestration), `app_render.py` (~559 lines, report rendering), `app_audit.py` (~384 lines, audit report generation), `app_spend.py` (~869 lines, cost tracking and analytics), `app_realtime.py` (~162 lines, realtime log monitoring), and `app_constants.py` (31 lines, shared constants).
+UI layer that imports from `logpilot`. No analysis logic lives here. The GUI is split into modules: `app.py` (~1084 lines, entry point and layout), `app_ai.py` (~885 lines, AI provider orchestration), `app_render.py` (~813 lines, report rendering), `app_audit.py` (~411 lines, audit report generation), `app_spend.py` (~869 lines, cost tracking and analytics), `app_realtime.py` (~162 lines, realtime log monitoring), and `app_constants.py` (31 lines, shared constants).
 
 ### Key GUI Features
 
@@ -184,7 +186,7 @@ Claude query history stored in `cache/claude_history.json` (max 50 entries), loa
 - **History** — browse/download previous reports, clear history
 - **Audit** — AI-driven code quality audit with versioned reports and delta comparison
 - **Spend** — cost tracking, CSV import, per-provider analytics
-- **App Log** — application log viewer with level filtering
+- **Debug** (debug mode only) — subtabs: Application Log (level-filtered log viewer) + Probe (AI request/response payloads for Ask AI, Triage, and Audit)
 
 ### Directories
 
@@ -204,7 +206,7 @@ Log file(s)  →  parse_file()  →  List[event dicts]
                                     ├── time_histogram()  →  render_histogram()
                                     ├── pick_samples()
                                     ├── per_file_summary()
-                                    └── render_*_report()  (markdown / json / csv / xml / pdf)
+                                    └── render_*_report()  (markdown / json / html / pdf)
 
 Ask AI:
   user_query  →  match_user_query()  →  build_claude_prompt()  →  Claude API  (via Anthropic SDK)

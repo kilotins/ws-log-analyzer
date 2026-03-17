@@ -25,6 +25,7 @@ _AUDIT_FILES_COMPACT = ["logpilot/parser.py", "logpilot/analysis.py", "logpilot/
 _AUDIT_SKILL_DIRS = ["skills", ".claude/skills"]
 
 _AUDIT_MODELS = {
+    "Local AI (free — uses active model)": {"provider": "local", "id": "", "max_tokens": 8192, "compact": True},
     "Claude — Sonnet 4.6 (~$0.20)": {"provider": "claude", "id": "claude-sonnet-4-6", "max_tokens": 8192, "compact": True},
     "Claude — Opus 4.6 (~$1.00)": {"provider": "claude", "id": "claude-opus-4-6", "max_tokens": 8192},
     "Claude — Haiku 4.5 (~$0.05)": {"provider": "claude", "id": "claude-haiku-4-5-20251001", "max_tokens": 8192, "compact": True},
@@ -259,9 +260,22 @@ def _run_audit_openai(api_key, model_id, max_tokens, compact=False):
     return call_openai_api(api_key, model_id, prompt, timeout=_AUDIT_TIMEOUT, max_tokens=max_tokens)
 
 
+def _run_audit_local(model_id, max_tokens, compact=False):
+    """Run audit via local OpenAI-compatible API. Returns (text, usage_dict)."""
+    from app_ai import call_local_api
+    api_key = getattr(st.session_state, "local_ai_api_key", "") or "not-needed"
+    base_url = getattr(st.session_state, "local_ai_endpoint", "") or None
+    if not model_id:
+        model_id = getattr(st.session_state, "local_ai_model", "") or "default"
+    prompt = {"system": _AUDIT_SYSTEM_PROMPT, "user": _collect_audit_sources(compact=compact)}
+    return call_local_api(api_key, model_id, prompt, timeout=_AUDIT_TIMEOUT,
+                          max_tokens=max_tokens, base_url=base_url)
+
+
 def _run_audit(model_label, log, status=None):
     """Run a full audit and regenerate the HTML report."""
     from report_renderer import render_html
+    from app_ai import _log_probe
 
     def _status_write(msg):
         if status:
@@ -273,8 +287,17 @@ def _run_audit(model_label, log, status=None):
     compact = model_info.get("compact", False)
 
     _status_write("Collecting source files...")
+    _audit_req = _collect_audit_sources(compact=compact)
+    _audit_req_text = f"[SYSTEM]\n{_AUDIT_SYSTEM_PROMPT}\n\n[USER]\n{_audit_req}"
 
-    if provider == "claude":
+    if provider == "local":
+        local_model = model_info["id"] or getattr(st.session_state, "local_ai_model", "") or "default"
+        endpoint = getattr(st.session_state, "local_ai_endpoint", "")
+        if not endpoint:
+            raise ValueError("Configure a Local AI endpoint in the sidebar first.")
+        _status_write(f"Sending to Local AI ({local_model})... this may take a few minutes.")
+        audit_md, usage = _run_audit_local(local_model, model_info["max_tokens"], compact=compact)
+    elif provider == "claude":
         if not st.session_state.api_key:
             raise ValueError("Enter your Anthropic API key in the sidebar. Open **API Keys** to configure.")
         _status_write(f"Sending to Claude ({model_info['id']})... this may take 1-2 minutes.")
@@ -296,9 +319,13 @@ def _run_audit(model_label, log, status=None):
             openai_key, model_info["id"], model_info["max_tokens"], compact=compact
         )
 
+    _audit_model_id = model_info["id"] or getattr(st.session_state, "local_ai_model", "local")
+    _log_probe("Audit", provider, _audit_model_id, _audit_req_text, audit_md or "")
+
     _status_write("Tracking spend...")
     # Track spend (including cache tokens for Claude)
-    record_spend(provider, model_info["id"], usage.get("input", 0), usage.get("output", 0),
+    spend_model = model_info["id"] or getattr(st.session_state, "local_ai_model", "local") or "local"
+    record_spend(provider, spend_model, usage.get("input", 0), usage.get("output", 0),
                  source="audit", cache_creation=usage.get("cache_creation", 0),
                  cache_read=usage.get("cache_read", 0))
 

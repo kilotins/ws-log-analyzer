@@ -101,15 +101,47 @@ def render_summary(s, error_count, file_count, file_summary, events=None):
 
 
 def render_likely_causes(causes):
-    """Render likely causes section."""
-    if causes:
-        for c in causes:
+    """Render likely causes section with incident grouping."""
+    if not causes:
+        st.caption("No known issue patterns detected.")
+        return
+
+    from logpilot.analysis import group_into_incidents
+    grouped = group_into_incidents(causes)
+
+    for g in grouped["groups"]:
+        total = g["total_count"]
+        st.markdown(f"### 🔗 {g['name']} ({total} event{'s' if total != 1 else ''})")
+        st.markdown(f"*{g['narrative']}*")
+
+        # Triggers
+        for t in g["triggers"]:
+            st.markdown(f"**⚡ {t['title']}** ({t['count']} event{'s' if t['count'] != 1 else ''})")
+            st.markdown(f"*Likely cause:* {t['cause']}")
+
+        # Effects
+        for e in g["effects"]:
+            st.markdown(f"**↳ {e['title']}** ({e['count']} event{'s' if e['count'] != 1 else ''})")
+
+        # Collected fixes from triggers
+        all_fixes = []
+        for t in g["triggers"]:
+            all_fixes.extend(t["fixes"])
+        if all_fixes:
+            st.markdown("**Suggested fixes:**")
+            for fix in all_fixes:
+                st.markdown(f"- {fix}")
+        st.divider()
+
+    # Ungrouped findings
+    if grouped["ungrouped"]:
+        if grouped["groups"]:
+            st.markdown("### Other Findings")
+        for c in grouped["ungrouped"]:
             st.markdown(f"**{c['title']}** ({c['count']} event{'s' if c['count'] != 1 else ''})")
             st.markdown(f"*Likely cause:* {c['cause']}")
             for fix in c["fixes"]:
                 st.markdown(f"- {fix}")
-    else:
-        st.caption("No known issue patterns detected.")
 
 
 def render_hung_threads(hung):

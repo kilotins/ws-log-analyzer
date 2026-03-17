@@ -11,6 +11,7 @@ from .analysis import precompute_analysis, render_histogram
 def render_json_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
     """Generate a JSON triage report string from parsed events."""
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
+    from .analysis import group_into_incidents
     s = a["summary"]
     samples = a["samples"]
     hist = a["hist"]
@@ -24,6 +25,7 @@ def render_json_report(events: list[dict], top_n: int = 10, samples_n: int = 5, 
         "exceptions": dict(s["exceptions"]),
         "tags": dict(s["tags"]),
         "likely_causes": causes,
+        "incident_groups": group_into_incidents(causes) if causes else {"groups": [], "ungrouped": []},
         "splunk_queries": a["splunk"],
         "hung_thread_drilldown": a["hung"],
         "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
@@ -82,17 +84,36 @@ def render_markdown_report(events: list[dict], top_n: int = 10, samples_n: int =
     md.append("")
     causes = a["causes"]
     if causes:
+        from .analysis import group_into_incidents
+        grouped = group_into_incidents(causes)
         md.append("## Likely Causes & Fixes")
         md.append("")
-        for c in causes:
-            md.append(f"### {c['title']} ({c['count']} event{'s' if c['count'] != 1 else ''})")
+        for g in grouped["groups"]:
+            md.append(f"### {g['name']} ({g['total_count']} events)")
             md.append("")
-            md.append(f"**Likely cause:** {c['cause']}")
+            md.append(f"*{g['narrative']}*")
+            md.append("")
+            for t in g["triggers"]:
+                md.append(f"**{t['title']}** ({t['count']} event{'s' if t['count'] != 1 else ''})")
+                md.append(f"  Likely cause: {t['cause']}")
+                md.append("")
+            for e in g["effects"]:
+                md.append(f"- ↳ {e['title']} ({e['count']} event{'s' if e['count'] != 1 else ''})")
             md.append("")
             md.append("**Suggested fixes:**")
-            for fix in c["fixes"]:
-                md.append(f"- {fix}")
+            for t in g["triggers"]:
+                for fix in t["fixes"]:
+                    md.append(f"- {fix}")
             md.append("")
+        if grouped["ungrouped"]:
+            md.append("### Other Findings")
+            md.append("")
+            for c in grouped["ungrouped"]:
+                md.append(f"**{c['title']}** ({c['count']} event{'s' if c['count'] != 1 else ''})")
+                md.append(f"  Likely cause: {c['cause']}")
+                for fix in c["fixes"]:
+                    md.append(f"- {fix}")
+                md.append("")
 
     splunk = a["splunk"]
     if splunk:
@@ -336,15 +357,33 @@ def render_html_report(events: list[dict], top_n: int = 10, samples_n: int = 5, 
 
     # Likely causes
     if causes:
+        from .analysis import group_into_incidents
+        grouped = group_into_incidents(causes)
         h.append('<h2>Likely Causes &amp; Fixes</h2>')
-        for c in causes:
-            h.append('<div class="cause">')
-            h.append(f'<h3>{escape(c["title"])} ({c["count"]} event{"s" if c["count"] != 1 else ""})</h3>')
-            h.append(f'<p><strong>Likely cause:</strong> {escape(c["cause"])}</p>')
+        for g in grouped["groups"]:
+            h.append(f'<div class="cause" style="border-left:3px solid #7C3AED;padding-left:12px;margin-bottom:16px">')
+            h.append(f'<h3>{escape(g["name"])} ({g["total_count"]} events)</h3>')
+            h.append(f'<p><em>{escape(g["narrative"])}</em></p>')
+            for t in g["triggers"]:
+                h.append(f'<p><strong>{escape(t["title"])}</strong> ({t["count"]} event{"s" if t["count"] != 1 else ""})')
+                h.append(f'<br>Likely cause: {escape(t["cause"])}</p>')
+            for e in g["effects"]:
+                h.append(f'<p style="margin-left:16px">↳ {escape(e["title"])} ({e["count"]} event{"s" if e["count"] != 1 else ""})</p>')
             h.append('<ul>')
-            for fix in c["fixes"]:
-                h.append(f'<li>{escape(fix)}</li>')
+            for t in g["triggers"]:
+                for fix in t["fixes"]:
+                    h.append(f'<li>{escape(fix)}</li>')
             h.append('</ul></div>')
+        if grouped["ungrouped"]:
+            h.append('<h3>Other Findings</h3>')
+            for c in grouped["ungrouped"]:
+                h.append('<div class="cause">')
+                h.append(f'<h3>{escape(c["title"])} ({c["count"]} event{"s" if c["count"] != 1 else ""})</h3>')
+                h.append(f'<p><strong>Likely cause:</strong> {escape(c["cause"])}</p>')
+                h.append('<ul>')
+                for fix in c["fixes"]:
+                    h.append(f'<li>{escape(fix)}</li>')
+                h.append('</ul></div>')
 
     # Hung threads
     if hung:
@@ -507,13 +546,30 @@ def render_pdf_report(events: list[dict], top_n: int = 10, samples_n: int = 5, h
         pdf.multi_cell(0, 5, _latin1_safe(text))
 
     if causes:
+        from .analysis import group_into_incidents
+        grouped = group_into_incidents(causes)
         heading("Likely Causes & Fixes")
-        for c in causes:
-            bold_line(f"{c['title']} ({c['count']} event{'s' if c['count'] != 1 else ''})")
-            body(f"Likely cause: {c['cause']}")
-            for fix in c["fixes"]:
-                body(f"  - {fix}")
+        for g in grouped["groups"]:
+            bold_line(f"{g['name']} ({g['total_count']} events)")
+            body(g["narrative"])
+            for t in g["triggers"]:
+                bold_line(f"  {t['title']} ({t['count']} event{'s' if t['count'] != 1 else ''})")
+                body(f"  Likely cause: {t['cause']}")
+            for e in g["effects"]:
+                body(f"    -> {e['title']} ({e['count']} event{'s' if e['count'] != 1 else ''})")
+            body("  Suggested fixes:")
+            for t in g["triggers"]:
+                for fix in t["fixes"]:
+                    body(f"    - {fix}")
             pdf.ln(2)
+        if grouped["ungrouped"]:
+            bold_line("Other Findings")
+            for c in grouped["ungrouped"]:
+                bold_line(f"  {c['title']} ({c['count']} event{'s' if c['count'] != 1 else ''})")
+                body(f"  Likely cause: {c['cause']}")
+                for fix in c["fixes"]:
+                    body(f"    - {fix}")
+                pdf.ln(2)
 
     if splunk:
         heading("Suggested Splunk Searches")

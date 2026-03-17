@@ -13,6 +13,27 @@ from logpilot import (
 from app_constants import AI_RATE_LIMIT_SECONDS
 
 
+def _log_probe(call_type: str, provider: str, model: str, request: str, response: str, error: str | None = None):
+    """Record an AI call in the probe log (visible in Debug > Probe tab)."""
+    try:
+        if not st.session_state.get("debug_payload"):
+            return
+        entry = {
+            "ts": datetime.now().strftime("%H:%M:%S"),
+            "type": call_type,
+            "provider": provider,
+            "model": model,
+            "request": request,
+            "response": response,
+            "error": error,
+        }
+        if "_ai_probe_log" not in st.session_state:
+            st.session_state._ai_probe_log = []
+        st.session_state._ai_probe_log.append(entry)
+    except Exception:
+        pass  # Never break the app for probe logging
+
+
 # --- Provider configuration for the common AI orchestrator ---
 PROVIDER_CONFIG = {
     "claude": {
@@ -451,10 +472,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
             f"Consider shortening your query or reducing log input."
         )
 
-    if st.session_state.debug_payload:
-        with st.expander(f"{label} request payload", expanded=False):
-            import json as _json
-            st.code(f"[SYSTEM]\n{prompt['system']}\n\n[USER]\n{prompt['user']}", language="text")
+    _req_text = f"[SYSTEM]\n{prompt['system']}\n\n[USER]\n{prompt['user']}"
 
     if log:
         log.info("cache Cache miss -- calling %s API for: %s", label, user_query[:60])
@@ -467,13 +485,12 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
             if log:
                 log.warning("%s %s returned empty response for: %s", provider, label, user_query[:60])
             status.update(label=f"Empty response from {label}", state="error")
+            _log_probe("Ask AI", provider, model_id, _req_text, "", error="Empty response")
             return
         if log:
             log.info("%s %s response received (%d chars) for: %s",
                      provider, label, len(answer), user_query[:60])
-        if st.session_state.debug_payload:
-            with st.expander(f"{label} response payload", expanded=False):
-                st.code(answer, language="markdown")
+        _log_probe("Ask AI", provider, model_id, _req_text, answer)
         stream_placeholder.empty()  # clear streaming display
         _record_answer(answer)
         if store_cache and provider != "local":
@@ -502,12 +519,11 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
     except ImportError as ex:
         status.update(label="Missing package", state="error")
         st.error(str(ex))
+        _log_probe("Ask AI", provider, model_id, _req_text, "", error=str(ex))
     except Exception as ex:
         if log:
             log.error("%s %s API error: %s", provider, label, ex)
-        if st.session_state.debug_payload:
-            with st.expander(f"{label} error details", expanded=True):
-                st.code(str(ex), language="text")
+        _log_probe("Ask AI", provider, model_id, _req_text, "", error=str(ex))
         status.update(label=f"{label} API error: {ex}", state="error")
 
 
@@ -811,6 +827,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                 api_key = "not-needed"
 
             prompt = build_cross_system_prompt(events)
+            _triage_req = f"[SYSTEM]\n{prompt['system']}\n\n[USER]\n{prompt['user']}"
             est_tokens = estimate_tokens(prompt["system"] + prompt["user"])
 
             with st.status(f"Running cross-system triage with {_triage_model}...", expanded=True) as status:
@@ -832,6 +849,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                     st.session_state._triage_answer = answer
                     st.session_state._triage_model = _triage_model
                     _triage_answer = answer
+                    _log_probe("Triage", provider, model_id, _triage_req, answer or "")
 
                     # Store in cache (skip local — model changes frequently)
                     if store_cache and answer and provider != "local":
@@ -854,6 +872,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                     if log:
                         log.info("triage Cross-system triage complete (%s)", model_id)
                 except Exception as ex:
+                    _log_probe("Triage", provider, model_id, _triage_req, "", error=str(ex))
                     status.update(label="Triage failed", state="error")
                     st.error(f"AI call failed: {ex}")
                     if log:
