@@ -397,7 +397,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
     session_cache = getattr(st.session_state, cfg["cache_key"])
 
     cached = None
-    if lookup_cache:
+    if lookup_cache and provider != "local":
         cached = lookup_cache(cache_key, session_cache, label, user_query)
 
     def _record_answer(answer):
@@ -476,7 +476,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
                 st.code(answer, language="markdown")
         stream_placeholder.empty()  # clear streaming display
         _record_answer(answer)
-        if store_cache:
+        if store_cache and provider != "local":
             store_cache(cache_key, answer, session_cache)
         # Display token usage and cost
         cost_info = ""
@@ -792,7 +792,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
         # Cache lookup
         _cache_key = triage_cache_key(events, model_id)
         _session_cache = getattr(st.session_state, PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["claude"])["cache_key"], {})
-        cached = lookup_cache(_cache_key, _session_cache, f"triage/{provider}", "cross-system triage") if lookup_cache else None
+        cached = lookup_cache(_cache_key, _session_cache, f"triage/{provider}", "cross-system triage") if lookup_cache and provider != "local" else None
         if cached:
             st.session_state._triage_answer = cached
             st.session_state._triage_model = _triage_model
@@ -833,8 +833,8 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                     st.session_state._triage_model = _triage_model
                     _triage_answer = answer
 
-                    # Store in cache
-                    if store_cache and answer:
+                    # Store in cache (skip local — model changes frequently)
+                    if store_cache and answer and provider != "local":
                         store_cache(_cache_key, answer, _session_cache)
 
                     # Track spend
