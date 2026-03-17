@@ -584,6 +584,23 @@
 
 ---
 
+## Milestone 39 — Local / Inhouse AI model discovery
+**Priority: P1 (UX — simpler local AI setup)**
+**Estimated scope: Small — targeted enhancement**
+**Depends on: Milestone 38**
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| 39.1 | Add `discover_local_models()` — fetch available models from `GET {endpoint}/models` for OpenAI-compatible local endpoints (LM Studio, Ollama, vLLM) | `app_ai.py` | [x] |
+| 39.2 | Add "Test connection" button with clear connection state: not tested → connected → failed | `app.py` | [x] |
+| 39.3 | Auto-populate model dropdown when endpoint is reachable and returns models, fall back to manual text input if `/models` is not supported | `app.py` | [x] |
+| 39.4 | Add "Refresh models" action to re-fetch model list without re-entering endpoint | `app.py` | [x] |
+| 39.5 | Move API key into Advanced expander, keep UI compact | `app.py` | [x] |
+
+**Acceptance**: Local AI setup is self-discovering — connect to LM Studio and models appear in a dropdown. Clear connection status. Manual fallback if discovery fails. API key moved to advanced section.
+
+---
+
 ## Progress Tracker
 
 | Milestone | Tasks | Done | Status |
@@ -626,3 +643,4 @@
 | 36 — OpenShift / Kubernetes-loggar | 5 | 0 | Not started |
 | 37 — Item Consulting design & branding | 5 | 0 | Not started |
 | 38 — Lokal/inhouse AI (LM Studio, Ollama) | 5 | 5 | Done |
+| 39 — Local AI model discovery | 5 | 5 | Done |
