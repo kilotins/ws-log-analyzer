@@ -733,15 +733,6 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         from app_ai import render_analyze_all_button
         render_analyze_all_button(a, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
 
-    claude_splunk_count = sum(len(e.get("splunk_queries", []))
-                               for e in st.session_state.claude_history)
-    splunk_label = f"Suggested Splunk Searches ({len(display_splunk)} baseline"
-    if claude_splunk_count:
-        splunk_label += f" + {claude_splunk_count} Claude"
-    splunk_label += ")"
-    with st.expander(splunk_label):
-        render_splunk_section(display_splunk)
-
     with st.expander(f"Hung Thread Analysis ({len(display_hung)} threads)"):
         render_hung_threads(display_hung)
 

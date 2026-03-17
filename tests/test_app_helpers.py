@@ -483,14 +483,9 @@ class TestProviderConfig:
         for key in required:
             assert key in cfg, f"Missing key '{key}' in {provider} config"
 
-    def test_claude_extracts_splunk(self):
-        assert PROVIDER_CONFIG["claude"]["extract_splunk"] is True
-
-    def test_gemini_does_not_extract_splunk(self):
-        assert PROVIDER_CONFIG["gemini"]["extract_splunk"] is False
-
-    def test_openai_does_not_extract_splunk(self):
-        assert PROVIDER_CONFIG["openai"]["extract_splunk"] is False
+    def test_no_provider_extracts_splunk(self):
+        for provider, cfg in PROVIDER_CONFIG.items():
+            assert cfg["extract_splunk"] is False, f"{provider} should not extract splunk"
 
 
 # ── estimate_cost ───────────────────────────────────────────────────────

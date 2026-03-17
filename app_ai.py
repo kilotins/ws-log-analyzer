@@ -25,7 +25,7 @@ PROVIDER_CONFIG = {
         "history_key": "claude_history",
         "api_key_field": "api_key",
         "save_history": None,  # Set by init_provider_config()
-        "extract_splunk": True,
+        "extract_splunk": False,
         "api_key_error": "Enter your Anthropic API key in the sidebar.",
         "api_key_prefix": "sk-ant-",
     },
@@ -868,6 +868,19 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                 st.session_state._triage_answer = answer
                 st.session_state._triage_model = _triage_model
                 _triage_answer = answer
+
+                # Track spend
+                if usage:
+                    inp = usage.get("input", 0)
+                    out = usage.get("output", 0)
+                    cache_c = usage.get("cache_creation", 0)
+                    cache_r = usage.get("cache_read", 0)
+                    cost = estimate_cost(model_id, inp, out)
+                    from app_spend import record_spend
+                    record_spend(provider, model_id, inp, out, source="triage",
+                                 cache_creation=cache_c, cache_read=cache_r)
+                    st.caption(f"Triage: {inp:,} in + {out:,} out tokens — estimated cost **${cost:.4f}**")
+
                 status.update(label="Triage complete!", state="complete")
 
                 if log:
