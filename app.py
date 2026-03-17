@@ -684,19 +684,35 @@ with tab_analyze:
             st.warning("Large files detected (>50MB). Parsing may take a while.")
         if _over_limit:
             st.stop()
-        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         all_events = []
+
+        # Clean old uploads (keep only files from this session)
+        import hashlib as _hl
+        _session_uploads: set[str] = set()
 
         for uploaded in uploaded_files:
             safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
-            upload_name = f"{ts}_{safe_name}"
+            content = uploaded.getvalue()
+            # Use content hash to deduplicate — same file won't be re-saved
+            _hash = _hl.md5(content).hexdigest()[:10]
+            upload_name = f"{_hash}_{safe_name}"
             upload_path = UPLOADS_DIR / upload_name
             # Verify path stays inside uploads directory
             if not upload_path.resolve().is_relative_to(UPLOADS_DIR.resolve()):
                 st.error(f"Invalid filename: {uploaded.name}")
                 continue
-            upload_path.write_bytes(uploaded.getvalue())
-            log.info("upload File uploaded: %s (%d bytes)", uploaded.name, len(uploaded.getvalue()))
+            _session_uploads.add(upload_path.name)
+            if not upload_path.exists():
+                upload_path.write_bytes(content)
+                log.info("upload File saved: %s (%d bytes)", upload_name, len(content))
+            else:
+                log.info("upload File reused (identical): %s", upload_name)
+
+        # Remove old uploads not in this batch
+        for old_file in UPLOADS_DIR.iterdir():
+            if old_file.name not in _session_uploads and old_file.is_file():
+                old_file.unlink()
+                log.info("upload Cleaned old upload: %s", old_file.name)
 
             with st.spinner(f"Parsing {uploaded.name}..."):
                 try:
