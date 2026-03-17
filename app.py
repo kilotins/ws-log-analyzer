@@ -14,6 +14,7 @@ from logpilot import (
     render_pdf_report, render_csv_report, render_xml_report,
     precompute_analysis, incident_timeline,
 )
+from logpilot.formats import list_formats
 
 # --- Extracted modules ---
 from app_ai import (
@@ -564,10 +565,15 @@ with st.sidebar:
         st.rerun()
 
     # --- Sidebar footer ---
+    try:
+        import tomllib
+        _version = tomllib.loads((_APP_DIR / "pyproject.toml").read_text())["project"]["version"]
+    except Exception:
+        _version = "0.1.0"
     st.markdown(
-        '<div class="sidebar-footer">'
-        'v0.1.0 &middot; <a href="https://item.no" target="_blank">Item Consulting</a>'
-        '</div>',
+        f'<div class="sidebar-footer">'
+        f'v{_version} &middot; <a href="https://item.no" target="_blank">Item Consulting</a>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
@@ -584,6 +590,26 @@ with tab_analyze:
         accept_multiple_files=True,
         help="Application log files (.log or .gz compressed)",
     )
+
+    # Format plugins and parsing options
+    _formats = list_formats()
+    _format_names = ["Auto-detect"] + [f["name"] for f in _formats]
+    _format_help = "Auto-detect analyzes the first 50 lines. Force a format if detection fails.\n\n" + \
+                   "\n".join(f"**{f['name']}** — {f['description']}" for f in _formats)
+
+    col_fmt, col_lines = st.columns(2)
+    with col_fmt:
+        _selected_format = st.selectbox(
+            "Log format",
+            _format_names,
+            help=_format_help,
+        )
+    with col_lines:
+        max_lines = st.number_input(
+            "Max lines per file",
+            min_value=1_000, max_value=5_000_000, value=500_000, step=100_000,
+            help="Limit lines read per file. Lower = faster parsing, higher = more complete analysis.",
+        )
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -621,7 +647,8 @@ with tab_analyze:
 
             with st.spinner(f"Parsing {uploaded.name}..."):
                 try:
-                    events = parse_file(upload_path, max_lines=500_000)
+                    _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
+                    events = parse_file(upload_path, max_lines=max_lines, format_name=_fmt_name)
                     all_events.extend(events)
                     log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
                 except Exception as ex:
@@ -834,11 +861,6 @@ with tab_audit:
                 log.error("audit Audit failed: %s", ex)
                 _audit_status.update(label="Audit failed", state="error")
                 st.error(f"Audit failed: {ex}")
-
-    _delta = getattr(st.session_state, "_audit_delta", None)
-    if _delta:
-        with st.expander("Changes since last audit", expanded=True):
-            st.markdown(_delta)
 
     if _audit_html_path.is_file():
         _audit_html = _audit_html_path.read_text(encoding="utf-8")

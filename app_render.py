@@ -479,7 +479,9 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     if filtered_events is not None:
         # Memoize filtered analysis by event count to avoid recomputing on every rerun
-        _filter_key = f"_fa_{len(filtered_events)}_{id(filtered_events)}"
+        import hashlib as _hl
+        _filter_hash = _hl.md5(str(len(filtered_events)).encode() + str(sum(hash(e.get("ts", "")) for e in filtered_events[:100])).encode()).hexdigest()[:12]
+        _filter_key = f"_fa_{len(filtered_events)}_{_filter_hash}"
         fa = st.session_state.get(_filter_key)
         if fa is None:
             fa = precompute_analysis(

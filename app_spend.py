@@ -224,7 +224,7 @@ def _render_anthropic_costs(rows: list[dict]):
     dates = sorted(set(r["date"] for r in rows if r.get("date")))
     period = f"{dates[0]} to {dates[-1]}" if dates else ""
 
-    st.metric("Anthropic", f"${total:.2f}")
+    st.metric("Anthropic", f"${total:.4f}")
     if period:
         st.caption(f"Period: {period}")
 
@@ -247,11 +247,11 @@ def _render_anthropic_costs(rows: list[dict]):
 
     tbl = []
     for model, c in sorted(model_costs.items(), key=lambda x: x[1]["total"], reverse=True):
-        row = {"Model": model, "Input": f"${c['input']:.2f}", "Output": f"${c['output']:.2f}",
-               "Total": f"${c['total']:.2f}"}
+        row = {"Model": model, "Input": f"${c['input']:.4f}", "Output": f"${c['output']:.4f}",
+               "Total": f"${c['total']:.4f}"}
         if c["cache_write"] or c["cache_read"]:
-            row["Cache Write"] = f"${c['cache_write']:.2f}"
-            row["Cache Read"] = f"${c['cache_read']:.2f}"
+            row["Cache Write"] = f"${c['cache_write']:.4f}"
+            row["Cache Read"] = f"${c['cache_read']:.4f}"
         tbl.append(row)
     st.table(tbl)
 
@@ -273,7 +273,7 @@ def _render_anthropic_costs(rows: list[dict]):
             key_costs[k] = key_costs.get(k, 0) + r["cost_usd"]
     if len(key_costs) > 1:
         st.caption("By API key")
-        st.table([{"API Key": k, "Cost": f"${c:.2f}"} for k, c in
+        st.table([{"API Key": k, "Cost": f"${c:.4f}"} for k, c in
                   sorted(key_costs.items(), key=lambda x: x[1], reverse=True)])
 
 
@@ -281,14 +281,14 @@ def _render_google_costs(rows: list[dict]):
     total_usd = sum(r["cost_usd"] for r in rows)
     total_sek = sum(r["cost_sek"] for r in rows)
 
-    st.metric("Google Cloud", f"${total_usd:.2f}", f"{total_sek:.2f} kr")
+    st.metric("Google Cloud", f"${total_usd:.4f}", f"{total_sek:.2f} kr")
 
     tbl = []
     for r in rows:
         tbl.append({
             "Service": r["service"],
-            "Cost (SEK)": f"{r['cost_sek']:.2f} kr",
-            "Cost (USD)": f"${r['cost_usd']:.2f}",
+            "Cost (SEK)": f"{r['cost_sek']:.4f} kr",
+            "Cost (USD)": f"${r['cost_usd']:.4f}",
         })
     st.table(tbl)
     st.caption(f"Converted at 1 SEK = {_SEK_TO_USD} USD")
