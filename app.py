@@ -562,9 +562,12 @@ with st.sidebar:
 
 
 # --- Tabs ---
-tab_analyze, tab_realtime, tab_history, tab_audit, tab_spend, tab_applog = st.tabs(
-    ["Analyze", "Realtime Console", "History", "Audit Report", "Cloud Spend", "Application Log"]
-)
+_tab_names = ["Analyze", "Realtime Console", "History", "Audit Report", "Cloud Spend"]
+if st.session_state.debug_payload:
+    _tab_names.append("Application Log")
+_tabs = st.tabs(_tab_names)
+tab_analyze, tab_realtime, tab_history, tab_audit, tab_spend = _tabs[:5]
+tab_applog = _tabs[5] if len(_tabs) > 5 else None
 
 with tab_analyze:
     uploaded_files = st.file_uploader(
@@ -755,7 +758,7 @@ with tab_realtime:
         _rt_path = st.text_input(
             "Log file path",
             value=st.session_state.rt_file,
-            placeholder="/var/log/websphere/SystemOut.log",
+            placeholder="/var/log/app/application.log",
             key="rt_file_tab",
         )
         if _rt_path != st.session_state.rt_file:
@@ -864,21 +867,22 @@ with tab_audit:
 with tab_spend:
     render_spend_tab()
 
-with tab_applog:
-    _log_level_filter = st.selectbox(
-        "Filter by level",
-        ["ALL", "INFO", "WARNING", "ERROR"],
-        key="log_level_filter",
-    )
-    if LOG_FILE.exists():
-        _raw_lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()
-        if _log_level_filter != "ALL":
-            _raw_lines = [l for l in _raw_lines if f" {_log_level_filter:<5s}" in l
-                          or f" {_log_level_filter} " in l]
-        _display_lines = _raw_lines[-100:]
-        if _display_lines:
-            st.code("\n".join(_display_lines), language="log")
+if tab_applog is not None:
+    with tab_applog:
+        _log_level_filter = st.selectbox(
+            "Filter by level",
+            ["ALL", "INFO", "WARNING", "ERROR"],
+            key="log_level_filter",
+        )
+        if LOG_FILE.exists():
+            _raw_lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()
+            if _log_level_filter != "ALL":
+                _raw_lines = [l for l in _raw_lines if f" {_log_level_filter:<5s}" in l
+                              or f" {_log_level_filter} " in l]
+            _display_lines = _raw_lines[-100:]
+            if _display_lines:
+                st.code("\n".join(_display_lines), language="log")
+            else:
+                st.caption("No matching log entries.")
         else:
-            st.caption("No matching log entries.")
-    else:
-        st.info("No application log yet. The log will appear here as you use the app.")
+            st.info("No application log yet. The log will appear here as you use the app.")
