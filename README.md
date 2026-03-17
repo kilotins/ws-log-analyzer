@@ -12,7 +12,9 @@ CLI tool and Streamlit web GUI that analyzes WebSphere / Java logs and generates
 - **Hung Thread Drilldown** — per-thread analysis with stack samples and timeline
 - **Timeline histogram** — configurable bucket size, error overlay
 - **Secret redaction** — bearer tokens, passwords, API keys, JWTs, connection strings
-- **Reports** — Markdown, JSON, CSV, XML, and PDF output
+- **Incident grouping** — 7 incident chain patterns (OOM cascade, auth failure, timeout cascade, deploy, network, database, thread starvation)
+- **Cross-system analysis** — timezone normalization, trace ID correlation, Plotly timeline, 6 cascade detection patterns
+- **Reports** — Markdown, JSON, HTML, and PDF output
 - **AI analysis** — optional Claude, Gemini, and OpenAI integration for root-cause suggestions (CLI and GUI)
 - **Persistent API keys** — keyring with file-based fallback, keys survive app restarts
 - **API rate limiting** — configurable cooldown between AI calls to prevent budget exhaustion
@@ -80,7 +82,9 @@ Open http://localhost:8501.
 - **AI caching** — repeated queries return instantly for all providers (session + file-based cache)
 - **Realtime log monitoring** — tail a log file and see new events as they arrive
 - **API keys in sidebar** — Anthropic, Gemini, and OpenAI keys (or `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` env vars). Keys persist via keyring + file fallback
-- **Download reports** — Markdown, JSON, CSV, XML, and PDF
+- **Cross-system timeline** — Plotly stacked charts per source with cascade detection (when 2+ files uploaded)
+- **Analyze All Logs** — AI-powered cross-system triage with all providers
+- **Download reports** — Markdown, JSON, HTML, and PDF
 - **History tab** — browse and download previous reports, clear history
 
 ## Installation
@@ -120,7 +124,7 @@ pip install -e ".[gui,claude,gemini,openai,test,e2e]"
 pytest
 ```
 
-1019 tests across 18 test files covering parsing, classification, redaction, heuristics, correlations, all 8 format plugins, Splunk queries, hung thread analysis, caching, prompt injection protection, AI integration (Claude/Gemini/OpenAI/local), skill auto-selection, report generation (Markdown/JSON/CSV/XML/PDF), app helpers, keychain management, symlink rejection, API key validation, rate limiting, and Playwright end-to-end tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+1217 tests across 27 test files covering parsing, classification, redaction, heuristics, correlations, incident grouping, all 8 format plugins, Splunk queries, hung thread analysis, caching, prompt injection protection, AI integration (Claude/Gemini/OpenAI/local), skill auto-selection, report generation (Markdown/JSON/HTML/PDF), CLI, audit, spend tracking, app helpers, keychain management, symlink rejection, API key validation, rate limiting, and Playwright end-to-end tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## AI Provider Setup
 
