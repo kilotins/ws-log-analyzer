@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from .event import LogEvent
 from .parser import (
     HUNG_THREAD_RE, HUNG_THREAD_NAME_RE, STACK_LINE_RE, CAUSED_BY_RE, WAS_CODE_RE,
 )
@@ -30,20 +31,20 @@ def _extract_stack_sample(text: str, max_lines: int = 5) -> list[str]:
     return lines
 
 
-def hung_thread_drilldown(events: list[dict]) -> list[dict[str, Any]]:
+def hung_thread_drilldown(events: list[LogEvent]) -> list[dict[str, Any]]:
     """Analyze hung/stuck thread events. Returns list of thread info dicts sorted by count."""
     threads: dict[str, dict] = {}
 
     for e in events:
-        text = e.get("text", "")
+        text = e.text or ""
         if not HUNG_THREAD_RE.search(text):
             continue
 
         thread_name = _extract_hung_thread_name(text)
         if not thread_name:
-            thread_name = f"0x{e['thread_id']}" if e.get("thread_id") else "unknown"
+            thread_name = f"0x{e.thread_id}" if e.thread_id else "unknown"
 
-        ts = e.get("ts")
+        ts = e.ts
 
         if thread_name not in threads:
             threads[thread_name] = {
@@ -61,8 +62,8 @@ def hung_thread_drilldown(events: list[dict]) -> list[dict[str, Any]]:
             if not info["first_ts"]:
                 info["first_ts"] = ts
             info["last_ts"] = ts
-        if e.get("thread_id"):
-            info["hex_ids"].add(e["thread_id"])
+        if e.thread_id:
+            info["hex_ids"].add(e.thread_id)
         if not info["stack_sample"]:
             info["stack_sample"] = _extract_stack_sample(text)
 

@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .event import LogEvent
+
 _log = logging.getLogger(__name__)
 
 ERROR_LEVELS = ("ERROR", "SEVERE", "FATAL")
@@ -1219,18 +1221,18 @@ def group_into_incidents(causes: list[dict[str, Any]]) -> dict[str, Any]:
     return {"groups": groups, "ungrouped": ungrouped}
 
 
-def _detect_burst(events: list[dict], window_seconds: float = 120.0, threshold: int = 50) -> list[dict[str, Any]]:
+def _detect_burst(events: list[LogEvent], window_seconds: float = 120.0, threshold: int = 50) -> list[dict[str, Any]]:
     """Detect error bursts — many errors in a short time window."""
     from .analysis import parse_ts_datetime
 
-    error_events = [e for e in events if e.get("level") in ERROR_LEVELS]
+    error_events = [e for e in events if e.level in ERROR_LEVELS]
     if len(error_events) < threshold:
         return []
 
     # Parse timestamps and find bursts
-    timed: list[tuple[float, dict]] = []
+    timed: list[tuple[float, LogEvent]] = []
     for e in error_events:
-        dt = parse_ts_datetime(e.get("ts"))
+        dt = parse_ts_datetime(e.ts)
         if dt is None:
             continue
         timed.append((dt.timestamp(), e))
@@ -1251,7 +1253,7 @@ def _detect_burst(events: list[dict], window_seconds: float = 120.0, threshold: 
             # Count unique error types in burst
             burst_types: dict[str, int] = {}
             for k in range(i, j + 1):
-                exc = timed[k][1].get("exception") or timed[k][1].get("code") or "unknown"
+                exc = timed[k][1].exception or timed[k][1].code or "unknown"
                 burst_types[exc] = burst_types.get(exc, 0) + 1
             top_type = max(burst_types, key=burst_types.get)  # type: ignore[arg-type]
 
@@ -1275,12 +1277,12 @@ def _detect_burst(events: list[dict], window_seconds: float = 120.0, threshold: 
     return results
 
 
-def _severity_score(events: list[dict], match_re: re.Pattern) -> int:  # type: ignore[type-arg]
+def _severity_score(events: list[LogEvent], match_re: re.Pattern) -> int:  # type: ignore[type-arg]
     """Score a heuristic higher if it matches FATAL/SEVERE events."""
     score = 0
     for e in events:
-        if match_re.search(e.get("text", "")):
-            level = e.get("level", "")
+        if match_re.search(e.text or ""):
+            level = e.level or ""
             if level in ("FATAL", "SEVERE"):
                 score += 10
             elif level == "ERROR":
@@ -1290,7 +1292,7 @@ def _severity_score(events: list[dict], match_re: re.Pattern) -> int:  # type: i
     return score
 
 
-def likely_causes(events: list[dict]) -> list[dict[str, Any]]:
+def likely_causes(events: list[LogEvent]) -> list[dict[str, Any]]:
     """Return list of {id, title, count, cause, fixes} for detected heuristic patterns.
 
     Includes single-pattern heuristics, multi-signal correlations,
@@ -1302,7 +1304,7 @@ def likely_causes(events: list[dict]) -> list[dict[str, Any]]:
 
     candidates: set[int] = {idx for idx, kws in enumerate(h_keywords) if not kws}
     for e in events:
-        text_lower = e.get("text", "").lower()
+        text_lower = (e.text or "").lower()
         for idx, kws in enumerate(h_keywords):
             if idx in candidates:
                 continue
@@ -1318,7 +1320,7 @@ def likely_causes(events: list[dict]) -> list[dict[str, Any]]:
     matched_ids: set[str] = set()
     for idx in candidates:
         h = _HEURISTICS[idx]
-        count = sum(1 for e in events if h["match"].search(e.get("text", "")))  # type: ignore[union-attr,misc]
+        count = sum(1 for e in events if h["match"].search(e.text or ""))  # type: ignore[union-attr,misc]
         if count:
             sev = _severity_score(events, h["match"])
             results.append({

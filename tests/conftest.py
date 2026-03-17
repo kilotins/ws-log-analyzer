@@ -1,5 +1,6 @@
 """Shared test fixtures for LogPilot tests."""
 import pytest
+from logpilot.event import LogEvent
 
 
 def pytest_configure(config):
@@ -7,13 +8,13 @@ def pytest_configure(config):
 
 
 def make_event(text, level="ERROR", code=None, exception=None, root_cause=None, tags=None):
-    """Build a minimal event dict for tests."""
-    return {
-        "level": level, "code": code, "exception": exception,
-        "root_cause": root_cause, "tags": tags or [],
-        "ts": "10/12/15 21:22:04:257",
-        "file": "test.log", "text": text, "thread_id": "00000001",
-    }
+    """Build a minimal LogEvent for tests."""
+    return LogEvent(
+        text=text, level=level, code=code, exception=exception,
+        root_cause=root_cause, tags=tags or [],
+        ts="10/12/15 21:22:04:257",
+        file="test.log", thread_id="00000001",
+    )
 
 
 def empty_match(**overrides):

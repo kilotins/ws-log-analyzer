@@ -5,6 +5,9 @@ Usage: ``from logpilot import parse_file, render_markdown_report``
 """
 from __future__ import annotations
 
+# --- event ---
+from .event import LogEvent
+
 # --- parser ---
 from .parser import (
     MAX_EVENT_TEXT,
@@ -81,6 +84,8 @@ __all__ = [
     "select_skills", "load_skill_content", "build_claude_prompt", "build_cross_system_prompt",
     "TOKEN_LIMITS", "estimate_tokens", "claude_cache_key", "ask_gemini",
     "MAX_SKILLS",
+    # event
+    "LogEvent",
     # cli
     "main",
 ]
