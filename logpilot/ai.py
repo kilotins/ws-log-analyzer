@@ -11,7 +11,7 @@ from typing import Any
 from .parser import WAS_CODE_RE
 
 # --- Constants ---
-MAX_SKILLS = 3
+MAX_SKILLS = 5
 
 _FORMAT_SPECIALIST: dict[str, tuple[str, str]] = {
     # format_name -> (specialist_role, splunk_sourcetype)

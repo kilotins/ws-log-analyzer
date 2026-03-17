@@ -5,9 +5,9 @@ import gzip
 import logging
 import re
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, Generator
 
-_log = logging.getLogger("logpilot")
+_log = logging.getLogger(__name__)
 
 # --- Constants ---
 MAX_EVENT_TEXT = 4000  # Max characters of event text in reports
@@ -171,7 +171,7 @@ def classify_event(text: str) -> dict[str, Any]:
     }
 
 
-def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None):  # type: ignore[no-untyped-def]
+def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None) -> Generator[dict[str, Any], None, None]:
     """Generator-based parser that yields event dicts one at a time.
 
     Args:

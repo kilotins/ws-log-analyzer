@@ -117,8 +117,8 @@ def test_time_histogram_multi_day(multi_day_log):
     events = parse_file(multi_day_log)
     hist = time_histogram(events)
     labels = [h[0] for h in hist]
-    assert any("10/12/15" in l for l in labels)
-    assert any("10/13/15" in l for l in labels)
+    assert any("2015-10-12" in l for l in labels)
+    assert any("2015-10-13" in l for l in labels)
 
 
 def test_time_histogram_custom_bucket(sample_events):
