@@ -1,0 +1,8 @@
+Oct 15 08:30:01 web-01 systemd[1]: Started Application Server.
+Oct 15 08:30:05 web-01 sshd[4521]: Accepted publickey for deploy from 10.0.0.50 port 52431
+Oct 15 08:31:12 web-01 kernel: [452103.234] TCP: request_sock_TCP: Possible SYN flooding on port 443.
+Oct 15 08:31:13 db-01 kernel: [892345.567] Out of memory: Kill process 8432 (mysqld) score 890 or sacrifice child
+Oct 15 08:31:13 db-01 kernel: [892345.568] Killed process 8432 (mysqld) total-vm:8234567kB, anon-rss:7654321kB
+Oct 15 08:31:45 web-01 app[1234]: ERROR Failed to connect to database: Connection refused
+Oct 15 08:32:00 web-01 systemd[1]: app.service: Main process exited, code=exited, status=1/FAILURE
+Oct 15 08:32:01 web-01 systemd[1]: app.service: Scheduled restart job, restart counter is at 3.

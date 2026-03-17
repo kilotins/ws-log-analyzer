@@ -1,0 +1,11 @@
+[10/15/24 08:30:01:123 CEST] 0000001a SystemOut     O Application server started successfully
+[10/15/24 08:30:05:456 CEST] 0000001a WASConfig     I CWWKG0017I: The server configuration was successfully updated.
+[10/15/24 08:31:12:789 CEST] 0000002b DBConnPool    W J2CA0045W: Connection pool exhausted for resource jdbc/AppDB
+[10/15/24 08:31:13:001 CEST] 0000002b ServletWrapp  E SRVE0777E: Exception thrown by application class 'com.app.OrderServlet.doGet'
+java.sql.SQLException: Cannot get a connection, pool error Timeout waiting for idle object
+	at org.apache.commons.dbcp.PoolingDataSource.getConnection(PoolingDataSource.java:114)
+	at com.app.OrderServlet.doGet(OrderServlet.java:45)
+Caused by: org.apache.commons.pool.impl.GenericObjectPool$TimeoutException: Timeout waiting for idle object
+	at org.apache.commons.pool.impl.GenericObjectPool.borrowObject(GenericObjectPool.java:1174)
+[10/15/24 08:31:15:234 CEST] 0000003c ThreadMonito  W WSVR0605W: Thread "WebContainer : 3" has been active for 612,000 milliseconds
+[10/15/24 08:32:00:000 CEST] 0000001a SystemOut     I Health check passed

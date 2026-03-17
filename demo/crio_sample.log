@@ -1,0 +1,6 @@
+2024-10-15T08:30:01.123456789+02:00 stdout F {"level":"info","ts":"2024-10-15T06:30:01Z","msg":"Pod started","pod":"orders-7b8c9d-x4k2p","namespace":"production"}
+2024-10-15T08:30:05.456789012+02:00 stdout F {"level":"info","ts":"2024-10-15T06:30:05Z","msg":"Readiness probe passed","pod":"orders-7b8c9d-x4k2p"}
+2024-10-15T08:31:12.789012345+02:00 stderr F {"level":"error","ts":"2024-10-15T06:31:12Z","msg":"OOMKilled","pod":"cache-5f6g7h-m2n3o","namespace":"production","container":"redis","exitCode":137}
+2024-10-15T08:31:13.001234567+02:00 stderr F {"level":"warn","ts":"2024-10-15T06:31:13Z","msg":"Liveness probe failed","pod":"api-gateway-3d4e5f-q8r9s","failureCount":3}
+2024-10-15T08:31:45.234567890+02:00 stderr F {"level":"error","ts":"2024-10-15T06:31:45Z","msg":"CrashLoopBackOff","pod":"worker-1a2b3c-j5k6l","namespace":"production","restartCount":5,"backoff":"5m0s"}
+2024-10-15T08:32:00.567890123+02:00 stdout F {"level":"info","ts":"2024-10-15T06:32:00Z","msg":"Health check OK","pod":"orders-7b8c9d-x4k2p","status":"running"}

@@ -1,0 +1,7 @@
+192.168.1.10 - - [15/Oct/2024:08:30:01 +0200] "GET / HTTP/1.1" 200 4523 "-" "Mozilla/5.0" 0.003
+192.168.1.11 - admin [15/Oct/2024:08:30:05 +0200] "POST /api/login HTTP/1.1" 200 156 "https://app.example.com/" "Mozilla/5.0" 0.045
+192.168.1.12 - - [15/Oct/2024:08:31:12 +0200] "GET /api/orders HTTP/1.1" 504 183 "-" "Mozilla/5.0" 30.001
+192.168.1.12 - - [15/Oct/2024:08:31:13 +0200] "GET /api/orders HTTP/1.1" 502 166 "-" "Mozilla/5.0" 0.001
+10.0.0.5 - - [15/Oct/2024:08:31:14 +0200] "GET /health HTTP/1.1" 200 15 "-" "kube-probe/1.28" 0.001
+192.168.1.20 - - [15/Oct/2024:08:31:45 +0200] "POST /api/checkout HTTP/1.1" 500 412 "https://app.example.com/cart" "Mozilla/5.0" 0.156
+192.168.1.10 - - [15/Oct/2024:08:32:00 +0200] "GET /static/app.js HTTP/1.1" 200 89012 "-" "Mozilla/5.0" 0.002
