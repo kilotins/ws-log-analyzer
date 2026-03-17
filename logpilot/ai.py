@@ -428,6 +428,27 @@ def claude_cache_key(user_query: str, match_result: dict) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def triage_cache_key(events: list[dict], model_id: str = "") -> str:
+    """Generate a stable cache key for cross-system triage based on event fingerprints."""
+    import json
+    # Build a fingerprint from event count, source labels, top codes/exceptions
+    sources = sorted(set(e.get("system_label", "") for e in events))
+    codes = sorted(set(e.get("code", "") for e in events if e.get("code")))[:20]
+    exceptions = sorted(set(e.get("exception", "") for e in events if e.get("exception")))[:20]
+    levels = sorted(set(e.get("level", "") for e in events if e.get("level")))
+    key_data = {
+        "type": "triage",
+        "n_events": len(events),
+        "sources": sources,
+        "codes": codes,
+        "exceptions": exceptions,
+        "levels": levels,
+        "model": model_id,
+    }
+    raw = json.dumps(key_data, sort_keys=True, ensure_ascii=True)
+    return "triage:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def build_cross_system_prompt(events: list[dict], detected_format: str = "") -> dict[str, str]:
     """Build a cross-system triage prompt from all events across multiple sources.
 

@@ -4,10 +4,43 @@ from __future__ import annotations
 import streamlit as st
 from pathlib import Path
 
-from logpilot import precompute_analysis, render_pdf_report, render_csv_report, render_xml_report, per_source_summary
+from logpilot import precompute_analysis, render_pdf_report, render_html_report, per_source_summary
 from app_constants import LEVEL_COLORS
 
 
+
+
+def _collect_ai_content() -> dict | None:
+    """Collect AI triage and Ask AI responses from session_state for export."""
+    ai = {}
+
+    # Cross-system triage
+    triage = st.session_state.get("_triage_answer")
+    if triage:
+        ai["triage"] = triage
+        ai["triage_model"] = st.session_state.get("_triage_model", "AI")
+
+    # Ask AI conversation history (all providers)
+    ask_ai = []
+    for provider, hist_key, label in [
+        ("Claude", "claude_history", "Claude"),
+        ("Gemini", "gemini_history", "Gemini"),
+        ("OpenAI", "openai_history", "OpenAI"),
+        ("Local", "local_history", "Local AI"),
+    ]:
+        history = st.session_state.get(hist_key, [])
+        for entry in history:
+            ask_ai.append({
+                "query": entry.get("query", ""),
+                "answer": entry.get("answer", ""),
+                "provider": label,
+                "timestamp": entry.get("timestamp", ""),
+            })
+
+    if ask_ai:
+        ai["ask_ai"] = ask_ai
+
+    return ai if ai else None
 
 
 def render_summary(s, error_count, file_count, file_summary, events=None):
@@ -100,106 +133,118 @@ def render_hung_threads(hung):
         st.code(t["splunk_query"], language="spl")
 
 
+def _severity_bar_chart(times, levels, title_suffix="", trigger_dt=None, height=120):
+    """Build a compact stacked bar histogram of events over time, colored by severity.
+
+    Returns a Plotly figure. If *trigger_dt* is given, a vertical marker is drawn.
+    """
+    import plotly.graph_objects as go
+    from datetime import timedelta
+    from collections import Counter
+
+    if not times:
+        return None
+
+    # Determine bucket width — aim for ~30-50 bars
+    t_min, t_max = min(times), max(times)
+    span = (t_max - t_min).total_seconds()
+    if span <= 0:
+        span = 1.0
+    bucket_secs = max(1, span / 40)
+    bucket_td = timedelta(seconds=bucket_secs)
+
+    # Bucket events by time + severity
+    severity_order = ["FATAL", "SEVERE", "ERROR", "WARNING", "WARN", "INFO", "AUDIT", "DEBUG", "UNKNOWN"]
+    severity_colors = {
+        "FATAL": "#DC2626", "SEVERE": "#DC2626", "ERROR": "#EF4444",
+        "WARNING": "#F59E0B", "WARN": "#F59E0B",
+        "INFO": "#7C3AED", "AUDIT": "#0891B2", "DEBUG": "#94A3B8", "UNKNOWN": "#6B7280",
+    }
+
+    buckets: dict[int, Counter] = {}
+    for t, lvl in zip(times, levels):
+        b_idx = int((t - t_min).total_seconds() / bucket_secs)
+        if b_idx not in buckets:
+            buckets[b_idx] = Counter()
+        norm_lvl = lvl if lvl in severity_colors else "UNKNOWN"
+        buckets[b_idx][norm_lvl] += 1
+
+    max_bucket = max(buckets.keys()) if buckets else 0
+    bucket_starts = [t_min + timedelta(seconds=i * bucket_secs) for i in range(max_bucket + 1)]
+
+    fig = go.Figure()
+    for lvl in severity_order:
+        counts = [buckets.get(i, Counter()).get(lvl, 0) for i in range(max_bucket + 1)]
+        if sum(counts) == 0:
+            continue
+        fig.add_trace(go.Bar(
+            x=bucket_starts,
+            y=counts,
+            name=lvl,
+            marker_color=severity_colors.get(lvl, "#6B7280"),
+            hovertemplate=f"{lvl}: %{{y}}<extra></extra>",
+            width=bucket_secs * 900,  # width in ms for datetime axis
+        ))
+
+    if trigger_dt is not None:
+        fig.add_shape(
+            type="line",
+            x0=trigger_dt, x1=trigger_dt,
+            y0=0, y1=1, yref="paper",
+            line=dict(dash="dash", color="#DC2626", width=2),
+        )
+        fig.add_annotation(
+            x=trigger_dt, y=1, yref="paper",
+            text="First error", showarrow=False,
+            font=dict(color="#DC2626", size=10),
+            yshift=8,
+        )
+
+    fig.update_layout(
+        barmode="stack",
+        height=height,
+        margin=dict(l=10, r=10, t=8, b=30),
+        xaxis=dict(type="date", showgrid=False),
+        yaxis=dict(showticklabels=False, showgrid=False, title=None),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                    font=dict(size=10)),
+        hovermode="x unified",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+
+    return fig
+
+
 def render_incident_timeline(itl):
-    """Render an incident timeline using Plotly."""
+    """Render a compact severity histogram around the first error."""
     if not itl:
         st.caption("No error events with timestamps found.")
         return
 
-    import plotly.graph_objects as go
+    from collections import Counter
 
     trigger = itl["trigger_event"]
     trigger_dt = itl["trigger_dt"]
     window_events = itl["window_events"]
 
-    times = []
-    labels = []
-    colors = []
-    sizes = []
-    hovers = []
-
-    level_colors = LEVEL_COLORS
-
-    for w in window_events:
-        e = w["event"]
-        dt = w["dt"]
-        level = e.get("level") or "UNKNOWN"
-        is_trigger = (e is trigger)
-
-        times.append(dt)
-        code_label = e.get("code") or ""
-        exc_label = (e.get("exception") or "").rsplit(".", 1)[-1] if e.get("exception") else ""
-        label = f"{level} {code_label} {exc_label}".strip()
-        labels.append(label)
-        colors.append(level_colors.get(level, "#6c757d"))
-        sizes.append(16 if is_trigger else 9)
-
-        offset = w["offset_seconds"]
-        sign = "+" if offset >= 0 else ""
-        hover = (
-            f"<b>{level}</b> {sign}{offset:.1f}s<br>"
-            f"Time: {dt.strftime('%H:%M:%S.%f')[:-3]}<br>"
-        )
-        if code_label:
-            hover += f"Code: {code_label}<br>"
-        if exc_label:
-            hover += f"Exception: {exc_label}<br>"
-        if e.get("thread_id"):
-            hover += f"Thread: 0x{e['thread_id']}<br>"
-        text_preview = (e.get("text") or "")[:120].replace("<", "&lt;")
-        if text_preview:
-            hover += f"<br>{text_preview}..."
-        hovers.append(hover)
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        x=times,
-        y=labels,
-        mode="markers",
-        marker=dict(color=colors, size=sizes, line=dict(width=1, color="white")),
-        hovertext=hovers,
-        hoverinfo="text",
-    ))
-
-    fig.add_shape(
-        type="line",
-        x0=trigger_dt, x1=trigger_dt,
-        y0=0, y1=1,
-        yref="paper",
-        line=dict(dash="dash", color="#dc3545", width=1),
-    )
-    fig.add_annotation(
-        x=trigger_dt, y=1, yref="paper",
-        text="First error", showarrow=False,
-        font=dict(color="#dc3545", size=11),
-        yshift=10,
-    )
-
-    fig.update_layout(
-        title="",
-        xaxis_title="Time",
-        yaxis_title=None,
-        height=max(250, len(set(labels)) * 35 + 100),
-        margin=dict(l=10, r=10, t=30, b=40),
-        showlegend=False,
-        xaxis=dict(type="date"),
-        yaxis=dict(autorange="reversed"),
-    )
+    times = [w["dt"] for w in window_events]
+    levels = [w["event"].get("level") or "UNKNOWN" for w in window_events]
 
     trigger_code = trigger.get("code") or ""
     trigger_exc = (trigger.get("exception") or "").rsplit(".", 1)[-1]
     trigger_label = f"{trigger.get('level')} {trigger_code} {trigger_exc}".strip()
     st.caption(
         f"Showing {len(window_events)} events within "
-        f"±{itl['window_seconds']}s of first error: "
+        f"\u00b1{itl['window_seconds']}s of first error: "
         f"**{trigger_label}** at {trigger_dt.strftime('%H:%M:%S.%f')[:-3]}"
     )
-    st.plotly_chart(fig, use_container_width=True)
 
-    # Text fallback for accessibility
-    from collections import Counter
-    level_counts = Counter(e["event"].get("level", "UNKNOWN") for e in window_events)
+    fig = _severity_bar_chart(times, levels, trigger_dt=trigger_dt, height=130)
+    if fig:
+        st.plotly_chart(fig, use_container_width=True)
+
+    # Summary line
+    level_counts = Counter(levels)
     level_parts = [f"{count} {lvl}" for lvl, count in level_counts.most_common()]
     time_start = min(times).strftime("%H:%M:%S")
     time_end = max(times).strftime("%H:%M:%S")
@@ -269,83 +314,99 @@ def render_samples(samples, all_events=None):
 
 
 def render_cross_system_timeline(events: list[dict], cascades: list[dict] | None = None):
-    """Render a Plotly scatter timeline showing events from all sources, color-coded by severity."""
+    """Render stacked bar histograms per system source, colored by severity."""
     import plotly.graph_objects as go
-    from logpilot.analysis import parse_ts_datetime
+    from plotly.subplots import make_subplots
+    from datetime import datetime, timedelta
+    from collections import Counter
 
-    # Filter to events with timestamps and multiple sources
-    timed = [e for e in events if e.get("ts_utc")]
-    sources = sorted(set(e.get("system_label", "unknown") for e in timed))
+    # Filter to events with parseable timestamps
+    timed = []
+    for e in events:
+        ts_utc = e.get("ts_utc")
+        if not ts_utc:
+            continue
+        try:
+            dt = datetime.fromisoformat(ts_utc)
+        except (ValueError, TypeError):
+            continue
+        timed.append((e, dt))
+
+    sources = sorted(set(e.get("system_label", "unknown") for e, _ in timed))
 
     if not timed or len(sources) < 2:
-        return  # Only show for multi-source analysis
+        return
 
     st.subheader("Cross-System Timeline")
 
-    # Color map for severity
+    severity_order = ["FATAL", "SEVERE", "ERROR", "WARNING", "WARN", "INFO", "AUDIT", "DEBUG", "UNKNOWN"]
     severity_colors = {
-        "FATAL": "#DC2626", "ERROR": "#DC2626", "SEVERE": "#DC2626",
+        "FATAL": "#DC2626", "SEVERE": "#DC2626", "ERROR": "#EF4444",
         "WARNING": "#F59E0B", "WARN": "#F59E0B",
-        "INFO": "#6B7280", "DEBUG": "#9CA3AF",
+        "INFO": "#7C3AED", "AUDIT": "#0891B2", "DEBUG": "#94A3B8", "UNKNOWN": "#6B7280",
     }
 
-    fig = go.Figure()
+    # Determine global time range and bucket size
+    all_dts = [dt for _, dt in timed]
+    t_min, t_max = min(all_dts), max(all_dts)
+    span = max((t_max - t_min).total_seconds(), 1.0)
+    bucket_secs = max(1, span / 40)
+    bucket_td = timedelta(seconds=bucket_secs)
 
-    # One trace per severity level for the legend
-    level_groups: dict[str, dict] = {}
-    for e in timed:
-        level = e.get("level") or "UNKNOWN"
-        display_level = level if level in severity_colors else "INFO"
-        if display_level not in level_groups:
-            level_groups[display_level] = {"x": [], "y": [], "text": [], "customdata": []}
-
-        level_groups[display_level]["x"].append(e["ts_utc"])
-        level_groups[display_level]["y"].append(e.get("system_label", "unknown"))
-
-        # Hover text
-        code = e.get("code") or ""
-        exc = e.get("exception") or ""
-        preview = (e.get("text") or "")[:120].replace("<", "&lt;")
-        hover = f"<b>{level}</b> {code} {exc}<br>{preview}"
-        level_groups[display_level]["text"].append(hover)
-        level_groups[display_level]["customdata"].append(events.index(e) if e in events else -1)
-
-    for level, data in level_groups.items():
-        color = severity_colors.get(level, "#6B7280")
-        fig.add_trace(go.Scatter(
-            x=data["x"], y=data["y"],
-            mode="markers",
-            marker=dict(size=8 if level in ("ERROR", "SEVERE", "FATAL") else 5,
-                       color=color, opacity=0.8),
-            name=level,
-            hovertemplate="%{text}<extra></extra>",
-            text=data["text"],
-            customdata=data["customdata"],
-        ))
-
-    # Add cascade arrows if available
-    if cascades:
-        for c in cascades[:5]:
-            up = c.get("upstream_event", {})
-            for de in c.get("downstream_events", [])[:2]:
-                down = de.get("event", {})
-                if up.get("ts_utc") and down.get("ts_utc"):
-                    fig.add_annotation(
-                        x=down["ts_utc"], y=down.get("system_label", ""),
-                        ax=up["ts_utc"], ay=up.get("system_label", ""),
-                        xref="x", yref="y", axref="x", ayref="y",
-                        showarrow=True, arrowhead=2, arrowsize=1.5,
-                        arrowcolor="#EF4444", arrowwidth=2, opacity=0.6,
-                    )
-
-    fig.update_layout(
-        height=max(250, 100 * len(sources)),
-        margin=dict(l=10, r=10, t=10, b=10),
-        xaxis_title="Time (UTC)",
-        yaxis=dict(categoryorder="array", categoryarray=list(reversed(sources))),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        hovermode="closest",
+    # One subplot row per source
+    fig = make_subplots(
+        rows=len(sources), cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.04,
+        subplot_titles=sources,
     )
+
+    max_bucket = int(span / bucket_secs)
+    bucket_starts = [t_min + timedelta(seconds=i * bucket_secs) for i in range(max_bucket + 1)]
+
+    for row_idx, source in enumerate(sources, start=1):
+        # Bucket events for this source
+        source_events = [(e, dt) for e, dt in timed if e.get("system_label", "unknown") == source]
+        buckets: dict[int, Counter] = {}
+        for e, dt in source_events:
+            b_idx = min(int((dt - t_min).total_seconds() / bucket_secs), max_bucket)
+            if b_idx not in buckets:
+                buckets[b_idx] = Counter()
+            lvl = e.get("level") or "UNKNOWN"
+            norm_lvl = lvl if lvl in severity_colors else "UNKNOWN"
+            buckets[b_idx][norm_lvl] += 1
+
+        for lvl in severity_order:
+            counts = [buckets.get(i, Counter()).get(lvl, 0) for i in range(max_bucket + 1)]
+            if sum(counts) == 0:
+                continue
+            fig.add_trace(go.Bar(
+                x=bucket_starts,
+                y=counts,
+                name=lvl,
+                marker_color=severity_colors.get(lvl, "#6B7280"),
+                hovertemplate=f"{lvl}: %{{y}}<extra></extra>",
+                width=bucket_secs * 900,
+                showlegend=(row_idx == 1),  # legend only on first row
+                legendgroup=lvl,
+            ), row=row_idx, col=1)
+
+    bar_height = max(90, 120 - len(sources) * 5)
+    fig.update_layout(
+        barmode="stack",
+        height=bar_height * len(sources) + 50,
+        margin=dict(l=10, r=10, t=25, b=30),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                    font=dict(size=10)),
+        hovermode="x unified",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+
+    # Style subplots
+    for i in range(1, len(sources) + 1):
+        fig.update_yaxes(showticklabels=False, showgrid=False, row=i, col=1)
+        fig.update_xaxes(showgrid=False, row=i, col=1)
+    fig.update_xaxes(type="date")
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -471,6 +532,33 @@ def _apply_event_filters(events, levels, code_prefix, exception_types, time_rang
     return filtered
 
 
+def _apply_filters_from_state(events):
+    """Read filter widget values from session_state and apply them.
+
+    Returns (is_filtered: bool, filtered_events: list).
+    """
+    levels = st.session_state.get("filter_levels", [])
+    code_prefix = st.session_state.get("filter_code_prefix", "")
+    exceptions = st.session_state.get("filter_exceptions", [])
+    use_time = st.session_state.get("filter_use_time", False)
+    sources = st.session_state.get("filter_sources", [])
+
+    time_range = None
+    if use_time:
+        t_start = st.session_state.get("filter_time_start")
+        t_end = st.session_state.get("filter_time_end")
+        if t_start or t_end:
+            time_range = (t_start, t_end)
+
+    has_filters = bool(levels or (code_prefix and code_prefix.strip()) or exceptions or (use_time and time_range) or sources)
+
+    if not has_filters:
+        return False, events
+
+    filtered = _apply_event_filters(events, levels, code_prefix, exceptions, time_range, sources=sources)
+    return True, filtered
+
+
 def render_event_filters(events):
     """Render event filter widgets inside an expander. Returns filtered events or None if no filters active."""
     _n_levels = len({e.get("level") or "UNKNOWN" for e in events})
@@ -560,14 +648,38 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
                f"Report saved as `{a['report_name']}`.")
 
-    # --- Compute display data (unfiltered initially, recomputed after filters) ---
-    display_summary = a["summary"]
-    display_error_count = a["error_count"]
-    display_causes = a["causes"]
-    display_hung = a["hung"]
-    display_samples = a["samples"]
-    display_events = a["events"]
-    display_itl = a.get("incident_timeline")
+    # --- Pre-compute filtered data from session_state (before rendering) ---
+    # Filter widget values persist in session_state between reruns, so we can
+    # apply filters before the widgets are rendered in the layout.
+    _is_filtered, display_events = _apply_filters_from_state(a["events"])
+
+    if _is_filtered:
+        import hashlib as _hl
+        _filter_hash = _hl.md5(str(len(display_events)).encode() + str(sum(hash(e.get("ts", "")) for e in display_events[:100])).encode()).hexdigest()[:12]
+        _filter_key = f"_fa_{len(display_events)}_{_filter_hash}"
+        fa = st.session_state.get(_filter_key)
+        if fa is None:
+            fa = precompute_analysis(
+                display_events,
+                top_n=a.get("top_n", 10),
+                samples_n=a.get("samples_n", 5),
+                hist_minutes=a.get("hist_minutes", 1),
+            )
+            st.session_state[_filter_key] = fa
+        display_summary = fa["summary"]
+        display_error_count = sum(1 for e in display_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
+        display_causes = fa["causes"]
+        display_hung = fa["hung"]
+        display_samples = fa["samples"]
+        from logpilot import incident_timeline as _itl_fn
+        display_itl = _itl_fn(display_events)
+    else:
+        display_summary = a["summary"]
+        display_error_count = a["error_count"]
+        display_causes = a["causes"]
+        display_hung = a["hung"]
+        display_samples = a["samples"]
+        display_itl = a.get("incident_timeline")
 
     # --- 1. Summary ---
     with st.expander("Summary", expanded=True):
@@ -585,30 +697,8 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     # Render AI responses outside the expander to avoid scroll issues with long content
     render_ai_responses()
 
-    # --- 4. Event Filters ---
-    filtered_events = render_event_filters(a["events"])
-    _is_filtered = filtered_events is not None
-
-    if _is_filtered:
-        # Recompute display data for filtered events
-        import hashlib as _hl
-        _filter_hash = _hl.md5(str(len(filtered_events)).encode() + str(sum(hash(e.get("ts", "")) for e in filtered_events[:100])).encode()).hexdigest()[:12]
-        _filter_key = f"_fa_{len(filtered_events)}_{_filter_hash}"
-        fa = st.session_state.get(_filter_key)
-        if fa is None:
-            fa = precompute_analysis(
-                filtered_events,
-                top_n=a.get("top_n", 10),
-                samples_n=a.get("samples_n", 5),
-                hist_minutes=a.get("hist_minutes", 1),
-            )
-            st.session_state[_filter_key] = fa
-        display_causes = fa["causes"]
-        display_hung = fa["hung"]
-        display_samples = fa["samples"]
-        display_events = filtered_events
-        from logpilot import incident_timeline as _itl_fn
-        display_itl = _itl_fn(filtered_events)
+    # --- 4. Event Filters (widgets — values already read above) ---
+    render_event_filters(a["events"])
 
     # --- 5. Cross-System Timeline (multi-source only) ---
     _sources = set(e.get("system_label", "") for e in display_events)
@@ -650,18 +740,22 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     # --- 9. Export ---
     st.markdown("---")
-    events_for_export = filtered_events if _is_filtered else a["events"]
+    events_for_export = display_events if _is_filtered else a["events"]
     _pa = precompute_analysis(events_for_export, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
 
     if _is_filtered:
-        st.info(f"Export contains filtered data ({len(filtered_events)} of {a['total_events']} events).")
+        st.info(f"Export contains filtered data ({len(display_events)} of {a['total_events']} events).")
+
+    # Collect AI content from session_state for export
+    _ai_content = _collect_ai_content()
 
     st.subheader("Export Log Analysis Report")
+    _ai_note = " + AI analysis" if _ai_content else ""
     _fmt_col, _dl_col = st.columns([1, 2])
     with _fmt_col:
         _export_fmt = st.selectbox(
             "Export format",
-            ["PDF", "Markdown", "JSON", "CSV", "XML"],
+            ["PDF", "HTML", "Markdown", "JSON"],
             key="export_format",
             label_visibility="collapsed",
         )
@@ -669,19 +763,18 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         _base = a["report_name"]
         from logpilot import render_markdown_report, render_json_report
         if _export_fmt == "Markdown":
-            _md = render_markdown_report(events_for_export, _analysis=_pa) if _is_filtered else a["report_md"]
+            _md = render_markdown_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
             _data, _fname, _mime = _md, _base, "text/markdown"
         elif _export_fmt == "JSON":
-            _json = render_json_report(events_for_export, _analysis=_pa) if _is_filtered else a["report_json"]
+            _json = render_json_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
             _data, _fname, _mime = _json, _base.replace(".md", ".json"), "application/json"
-        elif _export_fmt == "PDF":
-            _data, _fname, _mime = render_pdf_report(events_for_export, _analysis=_pa), _base.replace(".md", ".pdf"), "application/pdf"
-        elif _export_fmt == "CSV":
-            _data, _fname, _mime = render_csv_report(events_for_export), _base.replace(".md", ".csv"), "text/csv"
-        else:  # XML
-            _data, _fname, _mime = render_xml_report(events_for_export), _base.replace(".md", ".xml"), "application/xml"
+        elif _export_fmt == "HTML":
+            _html = render_html_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
+            _data, _fname, _mime = _html, _base.replace(".md", ".html"), "text/html"
+        else:  # PDF
+            _data, _fname, _mime = render_pdf_report(events_for_export, _analysis=_pa, ai_content=_ai_content), _base.replace(".md", ".pdf"), "application/pdf"
         st.download_button(
-            label=f"Export Log Analysis Report ({_export_fmt})",
+            label=f"Export Log Analysis Report ({_export_fmt}){_ai_note}",
             data=_data,
             file_name=_fname,
             mime=_mime,

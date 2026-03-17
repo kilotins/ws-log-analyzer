@@ -40,7 +40,7 @@ from .analysis import (
 # --- reports ---
 from .reports import (
     render_json_report, render_markdown_report,
-    render_csv_report, render_xml_report, render_pdf_report,
+    render_html_report, render_pdf_report,
 )
 
 # --- ai ---
@@ -53,7 +53,7 @@ from .ai import (
     _discover_skills, select_skills, load_skill_content,
     build_claude_prompt, build_cross_system_prompt,
     TOKEN_LIMITS, _TOKEN_CHARS_PER_TOKEN,
-    estimate_tokens, claude_cache_key, ask_gemini,
+    estimate_tokens, claude_cache_key, triage_cache_key, ask_gemini,
     MAX_SKILLS,
 )
 
@@ -80,7 +80,7 @@ __all__ = [
     "precompute_analysis",
     # reports
     "render_json_report", "render_markdown_report",
-    "render_csv_report", "render_xml_report", "render_pdf_report",
+    "render_html_report", "render_pdf_report",
     # ai
     "match_user_query", "CLAUDE_SYSTEM_PROMPT", "build_system_prompt",
     "select_skills", "load_skill_content", "build_claude_prompt", "build_cross_system_prompt",

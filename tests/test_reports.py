@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from logpilot import (
     parse_file, summarize, pick_samples, time_histogram, render_histogram,
     per_file_summary, render_markdown_report, render_json_report,
-    render_pdf_report, render_csv_report, render_xml_report,
+    render_pdf_report, render_html_report,
     precompute_analysis,
 )
 from conftest import make_event, empty_match
@@ -332,97 +332,58 @@ def test_render_json_report_empty_events():
     assert data["total_events"] == 0
 
 
-# --- XML export tests ---
+# --- HTML export tests ---
 
-class TestRenderXmlReport:
-    def test_xml_has_header(self):
-        events = [{"ts": "2025-01-01 12:00:00", "level": "ERROR", "text": "fail"}]
-        xml = render_xml_report(events)
-        assert xml.startswith('<?xml version="1.0"')
-        assert "<events>" in xml
-        assert "</events>" in xml
+class TestRenderHtmlReport:
+    def test_html_has_structure(self):
+        events = [make_event(level="ERROR", text="fail")]
+        html = render_html_report(events)
+        assert "<!DOCTYPE html>" in html
+        assert "<title>LogPilot Triage Report</title>" in html
+        assert "</html>" in html
 
-    def test_xml_contains_event_fields(self):
-        events = [{"ts": "2025-01-01", "level": "ERROR", "code": "SRVE0293E",
-                    "exception": "NullPointerException", "tags": ["HTTP"], "text": "error text"}]
-        xml = render_xml_report(events)
-        assert "<level>ERROR</level>" in xml
-        assert "<code>SRVE0293E</code>" in xml
-        assert "<exception>NullPointerException</exception>" in xml
-        assert "<tags>HTTP</tags>" in xml
-        assert "<text>error text</text>" in xml
+    def test_html_contains_event_data(self):
+        events = [make_event(level="ERROR", code="SRVE0293E",
+                             exception="NullPointerException", tags=["HTTP"], text="error text")]
+        html = render_html_report(events)
+        assert "ERROR" in html
+        assert "SRVE0293E" in html
+        assert "NullPointerException" in html
+        assert "error text" in html
 
-    def test_xml_escapes_special_chars(self):
-        events = [{"ts": "2025-01-01", "level": "ERROR", "text": "a < b & c > d"}]
-        xml = render_xml_report(events)
-        assert "&lt;" in xml
-        assert "&amp;" in xml
-        assert "&gt;" in xml
+    def test_html_escapes_special_chars(self):
+        events = [make_event(level="ERROR", text="a < b & c > d")]
+        html = render_html_report(events)
+        assert "&lt;" in html
+        assert "&amp;" in html
 
-    def test_xml_empty_events(self):
-        xml = render_xml_report([])
-        assert "<events>" in xml
-        assert "</events>" in xml
-        assert "<event>" not in xml
+    def test_html_empty_events(self):
+        html = render_html_report([])
+        assert "<!DOCTYPE html>" in html
+        assert "LogPilot" in html
 
-    def test_xml_truncates_text(self):
-        events = [{"text": "x" * 1000}]
-        xml = render_xml_report(events, max_text=100)
-        assert len(xml) < 500  # Truncated, not full 1000 chars
+    def test_html_includes_ai_triage(self):
+        events = [make_event(level="ERROR", text="fail")]
+        ai = {"triage": "Root cause is DB connection timeout", "triage_model": "Claude"}
+        html = render_html_report(events, ai_content=ai)
+        assert "AI Cross-System Triage" in html
+        assert "Root cause is DB connection timeout" in html
+        assert "Claude" in html
 
+    def test_html_includes_ask_ai(self):
+        events = [make_event(level="ERROR", text="fail")]
+        ai = {"ask_ai": [{"query": "What happened?", "answer": "A crash occurred",
+                           "provider": "Gemini", "timestamp": "12:00:00"}]}
+        html = render_html_report(events, ai_content=ai)
+        assert "AI Analysis" in html
+        assert "What happened?" in html
+        assert "A crash occurred" in html
 
-# --- CSV export tests ---
-
-class TestRenderCsvReport:
-    def test_csv_has_header_row(self):
-        events = [{"ts": "2025-01-01 12:00:00", "level": "ERROR", "text": "fail"}]
-        csv_out = render_csv_report(events)
-        lines = csv_out.strip().split("\n")
-        header = lines[0]
-        assert "timestamp" in header
-        assert "level" in header
-        assert "code" in header
-        assert "exception" in header
-        assert "root_cause" in header
-        assert "tags" in header
-        assert "thread_id" in header
-        assert "file" in header
-        assert "text" in header
-
-    def test_csv_contains_event_fields(self):
-        events = [{"ts": "2025-01-01", "level": "ERROR", "code": "SRVE0293E",
-                    "exception": "NullPointerException", "tags": ["HTTP", "SSL/TLS"],
-                    "text": "error text", "thread_id": "00000150",
-                    "root_cause": "javax.net.ssl.SSLException", "file": "server.log"}]
-        csv_out = render_csv_report(events)
-        assert "ERROR" in csv_out
-        assert "SRVE0293E" in csv_out
-        assert "NullPointerException" in csv_out
-        assert "HTTP, SSL/TLS" in csv_out
-        assert "00000150" in csv_out
-        assert "server.log" in csv_out
-        assert "error text" in csv_out
-
-    def test_csv_escapes_special_chars(self):
-        """Commas and quotes in text should be properly CSV-escaped."""
-        import csv
-        import io
-        events = [{"ts": "2025-01-01", "level": "ERROR",
-                    "text": 'He said "hello, world" and left'}]
-        csv_out = render_csv_report(events)
-        # Parse back through csv reader to verify proper escaping
-        reader = csv.reader(io.StringIO(csv_out))
-        rows = list(reader)
-        assert len(rows) == 2  # header + 1 data row
-        data_row = rows[1]
-        # The text field (last column) should contain the original text (with newlines replaced)
-        assert '"hello, world"' in data_row[-1] or 'hello, world' in data_row[-1]
-
-    def test_csv_empty_events(self):
-        csv_out = render_csv_report([])
-        lines = csv_out.strip().split("\n")
-        assert len(lines) == 1  # header only
-        assert "timestamp" in lines[0]
+    def test_html_no_ai_when_none(self):
+        events = [make_event(level="ERROR", text="fail")]
+        html = render_html_report(events, ai_content=None)
+        assert "AI Cross-System Triage" not in html
+        assert "AI Analysis" not in html
 
 
 # --- 10.5 render_pdf_report() content verification ---

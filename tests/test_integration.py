@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from logpilot import (
     parse_file, precompute_analysis, render_markdown_report,
-    render_json_report, render_csv_report, render_xml_report,
+    render_json_report, render_html_report,
     incident_timeline, summarize,
 )
 
@@ -100,24 +100,14 @@ class TestMultiFileAnalysis:
         assert "total_events" in data
         assert data["total_events"] >= 8
 
-    def test_combined_csv_has_all_events(self, multi_file_dir):
-        """CSV export includes events from all files."""
+    def test_combined_html_valid(self, multi_file_dir):
+        """HTML export from combined events contains expected structure."""
         all_events = _parse_all(multi_file_dir)
 
-        csv = render_csv_report(all_events)
-        lines = csv.strip().split("\n")
-        # Header + data lines
-        assert len(lines) >= len(all_events) + 1
-
-    def test_combined_xml_valid(self, multi_file_dir):
-        """XML export from combined events is well-formed."""
-        import xml.etree.ElementTree as ET
-        all_events = _parse_all(multi_file_dir)
-
-        xml_str = render_xml_report(all_events)
-        root = ET.fromstring(xml_str)
-        events = root.findall(".//event")
-        assert len(events) >= 8
+        html = render_html_report(all_events)
+        assert "<!DOCTYPE html>" in html
+        assert "LogPilot Triage Report" in html
+        assert "ERROR" in html
 
     def test_gz_and_plain_mixed(self, tmp_path):
         """Parsing works with a mix of .gz and plain text files."""

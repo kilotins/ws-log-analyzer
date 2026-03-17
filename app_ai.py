@@ -5,7 +5,7 @@ import streamlit as st
 from datetime import datetime
 
 from logpilot import (
-    match_user_query, build_claude_prompt, claude_cache_key,
+    match_user_query, build_claude_prompt, claude_cache_key, triage_cache_key,
     ask_gemini,
     estimate_tokens, TOKEN_LIMITS,
     _FORMAT_PLACEHOLDER,
@@ -748,62 +748,76 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
         provider = model_info["provider"]
         model_id = model_info["model_id"]
 
-        # Check API key
-        key_map = {"claude": "api_key", "gemini": "gemini_api_key", "openai": "openai_api_key",
-                   "local": "local_ai_api_key"}
-        api_key = getattr(st.session_state, key_map.get(provider, "api_key"), "")
+        # Cache lookup
+        _cache_key = triage_cache_key(events, model_id)
+        _session_cache = getattr(st.session_state, PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["claude"])["cache_key"], {})
+        cached = lookup_cache(_cache_key, _session_cache, f"triage/{provider}", "cross-system triage") if lookup_cache else None
+        if cached:
+            st.session_state._triage_answer = cached
+            st.session_state._triage_model = _triage_model
+            _triage_answer = cached
+            st.info("Cross-system triage loaded from cache.")
+        else:
+            # Check API key
+            key_map = {"claude": "api_key", "gemini": "gemini_api_key", "openai": "openai_api_key",
+                       "local": "local_ai_api_key"}
+            api_key = getattr(st.session_state, key_map.get(provider, "api_key"), "")
 
-        if not api_key and provider != "local":
-            st.error(f"No {provider} API key configured. Set it in the sidebar.")
-            return
-        if provider == "local" and not api_key:
-            api_key = "not-needed"
-
-        prompt = build_cross_system_prompt(events)
-        est_tokens = estimate_tokens(prompt["system"] + prompt["user"])
-
-        with st.status(f"Running cross-system triage with {_triage_model}...", expanded=True) as status:
-            st.write(f"Estimated prompt: ~{est_tokens:,} tokens")
-
-            try:
-                if provider == "claude":
-                    answer, usage = call_claude_api(api_key, model_id, prompt)
-                elif provider == "gemini":
-                    answer, usage = call_gemini_api(api_key, model_id, prompt)
-                elif provider == "openai":
-                    answer, usage = call_openai_api(api_key, model_id, prompt)
-                elif provider == "local":
-                    answer, usage = call_local_api(api_key, model_id, prompt)
-                else:
-                    st.error(f"Unsupported provider: {provider}")
-                    return
-
-                st.session_state._triage_answer = answer
-                st.session_state._triage_model = _triage_model
-                _triage_answer = answer
-
-                # Track spend
-                if usage:
-                    inp = usage.get("input", 0)
-                    out = usage.get("output", 0)
-                    cache_c = usage.get("cache_creation", 0)
-                    cache_r = usage.get("cache_read", 0)
-                    cost = estimate_cost(model_id, inp, out)
-                    from app_spend import record_spend
-                    record_spend(provider, model_id, inp, out, source="triage",
-                                 cache_creation=cache_c, cache_read=cache_r)
-                    st.caption(f"Triage: {inp:,} in + {out:,} out tokens — estimated cost **${cost:.4f}**")
-
-                status.update(label="Triage complete!", state="complete")
-
-                if log:
-                    log.info("triage Cross-system triage complete (%s)", model_id)
-            except Exception as ex:
-                status.update(label="Triage failed", state="error")
-                st.error(f"AI call failed: {ex}")
-                if log:
-                    log.error("triage Cross-system triage failed: %s", ex)
+            if not api_key and provider != "local":
+                st.error(f"No {provider} API key configured. Set it in the sidebar.")
                 return
+            if provider == "local" and not api_key:
+                api_key = "not-needed"
+
+            prompt = build_cross_system_prompt(events)
+            est_tokens = estimate_tokens(prompt["system"] + prompt["user"])
+
+            with st.status(f"Running cross-system triage with {_triage_model}...", expanded=True) as status:
+                st.write(f"Estimated prompt: ~{est_tokens:,} tokens")
+
+                try:
+                    if provider == "claude":
+                        answer, usage = call_claude_api(api_key, model_id, prompt)
+                    elif provider == "gemini":
+                        answer, usage = call_gemini_api(api_key, model_id, prompt)
+                    elif provider == "openai":
+                        answer, usage = call_openai_api(api_key, model_id, prompt)
+                    elif provider == "local":
+                        answer, usage = call_local_api(api_key, model_id, prompt)
+                    else:
+                        st.error(f"Unsupported provider: {provider}")
+                        return
+
+                    st.session_state._triage_answer = answer
+                    st.session_state._triage_model = _triage_model
+                    _triage_answer = answer
+
+                    # Store in cache
+                    if store_cache and answer:
+                        store_cache(_cache_key, answer, _session_cache)
+
+                    # Track spend
+                    if usage:
+                        inp = usage.get("input", 0)
+                        out = usage.get("output", 0)
+                        cache_c = usage.get("cache_creation", 0)
+                        cache_r = usage.get("cache_read", 0)
+                        cost = estimate_cost(model_id, inp, out)
+                        from app_spend import record_spend
+                        record_spend(provider, model_id, inp, out, source="triage",
+                                     cache_creation=cache_c, cache_read=cache_r)
+                        st.caption(f"Triage: {inp:,} in + {out:,} out tokens — estimated cost **${cost:.4f}**")
+
+                    status.update(label="Triage complete!", state="complete")
+
+                    if log:
+                        log.info("triage Cross-system triage complete (%s)", model_id)
+                except Exception as ex:
+                    status.update(label="Triage failed", state="error")
+                    st.error(f"AI call failed: {ex}")
+                    if log:
+                        log.error("triage Cross-system triage failed: %s", ex)
+                    return
 
     if _triage_answer:
         _model_label = st.session_state.get("_triage_model", "AI")
