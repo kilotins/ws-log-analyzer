@@ -227,6 +227,9 @@ _STATE_DEFAULTS = {
     "local_ai_endpoint": "http://localhost:1234/v1",
     "local_ai_model": "",
     "local_ai_api_key": "not-needed",
+    "_local_conn_status": "not_tested",  # not_tested | connected | failed | no_models
+    "_local_conn_error": None,
+    "_local_models": [],  # discovered model IDs
     "gemini_answer": None,
     "gemini_query_label": None,
     "gemini_cache": {},
@@ -474,6 +477,9 @@ with st.sidebar:
         st.session_state.openai_api_key = openai_key
 
     with st.expander("Local / Inhouse AI", expanded=False):
+        from app_ai import discover_local_models
+
+        # --- Preset + Endpoint ---
         _preset = st.selectbox(
             "Preset",
             list(LOCAL_AI_PRESETS.keys()),
@@ -482,7 +488,6 @@ with st.sidebar:
         )
         _preset_cfg = LOCAL_AI_PRESETS[_preset]
         _default_url = _preset_cfg["base_url"] or st.session_state.local_ai_endpoint
-        _default_key = _preset_cfg["api_key"] or st.session_state.local_ai_api_key
 
         st.session_state.local_ai_endpoint = st.text_input(
             "Endpoint URL",
@@ -491,20 +496,79 @@ with st.sidebar:
             help="OpenAI-compatible API endpoint",
             key="local_endpoint_input",
         )
-        st.session_state.local_ai_model = st.text_input(
-            "Model name",
-            value=st.session_state.local_ai_model,
-            placeholder="e.g. llama-3.1-8b, mistral-7b, qwen2.5",
-            help="Model ID as shown in your local server",
-            key="local_model_input",
-        )
-        st.session_state.local_ai_api_key = st.text_input(
-            "API Key (optional)",
-            value=_default_key,
-            placeholder="not-needed",
-            help="Most local servers don't require an API key",
-            key="local_key_input",
-        )
+
+        # --- Test Connection + Refresh ---
+        _btn_col, _status_col = st.columns([1, 2])
+        with _btn_col:
+            _test_clicked = st.button("Test connection", key="local_test_conn",
+                                      use_container_width=True)
+        _endpoint = st.session_state.local_ai_endpoint
+        _api_key = st.session_state.local_ai_api_key
+
+        if _test_clicked and _endpoint:
+            with st.spinner("Connecting..."):
+                result = discover_local_models(_endpoint, _api_key)
+            st.session_state._local_conn_status = result["status"]
+            st.session_state._local_conn_error = result["error"]
+            st.session_state._local_models = result["models"]
+            if result["models"]:
+                # Auto-select first model if none set
+                if not st.session_state.local_ai_model or st.session_state.local_ai_model not in result["models"]:
+                    st.session_state.local_ai_model = result["models"][0]
+                st.rerun()
+
+        with _status_col:
+            _conn = st.session_state._local_conn_status
+            if _conn == "connected":
+                n = len(st.session_state._local_models)
+                st.success(f"Connected — {n} model{'s' if n != 1 else ''} found")
+            elif _conn == "failed":
+                st.error(st.session_state._local_conn_error or "Connection failed")
+            elif _conn == "no_models":
+                st.warning(st.session_state._local_conn_error or "No models found")
+            else:
+                st.caption("Not tested")
+
+        # --- Model selection ---
+        _discovered = st.session_state._local_models
+        if _discovered:
+            _refresh_col, _model_col = st.columns([1, 3])
+            with _refresh_col:
+                if st.button("Refresh", key="local_refresh_models", use_container_width=True):
+                    result = discover_local_models(_endpoint, _api_key)
+                    st.session_state._local_conn_status = result["status"]
+                    st.session_state._local_conn_error = result["error"]
+                    st.session_state._local_models = result["models"]
+                    st.rerun()
+            with _model_col:
+                _current = st.session_state.local_ai_model
+                _idx = _discovered.index(_current) if _current in _discovered else 0
+                st.session_state.local_ai_model = st.selectbox(
+                    "Model",
+                    _discovered,
+                    index=_idx,
+                    key="local_model_select",
+                    label_visibility="collapsed",
+                )
+        else:
+            st.session_state.local_ai_model = st.text_input(
+                "Model name",
+                value=st.session_state.local_ai_model,
+                placeholder="e.g. llama-3.1-8b, mistral-7b, qwen2.5",
+                help="Model ID as shown in your local server",
+                key="local_model_input",
+            )
+
+        # --- Advanced (API key) ---
+        with st.expander("Advanced", expanded=False):
+            _default_key = _preset_cfg["api_key"] or st.session_state.local_ai_api_key
+            st.session_state.local_ai_api_key = st.text_input(
+                "API Key (optional)",
+                value=_default_key,
+                placeholder="not-needed",
+                help="Most local servers don't require an API key",
+                key="local_key_input",
+            )
 
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(

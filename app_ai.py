@@ -113,6 +113,47 @@ LOCAL_AI_PRESETS = {
 }
 
 
+def discover_local_models(endpoint: str, api_key: str = "not-needed", timeout: float = 5.0) -> dict:
+    """Probe a local OpenAI-compatible endpoint for available models.
+
+    Returns {"status": "connected"|"failed"|"no_models", "models": [...], "error": str|None}.
+    """
+    import urllib.request
+    import urllib.error
+
+    url = endpoint.rstrip("/")
+    if not url.endswith("/models"):
+        url += "/models"
+
+    try:
+        req = urllib.request.Request(url, method="GET")
+        req.add_header("Authorization", f"Bearer {api_key}")
+        req.add_header("Accept", "application/json")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            import json as _json
+            data = _json.loads(resp.read().decode("utf-8"))
+            models = []
+            if isinstance(data, dict) and "data" in data:
+                for m in data["data"]:
+                    mid = m.get("id") or m.get("name", "")
+                    if mid:
+                        models.append(mid)
+            elif isinstance(data, list):
+                for m in data:
+                    mid = m.get("id") or m.get("name", "") if isinstance(m, dict) else str(m)
+                    if mid:
+                        models.append(mid)
+            if models:
+                return {"status": "connected", "models": sorted(models), "error": None}
+            return {"status": "no_models", "models": [], "error": "Endpoint responded but returned no models."}
+    except urllib.error.URLError as ex:
+        return {"status": "failed", "models": [], "error": f"Cannot reach endpoint: {ex.reason}"}
+    except (ValueError, OSError) as ex:
+        return {"status": "failed", "models": [], "error": f"Invalid endpoint: {ex}"}
+    except Exception as ex:
+        return {"status": "failed", "models": [], "error": str(ex)}
+
+
 def estimate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float:
     """Estimate cost in USD given model and token counts."""
     costs = TOKEN_COSTS.get(model_id, (0, 0))
