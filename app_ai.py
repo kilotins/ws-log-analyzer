@@ -645,10 +645,12 @@ def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
     detected_format = detect_dominant_format(events)
     placeholder = _FORMAT_PLACEHOLDER.get(detected_format,
         "e.g. error code, exception name, or troubleshooting question")
+    st.caption("Paste an error code, exception, or message from the summary above — or type a question.")
     user_query = st.text_input(
-        "Ask an AI assistant about an error, exception, or troubleshooting question",
+        "Ask AI",
         placeholder=placeholder,
         key="claude_query_input",
+        label_visibility="collapsed",
     )
 
     col_model, col_btn = st.columns([2, 1])
