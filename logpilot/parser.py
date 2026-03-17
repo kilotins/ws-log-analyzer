@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import IO, Any, Generator
 
+from .event import LogEvent
+
 _log = logging.getLogger(__name__)
 
 # --- Constants ---
@@ -210,7 +212,7 @@ def classify_event(text: str) -> dict[str, Any]:
     }
 
 
-def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None) -> Generator[dict[str, Any], None, None]:
+def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None) -> Generator[LogEvent, None, None]:
     """Generator-based parser that yields event dicts one at a time.
 
     Args:
@@ -238,17 +240,24 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
     has_stacktrace = False
     seen_first_ts = False
 
-    def _build_event() -> dict[str, Any]:
+    def _build_event() -> LogEvent:
         text = "\n".join(current)
         text = redact(text)
         meta = fmt.classify_event(text)
-        meta["file"] = current_meta["file"]
-        meta["ts"] = current_meta["first_ts"]
-        meta["text"] = text
-        meta["format"] = current_meta["format"]
-        meta["tz_hint"] = current_meta.get("tz_hint")
-        meta["trace_ids"] = extract_trace_ids(text)
-        return meta
+        return LogEvent(
+            text=text,
+            ts=current_meta["first_ts"],
+            level=meta.get("level"),
+            thread_id=meta.get("thread_id"),
+            code=meta.get("code"),
+            exception=meta.get("exception"),
+            root_cause=meta.get("root_cause"),
+            tags=meta.get("tags") or [],
+            file=current_meta["file"],
+            format=current_meta["format"],
+            tz_hint=current_meta.get("tz_hint"),
+            trace_ids=extract_trace_ids(text),
+        )
 
     with open_text(path) as f:
         for i, line in enumerate(f, start=1):
@@ -288,7 +297,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
         yield _build_event()
 
 
-def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None) -> list[dict[str, Any]]:
+def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None) -> list[LogEvent]:
     """Parse a log file and return a list of event dicts.
 
     Args:

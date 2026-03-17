@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
+from logpilot.event import LogEvent
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -32,19 +33,11 @@ def _make_event(
     tags: list[str] | None = None,
     file: str = "test.log",
     fmt: str = "was",
-) -> dict:
-    return {
-        "text": text,
-        "level": level,
-        "ts": ts,
-        "code": code,
-        "exception": exception,
-        "root_cause": None,
-        "tags": tags or [],
-        "file": file,
-        "format": fmt,
-        "thread_id": None,
-    }
+) -> LogEvent:
+    return LogEvent(
+        text=text, level=level, ts=ts, code=code, exception=exception,
+        root_cause=None, tags=tags or [], file=file, format=fmt, thread_id=None,
+    )
 
 
 def _was_ts(offset_seconds: int = 0) -> str:

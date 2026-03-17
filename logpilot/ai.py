@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .parser import WAS_CODE_RE
+from .event import LogEvent
 
 # --- Constants ---
 MAX_SKILLS = 5
@@ -194,7 +195,7 @@ _SKILL_QUERY_KEYWORDS: dict[str, list[str]] = {
 }
 
 
-def match_user_query(query: str, events: list[dict]) -> dict[str, Any]:
+def match_user_query(query: str, events: list[LogEvent]) -> dict[str, Any]:
     """Match a user query (error code, exception, or free text) against parsed events."""
     query_upper = query.strip().upper()
     query_lower = query.strip().lower()
@@ -210,34 +211,34 @@ def match_user_query(query: str, events: list[dict]) -> dict[str, Any]:
 
     code_match = WAS_CODE_RE.match(query.strip())
     if code_match:
-        matched = [e for e in events if e.get("code") and query_upper in e["code"].upper()]
+        matched = [e for e in events if e.code and query_upper in e.code.upper()]
         if matched:
             result["matched"] = True
             result["match_type"] = "code"
             result["matching_events"] = matched[:3]
-            result["codes"] = list({e["code"] for e in matched})
-            result["tags"] = sorted({tag for e in matched for tag in e.get("tags", [])})
-            result["exceptions"] = list({e["exception"] for e in matched if e.get("exception")})
+            result["codes"] = list({e.code for e in matched})
+            result["tags"] = sorted({tag for e in matched for tag in e.tags})
+            result["exceptions"] = list({e.exception for e in matched if e.exception})
             return result
 
-    exc_matches = [e for e in events if e.get("exception") and query_lower in e["exception"].lower()]
+    exc_matches = [e for e in events if e.exception and query_lower in e.exception.lower()]
     if exc_matches:
         result["matched"] = True
         result["match_type"] = "exception"
         result["matching_events"] = exc_matches[:3]
-        result["exceptions"] = list({e["exception"] for e in exc_matches})
-        result["codes"] = list({e["code"] for e in exc_matches if e.get("code")})
-        result["tags"] = sorted({tag for e in exc_matches for tag in e.get("tags", [])})
+        result["exceptions"] = list({e.exception for e in exc_matches})
+        result["codes"] = list({e.code for e in exc_matches if e.code})
+        result["tags"] = sorted({tag for e in exc_matches for tag in e.tags})
         return result
 
-    text_matches = [e for e in events if query_lower in e.get("text", "").lower()]
+    text_matches = [e for e in events if query_lower in (e.text or "").lower()]
     if text_matches:
         result["matched"] = True
         result["match_type"] = "text"
         result["matching_events"] = text_matches[:3]
-        result["codes"] = list({e["code"] for e in text_matches if e.get("code")})
-        result["exceptions"] = list({e["exception"] for e in text_matches if e.get("exception")})
-        result["tags"] = sorted({tag for e in text_matches for tag in e.get("tags", [])})
+        result["codes"] = list({e.code for e in text_matches if e.code})
+        result["exceptions"] = list({e.exception for e in text_matches if e.exception})
+        result["tags"] = sorted({tag for e in text_matches for tag in e.tags})
         return result
 
     return result
@@ -368,7 +369,7 @@ def build_claude_prompt(user_query: str, match_result: dict, style: str | None =
 
         for i, event in enumerate(match_result["matching_events"][:2], 1):
             safe_text = _sanitize_prompt_input(
-                _truncate_event_text(event.get("text", ""), max_lines=25)
+                _truncate_event_text(event.text or "", max_lines=25)
             )
             parts.append(f'<log_excerpt id="{i}">{safe_text}</log_excerpt>')
             parts.append("")
@@ -428,14 +429,14 @@ def claude_cache_key(user_query: str, match_result: dict) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def triage_cache_key(events: list[dict], model_id: str = "") -> str:
+def triage_cache_key(events: list[LogEvent], model_id: str = "") -> str:
     """Generate a stable cache key for cross-system triage based on event fingerprints."""
     import json
     # Build a fingerprint from event count, source labels, top codes/exceptions
-    sources = sorted(set(e.get("system_label", "") for e in events))
-    codes = sorted(set(e.get("code", "") for e in events if e.get("code")))[:20]
-    exceptions = sorted(set(e.get("exception", "") for e in events if e.get("exception")))[:20]
-    levels = sorted(set(e.get("level", "") for e in events if e.get("level")))
+    sources = sorted(set(e.system_label or "" for e in events))
+    codes = sorted(set(e.code for e in events if e.code))[:20]
+    exceptions = sorted(set(e.exception for e in events if e.exception))[:20]
+    levels = sorted(set(e.level for e in events if e.level))
     key_data = {
         "type": "triage",
         "n_events": len(events),
@@ -449,7 +450,7 @@ def triage_cache_key(events: list[dict], model_id: str = "") -> str:
     return "triage:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def build_cross_system_prompt(events: list[dict], detected_format: str = "") -> dict[str, str]:
+def build_cross_system_prompt(events: list[LogEvent], detected_format: str = "") -> dict[str, str]:
     """Build a cross-system triage prompt from all events across multiple sources.
 
     Returns dict with 'system' and 'user' keys for AI provider calls.
@@ -509,13 +510,13 @@ def build_cross_system_prompt(events: list[dict], detected_format: str = "") -> 
     parts.append("<per_source_errors>")
     for s in sources:
         source_errors = [e for e in events
-                        if e.get("system_label") == s["label"]
-                        and e.get("level") in ERROR_LEVELS][:3]
+                        if e.system_label == s["label"]
+                        and e.level in ERROR_LEVELS][:3]
         if source_errors:
             parts.append(f"\n--- {s['label']} ({s['format']}) errors ---")
             for e in source_errors:
                 safe_text = _sanitize_prompt_input(
-                    _truncate_event_text(e.get("text", ""), max_lines=10)
+                    _truncate_event_text(e.text or "", max_lines=10)
                 )
                 parts.append(safe_text)
     parts.append("</per_source_errors>")

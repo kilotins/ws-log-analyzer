@@ -16,6 +16,7 @@ from logpilot import (
 )
 from logpilot.splunk import _extract_hung_thread_name, _extract_stack_sample
 from logpilot.heuristics import _load_heuristics_from_yaml
+from logpilot.event import LogEvent
 from conftest import make_event, empty_match
 
 # --- Shared fixtures ---
@@ -517,13 +518,13 @@ def test_hung_thread_drilldown_not_in_report_when_none():
 
 def test_incident_timeline_basic():
     events = [
-        {"level": "INFO", "ts": "10/12/15 21:22:00:000", "code": None,
-         "exception": None, "thread_id": None, "tags": [], "text": "startup"},
-        {"level": "ERROR", "ts": "10/12/15 21:22:04:257", "code": "SRVE0293E",
-         "exception": "java.lang.NullPointerException", "thread_id": "0000004e",
-         "tags": [], "text": "error happened"},
-        {"level": "INFO", "ts": "10/12/15 21:22:10:000", "code": None,
-         "exception": None, "thread_id": None, "tags": [], "text": "after error"},
+        LogEvent(level="INFO", ts="10/12/15 21:22:00:000", code=None,
+                 exception=None, thread_id=None, tags=[], text="startup"),
+        LogEvent(level="ERROR", ts="10/12/15 21:22:04:257", code="SRVE0293E",
+                 exception="java.lang.NullPointerException", thread_id="0000004e",
+                 tags=[], text="error happened"),
+        LogEvent(level="INFO", ts="10/12/15 21:22:10:000", code=None,
+                 exception=None, thread_id=None, tags=[], text="after error"),
     ]
     itl = incident_timeline(events, window_seconds=30)
     assert itl is not None
@@ -533,22 +534,22 @@ def test_incident_timeline_basic():
 
 def test_incident_timeline_no_errors():
     events = [
-        {"level": "INFO", "ts": "10/12/15 21:22:00:000", "code": None,
-         "exception": None, "thread_id": None, "tags": [], "text": "ok"},
+        LogEvent(level="INFO", ts="10/12/15 21:22:00:000", code=None,
+                 exception=None, thread_id=None, tags=[], text="ok"),
     ]
     assert incident_timeline(events) is None
 
 
 def test_incident_timeline_window_filters():
     events = [
-        {"level": "INFO", "ts": "10/12/15 21:20:00:000", "code": None,
-         "exception": None, "thread_id": None, "tags": [], "text": "too early"},
-        {"level": "ERROR", "ts": "10/12/15 21:22:04:257", "code": "ERR001E",
-         "exception": None, "thread_id": None, "tags": [], "text": "trigger"},
-        {"level": "INFO", "ts": "10/12/15 21:22:30:000", "code": None,
-         "exception": None, "thread_id": None, "tags": [], "text": "within window"},
-        {"level": "INFO", "ts": "10/12/15 21:25:00:000", "code": None,
-         "exception": None, "thread_id": None, "tags": [], "text": "too late"},
+        LogEvent(level="INFO", ts="10/12/15 21:20:00:000", code=None,
+                 exception=None, thread_id=None, tags=[], text="too early"),
+        LogEvent(level="ERROR", ts="10/12/15 21:22:04:257", code="ERR001E",
+                 exception=None, thread_id=None, tags=[], text="trigger"),
+        LogEvent(level="INFO", ts="10/12/15 21:22:30:000", code=None,
+                 exception=None, thread_id=None, tags=[], text="within window"),
+        LogEvent(level="INFO", ts="10/12/15 21:25:00:000", code=None,
+                 exception=None, thread_id=None, tags=[], text="too late"),
     ]
     itl = incident_timeline(events, window_seconds=30)
     assert itl is not None
@@ -593,11 +594,11 @@ def test_load_heuristics_from_yaml_patterns_are_compiled():
 def test_likely_causes_prefiltering_regression():
     """Verify likely_causes returns same results with pre-filtering optimization."""
     events = [
-        {"text": "CWPKI0022E: SSL HANDSHAKE FAILURE: PKIX path building failed: java.security.cert.CertPathBuilderException"},
-        {"text": "J2CA0045E: Connection pool exhausted for datasource jdbc/myDS"},
-        {"text": "WSVR0605W: Thread WebContainer : 5 has been active for 623,456 milliseconds"},
-        {"text": "OutOfMemoryError: Java heap space"},
-        {"text": "ARFM5007I: config loaded"},  # should not match any heuristic
+        LogEvent(text="CWPKI0022E: SSL HANDSHAKE FAILURE: PKIX path building failed: java.security.cert.CertPathBuilderException"),
+        LogEvent(text="J2CA0045E: Connection pool exhausted for datasource jdbc/myDS"),
+        LogEvent(text="WSVR0605W: Thread WebContainer : 5 has been active for 623,456 milliseconds"),
+        LogEvent(text="OutOfMemoryError: Java heap space"),
+        LogEvent(text="ARFM5007I: config loaded"),  # should not match any heuristic
     ]
     results = likely_causes(events)
     # Should detect SSL, DB pool, hung threads, OOM
@@ -618,23 +619,23 @@ def test_likely_causes_prefiltering_no_false_negatives():
     """Every heuristic that would match must still be found after pre-filtering."""
     # Test with events that match multiple heuristics
     events = [
-        {"text": "SSLHandshakeException: PKIX path building failed"},
-        {"text": "Timeout waiting for idle object in connection pool"},
-        {"text": "ThreadMonitor: hung thread detected"},
-        {"text": "GC overhead limit exceeded"},
-        {"text": "SESN0066E: Session invalidated"},
-        {"text": "ClassNotFoundException: com.example.MyClass"},
-        {"text": "DSRA0010E: Cannot get a connection from data source"},
-        {"text": "SRVE0293E: Servlet Error"},
-        {"text": "CWWKZ0002E: Application failed to start"},
-        {"text": "WTRN0006W: Transaction timed out"},
-        {"text": "Authorization denied for user"},
-        {"text": "CWNEN1001E: JNDI lookup not found"},
-        {"text": "Address already in use on port 9443"},
-        {"text": "CWWKS3005E: LDAP connection failed"},
-        {"text": "CWPKI0033E: Certificate expired"},
-        {"text": "CWWKG0028A: Config error in xml"},
-        {"text": "CWWKZ0014W: context root conflict"},
+        LogEvent(text="SSLHandshakeException: PKIX path building failed"),
+        LogEvent(text="Timeout waiting for idle object in connection pool"),
+        LogEvent(text="ThreadMonitor: hung thread detected"),
+        LogEvent(text="GC overhead limit exceeded"),
+        LogEvent(text="SESN0066E: Session invalidated"),
+        LogEvent(text="ClassNotFoundException: com.example.MyClass"),
+        LogEvent(text="DSRA0010E: Cannot get a connection from data source"),
+        LogEvent(text="SRVE0293E: Servlet Error"),
+        LogEvent(text="CWWKZ0002E: Application failed to start"),
+        LogEvent(text="WTRN0006W: Transaction timed out"),
+        LogEvent(text="Authorization denied for user"),
+        LogEvent(text="CWNEN1001E: JNDI lookup not found"),
+        LogEvent(text="Address already in use on port 9443"),
+        LogEvent(text="CWWKS3005E: LDAP connection failed"),
+        LogEvent(text="CWPKI0033E: Certificate expired"),
+        LogEvent(text="CWWKG0028A: Config error in xml"),
+        LogEvent(text="CWWKZ0014W: context root conflict"),
     ]
     results = likely_causes(events)
     ids = {r["id"] for r in results}

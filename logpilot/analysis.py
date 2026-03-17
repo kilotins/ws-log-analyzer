@@ -7,6 +7,8 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from .event import LogEvent
+
 _log = logging.getLogger(__name__)
 
 ERROR_LEVELS = ("ERROR", "SEVERE", "FATAL")
@@ -128,22 +130,22 @@ def normalize_ts_utc(ts: str | None, tz_hint: str | None = None) -> datetime | N
     return dt.astimezone(timezone.utc)
 
 
-def sort_events_chronologically(events: list[dict], tz_hint: str | None = None) -> None:
+def sort_events_chronologically(events: list[LogEvent], tz_hint: str | None = None) -> None:
     """Sort events in-place by UTC-normalized timestamp. Events without timestamps go last."""
     for e in events:
-        if "ts_utc" not in e:
-            dt = normalize_ts_utc(e.get("ts"), tz_hint=e.get("tz_hint", tz_hint))
-            e["ts_utc"] = dt.isoformat() if dt else None
+        if e.ts_utc is None:
+            dt = normalize_ts_utc(e.ts, tz_hint=(e.tz_hint or tz_hint))
+            e.ts_utc = dt.isoformat() if dt else None
 
-    events.sort(key=lambda e: (e.get("ts_utc") is None, e.get("ts_utc") or ""))
+    events.sort(key=lambda e: (e.ts_utc is None, e.ts_utc or ""))
 
 
-def summarize(events: list[dict], top_n: int) -> dict[str, Any]:
+def summarize(events: list[LogEvent], top_n: int) -> dict[str, Any]:
     """Count top codes, exceptions, levels, tags; return summary dict."""
-    by_level = Counter(e["level"] or "UNKNOWN" for e in events)
-    by_code = Counter(e["code"] for e in events if e["code"])
-    by_exc = Counter(e["exception"] for e in events if e["exception"])
-    by_tag = Counter(tag for e in events for tag in e["tags"])
+    by_level = Counter(e.level or "UNKNOWN" for e in events)
+    by_code = Counter(e.code for e in events if e.code)
+    by_exc = Counter(e.exception for e in events if e.exception)
+    by_tag = Counter(tag for e in events for tag in e.tags)
 
     def top(counter: Counter) -> list[tuple[str, int]]:
         return counter.most_common(top_n)
@@ -157,7 +159,7 @@ def summarize(events: list[dict], top_n: int) -> dict[str, Any]:
     }
 
 
-def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str, Any] | None:
+def incident_timeline(events: list[LogEvent], window_seconds: int = 30) -> dict[str, Any] | None:
     """Build an incident timeline around the first error.
 
     Returns dict with:
@@ -169,15 +171,15 @@ def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str,
     """
     ts_cache: dict[str, Any] = {}
     for e in events:
-        ts = e.get("ts")
+        ts = e.ts
         if ts and ts not in ts_cache:
             ts_cache[ts] = parse_ts_datetime(ts)
 
     trigger = None
     trigger_dt = None
     for e in events:
-        if e.get("level") in ERROR_LEVELS:
-            dt = ts_cache.get(e.get("ts", ""))
+        if e.level in ERROR_LEVELS:
+            dt = ts_cache.get(e.ts or "")
             if dt:
                 trigger = e
                 trigger_dt = dt
@@ -188,7 +190,7 @@ def incident_timeline(events: list[dict], window_seconds: int = 30) -> dict[str,
 
     window_events = []
     for e in events:
-        dt = ts_cache.get(e.get("ts", ""))
+        dt = ts_cache.get(e.ts or "")
         if not dt:
             continue
         offset = (dt - trigger_dt).total_seconds()
@@ -238,12 +240,12 @@ def _parse_ts_parts(ts: str) -> tuple[str | None, int, int] | None:
         return None
 
 
-def time_histogram(events: list[dict], bucket_minutes: int = 1) -> list[tuple[str, int, int]]:
+def time_histogram(events: list[LogEvent], bucket_minutes: int = 1) -> list[tuple[str, int, int]]:
     """Group events by time bucket and return list of (bucket_label, total, error_count)."""
     buckets: dict[str, dict[str, int]] = {}
     dates_seen: set[str] = set()
     for e in events:
-        ts = e.get("ts")
+        ts = e.ts
         if not ts:
             continue
         parsed = _parse_ts_parts(ts)
@@ -259,7 +261,7 @@ def time_histogram(events: list[dict], bucket_minutes: int = 1) -> list[tuple[st
         if key not in buckets:
             buckets[key] = {"total": 0, "errors": 0}
         buckets[key]["total"] += 1
-        if e.get("level") in ERROR_LEVELS:
+        if e.level in ERROR_LEVELS:
             buckets[key]["errors"] += 1
 
     if not buckets:
@@ -289,37 +291,37 @@ def render_histogram(hist: list[tuple[str, int, int]], bar_width: int = 40) -> l
     return lines
 
 
-def pick_samples(events: list[dict], n: int) -> list[dict]:
+def pick_samples(events: list[LogEvent], n: int) -> list[LogEvent]:
     """Select diverse sample events (by code/exception/tag)."""
     seen: set[tuple] = set()
     unique = []
     for e in events:
-        key = (e["level"], e["code"], e["exception"])
+        key = (e.level, e.code, e.exception)
         if key not in seen:
             seen.add(key)
             unique.append(e)
 
-    def score(e: dict) -> int:
+    def score(e: LogEvent) -> int:
         s = 0
-        if e["level"] in ("FATAL",): s += 4
-        if e["level"] in ("ERROR", "SEVERE"): s += 3
-        if e["level"] in ("WARNING", "WARN"): s += 1
-        if e["exception"]: s += 2
-        if e["code"]: s += 1
-        if e["tags"]: s += 1
+        if e.level in ("FATAL",): s += 4
+        if e.level in ("ERROR", "SEVERE"): s += 3
+        if e.level in ("WARNING", "WARN"): s += 1
+        if e.exception: s += 2
+        if e.code: s += 1
+        if e.tags: s += 1
         return -s
     return sorted(unique, key=score)[:n]
 
 
-def per_file_summary(events: list[dict]) -> list[tuple[str, int, int]]:
+def per_file_summary(events: list[LogEvent]) -> list[tuple[str, int, int]]:
     """Return list of (filename, total, error_count) for each source file."""
     files: dict[str, dict[str, int]] = {}
     for e in events:
-        f = e["file"]
+        f = e.file
         if f not in files:
             files[f] = {"total": 0, "errors": 0}
         files[f]["total"] += 1
-        if e.get("level") in ERROR_LEVELS:
+        if e.level in ERROR_LEVELS:
             files[f]["errors"] += 1
     return [(f, files[f]["total"], files[f]["errors"]) for f in sorted(files)]
 
@@ -341,7 +343,7 @@ _CASCADE_PATTERNS: list[dict[str, Any]] = [
 ]
 
 
-def detect_cross_system_cascades(events: list[dict], max_delay_s: int = 60) -> list[dict[str, Any]]:
+def detect_cross_system_cascades(events: list[LogEvent], max_delay_s: int = 60) -> list[dict[str, Any]]:
     """Detect error cascades across different system sources.
 
     Looks for temporal patterns where errors in one system are followed by
@@ -351,19 +353,19 @@ def detect_cross_system_cascades(events: list[dict], max_delay_s: int = 60) -> l
         {pattern, upstream_event, downstream_events, delay_seconds, confidence}
     """
     # Need events sorted by ts_utc with at least 2 sources
-    error_events = [e for e in events if e.get("level") in ERROR_LEVELS and e.get("ts_utc")]
+    error_events = [e for e in events if e.level in ERROR_LEVELS and e.ts_utc]
     if len(error_events) < 2:
         return []
 
-    sources = set(e.get("system_label", "") for e in error_events)
+    sources = set(e.system_label or "" for e in error_events)
     if len(sources) < 2:
         return []
 
     # Parse ts_utc to float for fast comparison
-    timed_errors: list[tuple[float, dict]] = []
+    timed_errors: list[tuple[float, LogEvent]] = []
     for e in error_events:
         try:
-            dt = datetime.fromisoformat(e["ts_utc"])
+            dt = datetime.fromisoformat(e.ts_utc)
             timed_errors.append((dt.timestamp(), e))
         except (ValueError, TypeError):
             continue
@@ -373,8 +375,8 @@ def detect_cross_system_cascades(events: list[dict], max_delay_s: int = 60) -> l
     seen_pairs: set[tuple[str, str, str]] = set()  # (pattern_label, upstream_source, downstream_source)
 
     for i, (t_up, e_up) in enumerate(timed_errors):
-        up_tags = set(e_up.get("tags", []))
-        up_source = e_up.get("system_label", "")
+        up_tags = set(e_up.tags)
+        up_source = e_up.system_label or ""
         if not up_tags:
             continue
 
@@ -392,16 +394,16 @@ def detect_cross_system_cascades(events: list[dict], max_delay_s: int = 60) -> l
                 if delay < 0:
                     continue
 
-                down_source = e_down.get("system_label", "")
+                down_source = e_down.system_label or ""
                 if down_source == up_source:
                     continue  # Same source, not a cross-system cascade
 
-                down_tags = set(e_down.get("tags", []))
+                down_tags = set(e_down.tags)
                 if pattern["downstream_tags"] & down_tags:
                     downstream.append({"event": e_down, "delay_s": round(delay, 1)})
 
             if downstream:
-                pair_key = (pattern["label"], up_source, downstream[0]["event"].get("system_label", ""))
+                pair_key = (pattern["label"], up_source, downstream[0]["event"].system_label or "")
                 if pair_key in seen_pairs:
                     continue
                 seen_pairs.add(pair_key)
@@ -412,7 +414,7 @@ def detect_cross_system_cascades(events: list[dict], max_delay_s: int = 60) -> l
                     "upstream_event": e_up,
                     "upstream_source": up_source,
                     "downstream_events": downstream[:5],  # Limit to 5
-                    "downstream_source": downstream[0]["event"].get("system_label", ""),
+                    "downstream_source": downstream[0]["event"].system_label or "",
                     "delay_seconds": downstream[0]["delay_s"],
                     "confidence": confidence,
                 })
@@ -422,21 +424,21 @@ def detect_cross_system_cascades(events: list[dict], max_delay_s: int = 60) -> l
     return cascades[:10]  # Top 10 cascades
 
 
-def per_source_summary(events: list[dict]) -> list[dict[str, Any]]:
+def per_source_summary(events: list[LogEvent]) -> list[dict[str, Any]]:
     """Return summary per system_label: label, format, total, errors, top codes, top exceptions."""
     sources: dict[str, dict] = {}
     for e in events:
-        label = e.get("system_label", "unknown")
+        label = e.system_label or "unknown"
         if label not in sources:
-            sources[label] = {"label": label, "format": e.get("format", "unknown"),
+            sources[label] = {"label": label, "format": e.format or "unknown",
                               "total": 0, "errors": 0, "codes": Counter(), "exceptions": Counter()}
         sources[label]["total"] += 1
-        if e.get("level") in ERROR_LEVELS:
+        if e.level in ERROR_LEVELS:
             sources[label]["errors"] += 1
-        if e.get("code"):
-            sources[label]["codes"][e["code"]] += 1
-        if e.get("exception"):
-            sources[label]["exceptions"][e["exception"]] += 1
+        if e.code:
+            sources[label]["codes"][e.code] += 1
+        if e.exception:
+            sources[label]["exceptions"][e.exception] += 1
 
     result = []
     for s in sorted(sources.values(), key=lambda x: x["errors"], reverse=True):
@@ -451,32 +453,32 @@ def per_source_summary(events: list[dict]) -> list[dict[str, Any]]:
     return result
 
 
-def correlate_by_trace_id(events: list[dict]) -> dict[str, list[dict]]:
+def correlate_by_trace_id(events: list[LogEvent]) -> dict[str, list[LogEvent]]:
     """Group events by shared trace/correlation IDs across sources.
 
     Returns dict mapping trace_id -> list of events, only including
     IDs that appear in events from 2+ different system_labels.
     """
     # Build trace_id -> events mapping
-    id_events: dict[str, list[dict]] = {}
+    id_events: dict[str, list[LogEvent]] = {}
     for e in events:
-        for tid in e.get("trace_ids", []):
+        for tid in e.trace_ids:
             if tid not in id_events:
                 id_events[tid] = []
             id_events[tid].append(e)
 
     # Keep only cross-system correlations
-    cross_system: dict[str, list[dict]] = {}
+    cross_system: dict[str, list[LogEvent]] = {}
     for tid, evts in id_events.items():
-        sources = set(e.get("system_label", "") for e in evts)
+        sources = set(e.system_label or "" for e in evts)
         if len(sources) >= 2:
             # Sort by timestamp
-            cross_system[tid] = sorted(evts, key=lambda e: e.get("ts_utc") or "")
+            cross_system[tid] = sorted(evts, key=lambda e: e.ts_utc or "")
 
     return cross_system
 
 
-def find_cross_system_chains(events: list[dict], max_chains: int = 10) -> list[dict]:
+def find_cross_system_chains(events: list[LogEvent], max_chains: int = 10) -> list[dict]:
     """Find request flows that span multiple systems via trace IDs.
 
     Returns list of chain dicts:
@@ -486,8 +488,8 @@ def find_cross_system_chains(events: list[dict], max_chains: int = 10) -> list[d
 
     chains = []
     for tid, evts in correlations.items():
-        systems = list(dict.fromkeys(e.get("system_label", "unknown") for e in evts))
-        has_errors = any(e.get("level") in ERROR_LEVELS for e in evts)
+        systems = list(dict.fromkeys(e.system_label or "unknown" for e in evts))
+        has_errors = any(e.level in ERROR_LEVELS for e in evts)
         chains.append({
             "trace_id": tid,
             "systems": systems,
@@ -501,7 +503,7 @@ def find_cross_system_chains(events: list[dict], max_chains: int = 10) -> list[d
     return chains[:max_chains]
 
 
-def precompute_analysis(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1) -> dict[str, Any]:
+def precompute_analysis(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1) -> dict[str, Any]:
     """Compute all shared analysis data once. Returns a dict."""
     s = summarize(events, top_n)
     samples = pick_samples(events, samples_n)

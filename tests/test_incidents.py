@@ -5,6 +5,7 @@ from logpilot.heuristics import (
     group_into_incidents, _INCIDENT_GROUPS, _HEURISTICS, _HEURISTICS_INLINE,
     _merge_heuristics, likely_causes, _CORRELATIONS,
 )
+from logpilot.event import LogEvent
 
 
 class TestMergeHeuristics:
@@ -47,8 +48,8 @@ class TestNewHeuristics:
     """Tests for newly added generic/cross-format heuristics."""
 
     def _make_event(self, text, level="ERROR"):
-        return {"text": text, "level": level, "code": None, "exception": None,
-                "tags": [], "ts": None, "thread_id": None, "root_cause": None, "file": "test.log"}
+        return LogEvent(text=text, level=level, code=None, exception=None,
+                        tags=[], ts=None, thread_id=None, root_cause=None, file="test.log")
 
     def test_connection_refused_detected(self):
         events = [self._make_event("Connection refused to database server")]
@@ -130,10 +131,10 @@ class TestNewCorrelations:
     def test_correlation_timeout_5xx(self):
         """timeout-generic + http-5xx-generic should trigger corr-timeout-5xx."""
         events = [
-            {"text": "Request timed out after 30s", "level": "ERROR", "code": None,
-             "exception": None, "tags": [], "ts": None, "thread_id": None, "root_cause": None, "file": "t.log"},
-            {"text": 'status=503 Service Unavailable', "level": "ERROR", "code": None,
-             "exception": None, "tags": [], "ts": None, "thread_id": None, "root_cause": None, "file": "t.log"},
+            LogEvent(text="Request timed out after 30s", level="ERROR", code=None,
+                     exception=None, tags=[], ts=None, thread_id=None, root_cause=None, file="t.log"),
+            LogEvent(text='status=503 Service Unavailable', level="ERROR", code=None,
+                     exception=None, tags=[], ts=None, thread_id=None, root_cause=None, file="t.log"),
         ]
         causes = likely_causes(events)
         ids = [c["id"] for c in causes]

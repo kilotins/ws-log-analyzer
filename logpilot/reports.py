@@ -6,9 +6,10 @@ from pathlib import Path
 
 from .parser import MAX_EVENT_TEXT
 from .analysis import precompute_analysis, render_histogram
+from .event import LogEvent
 
 
-def render_json_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
+def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
     """Generate a JSON triage report string from parsed events."""
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     from .analysis import group_into_incidents
@@ -31,14 +32,14 @@ def render_json_report(events: list[dict], top_n: int = 10, samples_n: int = 5, 
         "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
         "samples": [
             {
-                "level": e["level"],
-                "thread_id": e["thread_id"],
-                "code": e["code"],
-                "exception": e["exception"],
-                "root_cause": e["root_cause"],
-                "ts": e["ts"],
-                "tags": e["tags"],
-                "text": e["text"][:MAX_EVENT_TEXT],
+                "level": e.level,
+                "thread_id": e.thread_id,
+                "code": e.code,
+                "exception": e.exception,
+                "root_cause": e.root_cause,
+                "ts": e.ts,
+                "tags": e.tags,
+                "text": e.text[:MAX_EVENT_TEXT],
             }
             for e in samples
         ],
@@ -48,7 +49,7 @@ def render_json_report(events: list[dict], top_n: int = 10, samples_n: int = 5, 
     return json.dumps(data, indent=2)
 
 
-def render_markdown_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
+def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
     """Generate a complete markdown triage report from parsed events."""
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     s = a["summary"]
@@ -165,24 +166,24 @@ def render_markdown_report(events: list[dict], top_n: int = 10, samples_n: int =
     md.append("## Sample Events (sanitized)")
     md.append("")
     for idx, e in enumerate(samples, start=1):
-        header = f"### {idx}. {e['level'] or 'UNKNOWN'}"
-        if e["code"]: header += f" `{e['code']}`"
-        if e["exception"]: header += f" -- {e['exception']}"
-        if e["ts"]: header += f" ({e['ts']})"
+        header = f"### {idx}. {e.level or 'UNKNOWN'}"
+        if e.code: header += f" `{e.code}`"
+        if e.exception: header += f" -- {e.exception}"
+        if e.ts: header += f" ({e.ts})"
         md.append(header)
         parts = []
-        if e["tags"]:
-            parts.append(f"Tags: {', '.join(e['tags'])}")
-        if e["thread_id"]:
-            parts.append(f"Thread: 0x{e['thread_id']}")
-        if e["root_cause"] and e["root_cause"] != e["exception"]:
-            parts.append(f"Root cause: `{e['root_cause']}`")
+        if e.tags:
+            parts.append(f"Tags: {', '.join(e.tags)}")
+        if e.thread_id:
+            parts.append(f"Thread: 0x{e.thread_id}")
+        if e.root_cause and e.root_cause != e.exception:
+            parts.append(f"Root cause: `{e.root_cause}`")
         if parts:
             md.append(f"- {' | '.join(parts)}")
         md.append("")
         md.append("```")
-        md.append(e["text"][:MAX_EVENT_TEXT])
-        if len(e["text"]) > MAX_EVENT_TEXT:
+        md.append(e.text[:MAX_EVENT_TEXT])
+        if len(e.text) > MAX_EVENT_TEXT:
             md.append("\n...[TRUNCATED]...")
         md.append("```")
         md.append("")
@@ -217,7 +218,7 @@ def render_markdown_report(events: list[dict], top_n: int = 10, samples_n: int =
     return "\n".join(md)
 
 
-def render_html_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
+def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
     """Generate a styled HTML triage report."""
     from html import escape
 
@@ -401,26 +402,26 @@ def render_html_report(events: list[dict], top_n: int = 10, samples_n: int = 5, 
     # Sample events
     h.append('<h2>Sample Events</h2>')
     for idx, e in enumerate(samples, start=1):
-        lvl = e["level"] or "UNKNOWN"
+        lvl = e.level or "UNKNOWN"
         cls = "level-error" if lvl in ("ERROR", "SEVERE", "FATAL") else "level-warning" if lvl in ("WARNING", "WARN") else ""
         header = f'{idx}. <span class="{cls}">{escape(lvl)}</span>'
-        if e["code"]:
-            header += f' <code>{escape(e["code"])}</code>'
-        if e["exception"]:
-            header += f' &mdash; {escape(e["exception"])}'
-        if e["ts"]:
-            header += f' ({escape(e["ts"])})'
+        if e.code:
+            header += f' <code>{escape(e.code)}</code>'
+        if e.exception:
+            header += f' &mdash; {escape(e.exception)}'
+        if e.ts:
+            header += f' ({escape(e.ts)})'
         h.append(f'<div class="sample"><div class="sample-header">{header}</div>')
         parts = []
-        if e["tags"]:
-            parts.append("Tags: " + ", ".join(e["tags"]))
-        if e["thread_id"]:
-            parts.append(f"Thread: 0x{e['thread_id']}")
-        if e["root_cause"] and e["root_cause"] != e["exception"]:
-            parts.append(f"Root cause: {e['root_cause']}")
+        if e.tags:
+            parts.append("Tags: " + ", ".join(e.tags))
+        if e.thread_id:
+            parts.append(f"Thread: 0x{e.thread_id}")
+        if e.root_cause and e.root_cause != e.exception:
+            parts.append(f"Root cause: {e.root_cause}")
         if parts:
             h.append(f'<p style="font-size:0.8rem;color:var(--gray)">{escape(" | ".join(parts))}</p>')
-        h.append(f'<pre>{escape(e["text"][:MAX_EVENT_TEXT])}</pre>')
+        h.append(f'<pre>{escape(e.text[:MAX_EVENT_TEXT])}</pre>')
         h.append('</div>')
 
     # Footer
@@ -430,7 +431,7 @@ def render_html_report(events: list[dict], top_n: int = 10, samples_n: int = 5, 
     return "\n".join(h)
 
 
-def render_pdf_report(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> bytes:
+def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> bytes:
     """Generate a PDF triage report and return the bytes."""
     from fpdf import FPDF
 
@@ -598,24 +599,24 @@ def render_pdf_report(events: list[dict], top_n: int = 10, samples_n: int = 5, h
 
     heading("Sample Events (sanitized)")
     for idx, e in enumerate(samples, start=1):
-        header = f"{idx}. {e['level'] or 'UNKNOWN'}"
-        if e["code"]:
-            header += f" {e['code']}"
-        if e["exception"]:
-            header += f" -- {e['exception']}"
-        if e["ts"]:
-            header += f" ({e['ts']})"
+        header = f"{idx}. {e.level or 'UNKNOWN'}"
+        if e.code:
+            header += f" {e.code}"
+        if e.exception:
+            header += f" -- {e.exception}"
+        if e.ts:
+            header += f" ({e.ts})"
         bold_line(header)
         parts = []
-        if e["tags"]:
-            parts.append(f"Tags: {', '.join(e['tags'])}")
-        if e["thread_id"]:
-            parts.append(f"Thread: 0x{e['thread_id']}")
-        if e["root_cause"] and e["root_cause"] != e["exception"]:
-            parts.append(f"Root cause: {e['root_cause']}")
+        if e.tags:
+            parts.append(f"Tags: {', '.join(e.tags)}")
+        if e.thread_id:
+            parts.append(f"Thread: 0x{e.thread_id}")
+        if e.root_cause and e.root_cause != e.exception:
+            parts.append(f"Root cause: {e.root_cause}")
         if parts:
             body(" | ".join(parts))
-        mono(e["text"][:MAX_EVENT_TEXT])
+        mono(e.text[:MAX_EVENT_TEXT])
 
     if ai_content:
         triage = ai_content.get("triage")

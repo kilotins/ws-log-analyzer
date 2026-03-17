@@ -15,6 +15,7 @@ from logpilot import (
     render_pdf_report, render_html_report,
     precompute_analysis,
 )
+from logpilot.event import LogEvent
 from conftest import make_event, empty_match
 
 # --- Shared fixtures ---
@@ -65,15 +66,15 @@ def test_summarize(sample_events):
 
 def test_pick_samples_deduplicates():
     events = [
-        {"level": "ERROR", "code": "CWPKI0022E", "exception": "SSLException",
-         "tags": ["SSL/TLS"], "ts": "1", "text": "first",
-         "thread_id": "1", "root_cause": None},
-        {"level": "ERROR", "code": "CWPKI0022E", "exception": "SSLException",
-         "tags": ["SSL/TLS"], "ts": "2", "text": "duplicate",
-         "thread_id": "2", "root_cause": None},
-        {"level": "INFO", "code": None, "exception": None,
-         "tags": [], "ts": "3", "text": "info",
-         "thread_id": "3", "root_cause": None},
+        LogEvent(level="ERROR", code="CWPKI0022E", exception="SSLException",
+                 tags=["SSL/TLS"], ts="1", text="first",
+                 thread_id="1", root_cause=None),
+        LogEvent(level="ERROR", code="CWPKI0022E", exception="SSLException",
+                 tags=["SSL/TLS"], ts="2", text="duplicate",
+                 thread_id="2", root_cause=None),
+        LogEvent(level="INFO", code=None, exception=None,
+                 tags=[], ts="3", text="info",
+                 thread_id="3", root_cause=None),
     ]
     samples = pick_samples(events, n=5)
     assert len(samples) == 2
@@ -81,12 +82,12 @@ def test_pick_samples_deduplicates():
 
 def test_pick_samples_fatal_first():
     events = [
-        {"level": "ERROR", "code": "ERR0001E", "exception": "java.lang.RuntimeException",
-         "tags": [], "ts": "1", "text": "error", "thread_id": "1", "root_cause": None},
-        {"level": "FATAL", "code": "FAT0001F", "exception": "java.lang.OutOfMemoryError",
-         "tags": ["OOM/GC"], "ts": "2", "text": "fatal", "thread_id": "2", "root_cause": None},
-        {"level": "INFO", "code": None, "exception": None,
-         "tags": [], "ts": "3", "text": "info", "thread_id": "3", "root_cause": None},
+        LogEvent(level="ERROR", code="ERR0001E", exception="java.lang.RuntimeException",
+                 tags=[], ts="1", text="error", thread_id="1", root_cause=None),
+        LogEvent(level="FATAL", code="FAT0001F", exception="java.lang.OutOfMemoryError",
+                 tags=["OOM/GC"], ts="2", text="fatal", thread_id="2", root_cause=None),
+        LogEvent(level="INFO", code=None, exception=None,
+                 tags=[], ts="3", text="info", thread_id="3", root_cause=None),
     ]
     samples = pick_samples(events, n=3)
     assert samples[0]["level"] == "FATAL"
@@ -94,10 +95,10 @@ def test_pick_samples_fatal_first():
 
 def test_pick_samples_warning_over_info():
     events = [
-        {"level": "INFO", "code": None, "exception": None,
-         "tags": [], "ts": "1", "text": "info", "thread_id": "1", "root_cause": None},
-        {"level": "WARNING", "code": "WARN001W", "exception": None,
-         "tags": [], "ts": "2", "text": "warning", "thread_id": "2", "root_cause": None},
+        LogEvent(level="INFO", code=None, exception=None,
+                 tags=[], ts="1", text="info", thread_id="1", root_cause=None),
+        LogEvent(level="WARNING", code="WARN001W", exception=None,
+                 tags=[], ts="2", text="warning", thread_id="2", root_cause=None),
     ]
     samples = pick_samples(events, n=2)
     assert samples[0]["level"] == "WARNING"
@@ -227,11 +228,11 @@ def test_render_pdf_report(sample_events):
 
 def test_render_markdown_report_no_exceptions():
     """Report should handle events with no exceptions gracefully."""
-    events = [{
-        "level": "INFO", "code": "TEST0001I", "exception": None,
-        "root_cause": None, "tags": [], "ts": "10/12/15 21:22:04:257",
-        "file": "test.log", "text": "Normal info message", "thread_id": "00000001",
-    }]
+    events = [
+        LogEvent(level="INFO", code="TEST0001I", exception=None,
+                 root_cause=None, tags=[], ts="10/12/15 21:22:04:257",
+                 file="test.log", text="Normal info message", thread_id="00000001"),
+    ]
     report = render_markdown_report(events, top_n=5, samples_n=5)
     assert "_(none detected)_" in report
     assert "## Top Levels" in report
@@ -239,11 +240,11 @@ def test_render_markdown_report_no_exceptions():
 
 def test_render_json_report_sample_text_truncation():
     """Sample text longer than 4000 chars should be truncated in JSON."""
-    events = [{
-        "level": "ERROR", "code": "ERR0001E", "exception": "java.lang.RuntimeException",
-        "root_cause": None, "tags": [], "ts": "10/12/15 21:22:04:257",
-        "file": "test.log", "text": "X" * 5000, "thread_id": "00000001",
-    }]
+    events = [
+        LogEvent(level="ERROR", code="ERR0001E", exception="java.lang.RuntimeException",
+                 root_cause=None, tags=[], ts="10/12/15 21:22:04:257",
+                 file="test.log", text="X" * 5000, thread_id="00000001"),
+    ]
     report = render_json_report(events, top_n=5, samples_n=5)
     data = json.loads(report)
     assert len(data["samples"][0]["text"]) == 4000
@@ -269,10 +270,10 @@ def test_render_pdf_report_missing_fpdf2(monkeypatch):
 
 def test_precompute_analysis_has_all_keys():
     events = [
-        {"level": "ERROR", "code": "SRVE0255E", "exception": "NullPointerException",
-         "root_cause": "NullPointerException", "thread_id": "abc",
-         "tags": ["HTTP"], "ts": "2025-03-05 12:00:00", "file": "test.log",
-         "text": "SRVE0255E error"},
+        LogEvent(level="ERROR", code="SRVE0255E", exception="NullPointerException",
+                 root_cause="NullPointerException", thread_id="abc",
+                 tags=["HTTP"], ts="2025-03-05 12:00:00", file="test.log",
+                 text="SRVE0255E error"),
     ]
     pa = precompute_analysis(events)
     for key in ("summary", "samples", "hist", "file_summary", "causes", "splunk", "hung"):
@@ -281,10 +282,10 @@ def test_precompute_analysis_has_all_keys():
 
 def test_precompute_renders_identical_output():
     events = [
-        {"level": "ERROR", "code": "SRVE0255E", "exception": "NullPointerException",
-         "root_cause": "NullPointerException", "thread_id": "abc",
-         "tags": ["HTTP"], "ts": "2025-03-05 12:00:00", "file": "test.log",
-         "text": "SRVE0255E error"},
+        LogEvent(level="ERROR", code="SRVE0255E", exception="NullPointerException",
+                 root_cause="NullPointerException", thread_id="abc",
+                 tags=["HTTP"], ts="2025-03-05 12:00:00", file="test.log",
+                 text="SRVE0255E error"),
     ]
     # Without precompute
     md_direct = render_markdown_report(events, top_n=5, samples_n=3, hist_minutes=1)
@@ -301,10 +302,10 @@ def test_precompute_renders_identical_output():
 
 def test_precompute_renders_identical_pdf():
     events = [
-        {"level": "ERROR", "code": "SRVE0255E", "exception": "NullPointerException",
-         "root_cause": "NullPointerException", "thread_id": "abc",
-         "tags": ["HTTP"], "ts": "2025-03-05 12:00:00", "file": "test.log",
-         "text": "SRVE0255E error"},
+        LogEvent(level="ERROR", code="SRVE0255E", exception="NullPointerException",
+                 root_cause="NullPointerException", thread_id="abc",
+                 tags=["HTTP"], ts="2025-03-05 12:00:00", file="test.log",
+                 text="SRVE0255E error"),
     ]
     pdf_direct = render_pdf_report(events, top_n=5, samples_n=3, hist_minutes=1)
     pa = precompute_analysis(events, top_n=5, samples_n=3, hist_minutes=1)
@@ -411,14 +412,14 @@ def test_render_pdf_report_contains_summary_text():
         pytest.skip("fpdf2 not installed")
 
     events = [
-        {"level": "ERROR", "code": "CWPKI0022E", "exception": "SSLHandshakeException",
-         "root_cause": "javax.net.ssl.SSLException", "tags": ["SSL/TLS"],
-         "ts": "10/12/15 21:22:04:257", "file": "test.log",
-         "text": "CWPKI0022E: SSL HANDSHAKE FAILURE", "thread_id": "00000150"},
-        {"level": "INFO", "code": "ARFM5007I", "exception": None,
-         "root_cause": None, "tags": [],
-         "ts": "10/12/15 21:22:05:000", "file": "test.log",
-         "text": "ARFM5007I: config loaded", "thread_id": "00000001"},
+        LogEvent(level="ERROR", code="CWPKI0022E", exception="SSLHandshakeException",
+                 root_cause="javax.net.ssl.SSLException", tags=["SSL/TLS"],
+                 ts="10/12/15 21:22:04:257", file="test.log",
+                 text="CWPKI0022E: SSL HANDSHAKE FAILURE", thread_id="00000150"),
+        LogEvent(level="INFO", code="ARFM5007I", exception=None,
+                 root_cause=None, tags=[],
+                 ts="10/12/15 21:22:05:000", file="test.log",
+                 text="ARFM5007I: config loaded", thread_id="00000001"),
     ]
     pdf_bytes = render_pdf_report(events, top_n=5, samples_n=5)
     pdf_text = _extract_pdf_text(pdf_bytes)
@@ -437,10 +438,10 @@ def test_render_pdf_report_contains_codes_section():
         pytest.skip("fpdf2 not installed")
 
     events = [
-        {"level": "ERROR", "code": "CWPKI0022E", "exception": "SSLHandshakeException",
-         "root_cause": None, "tags": ["SSL/TLS"],
-         "ts": "10/12/15 21:22:04:257", "file": "test.log",
-         "text": "CWPKI0022E: SSL failure", "thread_id": "00000150"},
+        LogEvent(level="ERROR", code="CWPKI0022E", exception="SSLHandshakeException",
+                 root_cause=None, tags=["SSL/TLS"],
+                 ts="10/12/15 21:22:04:257", file="test.log",
+                 text="CWPKI0022E: SSL failure", thread_id="00000150"),
     ]
     pdf_bytes = render_pdf_report(events, top_n=5, samples_n=5)
     pdf_text = _extract_pdf_text(pdf_bytes)
@@ -492,16 +493,16 @@ def test_summarize_large_event_list():
     events = []
     levels = ["INFO", "WARNING", "ERROR"]
     for i in range(50_000):
-        events.append({
-            "ts": f"2026-03-09 12:{(i // 3600) % 24:02d}:{(i // 60) % 60:02d}",
-            "level": levels[i % 3],
-            "code": f"TEST{i % 100:04d}I" if i % 5 == 0 else None,
-            "exception": "NullPointerException" if i % 1000 == 0 else None,
-            "tags": ["DB/Pool"] if i % 2000 == 0 else [],
-            "text": f"Synthetic event {i}",
-            "thread_id": f"{i % 50:08x}",
-            "root_cause": None,
-        })
+        events.append(LogEvent(
+            ts=f"2026-03-09 12:{(i // 3600) % 24:02d}:{(i // 60) % 60:02d}",
+            level=levels[i % 3],
+            code=f"TEST{i % 100:04d}I" if i % 5 == 0 else None,
+            exception="NullPointerException" if i % 1000 == 0 else None,
+            tags=["DB/Pool"] if i % 2000 == 0 else [],
+            text=f"Synthetic event {i}",
+            thread_id=f"{i % 50:08x}",
+            root_cause=None,
+        ))
 
     s = summarize(events, top_n=10)
     assert s["total_events"] == 50_000
@@ -516,16 +517,16 @@ def test_time_histogram_many_events():
     for i in range(10_000):
         hour = i % 24
         minute = (i * 7) % 60
-        events.append({
-            "ts": f"2026-03-09 {hour:02d}:{minute:02d}:00",
-            "level": "ERROR" if i % 100 == 0 else "INFO",
-            "code": None,
-            "exception": None,
-            "tags": [],
-            "text": f"Event {i}",
-            "thread_id": "00000001",
-            "root_cause": None,
-        })
+        events.append(LogEvent(
+            ts=f"2026-03-09 {hour:02d}:{minute:02d}:00",
+            level="ERROR" if i % 100 == 0 else "INFO",
+            code=None,
+            exception=None,
+            tags=[],
+            text=f"Event {i}",
+            thread_id="00000001",
+            root_cause=None,
+        ))
 
     hist = time_histogram(events)
     assert len(hist) > 0, "Histogram should have at least one bucket"

@@ -9,6 +9,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+from logpilot.event import LogEvent
+
 
 class TestLocalAIProviderConfig:
     """Test that local AI provider is properly configured."""
@@ -127,8 +129,8 @@ class TestLocalAIBuildContext:
 
     def test_local_cache_key_prefix(self):
         from app_ai import build_ai_request_context
-        events = [{"text": "ERROR foo", "level": "ERROR", "code": None,
-                    "exception": None, "tags": [], "ts": None, "file": "test.log"}]
+        events = [LogEvent(text="ERROR foo", level="ERROR", code=None,
+                           exception=None, tags=[], ts=None, file="test.log")]
         _, cache_key, _ = build_ai_request_context("test query", events, provider="local")
         assert cache_key.startswith("local:")
 
