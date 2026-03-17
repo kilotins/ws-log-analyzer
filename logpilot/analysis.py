@@ -1072,8 +1072,6 @@ _CORRELATIONS: list[dict[str, Any]] = [
 
 def _detect_burst(events: list[dict], window_seconds: float = 120.0, threshold: int = 50) -> list[dict[str, Any]]:
     """Detect error bursts — many errors in a short time window."""
-    from datetime import datetime as _dt
-
     error_events = [e for e in events if e.get("level") in ("ERROR", "SEVERE", "FATAL")]
     if len(error_events) < threshold:
         return []
@@ -1081,17 +1079,10 @@ def _detect_burst(events: list[dict], window_seconds: float = 120.0, threshold: 
     # Parse timestamps and find bursts
     timed: list[tuple[float, dict]] = []
     for e in error_events:
-        ts = e.get("ts")
-        if not ts or not isinstance(ts, str):
+        dt = parse_ts_datetime(e.get("ts"))
+        if dt is None:
             continue
-        # Try common timestamp formats
-        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S,%f", "%Y-%m-%dT%H:%M:%S.%f"):
-            try:
-                t = _dt.strptime(ts[:26], fmt).timestamp()
-                timed.append((t, e))
-                break
-            except (ValueError, TypeError):
-                continue
+        timed.append((dt.timestamp(), e))
 
     if len(timed) < threshold:
         return []

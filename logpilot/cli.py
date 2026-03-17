@@ -103,58 +103,58 @@ def main() -> None:
         user_content = f"<user_query>{cli_instruction}</user_query>\n\n<report>\n{safe_report}\n</report>"
         full_prompt = {"system": prompt["system"], "user": user_content}
 
-    if args.ai_endpoint or args.ai_model:
-        # Local AI via OpenAI-compatible endpoint
-        endpoint = args.ai_endpoint or os.environ.get("LOGPILOT_AI_ENDPOINT", "http://localhost:1234/v1")
-        model_name = args.ai_model or os.environ.get("LOGPILOT_AI_MODEL", "default")
+        if args.ai_endpoint or args.ai_model:
+            # Local AI via OpenAI-compatible endpoint
+            endpoint = args.ai_endpoint or os.environ.get("LOGPILOT_AI_ENDPOINT", "http://localhost:1234/v1")
+            model_name = args.ai_model or os.environ.get("LOGPILOT_AI_MODEL", "default")
 
-        try:
-            from openai import OpenAI
-        except ImportError:
-            print("openai package not installed. Install with: pip install openai", file=sys.stderr)
-            sys.exit(1)
+            try:
+                from openai import OpenAI
+            except ImportError:
+                print("openai package not installed. Install with: pip install openai", file=sys.stderr)
+                sys.exit(1)
 
-        try:
-            client = OpenAI(api_key="not-needed", base_url=endpoint, timeout=120.0)
-            response = client.chat.completions.create(
-                model=model_name,
-                max_completion_tokens=4096,
-                messages=[
-                    {"role": "system", "content": full_prompt["system"]},
-                    {"role": "user", "content": full_prompt["user"]},
-                ],
-            )
-            analysis = response.choices[0].message.content
-            analysis_path = out_path.parent / "ai-analysis.md"
-            analysis_path.write_text(analysis, encoding="utf-8")
-            if not args.quiet:
-                print(f"Wrote ai-analysis.md ({model_name} via {endpoint}): {analysis_path}")
-        except (ImportError, OSError, ValueError, RuntimeError) as ex:
-            print(f"Local AI call failed: {ex}", file=sys.stderr)
-            print(f"Tip: ensure {endpoint} is running.", file=sys.stderr)
+            try:
+                client = OpenAI(api_key="not-needed", base_url=endpoint, timeout=120.0)
+                response = client.chat.completions.create(
+                    model=model_name,
+                    max_completion_tokens=4096,
+                    messages=[
+                        {"role": "system", "content": full_prompt["system"]},
+                        {"role": "user", "content": full_prompt["user"]},
+                    ],
+                )
+                analysis = response.choices[0].message.content
+                analysis_path = out_path.parent / "ai-analysis.md"
+                analysis_path.write_text(analysis, encoding="utf-8")
+                if not args.quiet:
+                    print(f"Wrote ai-analysis.md ({model_name} via {endpoint}): {analysis_path}")
+            except (ImportError, OSError, ValueError, RuntimeError) as ex:
+                print(f"Local AI call failed: {ex}", file=sys.stderr)
+                print(f"Tip: ensure {endpoint} is running.", file=sys.stderr)
 
-    elif args.claude:
-        try:
-            from anthropic import Anthropic
-        except ImportError:
-            print("anthropic package not installed. Install with: pip install anthropic", file=sys.stderr)
-            sys.exit(1)
+        elif args.claude:
+            try:
+                from anthropic import Anthropic
+            except ImportError:
+                print("anthropic package not installed. Install with: pip install anthropic", file=sys.stderr)
+                sys.exit(1)
 
-        try:
-            client = Anthropic(timeout=30.0)
-            message = client.messages.create(
-                model=args.model,
-                max_tokens=4096,
-                system=full_prompt["system"],  # type: ignore[arg-type]
-                messages=[{"role": "user", "content": full_prompt["user"]}],
-            )
-            analysis = message.content[0].text  # type: ignore[union-attr]
-            analysis_path = out_path.parent / "claude-analysis.md"
-            analysis_path.write_text(analysis, encoding="utf-8")
-            if not args.quiet:
-                if prompt.get("skills"):
-                    print(f"[skills] Selected: {', '.join(prompt['skills'])}", file=sys.stderr)
-                print(f"Wrote claude-analysis.md: {analysis_path}")
-        except (ImportError, OSError, ValueError, RuntimeError) as ex:
-            print(f"Claude API call failed: {ex}", file=sys.stderr)
-            print("Tip: ensure ANTHROPIC_API_KEY is set.", file=sys.stderr)
+            try:
+                client = Anthropic(timeout=30.0)
+                message = client.messages.create(
+                    model=args.model,
+                    max_tokens=4096,
+                    system=full_prompt["system"],  # type: ignore[arg-type]
+                    messages=[{"role": "user", "content": full_prompt["user"]}],
+                )
+                analysis = message.content[0].text  # type: ignore[union-attr]
+                analysis_path = out_path.parent / "claude-analysis.md"
+                analysis_path.write_text(analysis, encoding="utf-8")
+                if not args.quiet:
+                    if prompt.get("skills"):
+                        print(f"[skills] Selected: {', '.join(prompt['skills'])}", file=sys.stderr)
+                    print(f"Wrote claude-analysis.md: {analysis_path}")
+            except (ImportError, OSError, ValueError, RuntimeError) as ex:
+                print(f"Claude API call failed: {ex}", file=sys.stderr)
+                print("Tip: ensure ANTHROPIC_API_KEY is set.", file=sys.stderr)

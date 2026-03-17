@@ -24,10 +24,11 @@ LEVEL_RE = re.compile(r'\b(SEVERE|ERROR|WARN|WARNING|INFO|DEBUG|FINE|FINER|FINES
 
 # WebSphere uses single-letter severity after thread ID: [ts] threadid Component X
 # I=Info, A=Audit, W=Warning, E=Error, O=SystemOut/SystemErr, F=Fatal, R=Report, D=Detail
-WAS_LEVEL_RE = re.compile(r'\]\s+[0-9a-f]+\s+\S+\s+([IAWEOFRD])\s')
+WAS_LEVEL_RE = re.compile(r'\]\s+[0-9a-f]+\s+\S+\s+([IAWEOFRDN])\s')
 WAS_LEVEL_MAP = {
     'I': 'INFO', 'A': 'AUDIT', 'W': 'WARNING', 'E': 'ERROR',
     'O': 'STDOUT', 'F': 'FATAL', 'R': 'REPORT', 'D': 'DEBUG',
+    'N': 'NOTICE',
 }
 
 # Thread ID: hex digits between ] and component name
@@ -54,7 +55,7 @@ HUNG_THREAD_NAME_RE = re.compile(
 )
 DB_POOL_RE = re.compile(r'connection pool|J2CA|pool.*exhaust|Timeout waiting for idle object', re.IGNORECASE)
 SSL_RE = re.compile(r'SSLHandshakeException|handshake_failure|PKIX path building failed|unable to find valid certification path', re.IGNORECASE)
-HTTP_RE = re.compile(r'\b(4\d\d|5\d\d)\b.*\b(HTTP|SRVE)\b|\b(HTTP|SRVE)\b.*\b(4\d\d|5\d\d)\b', re.IGNORECASE)
+HTTP_RE = re.compile(r'(?<![:/.])(?<!\d)\b(4\d\d|5\d\d)\b.*\b(HTTP|SRVE)\b|\b(HTTP|SRVE)\b.*(?<![:/.])(?<!\d)\b(4\d\d|5\d\d)\b', re.IGNORECASE)
 
 # Secret redaction patterns
 SECRET_REPLACERS = [
@@ -182,6 +183,9 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
     continuation line detection. Falls back to WAS format if no format
     scores above threshold.
     """
+    if max_lines is not None and max_lines < 0:
+        raise ValueError(f"max_lines must be non-negative, got {max_lines}")
+
     from .formats import detect_format, get_format
 
     # Resolve format

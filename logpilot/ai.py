@@ -67,7 +67,7 @@ _SKILLS_DIR = Path(__file__).parent.parent / "skills"
 _SKILL_TAG_MAP: dict[str, list[str]] = {
     "OOM/GC":      ["stacktrace-analysis.md", "gc-performance.md"],
     "HungThreads": ["thread-correlation.md", "stacktrace-analysis.md"],
-    "DB/Pool":     ["message-codes.md", "splunk-query.md"],
+    "DB/Pool":     ["message-codes.md", "splunk-query.md", "jms-messaging.md"],
     "SSL/TLS":     ["security-analysis.md", "splunk-query.md"],
     "HTTP":        ["servlet-errors.md", "message-codes.md"],
 }
@@ -185,6 +185,11 @@ _SKILL_QUERY_KEYWORDS: dict[str, list[str]] = {
     "tuning":       ["gc-performance.md"],
     "heap dump":    ["gc-performance.md"],
     "memory leak":  ["gc-performance.md"],
+    "enonic":       ["enonic-xp-analysis.md"],
+    "xp":           ["enonic-xp-analysis.md"],
+    "repository":   ["enonic-xp-analysis.md"],
+    "blob":         ["enonic-xp-analysis.md"],
+    "jetty":        ["enonic-xp-analysis.md"],
 }
 
 
@@ -410,13 +415,15 @@ def estimate_tokens(text: str, provider: str = "claude") -> int:
 
 def claude_cache_key(user_query: str, match_result: dict) -> str:
     """Generate a stable cache key for a Claude query + match context."""
-    parts = [user_query.strip().lower()]
-    parts.append(",".join(sorted(match_result.get("codes") or [])))
-    parts.append(",".join(sorted(match_result.get("exceptions") or [])))
-    tags = match_result.get("tags") or []
-    parts.append(",".join(sorted(tags)))
-    parts.append(match_result.get("match_type") or "none")
-    raw = "|".join(parts)
+    import json
+    key_data = {
+        "q": user_query.strip().lower(),
+        "codes": sorted(match_result.get("codes") or []),
+        "exceptions": sorted(match_result.get("exceptions") or []),
+        "tags": sorted(match_result.get("tags") or []),
+        "match_type": match_result.get("match_type") or "none",
+    }
+    raw = json.dumps(key_data, sort_keys=True, ensure_ascii=True)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 

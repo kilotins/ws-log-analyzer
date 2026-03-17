@@ -133,6 +133,8 @@ def _save_json_file(path: Path, data: object) -> None:
         ) as tmp:
             tmp_name = tmp.name
             json.dump(data, tmp, ensure_ascii=False, indent=2)
+            tmp.flush()
+            os.fsync(tmp.fileno())
         os.replace(tmp_name, str(path))
     except Exception:
         if tmp_name:
@@ -607,14 +609,19 @@ with tab_analyze:
         all_events = []
 
         for uploaded in uploaded_files:
-            upload_name = f"{ts}_{uploaded.name}"
+            safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
+            upload_name = f"{ts}_{safe_name}"
             upload_path = UPLOADS_DIR / upload_name
+            # Verify path stays inside uploads directory
+            if not upload_path.resolve().is_relative_to(UPLOADS_DIR.resolve()):
+                st.error(f"Invalid filename: {uploaded.name}")
+                continue
             upload_path.write_bytes(uploaded.getvalue())
             log.info("upload File uploaded: %s (%d bytes)", uploaded.name, len(uploaded.getvalue()))
 
             with st.spinner(f"Parsing {uploaded.name}..."):
                 try:
-                    events = parse_file(upload_path)
+                    events = parse_file(upload_path, max_lines=500_000)
                     all_events.extend(events)
                     log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
                 except Exception as ex:
