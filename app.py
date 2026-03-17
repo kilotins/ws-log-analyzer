@@ -132,17 +132,28 @@ _LOCAL_SETTINGS_FILE = CACHE_DIR / ".local_ai_settings.json"
 
 def _load_local_ai_settings() -> dict:
     """Load saved local AI settings from disk."""
-    return _load_json_file(_LOCAL_SETTINGS_FILE, {})
+    data = _load_json_file(_LOCAL_SETTINGS_FILE, {})
+    if not isinstance(data, dict):
+        return {}
+    # Reject corrupted values (e.g. MagicMock from test runs)
+    for v in data.values():
+        if not isinstance(v, str) or "MagicMock" in v:
+            return {}
+    return data
 
 def _save_local_ai_settings(endpoint: str, model: str, api_key: str, preset: str) -> None:
     """Persist local AI settings to disk."""
     try:
+        # Guard against mock objects from test environments
+        vals = [endpoint, model, api_key, preset]
+        if any("MagicMock" in repr(v) for v in vals):
+            return
         data = {"endpoint": str(endpoint), "model": str(model),
                 "api_key": str(api_key), "preset": str(preset)}
         _save_json_file(_LOCAL_SETTINGS_FILE, data)
         log.info("settings Local AI settings saved")
     except Exception:
-        pass  # Silently skip during test/mock environments
+        pass
 
 
 _CACHE_TTL_SECONDS = CACHE_TTL_SECONDS
