@@ -374,11 +374,10 @@ def test_select_skills_by_exception_certpath():
     assert "security-analysis.md" in skills
 
 
-def test_select_skills_ssl_tag_includes_splunk():
+def test_select_skills_ssl_tag_includes_security():
     match = empty_match(matched=True, tags=["SSL/TLS"])
     skills = select_skills(match)
     assert "security-analysis.md" in skills
-    assert "splunk-query.md" in skills
 
 
 def test_select_skills_by_query_keyword():
@@ -526,7 +525,6 @@ def test_select_skills_all_exceptions(exc, expected_skill):
     ("startup failure", "websphere-startup.md"),
     ("deployment failed", "deployment-analysis.md"),
     ("noise filter", "log-noise-filter.md"),
-    ("splunk query for errors", "splunk-query.md"),
     ("thread dump analysis", "thread-correlation.md"),
     ("hung thread detected", "thread-correlation.md"),
     ("security audit failed", "security-analysis.md"),
