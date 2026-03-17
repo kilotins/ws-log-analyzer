@@ -557,24 +557,119 @@ def render_event_filters(events):
 
 
 def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
-    """Render all report sections from persisted analysis dict."""
-    from app_ai import render_ask_claude
+    """Render all report sections from persisted analysis dict.
+
+    Layout order (troubleshooting flow):
+      1. Summary — what happened?
+      2. AI Cross-System Triage — what does AI think? (multi-source only)
+      3. Ask AI — ask follow-up questions
+      4. Event Filters — narrow down
+      5. Cross-System Timeline — visual overview (multi-source only)
+      6. Incident Timeline — zoom on first error
+      7. Likely Causes & Fixes — heuristic matches
+      8. Event Samples + Cascades — drill into data
+      9. Export — download results
+    """
+    from app_ai import render_ask_claude, render_ai_responses, render_analyze_all_button
 
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
                f"Report saved as `{a['report_name']}`.")
 
-    # --- Event Filters (placed before downloads so filter state is known) ---
+    # --- Compute display data (unfiltered initially, recomputed after filters) ---
+    display_summary = a["summary"]
+    display_error_count = a["error_count"]
+    display_causes = a["causes"]
+    display_hung = a["hung"]
+    display_samples = a["samples"]
+    display_events = a["events"]
+    display_itl = a.get("incident_timeline")
+
+    # --- 1. Summary ---
+    with st.expander("Summary", expanded=True):
+        render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"], events=display_events)
+
+    # --- 2. AI Cross-System Triage (multi-source only) ---
+    _sources = set(e.get("system_label", "") for e in display_events)
+    if len(_sources) >= 2:
+        render_analyze_all_button(a, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
+
+    # --- 3. Ask AI ---
+    with st.expander("Ask AI for help"):
+        render_ask_claude(display_events, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
+
+    # Render AI responses outside the expander to avoid scroll issues with long content
+    render_ai_responses()
+
+    # --- 4. Event Filters ---
     filtered_events = render_event_filters(a["events"])
     _is_filtered = filtered_events is not None
-    _filter_note = ""
-    if _is_filtered:
-        _filter_note = f" (filtered: {len(filtered_events)} of {a['total_events']})"
 
-    # Use filtered events for export when filter is active
-    events = filtered_events if _is_filtered else a["events"]
     if _is_filtered:
-        st.info(f"Exports contain filtered data ({len(filtered_events)} of {a['total_events']} events).")
-    _pa = precompute_analysis(events, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
+        # Recompute display data for filtered events
+        import hashlib as _hl
+        _filter_hash = _hl.md5(str(len(filtered_events)).encode() + str(sum(hash(e.get("ts", "")) for e in filtered_events[:100])).encode()).hexdigest()[:12]
+        _filter_key = f"_fa_{len(filtered_events)}_{_filter_hash}"
+        fa = st.session_state.get(_filter_key)
+        if fa is None:
+            fa = precompute_analysis(
+                filtered_events,
+                top_n=a.get("top_n", 10),
+                samples_n=a.get("samples_n", 5),
+                hist_minutes=a.get("hist_minutes", 1),
+            )
+            st.session_state[_filter_key] = fa
+        display_causes = fa["causes"]
+        display_hung = fa["hung"]
+        display_samples = fa["samples"]
+        display_events = filtered_events
+        from logpilot import incident_timeline as _itl_fn
+        display_itl = _itl_fn(filtered_events)
+
+    # --- 5. Cross-System Timeline (multi-source only) ---
+    _sources = set(e.get("system_label", "") for e in display_events)
+    if len(_sources) >= 2:
+        cascades = a.get("cascades", [])
+        render_cross_system_timeline(display_events, cascades)
+
+    # --- 6. Incident Timeline ---
+    itl_label = "Incident Timeline"
+    if display_itl:
+        n = len(display_itl["window_events"])
+        itl_label += f" ({n} events around first error)"
+    with st.expander(itl_label):
+        render_incident_timeline(display_itl)
+
+    # --- 7. Likely Causes & Fixes ---
+    if display_causes:
+        with st.expander(f"Likely Causes & Fixes ({len(display_causes)} detected)"):
+            render_likely_causes(display_causes)
+
+    # --- 8. Event Samples + Hung Threads + Cascades ---
+    with st.expander(f"Event Samples ({len(display_samples)} shown)"):
+        render_samples(display_samples, all_events=display_events)
+
+    if display_hung:
+        with st.expander(f"Hung Thread Analysis ({len(display_hung)} threads)"):
+            render_hung_threads(display_hung)
+
+    if len(_sources) >= 2:
+        render_cascade_section(a.get("cascades", []))
+
+    # Context view (if an event was selected)
+    _ctx_idx = st.session_state.get("_context_event_idx", -1)
+    if _ctx_idx >= 0:
+        render_context_view(_ctx_idx, a["events"])
+        if st.button("Close context view"):
+            st.session_state._context_event_idx = -1
+            st.rerun()
+
+    # --- 9. Export ---
+    st.markdown("---")
+    events_for_export = filtered_events if _is_filtered else a["events"]
+    _pa = precompute_analysis(events_for_export, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
+
+    if _is_filtered:
+        st.info(f"Export contains filtered data ({len(filtered_events)} of {a['total_events']} events).")
 
     st.subheader("Export Log Analysis Report")
     _fmt_col, _dl_col = st.columns([1, 2])
@@ -589,17 +684,17 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         _base = a["report_name"]
         from logpilot import render_markdown_report, render_json_report
         if _export_fmt == "Markdown":
-            _md = render_markdown_report(events, _analysis=_pa) if _is_filtered else a["report_md"]
+            _md = render_markdown_report(events_for_export, _analysis=_pa) if _is_filtered else a["report_md"]
             _data, _fname, _mime = _md, _base, "text/markdown"
         elif _export_fmt == "JSON":
-            _json = render_json_report(events, _analysis=_pa) if _is_filtered else a["report_json"]
+            _json = render_json_report(events_for_export, _analysis=_pa) if _is_filtered else a["report_json"]
             _data, _fname, _mime = _json, _base.replace(".md", ".json"), "application/json"
         elif _export_fmt == "PDF":
-            _data, _fname, _mime = render_pdf_report(events, _analysis=_pa), _base.replace(".md", ".pdf"), "application/pdf"
+            _data, _fname, _mime = render_pdf_report(events_for_export, _analysis=_pa), _base.replace(".md", ".pdf"), "application/pdf"
         elif _export_fmt == "CSV":
-            _data, _fname, _mime = render_csv_report(events), _base.replace(".md", ".csv"), "text/csv"
+            _data, _fname, _mime = render_csv_report(events_for_export), _base.replace(".md", ".csv"), "text/csv"
         else:  # XML
-            _data, _fname, _mime = render_xml_report(events), _base.replace(".md", ".xml"), "application/xml"
+            _data, _fname, _mime = render_xml_report(events_for_export), _base.replace(".md", ".xml"), "application/xml"
         st.download_button(
             label=f"Export Log Analysis Report ({_export_fmt})",
             data=_data,
@@ -607,84 +702,3 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
             mime=_mime,
             use_container_width=True,
         )
-
-    st.markdown("---")
-
-    if filtered_events is not None:
-        # Memoize filtered analysis by event count to avoid recomputing on every rerun
-        import hashlib as _hl
-        _filter_hash = _hl.md5(str(len(filtered_events)).encode() + str(sum(hash(e.get("ts", "")) for e in filtered_events[:100])).encode()).hexdigest()[:12]
-        _filter_key = f"_fa_{len(filtered_events)}_{_filter_hash}"
-        fa = st.session_state.get(_filter_key)
-        if fa is None:
-            fa = precompute_analysis(
-                filtered_events,
-                top_n=a.get("top_n", 10),
-                samples_n=a.get("samples_n", 5),
-                hist_minutes=a.get("hist_minutes", 1),
-            )
-            st.session_state[_filter_key] = fa
-        display_summary = fa["summary"]
-        display_error_count = sum(1 for e in filtered_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
-        display_causes = fa["causes"]
-        display_hung = fa["hung"]
-        display_samples = fa["samples"]
-        display_events = filtered_events
-        from logpilot import incident_timeline as _itl_fn
-        display_itl = _itl_fn(filtered_events)
-    else:
-        display_summary = a["summary"]
-        display_error_count = a["error_count"]
-        display_causes = a["causes"]
-        display_hung = a["hung"]
-        display_samples = a["samples"]
-        display_events = a["events"]
-        display_itl = a.get("incident_timeline")
-
-    with st.expander("Summary", expanded=True):
-        render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"], events=display_events)
-
-    if display_causes:
-        with st.expander(f"Likely Causes & Fixes ({len(display_causes)} detected)"):
-            render_likely_causes(display_causes)
-
-    with st.expander("Ask AI for help"):
-        render_ask_claude(display_events, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
-
-    # Render AI responses outside the expander to avoid scroll issues with long content
-    from app_ai import render_ai_responses
-    render_ai_responses()
-
-    _sources = set(e.get("system_label", "") for e in display_events)
-    if len(_sources) >= 2:
-        from app_ai import render_analyze_all_button
-        render_analyze_all_button(a, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
-
-    if display_hung:
-        with st.expander(f"Hung Thread Analysis ({len(display_hung)} threads)"):
-            render_hung_threads(display_hung)
-
-    itl_label = "Incident Timeline"
-    if display_itl:
-        n = len(display_itl["window_events"])
-        itl_label += f" ({n} events around first error)"
-    with st.expander(itl_label):
-        render_incident_timeline(display_itl)
-
-    with st.expander(f"Event Samples ({len(display_samples)} shown)"):
-        render_samples(display_samples, all_events=display_events)
-
-    # Cross-system timeline (only for multi-source)
-    _sources = set(e.get("system_label", "") for e in display_events)
-    if len(_sources) >= 2:
-        cascades = a.get("cascades", [])
-        render_cross_system_timeline(display_events, cascades)
-        render_cascade_section(cascades)
-
-    # Context view (if an event was selected)
-    _ctx_idx = st.session_state.get("_context_event_idx", -1)
-    if _ctx_idx >= 0:
-        render_context_view(_ctx_idx, a["events"])
-        if st.button("Close context view"):
-            st.session_state._context_event_idx = -1
-            st.rerun()
