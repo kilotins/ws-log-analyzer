@@ -793,7 +793,7 @@ with tab_analyze:
             samples = pa["samples"]
             report_md = render_markdown_report(all_events, _analysis=pa)
             report_json = render_json_report(all_events, _analysis=pa)
-            report_name = f"report_{ts}.md"
+            report_name = f"report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.md"
             (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
 
             log.info("analysis Analysis complete: %d events, %d errors, %d causes, %d hung threads",
