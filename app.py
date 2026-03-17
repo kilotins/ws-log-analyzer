@@ -292,14 +292,14 @@ for _prov, _hpath in _PROVIDER_HISTORY_FILES.items():
         st.session_state[_hkey] = _load_provider_history(_hpath)
 
 # Load persisted local AI settings on fresh session
-_saved_local = _load_local_ai_settings()
-if _saved_local:
-    if not st.session_state.local_ai_endpoint or st.session_state.local_ai_endpoint == "http://localhost:1234/v1":
+if "_local_settings_loaded" not in st.session_state:
+    _saved_local = _load_local_ai_settings()
+    if _saved_local:
         st.session_state.local_ai_endpoint = _saved_local.get("endpoint", st.session_state.local_ai_endpoint)
-    if not st.session_state.local_ai_model:
         st.session_state.local_ai_model = _saved_local.get("model", "")
-    if st.session_state.local_ai_api_key == "not-needed":
         st.session_state.local_ai_api_key = _saved_local.get("api_key", "not-needed")
+        st.session_state._local_saved_preset = _saved_local.get("preset", "")
+    st.session_state._local_settings_loaded = True
 
 
 def get_report_history(limit=20):
@@ -507,6 +507,7 @@ with st.sidebar:
         from app_ai import discover_local_models
 
         # --- Preset + Endpoint ---
+        _prev_preset = st.session_state.get("_local_prev_preset", "")
         _preset = st.selectbox(
             "Preset",
             list(LOCAL_AI_PRESETS.keys()),
@@ -514,18 +515,25 @@ with st.sidebar:
             help="Select your local AI server type",
         )
         _preset_cfg = LOCAL_AI_PRESETS[_preset]
-        _default_url = _preset_cfg["base_url"] or st.session_state.local_ai_endpoint
+
+        # Only apply preset URL when user actively changes the preset
+        if _preset != _prev_preset and _prev_preset:
+            _preset_url = _preset_cfg["base_url"]
+            if _preset_url:
+                st.session_state.local_ai_endpoint = _preset_url
+                st.session_state._local_conn_status = "not_tested"
+                st.session_state._local_models = []
+        st.session_state._local_prev_preset = _preset
 
         _local_endpoint = st.text_input(
             "Endpoint URL",
-            value=_default_url,
+            value=st.session_state.local_ai_endpoint,
             placeholder="http://localhost:1234/v1",
             help="OpenAI-compatible API endpoint",
             key="local_endpoint_input",
         )
         if _local_endpoint != st.session_state.local_ai_endpoint:
             st.session_state.local_ai_endpoint = _local_endpoint
-            # Reset connection status when endpoint changes
             st.session_state._local_conn_status = "not_tested"
             st.session_state._local_models = []
             _save_local_ai_settings(_local_endpoint, st.session_state.local_ai_model,
@@ -604,10 +612,9 @@ with st.sidebar:
 
         # --- Advanced (API key) ---
         with st.expander("Advanced", expanded=False):
-            _default_key = _preset_cfg["api_key"] or st.session_state.local_ai_api_key
             _local_key = st.text_input(
                 "API Key (optional)",
-                value=_default_key,
+                value=st.session_state.local_ai_api_key,
                 placeholder="not-needed",
                 help="Most local servers don't require an API key",
                 key="local_key_input",
