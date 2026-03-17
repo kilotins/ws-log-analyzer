@@ -5,7 +5,7 @@ import re as _re
 import streamlit as st
 from pathlib import Path
 
-from logpilot import render_histogram, precompute_analysis, render_pdf_report, render_csv_report, render_xml_report
+from logpilot import render_histogram, precompute_analysis, render_pdf_report, render_csv_report, render_xml_report, per_source_summary
 from app_constants import LEVEL_COLORS
 
 
@@ -56,7 +56,7 @@ def render_code_row(code, count):
                   help=f"Copy {code} to the AI query field below")
 
 
-def render_summary(s, error_count, file_count, file_summary):
+def render_summary(s, error_count, file_count, file_summary, events=None):
     """Render metrics, top exceptions, codes, levels, and per-file breakdown."""
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Events", s["total_events"])
@@ -71,6 +71,23 @@ def render_summary(s, error_count, file_count, file_summary):
         for fname, total, errors in file_summary:
             err_note = f" ({errors} errors)" if errors else ""
             st.text(f"  {Path(fname).name}: {total} events{err_note}")
+
+    if events is not None:
+        source_summary = per_source_summary(events)
+        if len(source_summary) > 1:
+            st.divider()
+            st.subheader("Per-Source Summary")
+            _src_table = []
+            for src in source_summary:
+                _src_table.append({
+                    "Source": src["label"],
+                    "Format": src["format"],
+                    "Events": src["total"],
+                    "Errors": src["errors"],
+                    "Top Code": src["top_codes"][0][0] if src["top_codes"] else "—",
+                    "Top Exception": src["top_exceptions"][0][0] if src["top_exceptions"] else "—",
+                })
+            st.table(_src_table)
 
     st.divider()
     exc_col, code_col = st.columns(2)
@@ -328,9 +345,12 @@ def render_samples(samples):
             st.rerun()
 
 
-def _apply_event_filters(events, levels, code_prefix, exception_types, time_range):
+def _apply_event_filters(events, levels, code_prefix, exception_types, time_range, sources: list[str] | None = None):
     """Filter events using AND logic. Returns a new list (never modifies original)."""
     filtered = list(events)
+
+    if sources:
+        filtered = [e for e in filtered if e.get("system_label", "unknown") in sources]
 
     if levels:
         level_set = set(levels)
@@ -416,10 +436,21 @@ def render_event_filters(events):
                     t_end = st.time_input("End time", value=dt_time(23, 59, 59), key="filter_time_end")
                 time_range = (t_start, t_end)
 
-        has_filters = bool(selected_levels or code_prefix.strip() or selected_exceptions or (use_time and time_range))
+        all_sources = sorted(set(e.get("system_label", "unknown") for e in events))
+        selected_sources = []
+        if len(all_sources) > 1:
+            selected_sources = st.multiselect(
+                "System / Source",
+                options=all_sources,
+                default=[],
+                key="filter_sources",
+                help="Show only events from selected log sources",
+            )
+
+        has_filters = bool(selected_levels or code_prefix.strip() or selected_exceptions or (use_time and time_range) or selected_sources)
 
         if has_filters:
-            filtered = _apply_event_filters(events, selected_levels, code_prefix, selected_exceptions, time_range)
+            filtered = _apply_event_filters(events, selected_levels, code_prefix, selected_exceptions, time_range, sources=selected_sources)
             st.info(f"Showing {len(filtered)} of {len(events)} events after filtering.")
             return filtered
 
@@ -516,7 +547,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         display_itl = a.get("incident_timeline")
 
     with st.expander("Summary", expanded=True):
-        render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"])
+        render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"], events=display_events)
 
     if display_causes:
         with st.expander(f"Likely Causes & Fixes ({len(display_causes)} detected)"):

@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import re
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +38,106 @@ def parse_ts_datetime(ts: str | None) -> datetime | None:
         pass
     _log.debug("parse_ts_datetime: could not parse timestamp %r", ts)
     return None
+
+
+# Mapping of common timezone abbreviations to UTC offset in hours
+_TZ_ABBREV_OFFSETS: dict[str, float] = {
+    "UTC": 0, "GMT": 0, "Z": 0,
+    "BST": +1, "CET": +1,
+    "CEST": +2,
+    "EST": -5, "EDT": -4,
+    "CST": -6, "CDT": -5,
+    "MST": -7, "MDT": -6,
+    "PST": -8, "PDT": -7,
+    "IST": +5.5,
+    "JST": +9, "KST": +9,
+    "AEST": +10,
+}
+
+# Regex to detect ISO offset embedded in a timestamp string
+_TS_EMBED_OFFSET_RE = re.compile(
+    r'(?:[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?)([+-]\d{2}:?\d{2}|Z)\s*$'
+)
+_TS_EMBED_Z_RE = re.compile(r'Z\s*$')
+
+
+def normalize_ts_utc(ts: str | None, tz_hint: str | None = None) -> datetime | None:
+    """Parse timestamp and normalize to UTC. Returns None on failure.
+
+    Args:
+        ts: Raw timestamp string from log event
+        tz_hint: Timezone hint (e.g. "CEST", "+02:00", "Europe/Stockholm").
+                 If None, assumes UTC.
+    """
+    if not ts:
+        return None
+
+    # Strip trailing timezone indicators before calling parse_ts_datetime
+    # so we can parse the bare datetime, then reattach the tz.
+    ts_bare = ts.strip()
+    embedded_offset: str | None = None
+
+    # Check for embedded offset in the timestamp string itself
+    m = _TS_EMBED_OFFSET_RE.search(ts_bare)
+    if m:
+        embedded_offset = m.group(1)
+        ts_bare = ts_bare[:m.start(1)].strip()
+    elif _TS_EMBED_Z_RE.search(ts_bare):
+        embedded_offset = "Z"
+        ts_bare = ts_bare[:-1].strip()
+
+    dt = parse_ts_datetime(ts_bare) or parse_ts_datetime(ts)
+    if dt is None:
+        return None
+
+    # Determine the tzinfo to attach
+    tz_source = tz_hint or embedded_offset
+    tz_info: datetime.tzinfo | None = None
+
+    if tz_source:
+        tz_src = tz_source.strip()
+
+        if tz_src in ("Z", "UTC", "GMT"):
+            tz_info = timezone.utc
+
+        elif tz_src in _TZ_ABBREV_OFFSETS:
+            offset_hours = _TZ_ABBREV_OFFSETS[tz_src]
+            tz_info = timezone(timedelta(hours=offset_hours))
+
+        elif re.match(r'^[+-]\d{2}:?\d{2}$', tz_src):
+            # ISO offset: +02:00 or +0200
+            sign = 1 if tz_src[0] == '+' else -1
+            tz_clean = tz_src[1:].replace(":", "")
+            hours = int(tz_clean[:2])
+            minutes = int(tz_clean[2:])
+            tz_info = timezone(sign * timedelta(hours=hours, minutes=minutes))
+
+        else:
+            # Try IANA name via zoneinfo (Python 3.9+)
+            try:
+                from zoneinfo import ZoneInfo
+                tz_info = ZoneInfo(tz_src)
+            except Exception:
+                _log.debug("normalize_ts_utc: unrecognized tz_hint %r, assuming UTC", tz_src)
+                tz_info = timezone.utc
+
+    if tz_info is None:
+        tz_info = timezone.utc
+
+    # Attach timezone to naive datetime, then convert to UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=tz_info)
+    return dt.astimezone(timezone.utc)
+
+
+def sort_events_chronologically(events: list[dict], tz_hint: str | None = None) -> None:
+    """Sort events in-place by UTC-normalized timestamp. Events without timestamps go last."""
+    for e in events:
+        if "ts_utc" not in e:
+            dt = normalize_ts_utc(e.get("ts"), tz_hint=e.get("tz_hint", tz_hint))
+            e["ts_utc"] = dt.isoformat() if dt else None
+
+    events.sort(key=lambda e: (e.get("ts_utc") is None, e.get("ts_utc") or ""))
 
 
 def summarize(events: list[dict], top_n: int) -> dict[str, Any]:
@@ -1349,6 +1449,35 @@ def suggested_splunk_queries(summary: dict, causes: list[dict], hist: list[tuple
         })
 
     return queries[:8]
+
+
+def per_source_summary(events: list[dict]) -> list[dict[str, Any]]:
+    """Return summary per system_label: label, format, total, errors, top codes, top exceptions."""
+    sources: dict[str, dict] = {}
+    for e in events:
+        label = e.get("system_label", "unknown")
+        if label not in sources:
+            sources[label] = {"label": label, "format": e.get("format", "unknown"),
+                              "total": 0, "errors": 0, "codes": Counter(), "exceptions": Counter()}
+        sources[label]["total"] += 1
+        if e.get("level") in ERROR_LEVELS:
+            sources[label]["errors"] += 1
+        if e.get("code"):
+            sources[label]["codes"][e["code"]] += 1
+        if e.get("exception"):
+            sources[label]["exceptions"][e["exception"]] += 1
+
+    result = []
+    for s in sorted(sources.values(), key=lambda x: x["errors"], reverse=True):
+        result.append({
+            "label": s["label"],
+            "format": s["format"],
+            "total": s["total"],
+            "errors": s["errors"],
+            "top_codes": s["codes"].most_common(3),
+            "top_exceptions": s["exceptions"].most_common(3),
+        })
+    return result
 
 
 def precompute_analysis(events: list[dict], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1) -> dict[str, Any]:

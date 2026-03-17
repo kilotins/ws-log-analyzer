@@ -75,6 +75,10 @@ _REDACT_FAST_CHECK = re.compile(
     r'(?i)(bearer|api[_-]?key|token|secret|password|passwd|credential|pwd|eyJ|AKIA|basic\s+[A-Za-z0-9]|BEGIN.*PRIVATE|sig=|digest\s)',
 )
 
+# Timezone extraction patterns
+TZ_OFFSET_RE = re.compile(r'([+-]\d{2}:?\d{2})\s*$|[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?([+-]\d{2}:?\d{2}|Z)\b')
+TZ_ABBREV_RE = re.compile(r'\b(UTC|GMT|[A-Z]{2,4}T|CEST|CET|BST|IST|JST|KST|AEST)\b')
+
 
 def open_text(path: Path) -> IO[str]:
     """Open a log file for reading, handling .gz transparently."""
@@ -105,6 +109,17 @@ def extract_ts(line: str) -> str | None:
         m = rx.search(line)
         if m:
             return m.group("ts")
+    return None
+
+
+def extract_tz(line: str) -> str | None:
+    """Extract timezone indicator from a log line."""
+    m = TZ_OFFSET_RE.search(line)
+    if m:
+        return m.group(1) or m.group(2)
+    m = TZ_ABBREV_RE.search(line)
+    if m:
+        return m.group(1)
     return None
 
 
@@ -195,7 +210,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
         fmt = detect_format(path)
 
     current: list[str] = []
-    current_meta: dict[str, Any] = {"file": str(path), "first_ts": None, "format": fmt.name}
+    current_meta: dict[str, Any] = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
     has_stacktrace = False
     seen_first_ts = False
 
@@ -207,6 +222,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
         meta["ts"] = current_meta["first_ts"]
         meta["text"] = text
         meta["format"] = current_meta["format"]
+        meta["tz_hint"] = current_meta.get("tz_hint")
         return meta
 
     with open_text(path) as f:
@@ -220,11 +236,13 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
                 if seen_first_ts:
                     yield _build_event()
                 current = []
-                current_meta = {"file": str(path), "first_ts": None, "format": fmt.name}
+                current_meta = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
                 has_stacktrace = False
 
             if ts and current_meta["first_ts"] is None:
                 current_meta["first_ts"] = ts
+                if current_meta["tz_hint"] is None:
+                    current_meta["tz_hint"] = extract_tz(line)
             if ts and not seen_first_ts:
                 seen_first_ts = True
 
@@ -232,7 +250,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
                 if seen_first_ts:
                     yield _build_event()
                 current = []
-                current_meta = {"file": str(path), "first_ts": None, "format": fmt.name}
+                current_meta = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
                 has_stacktrace = False
                 continue
 
