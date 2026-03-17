@@ -8,21 +8,6 @@ from logpilot import precompute_analysis, render_pdf_report, render_csv_report, 
 from app_constants import LEVEL_COLORS
 
 
-def _on_copy_code(code):
-    """Copy an error code into the AI query input field."""
-    st.session_state.claude_query_input = code
-
-
-def render_code_row(code, count):
-    """Render a message code row with count and a copy-to-query button."""
-    cols = st.columns([3, 1])
-    with cols[0]:
-        st.text(f"  {count:>4}  {code}")
-    with cols[1]:
-        st.button("Ask AI",
-                  key=f"ask_{code}",
-                  on_click=_on_copy_code, args=(code,),
-                  help=f"Copy {code} to the AI query field below")
 
 
 def render_summary(s, error_count, file_count, file_summary, events=None):
@@ -71,7 +56,7 @@ def render_summary(s, error_count, file_count, file_summary, events=None):
         st.subheader("Top Message Codes")
         if s["codes"]:
             for code, count in s["codes"]:
-                render_code_row(code, count)
+                st.text(f"  {count:>4}  {code}")
         else:
             st.caption("None detected")
 
