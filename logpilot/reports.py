@@ -189,20 +189,10 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
         md.append("")
 
     if ai_content:
-        triage = ai_content.get("triage")
-        if triage:
-            md.append("")
-            md.append("## AI Cross-System Triage")
-            model = ai_content.get("triage_model", "AI")
-            md.append(f"*Model: {model}*")
-            md.append("")
-            md.append(triage)
-            md.append("")
-
         incident = ai_content.get("incident")
         if incident:
             md.append("")
-            md.append("## Incident Diagnosis")
+            md.append("## AI Analysis")
             model = ai_content.get("incident_model", "AI")
             md.append(f"*Model: {model}*")
             md.append("")
@@ -346,18 +336,9 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
 
     # AI content (placed early — same as UI flow)
     if ai_content:
-        triage = ai_content.get("triage")
-        if triage:
-            h.append('<h2>AI Cross-System Triage</h2>')
-            h.append('<div class="ai-section">')
-            model = ai_content.get("triage_model", "AI")
-            h.append(f'<p class="subtitle">Model: {escape(model)}</p>')
-            h.append(f'<div class="ai-answer">{escape(triage)}</div>')
-            h.append('</div>')
-
         incident = ai_content.get("incident")
         if incident:
-            h.append('<h2>Incident Diagnosis</h2>')
+            h.append('<h2>AI Analysis</h2>')
             h.append('<div class="ai-section">')
             model = ai_content.get("incident_model", "AI")
             h.append(f'<p class="subtitle">Model: {escape(model)}</p>')
@@ -638,19 +619,10 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
         mono(e.text[:MAX_EVENT_TEXT])
 
     if ai_content:
-        triage = ai_content.get("triage")
-        if triage:
-            pdf.add_page()
-            heading("AI Cross-System Triage")
-            model = ai_content.get("triage_model", "AI")
-            body(f"Model: {model}")
-            pdf.ln(2)
-            body(triage)
-
         incident = ai_content.get("incident")
         if incident:
             pdf.add_page()
-            heading("Incident Diagnosis")
+            heading("AI Analysis")
             model = ai_content.get("incident_model", "AI")
             body(f"Model: {model}")
             pdf.ln(2)

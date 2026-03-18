@@ -531,34 +531,71 @@ def build_cross_system_prompt(events: list[LogEvent], detected_format: str = "")
     return {"system": system_prompt, "user": user_text}
 
 
-def build_incident_system_prompt(detected_format: str = "", skill_content: str = "") -> str:
+def build_incident_system_prompt(detected_format: str = "", skill_content: str = "",
+                                 is_multi_source: bool = False,
+                                 source_formats: list[str] | None = None) -> str:
     """Build a system prompt for incident diagnosis (symptom-driven debugging).
 
     Args:
         detected_format: Log format key (e.g. "was", "nginx").
         skill_content: Pre-loaded domain knowledge from skill files.
+        is_multi_source: True when logs come from 2+ different systems.
+        source_formats: List of format keys present (e.g. ["was", "nginx"]).
     """
-    role = _FORMAT_SPECIALIST.get(detected_format, "")
-    specialist = f" specializing in {role}" if role else ""
     # Build supported systems list from _FORMAT_SPECIALIST
     systems_list = ", ".join(f"{fmt}: {desc}" for fmt, desc in _FORMAT_SPECIALIST.items())
 
+    if is_multi_source and source_formats:
+        specialists = [_FORMAT_SPECIALIST[f] for f in source_formats if f in _FORMAT_SPECIALIST]
+        specialist_text = ", ".join(s for s in specialists if s) or "application logs"
+        role_line = (
+            f"You are a senior operations engineer analyzing logs from multiple "
+            f"interconnected systems ({specialist_text}) performing incident diagnosis."
+        )
+        context_line = f"The current logs span {len(source_formats)} systems: {specialist_text}."
+    else:
+        role = _FORMAT_SPECIALIST.get(detected_format, "")
+        specialist = f" specializing in {role}" if role else ""
+        role_line = f"You are a senior operations engineer{specialist} performing incident diagnosis."
+        context_line = f"The current logs are from: {role or 'unknown format'}." if role else ""
+
+    # Response structure adapts to multi-source vs single-source
+    if is_multi_source:
+        structure = "\n".join([
+            "Structure your response as:",
+            "1. **Executive Summary** — 2-3 sentences: what happened overall",
+            "2. **Screenshot Analysis** (only if a screenshot was provided) — what you see in the image",
+            "3. **Unified Error Timeline** — chronological list of significant events across ALL systems",
+            "4. **Cascade Analysis** — how errors in one system caused errors in others",
+            "5. **Root Cause** — most likely root cause considering all systems",
+            "6. **Affected Systems** — which systems were impacted and how",
+            "7. **Suggested Actions** — prioritized steps to resolve the issue",
+            "8. **Confidence Assessment** — what you're sure about vs. uncertain",
+        ])
+    else:
+        structure = "\n".join([
+            "Structure your response as:",
+            "1. **Screenshot Analysis** (only if a screenshot was provided) — what you see in the image",
+            "2. **Relevant Log Events** — which events from the logs correlate with the symptom",
+            "3. **Root Cause Analysis** — most likely explanation combining all evidence",
+            "4. **Suggested Actions** — prioritized steps to resolve the issue",
+            "5. **Confidence Assessment** — what you're sure about vs. uncertain",
+        ])
+
     base = "\n".join([
-        f"You are a senior operations engineer{specialist} performing incident diagnosis.",
+        role_line,
         "The user describes a symptom they observed. You have access to their description,",
         "an optional screenshot, parsed log analysis data, and matching log excerpts.",
         "",
-        f"The current logs are from: {role or 'unknown format'}." if role else "",
+        context_line,
         f"LogPilot supports these log formats: {systems_list}.",
         "If the analysis would benefit from logs from other systems (e.g. upstream/downstream),",
         "suggest which additional log formats the user could upload for a more complete picture.",
         "",
-        "Structure your response as:",
-        "1. **Screenshot Analysis** (only if a screenshot was provided) — what you see in the image",
-        "2. **Relevant Log Events** — which events from the logs correlate with the symptom",
-        "3. **Root Cause Analysis** — most likely explanation combining all evidence",
-        "4. **Suggested Actions** — prioritized steps to resolve the issue",
-        "5. **Confidence Assessment** — what you're sure about vs. uncertain",
+        structure,
+        "",
+        "If a previous AI analysis is provided, build on it — do not repeat the same findings.",
+        "Instead, refine, correct, or go deeper based on the new information the user provides.",
         "",
         "Be concise and actionable. Prioritize the most likely root cause.",
         "Do NOT request secrets, credentials, or raw log files from the user.",
@@ -586,6 +623,9 @@ def build_incident_user_prompt(
     cascades: list[dict] | None = None,
     has_screenshot: bool = False,
     match_result: dict | None = None,
+    per_source: list[dict] | None = None,
+    per_source_errors: dict | None = None,
+    previous_answer: str | None = None,
 ) -> str:
     """Build the user prompt for incident diagnosis, combining symptom + log context.
 
@@ -595,8 +635,23 @@ def build_incident_user_prompt(
     Args:
         match_result: Result from match_user_query() — adds matched codes,
             exceptions, tags, and raw log excerpts to the prompt.
+        per_source: List of per-source summary dicts from per_source_summary().
+        per_source_errors: Dict mapping source label to list of error event dicts.
+        previous_answer: The previous AI analysis response to build upon.
     """
     parts: list[str] = []
+
+    # 0. Previous AI analysis (conversation context)
+    if previous_answer:
+        parts.append("<previous_analysis>")
+        parts.append("The following is your previous analysis of these logs. Build on it,")
+        parts.append("do not repeat the same findings. Refine or go deeper based on the user's new input.")
+        parts.append("")
+        # Truncate if very long to save tokens
+        prev_text = previous_answer[:8000] if len(previous_answer) > 8000 else previous_answer
+        parts.append(prev_text)
+        parts.append("</previous_analysis>")
+        parts.append("")
 
     # 1. User symptom
     parts.append("<symptom_description>")
@@ -697,6 +752,37 @@ def build_incident_user_prompt(
                 f"(+{c['delay_seconds']}s, {int(c['confidence'] * 100)}% confidence)"
             )
         parts.append("</cascade_detection>")
+        parts.append("")
+
+    # 7. Per-source summaries (multi-source)
+    if per_source and len(per_source) >= 2:
+        parts.append("<per_source_summary>")
+        for s in per_source:
+            error_pct = f" ({s['errors']/s['total']*100:.0f}% errors)" if s.get('total', 0) > 0 else ""
+            top_code = s['top_codes'][0][0] if s.get('top_codes') else "none"
+            top_exc = s['top_exceptions'][0][0] if s.get('top_exceptions') else "none"
+            parts.append(
+                f"Source: \"{s['label']}\" ({s.get('format', '?')}) — {s['total']} events, "
+                f"{s['errors']} errors{error_pct}, top code: {top_code}, top exception: {top_exc}"
+            )
+        parts.append("</per_source_summary>")
+        parts.append("")
+
+    # 8. Per-source error samples (multi-source)
+    if per_source_errors:
+        parts.append("<per_source_errors>")
+        for label, errors in per_source_errors.items():
+            if errors:
+                parts.append(f"\n--- {label} errors ---")
+                for e in errors[:3]:
+                    safe_text = _sanitize_prompt_input(
+                        _truncate_event_text(
+                            e.text if hasattr(e, 'text') else e.get("text", ""),
+                            max_lines=10,
+                        )
+                    )
+                    parts.append(safe_text)
+        parts.append("</per_source_errors>")
         parts.append("")
 
     user_text = "\n".join(parts)

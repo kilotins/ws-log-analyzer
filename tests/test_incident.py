@@ -94,6 +94,23 @@ class TestBuildIncidentSystemPrompt:
         prompt = build_incident_system_prompt("was")
         assert "additional log formats" in prompt
 
+    def test_multi_source_mode(self):
+        prompt = build_incident_system_prompt(
+            is_multi_source=True, source_formats=["was", "nginx"])
+        assert "multiple" in prompt.lower()
+        assert "WebSphere" in prompt
+        assert "nginx" in prompt
+        assert "Executive Summary" in prompt
+        assert "Cascade Analysis" in prompt
+
+    def test_single_source_no_executive_summary(self):
+        prompt = build_incident_system_prompt("was")
+        assert "Executive Summary" not in prompt
+
+    def test_previous_analysis_instruction(self):
+        prompt = build_incident_system_prompt()
+        assert "previous AI analysis" in prompt
+
     def test_with_skill_content(self):
         prompt = build_incident_system_prompt("was", skill_content="## WAS Message Codes\nCWWKZ = app management")
         assert "<domain_knowledge>" in prompt
@@ -272,6 +289,83 @@ class TestBuildIncidentUserPrompt:
             match_result=None,
         )
         assert "<matched_context>" not in prompt
+
+    def test_with_per_source(self, sample_summary):
+        """Per-source summaries included for multi-source."""
+        sources = [
+            {"label": "backend", "format": "log4j", "total": 100, "errors": 10,
+             "top_codes": [("CWWKZ0001E", 5)], "top_exceptions": [("NPE", 3)]},
+            {"label": "frontend", "format": "nginx", "total": 200, "errors": 20,
+             "top_codes": [], "top_exceptions": []},
+        ]
+        prompt = build_incident_user_prompt(
+            description="Test",
+            summary=sample_summary,
+            per_source=sources,
+        )
+        assert "<per_source_summary>" in prompt
+        assert "backend" in prompt
+        assert "frontend" in prompt
+        assert "10% errors" in prompt
+
+    def test_per_source_single_source_omitted(self, sample_summary):
+        """Per-source summary omitted for single source."""
+        sources = [{"label": "only", "format": "was", "total": 50, "errors": 5,
+                     "top_codes": [], "top_exceptions": []}]
+        prompt = build_incident_user_prompt(
+            description="Test",
+            summary=sample_summary,
+            per_source=sources,
+        )
+        assert "<per_source_summary>" not in prompt
+
+    def test_with_per_source_errors(self, sample_summary):
+        """Per-source error samples included."""
+        from logpilot.event import LogEvent
+        errors = {
+            "backend (log4j)": [LogEvent(text="ERROR: DB connection failed")],
+        }
+        prompt = build_incident_user_prompt(
+            description="Test",
+            summary=sample_summary,
+            per_source_errors=errors,
+        )
+        assert "<per_source_errors>" in prompt
+        assert "backend" in prompt
+        assert "DB connection failed" in prompt
+
+    def test_with_previous_answer(self, sample_summary):
+        """Previous AI answer included as context."""
+        prompt = build_incident_user_prompt(
+            description="Follow-up question",
+            summary=sample_summary,
+            previous_answer="Root cause is likely a DB connection pool exhaustion.",
+        )
+        assert "<previous_analysis>" in prompt
+        assert "DB connection pool exhaustion" in prompt
+        assert "Build on it" in prompt
+
+    def test_no_previous_answer(self, sample_summary):
+        """No previous analysis section when not provided."""
+        prompt = build_incident_user_prompt(
+            description="First question",
+            summary=sample_summary,
+            previous_answer=None,
+        )
+        assert "<previous_analysis>" not in prompt
+
+    def test_previous_answer_truncated(self, sample_summary):
+        """Very long previous answers are truncated."""
+        long_answer = "x" * 20000
+        prompt = build_incident_user_prompt(
+            description="Follow-up",
+            summary=sample_summary,
+            previous_answer=long_answer,
+        )
+        assert "<previous_analysis>" in prompt
+        # Should be truncated to 8000 chars
+        assert "x" * 8000 in prompt
+        assert "x" * 8001 not in prompt
 
 
 # --- Cache key tests ---

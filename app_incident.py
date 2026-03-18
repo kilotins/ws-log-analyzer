@@ -20,8 +20,10 @@ from logpilot import (
     build_incident_system_prompt, build_incident_user_prompt,
     incident_cache_key, estimate_tokens, TOKEN_LIMITS,
     match_user_query, select_skills, load_skill_content,
+    triage_cache_key, per_source_summary,
 )
 from logpilot.ai import _FORMAT_PLACEHOLDER
+from logpilot.analysis import ERROR_LEVELS
 from app_ai import (
     AI_MODELS, PROVIDER_CONFIG, _API_CALLERS,
     _log_probe, detect_dominant_format, estimate_cost,
@@ -251,8 +253,103 @@ def _save_to_history(query: str, answer: str, provider: str, model_label: str):
             cfg["save_history"](hist)
 
 
+def _run_ai_call(provider, model_id, selected_model, msg_dict, image_bytes,
+                 description, cache_key, session_cache, log, store_cache):
+    """Execute the AI API call, handle streaming, caching, and spend tracking.
+
+    Returns the answer text or None on failure.
+    """
+    system_prompt = msg_dict.get("system", "")
+    user_text = msg_dict.get("user", "")
+    _req_text = f"[SYSTEM]\n{system_prompt[:300]}...\n\n[USER]\n{user_text[:500]}..."
+    prompt_text = system_prompt + user_text
+    est_tokens_val = estimate_tokens(prompt_text)
+    token_limit = TOKEN_LIMITS.get(provider, TOKEN_LIMITS["claude"])
+    call_label = "Ask AI"
+
+    with st.status(f"Analyzing with {selected_model}...", expanded=True) as status:
+        st.write(f"Estimated prompt: ~{est_tokens_val:,} tokens")
+        if image_bytes:
+            st.write(f"Screenshot: {len(image_bytes) / 1024:.0f} KB")
+        if est_tokens_val > int(token_limit * 0.8):
+            st.warning(f"Prompt is ~{est_tokens_val / token_limit * 100:.0f}% of context limit.")
+
+        try:
+            stream_placeholder = st.empty()
+            if provider == "claude":
+                answer, usage = _call_multimodal_claude(
+                    st.session_state.get("api_key", ""), model_id, msg_dict,
+                    stream_placeholder=stream_placeholder)
+            elif provider == "gemini":
+                answer, usage = _call_multimodal_gemini(
+                    st.session_state.get("gemini_api_key", ""), model_id, msg_dict)
+            elif provider in ("openai", "local"):
+                base_url = None
+                api_key_field = "openai_api_key" if provider == "openai" else "local_ai_api_key"
+                api_key = st.session_state.get(api_key_field, "") or "not-needed"
+                if provider == "local":
+                    base_url = getattr(st.session_state, "local_ai_endpoint", "") or None
+                    model_id = getattr(st.session_state, "local_ai_model", "") or model_id
+                answer, usage = _call_multimodal_openai(
+                    api_key, model_id, msg_dict, stream_placeholder=stream_placeholder,
+                    base_url=base_url)
+            else:
+                st.error(f"Unsupported provider: {provider}")
+                return None
+
+            if not answer:
+                status.update(label="Empty response from AI", state="error")
+                _log_probe(call_label, provider, model_id, _req_text, "", error="Empty response")
+                return None
+
+            stream_placeholder.empty()
+            _log_probe(call_label, provider, model_id, _req_text, answer)
+
+            # Cache (skip if screenshot or local)
+            if store_cache and provider != "local" and image_bytes is None:
+                store_cache(cache_key, answer, session_cache)
+
+            # Track spend
+            if usage:
+                inp = usage.get("input", 0)
+                out = usage.get("output", 0)
+                cost = estimate_cost(model_id, inp, out)
+                try:
+                    from app_spend import record_spend
+                    record_spend(provider, model_id, inp, out, source="ask_ai",
+                                 cache_creation=usage.get("cache_creation", 0),
+                                 cache_read=usage.get("cache_read", 0))
+                except Exception:
+                    pass
+                st.caption(f"{inp:,} in + {out:,} out tokens — est. **${cost:.4f}**")
+
+            status.update(label="Analysis complete!", state="complete")
+            if log:
+                log.info("ai Analysis complete (%s)", model_id)
+            return answer
+
+        except Exception as ex:
+            _log_probe(call_label, provider, model_id, _req_text, "", error=str(ex))
+            status.update(label="Analysis failed", state="error")
+            st.error(f"AI call failed: {ex}")
+            if log:
+                log.error("ai Analysis failed: %s", ex)
+            return None
+
+
+def _check_api_key(provider):
+    """Validate and return API key for provider. Returns key or None on error."""
+    key_map = {"claude": "api_key", "gemini": "gemini_api_key", "openai": "openai_api_key",
+               "local": "local_ai_api_key"}
+    api_key = getattr(st.session_state, key_map.get(provider, "api_key"), "")
+    if not api_key and provider != "local":
+        st.error(f"No {provider} API key configured. Set it in the sidebar.")
+        return None
+    return api_key or "not-needed"
+
+
 def render_incident_assistant(events, analysis, log=None, lookup_cache=None, store_cache=None):
-    """Render the unified AI analysis UI — handles error codes, questions, and symptom descriptions."""
+    """Render the Incident AI Assistant — unified AI analysis for all use cases."""
     summary = analysis.get("summary", {})
     causes = analysis.get("causes", [])
     itl = analysis.get("incident_timeline")
@@ -262,7 +359,19 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     placeholder = _FORMAT_PLACEHOLDER.get(detected_format,
         "e.g. CWWKZ0001E, NullPointerException, 502 errors since 14:30, why are threads hanging?")
 
-    # --- UI ---
+    # Detect multi-source
+    sources = set(e.get("system_label", "") for e in events)
+    is_multi_source = len(sources) >= 2
+
+    # --- "Analyze All Logs" button (multi-source only) ---
+    triage_clicked = False
+    if is_multi_source:
+        st.caption(f"Multi-source: {len(sources)} systems detected — analyze all logs in one AI call.")
+        triage_clicked = st.button(
+            f"Analyze All Logs ({len(events)} events, {len(sources)} sources)",
+            type="primary", key="triage_all_btn", use_container_width=True)
+
+    # --- Symptom / question input ---
     description = st.text_area(
         "Describe a symptom, paste an error code, or ask a question",
         placeholder=placeholder,
@@ -292,7 +401,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
             mime_type = mime_map.get(ext, "image/png")
             st.image(image_bytes, caption="Uploaded screenshot", width=400)
 
-    # Model selector + button
+    # Model selector + analyze button
     model_col, btn_col = st.columns([1, 1])
     with model_col:
         selected_model = st.selectbox(
@@ -302,169 +411,49 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
             label_visibility="collapsed",
         )
     with btn_col:
-        diagnose_clicked = st.button("Analyze", type="primary", key="incident_diagnose_btn",
-                                     use_container_width=True)
+        analyze_clicked = st.button("Analyze", type="primary", key="incident_analyze_btn",
+                                    use_container_width=True)
 
-    # Show cached result
-    cached_answer = st.session_state.get("_incident_answer")
+    # Previous AI answer for conversation context
+    previous_answer = st.session_state.get("_incident_answer")
+    cached_answer = previous_answer
 
-    if diagnose_clicked:
-        if not description.strip():
-            st.warning("Enter an error code, question, or symptom description.")
-            return
+    # --- Handle button clicks ---
+    clicked = triage_clicked or (analyze_clicked and description.strip())
 
+    if analyze_clicked and not description.strip() and not triage_clicked:
+        st.warning("Enter an error code, question, or symptom description.")
+
+    if clicked:
         # Rate limiting
         now = time.time()
         elapsed = now - st.session_state.get("last_ai_call_ts", 0)
         if elapsed < AI_RATE_LIMIT_SECONDS:
             st.warning(f"Rate limit: wait {AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
-            return
-        st.session_state.last_ai_call_ts = now
-
-        model_info = AI_MODELS[selected_model]
-        provider = model_info["provider"]
-        model_id = model_info["model_id"]
-
-        # Query matching — find events relevant to the description
-        match = match_user_query(description, events)
-
-        # Domain skills — select and load relevant .md files
-        skill_files = select_skills(match, description, detected_format=detected_format)
-        skill_content = load_skill_content(skill_files)
-        if skill_files and log:
-            log.info("ai skills selected: %s (format: %s)",
-                     ", ".join(skill_files), detected_format or "unknown")
-
-        # Build prompt with skills in system prompt
-        system_prompt = build_incident_system_prompt(detected_format, skill_content=skill_content)
-
-        # Collect error events for context
-        error_levels = {"ERROR", "SEVERE", "FATAL"}
-        error_events = [e for e in events if e.get("level") in error_levels][:5]
-
-        user_text = build_incident_user_prompt(
-            description=description,
-            summary=summary,
-            causes=causes,
-            itl=itl,
-            error_events=error_events,
-            cascades=cascades,
-            has_screenshot=image_bytes is not None,
-            match_result=match,
-        )
-
-        # Check cache
-        cache_key = f"incident:{provider}:" + incident_cache_key(description, summary, model_id)
-        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["claude"])
-        session_cache = getattr(st.session_state, cfg["cache_key"], {})
-
-        cached = None
-        if lookup_cache and provider != "local" and image_bytes is None:
-            cached = lookup_cache(cache_key, session_cache, f"ai/{provider}", description[:60])
-
-        if cached:
-            st.session_state._incident_answer = cached
-            st.session_state._incident_model = selected_model
-            cached_answer = cached
-            _save_to_history(description, cached, provider, selected_model)
-            st.info("AI analysis loaded from cache.")
         else:
-            # Build multimodal messages
-            msg_dict = _build_multimodal_messages(system_prompt, user_text, image_bytes, mime_type, provider)
+            st.session_state.last_ai_call_ts = now
+            model_info = AI_MODELS[selected_model]
+            provider = model_info["provider"]
+            model_id = model_info["model_id"]
 
-            # Get API key
-            key_map = {"claude": "api_key", "gemini": "gemini_api_key", "openai": "openai_api_key",
-                       "local": "local_ai_api_key"}
-            api_key = getattr(st.session_state, key_map.get(provider, "api_key"), "")
-            if not api_key and provider != "local":
-                st.error(f"No {provider} API key configured. Set it in the sidebar.")
-                return
-            if provider == "local" and not api_key:
-                api_key = "not-needed"
-
-            # Token estimation
-            prompt_text = system_prompt + user_text
-            est_tokens_val = estimate_tokens(prompt_text)
-            token_limit = TOKEN_LIMITS.get(provider, TOKEN_LIMITS["claude"])
-            _req_text = f"[SYSTEM]\n{system_prompt}\n\n[USER]\n{user_text[:500]}..."
-
-            with st.status(f"Analyzing with {selected_model}...", expanded=True) as status:
-                st.write(f"Estimated prompt: ~{est_tokens_val:,} tokens")
-                if match.get("matched"):
-                    st.write(f"Found {len(match.get('matching_events', []))} matching event(s) "
-                             f"(match type: {match.get('match_type', 'none')})")
-                if skill_files:
-                    st.write(f"Skills: {', '.join(skill_files)}")
-                if image_bytes:
-                    st.write(f"Screenshot: {len(image_bytes) / 1024:.0f} KB")
-
-                if est_tokens_val > int(token_limit * 0.8):
-                    st.warning(f"Prompt is ~{est_tokens_val / token_limit * 100:.0f}% of context limit.")
-
-                try:
-                    stream_placeholder = st.empty()
-
-                    if provider == "claude":
-                        answer, usage = _call_multimodal_claude(
-                            api_key, model_id, msg_dict, stream_placeholder=stream_placeholder)
-                    elif provider == "gemini":
-                        answer, usage = _call_multimodal_gemini(
-                            api_key, model_id, msg_dict)
-                    elif provider in ("openai", "local"):
-                        base_url = None
-                        if provider == "local":
-                            base_url = getattr(st.session_state, "local_ai_endpoint", "") or None
-                            model_id = getattr(st.session_state, "local_ai_model", "") or model_id
-                        answer, usage = _call_multimodal_openai(
-                            api_key, model_id, msg_dict, stream_placeholder=stream_placeholder,
-                            base_url=base_url)
-                    else:
-                        st.error(f"Unsupported provider: {provider}")
-                        return
-
-                    if not answer:
-                        status.update(label="Empty response from AI", state="error")
-                        _log_probe("Ask AI", provider, model_id, _req_text, "", error="Empty response")
-                        return
-
-                    stream_placeholder.empty()
+            api_key = _check_api_key(provider)
+            if api_key is None:
+                pass  # Error already shown
+            else:
+                answer = _run_analysis(
+                    events=events, description=description if not triage_clicked else "",
+                    summary=summary, causes=causes, itl=itl, cascades=cascades,
+                    detected_format=detected_format, is_multi_source=is_multi_source,
+                    is_triage=triage_clicked,
+                    image_bytes=image_bytes, mime_type=mime_type,
+                    provider=provider, model_id=model_id, selected_model=selected_model,
+                    previous_answer=previous_answer if not triage_clicked else None,
+                    log=log, lookup_cache=lookup_cache, store_cache=store_cache,
+                )
+                if answer:
                     st.session_state._incident_answer = answer
                     st.session_state._incident_model = selected_model
                     cached_answer = answer
-                    _log_probe("Ask AI", provider, model_id, _req_text, answer)
-
-                    # Save to history
-                    _save_to_history(description, answer, provider, selected_model)
-
-                    # Cache (skip if screenshot or local)
-                    if store_cache and provider != "local" and image_bytes is None:
-                        store_cache(cache_key, answer, session_cache)
-
-                    # Track spend
-                    if usage:
-                        inp = usage.get("input", 0)
-                        out = usage.get("output", 0)
-                        cost = estimate_cost(model_id, inp, out)
-                        try:
-                            from app_spend import record_spend
-                            record_spend(provider, model_id, inp, out, source="ask_ai",
-                                         cache_creation=usage.get("cache_creation", 0),
-                                         cache_read=usage.get("cache_read", 0))
-                        except Exception:
-                            pass
-                        st.caption(f"{inp:,} in + {out:,} out tokens — est. **${cost:.4f}**")
-
-                    status.update(label="Analysis complete!", state="complete")
-                    if log:
-                        log.info("ai Analysis complete (%s)", model_id)
-
-                except Exception as ex:
-                    _log_probe("Ask AI", provider, model_id, _req_text, "", error=str(ex))
-                    status.update(label="Analysis failed", state="error")
-                    st.error(f"AI call failed: {ex}")
-                    if log:
-                        log.error("ai Analysis failed: %s", ex)
-                    return
 
     # --- Render current result ---
     if cached_answer:
@@ -478,7 +467,6 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     # --- Clear button ---
     has_any = any([
         cached_answer,
-        st.session_state.get("_triage_answer"),
         len(st.session_state.get("claude_history", [])) > 0,
         len(st.session_state.get("gemini_history", [])) > 0,
         len(st.session_state.get("openai_history", [])) > 0,
@@ -488,6 +476,99 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         if st.button("Clear all AI history", key="clear_ai_history_btn"):
             clear_all_ai_history()
             st.rerun()
+
+
+def _run_analysis(events, description, summary, causes, itl, cascades,
+                  detected_format, is_multi_source, is_triage,
+                  image_bytes, mime_type, provider, model_id, selected_model,
+                  previous_answer, log, lookup_cache, store_cache):
+    """Build prompt, check cache, call AI, save to history. Returns answer or None."""
+
+    # --- Build per-source data (for multi-source) ---
+    sources_data = None
+    source_errors = None
+    source_formats = None
+    if is_multi_source:
+        sources_data = per_source_summary(events)
+        source_formats = list(set(s.get("format", "") for s in sources_data if s.get("format")))
+        source_errors = {}
+        for s in sources_data:
+            errs = [e for e in events
+                    if e.get("system_label") == s["label"]
+                    and e.get("level") in ERROR_LEVELS][:3]
+            if errs:
+                source_errors[f"{s['label']} ({s.get('format', '?')})"] = errs
+
+    # --- Query matching (skip for triage mode) ---
+    match = None
+    if not is_triage and description:
+        match = match_user_query(description, events)
+
+    # --- Domain skills ---
+    skill_files = select_skills(
+        match or {"matched": False, "codes": [], "exceptions": [], "tags": []},
+        description or "",
+        detected_format=detected_format,
+    )
+    skill_content = load_skill_content(skill_files)
+    if skill_files and log:
+        log.info("ai skills: %s (format: %s)", ", ".join(skill_files), detected_format or "?")
+
+    # --- System prompt ---
+    system_prompt = build_incident_system_prompt(
+        detected_format,
+        skill_content=skill_content,
+        is_multi_source=is_multi_source,
+        source_formats=source_formats,
+    )
+
+    # --- Error events ---
+    error_events = [e for e in events if e.get("level") in ERROR_LEVELS][:5]
+
+    # --- User prompt ---
+    query_label = description or "Cross-system analysis of all uploaded logs"
+    user_text = build_incident_user_prompt(
+        description=query_label,
+        summary=summary,
+        causes=causes,
+        itl=itl,
+        error_events=error_events,
+        cascades=cascades,
+        has_screenshot=image_bytes is not None,
+        match_result=match,
+        per_source=sources_data,
+        per_source_errors=source_errors,
+        previous_answer=previous_answer,
+    )
+
+    # --- Cache ---
+    if is_triage:
+        cache_key = "triage:" + triage_cache_key(events, model_id)
+    else:
+        cache_key = f"incident:{provider}:" + incident_cache_key(description, summary, model_id)
+
+    cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["claude"])
+    session_cache = getattr(st.session_state, cfg["cache_key"], {})
+
+    cached = None
+    if lookup_cache and provider != "local" and image_bytes is None:
+        cached = lookup_cache(cache_key, session_cache, f"ai/{provider}", query_label[:60])
+
+    if cached:
+        _save_to_history(query_label, cached, provider, selected_model)
+        st.info("AI analysis loaded from cache.")
+        return cached
+
+    # --- Build message and call AI ---
+    msg_dict = _build_multimodal_messages(system_prompt, user_text, image_bytes, mime_type, provider)
+
+    answer = _run_ai_call(
+        provider, model_id, selected_model, msg_dict, image_bytes,
+        query_label, cache_key, session_cache, log, store_cache,
+    )
+    if answer:
+        _save_to_history(query_label, answer, provider, selected_model)
+    return answer
 
 
 def _render_ai_history():

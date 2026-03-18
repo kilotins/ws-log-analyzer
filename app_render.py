@@ -14,13 +14,7 @@ def _collect_ai_content() -> dict | None:
     """Collect AI triage and Ask AI responses from session_state for export."""
     ai = {}
 
-    # Cross-system triage
-    triage = st.session_state.get("_triage_answer")
-    if triage:
-        ai["triage"] = triage
-        ai["triage_model"] = st.session_state.get("_triage_model", "AI")
-
-    # Incident diagnosis
+    # Incident AI Assistant (current answer — may be triage or symptom-based)
     incident = st.session_state.get("_incident_answer")
     if incident:
         ai["incident"] = incident
@@ -671,8 +665,6 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
       8. Event Samples + Cascades — drill into data
       9. Export — download results
     """
-    from app_ai import render_analyze_all_button
-
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
                f"Report saved as `{a['report_name']}`.")
 
@@ -713,14 +705,9 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     with st.expander("Summary", expanded=True):
         render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"], events=display_events)
 
-    # --- 2. AI Cross-System Triage (multi-source only) ---
-    _sources = set(e.get("system_label", "") for e in display_events)
-    if len(_sources) >= 2:
-        render_analyze_all_button(a, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
-
-    # --- 3. Incident Assistant (unified AI analysis) ---
+    # --- 2. Incident AI Assistant (unified AI analysis) ---
     from app_incident import render_incident_assistant
-    with st.expander("Ask AI — describe a symptom, paste an error code, or ask a question"):
+    with st.expander("Incident AI Assistant"):
         render_incident_assistant(display_events, a, log=log,
                                   lookup_cache=lookup_cache, store_cache=store_cache)
 
