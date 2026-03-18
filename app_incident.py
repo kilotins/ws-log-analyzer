@@ -267,8 +267,13 @@ def _run_ai_call(provider, model_id, selected_model, msg_dict, image_bytes,
     token_limit = TOKEN_LIMITS.get(provider, TOKEN_LIMITS["claude"])
     call_label = "Ask AI"
 
+    # Pre-estimate cost (assume ~2K output tokens)
+    est_output = 2000
+    est_cost = estimate_cost(model_id, est_tokens_val, est_output)
+
     with st.status(f"Analyzing with {selected_model}...", expanded=True) as status:
-        st.write(f"Estimated prompt: ~{est_tokens_val:,} tokens")
+        cost_str = f" — est. ~${est_cost:.4f}" if est_cost > 0 else " — free (local)"
+        st.write(f"Estimated prompt: ~{est_tokens_val:,} tokens{cost_str}")
         if image_bytes:
             st.write(f"Screenshot: {len(image_bytes) / 1024:.0f} KB")
         if est_tokens_val > int(token_limit * 0.8):
