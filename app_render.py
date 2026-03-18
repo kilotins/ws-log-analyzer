@@ -32,6 +32,9 @@ def _collect_ai_content() -> dict | None:
         for entry in history:
             # Skip if this entry's answer matches the current incident answer
             if incident and entry.get("answer") == incident:
+                # But capture the query for the current answer label
+                if not ai.get("incident_query"):
+                    ai["incident_query"] = entry.get("query", "")
                 continue
             ask_ai.append({
                 "query": entry.get("query", ""),

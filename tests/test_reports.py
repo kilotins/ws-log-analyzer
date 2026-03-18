@@ -376,14 +376,14 @@ class TestRenderHtmlReport:
         ai = {"ask_ai": [{"query": "What happened?", "answer": "A crash occurred",
                            "provider": "Gemini", "timestamp": "12:00:00"}]}
         html = render_html_report(events, ai_content=ai)
-        assert "AI Analysis" in html
+        assert "Previous AI Queries" in html
         assert "What happened?" in html
         assert "A crash occurred" in html
 
     def test_html_no_ai_when_none(self):
         events = [make_event(level="ERROR", text="fail")]
         html = render_html_report(events, ai_content=None)
-        assert "AI Analysis" not in html
+        assert "Previous AI Queries" not in html
 
 
 # --- 10.5 render_pdf_report() content verification ---

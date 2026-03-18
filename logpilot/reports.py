@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from .parser import MAX_EVENT_TEXT
-from .analysis import precompute_analysis, render_histogram
+from .analysis import precompute_analysis, render_histogram, compact_histogram
 from .event import LogEvent
 
 
@@ -171,10 +171,12 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
             md.append("```")
             md.append("")
 
-    md.append("## Timeline (events per minute)")
+    _export_hist = compact_histogram(hist)
+    _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
+    md.append(f"## {_hist_label}")
     md.append("")
     md.append("```")
-    md += render_histogram(hist)
+    md += render_histogram(_export_hist)
     md.append("```")
     md.append("")
     md.append("## Sample Events (sanitized)")
@@ -206,7 +208,10 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
         incident = ai_content.get("incident")
         if incident:
             md.append("")
-            md.append("## AI Analysis")
+            _q = ai_content.get("incident_query", "")
+            _q_preview = _q[:80] + "..." if len(_q) > 80 else _q
+            _heading = f"## AI Analysis — {_q_preview}" if _q_preview else "## AI Analysis"
+            md.append(_heading)
             model = ai_content.get("incident_model", "AI")
             md.append(f"*Model: {model}*")
             md.append("")
@@ -215,10 +220,12 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
 
         ask_ai = ai_content.get("ask_ai")
         if ask_ai:
-            md.append("## AI Analysis")
+            md.append("## Previous AI Queries")
             md.append("")
             for entry in ask_ai:
-                md.append(f"### Q: {entry['query']}")
+                _eq = entry['query']
+                _eq_preview = _eq[:80] + "..." if len(_eq) > 80 else _eq
+                md.append(f"### Q: {_eq_preview}")
                 provider = entry.get("provider", "AI")
                 md.append(f"*{provider} — {entry.get('timestamp', '')}*")
                 md.append("")
@@ -370,7 +377,10 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     if ai_content:
         incident = ai_content.get("incident")
         if incident:
-            h.append('<h2>AI Analysis</h2>')
+            _q = ai_content.get("incident_query", "")
+            _q_preview = escape((_q[:80] + "...") if len(_q) > 80 else _q)
+            _heading = f"AI Analysis — {_q_preview}" if _q_preview else "AI Analysis"
+            h.append(f'<h2>{_heading}</h2>')
             h.append('<div class="ai-section">')
             model = ai_content.get("incident_model", "AI")
             h.append(f'<p class="subtitle">Model: {escape(model)}</p>')
@@ -379,7 +389,7 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
 
         ask_ai = ai_content.get("ask_ai")
         if ask_ai:
-            h.append('<h2>AI Analysis</h2>')
+            h.append('<h2>Previous AI Queries</h2>')
             for entry in ask_ai:
                 h.append('<div class="ai-section">')
                 h.append(f'<h3>Q: {escape(entry["query"])}</h3>')
@@ -426,9 +436,11 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
             if t["stack_sample"]:
                 h.append(f'<pre>{escape(chr(10).join(t["stack_sample"]))}</pre>')
 
-    # Timeline histogram
-    h.append('<h2>Timeline (events per minute)</h2>')
-    hist_lines = render_histogram(hist)
+    # Timeline histogram (compact for large datasets)
+    _export_hist = compact_histogram(hist)
+    _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
+    h.append(f'<h2>{_hist_label}</h2>')
+    hist_lines = render_histogram(_export_hist)
     h.append(f'<pre>{escape(chr(10).join(hist_lines))}</pre>')
 
     # Sample events
@@ -640,8 +652,10 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
                 mono("\n".join(t["stack_sample"]))
             mono(t["splunk_query"])
 
-    heading("Timeline (events per minute)")
-    hist_lines = render_histogram(hist)
+    _export_hist = compact_histogram(hist)
+    _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
+    heading(_hist_label)
+    hist_lines = render_histogram(_export_hist)
     mono("\n".join(hist_lines))
 
     heading("Sample Events (sanitized)")
@@ -669,7 +683,10 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
         incident = ai_content.get("incident")
         if incident:
             pdf.add_page()
-            heading("AI Analysis")
+            _q = ai_content.get("incident_query", "")
+            _q_preview = (_q[:80] + "...") if len(_q) > 80 else _q
+            _heading = f"AI Analysis -- {_q_preview}" if _q_preview else "AI Analysis"
+            heading(_heading)
             model = ai_content.get("incident_model", "AI")
             body(f"Model: {model}")
             pdf.ln(2)
@@ -678,7 +695,7 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
         ask_ai = ai_content.get("ask_ai")
         if ask_ai:
             pdf.add_page()
-            heading("AI Analysis")
+            heading("Previous AI Queries")
             for entry in ask_ai:
                 bold_line(f"Q: {entry['query']}")
                 provider = entry.get("provider", "AI")

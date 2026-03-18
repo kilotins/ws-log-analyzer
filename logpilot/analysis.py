@@ -277,6 +277,50 @@ def time_histogram(events: list[LogEvent], bucket_minutes: int = 1) -> list[tupl
     return [(k, buckets[k]["total"], buckets[k]["errors"]) for k in sorted(buckets)]
 
 
+def compact_histogram(hist: list[tuple[str, int, int]], max_rows: int = 60) -> list[tuple[str, int, int]]:
+    """Aggregate histogram buckets if there are too many rows.
+
+    Groups by hour or by day depending on how many rows remain.
+    Returns a new histogram list with the same (label, total, errors) format.
+    """
+    if len(hist) <= max_rows:
+        return hist
+
+    # Try aggregating by hour (strip minutes)
+    hourly: dict[str, list[int]] = {}
+    for label, total, errors in hist:
+        # label is "DATE HH:MM" or "HH:MM"
+        if " " in label:
+            parts = label.rsplit(" ", 1)
+            date_part = parts[0]
+            time_part = parts[1]
+            hour_key = f"{date_part} {time_part.split(':')[0]}:00"
+        else:
+            hour_key = f"{label.split(':')[0]}:00"
+        if hour_key not in hourly:
+            hourly[hour_key] = [0, 0]
+        hourly[hour_key][0] += total
+        hourly[hour_key][1] += errors
+
+    hourly_hist = [(k, v[0], v[1]) for k, v in sorted(hourly.items())]
+    if len(hourly_hist) <= max_rows:
+        return hourly_hist
+
+    # Still too many — aggregate by day
+    daily: dict[str, list[int]] = {}
+    for label, total, errors in hist:
+        if " " in label:
+            day_key = label.rsplit(" ", 1)[0]
+        else:
+            day_key = "all"
+        if day_key not in daily:
+            daily[day_key] = [0, 0]
+        daily[day_key][0] += total
+        daily[day_key][1] += errors
+
+    return [(k, v[0], v[1]) for k, v in sorted(daily.items())]
+
+
 def render_histogram(hist: list[tuple[str, int, int]], bar_width: int = 40) -> list[str]:
     """Render ASCII bar chart lines from histogram data."""
     if not hist:
