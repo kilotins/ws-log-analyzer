@@ -707,13 +707,21 @@ def _render_ai_history():
         history = st.session_state.get(hist_key, [])
         # Skip the latest entry if it matches the current answer (already shown above)
         current = st.session_state.get("_incident_answer")
-        display_hist = [h for h in history if h.get("answer") != current]
+        display_hist = [(i, h) for i, h in enumerate(history) if h.get("answer") != current]
         if not display_hist:
             continue
         st.markdown("---")
-        for entry in reversed(display_hist):
+        for orig_idx, entry in reversed(display_hist):
             query_preview = entry.get("query", "")[:80]
             provider_label = entry.get("provider", label)
             ts = entry.get("timestamp", "")
             with st.expander(f"{provider_label} — {query_preview} ({ts})"):
-                _render_claude_response(entry["answer"])
+                col_content, col_delete = st.columns([10, 1])
+                with col_content:
+                    _render_claude_response(entry["answer"])
+                with col_delete:
+                    if st.button("🗑️", key=f"del_{hist_key}_{orig_idx}",
+                                 help="Remove this response"):
+                        history.pop(orig_idx)
+                        st.session_state[hist_key] = history
+                        st.rerun()
