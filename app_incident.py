@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import time
+from pathlib import Path
 
 import streamlit as st
 from datetime import datetime
@@ -725,8 +727,16 @@ def _render_ai_history():
                         history.pop(orig_idx)
                         st.session_state[hist_key] = history
                         # Persist to disk
-                        from app import _PROVIDER_HISTORY_FILES, _save_provider_history
-                        disk_path = _PROVIDER_HISTORY_FILES.get(provider_key)
-                        if disk_path:
-                            _save_provider_history(disk_path, history)
+                        _hist_files = {
+                            "claude": "claude_history.json",
+                            "gemini": "gemini_history.json",
+                            "openai": "openai_history.json",
+                            "local": "local_history.json",
+                        }
+                        _hf = Path.home() / ".logpilot" / _hist_files.get(provider_key, "")
+                        if _hf.name:
+                            try:
+                                _hf.write_text(json.dumps(history), encoding="utf-8")
+                            except OSError:
+                                pass
                         st.rerun()
