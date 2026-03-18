@@ -20,7 +20,7 @@ def _collect_ai_content() -> dict | None:
         ai["incident"] = incident
         ai["incident_model"] = st.session_state.get("_incident_model", "AI")
 
-    # Ask AI conversation history (all providers)
+    # Conversation history (all providers), excluding the current answer to avoid duplicates
     ask_ai = []
     for provider, hist_key, label in [
         ("Claude", "claude_history", "Claude"),
@@ -30,6 +30,9 @@ def _collect_ai_content() -> dict | None:
     ]:
         history = st.session_state.get(hist_key, [])
         for entry in history:
+            # Skip if this entry's answer matches the current incident answer
+            if incident and entry.get("answer") == incident:
+                continue
             ask_ai.append({
                 "query": entry.get("query", ""),
                 "answer": entry.get("answer", ""),
