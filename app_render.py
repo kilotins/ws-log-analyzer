@@ -46,7 +46,7 @@ def _collect_ai_content() -> dict | None:
     return ai if ai else None
 
 
-def render_summary(s, error_count, file_count, file_summary, events=None):
+def render_summary(s, error_count, file_count, file_summary, events=None, incident_timeline=None):
     """Render metrics, top exceptions, codes, levels, and per-file breakdown."""
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Events", s["total_events"])
@@ -54,6 +54,38 @@ def render_summary(s, error_count, file_count, file_summary, events=None):
     m3.metric("Files", file_count)
     level_counts = dict(s["levels"])
     m4.metric("Warnings", level_counts.get("WARNING", 0))
+
+    # --- Problem Onset indicator ---
+    if incident_timeline and error_count > 0:
+        trigger = incident_timeline.get("trigger_event", {})
+        trigger_dt = incident_timeline.get("trigger_dt")
+        if trigger_dt:
+            trigger_ts = trigger_dt.strftime("%Y-%m-%d %H:%M:%S")
+            trigger_level = trigger.get("level", "ERROR")
+            trigger_code = trigger.get("code", "")
+            trigger_exc = trigger.get("exception", "")
+            # Build a description of what happened
+            what_parts = [trigger_level]
+            if trigger_code:
+                what_parts.append(trigger_code)
+            if trigger_exc:
+                what_parts.append(trigger_exc.rsplit(".", 1)[-1])
+            what = " ".join(what_parts)
+
+            # Count errors in the burst window
+            window_events = incident_timeline.get("window_events", [])
+            window_errors = sum(1 for w in window_events
+                                if w["event"].get("level") in ("ERROR", "SEVERE", "FATAL"))
+            window_secs = incident_timeline.get("window_seconds", 60)
+
+            burst_note = ""
+            if window_errors > 1:
+                burst_note = f" — {window_errors} errors within ±{window_secs}s"
+
+            st.error(
+                f"**Problem onset: {trigger_ts}** — {what}{burst_note}",
+                icon="🔴",
+            )
 
     if len(file_summary) > 1:
         st.divider()
@@ -706,7 +738,8 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     # --- 1. Summary ---
     with st.expander("Summary", expanded=True):
-        render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"], events=display_events)
+        render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"],
+                       events=display_events, incident_timeline=display_itl)
 
     # --- 2. Incident AI Assistant (unified AI analysis) ---
     from app_incident import render_incident_assistant

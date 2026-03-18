@@ -62,6 +62,20 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
     md.append("")
     md.append(f"- Files: {len(file_summary)}")
     md.append(f"- Parsed events: {s['total_events']}")
+
+    # Problem onset
+    itl = a.get("incident_timeline")
+    if itl:
+        trigger = itl.get("trigger_event", {})
+        trigger_dt = itl.get("trigger_dt")
+        if trigger_dt:
+            _t_parts = [trigger.get("level", "ERROR")]
+            if trigger.get("code"):
+                _t_parts.append(trigger["code"])
+            if trigger.get("exception"):
+                _t_parts.append(trigger["exception"].rsplit(".", 1)[-1])
+            md.append(f"- **Problem onset: {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')}** — {' '.join(_t_parts)}")
+
     md.append("")
 
     if len(file_summary) > 1:
@@ -299,6 +313,24 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     h.append(f'<div class="metric"><div class="value">{len(file_summary)}</div><div class="label">Files</div></div>')
     h.append('</div>')
 
+    # Problem onset
+    itl = a.get("incident_timeline")
+    if itl:
+        trigger = itl.get("trigger_event", {})
+        trigger_dt = itl.get("trigger_dt")
+        if trigger_dt:
+            _t_parts = [trigger.get("level", "ERROR")]
+            if trigger.get("code"):
+                _t_parts.append(escape(trigger["code"]))
+            if trigger.get("exception"):
+                _t_parts.append(escape(trigger["exception"].rsplit(".", 1)[-1]))
+            h.append(
+                f'<div style="background:#FEE2E2;border:1px solid #DC2626;border-radius:8px;'
+                f'padding:12px;margin:16px 0;color:#991B1B">'
+                f'<strong>Problem onset: {escape(trigger_dt.strftime("%Y-%m-%d %H:%M:%S"))}</strong>'
+                f' &mdash; {" ".join(_t_parts)}</div>'
+            )
+
     # Per-file breakdown
     if len(file_summary) > 1:
         h.append('<h2>Per-File Breakdown</h2>')
@@ -503,6 +535,20 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
         pdf.ln(2)
 
     body(f"Files: {len(file_summary)}  |  Parsed events: {s['total_events']}")
+    pdf.ln(2)
+
+    # Problem onset
+    itl = a.get("incident_timeline")
+    if itl:
+        trigger = itl.get("trigger_event", {})
+        trigger_dt = itl.get("trigger_dt")
+        if trigger_dt:
+            _t_parts = [trigger.get("level", "ERROR")]
+            if trigger.get("code"):
+                _t_parts.append(trigger["code"])
+            if trigger.get("exception"):
+                _t_parts.append(trigger["exception"].rsplit(".", 1)[-1])
+            bold_line(f"Problem onset: {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')} -- {' '.join(_t_parts)}")
     pdf.ln(4)
 
     if len(file_summary) > 1:
