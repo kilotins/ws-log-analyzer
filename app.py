@@ -285,6 +285,10 @@ _STATE_DEFAULTS = {
     "_local_saved_preset": None,
     "_local_settings_loaded": False,
     "local_ai_preset": "LM Studio",
+    "_incident_description": "",
+    "_incident_screenshot": None,
+    "_incident_answer": None,
+    "_incident_model": None,
 }
 
 _EXPECTED_STATE_KEYS = set(_STATE_DEFAULTS.keys())

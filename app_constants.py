@@ -30,3 +30,6 @@ MAX_EVENT_TEXT = 4000
 
 # Hard upload size limit (MB) — files exceeding this are rejected
 MAX_UPLOAD_MB = 200
+
+# Maximum screenshot size for incident assistant (MB)
+MAX_SCREENSHOT_MB = 10

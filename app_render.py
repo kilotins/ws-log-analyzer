@@ -20,6 +20,12 @@ def _collect_ai_content() -> dict | None:
         ai["triage"] = triage
         ai["triage_model"] = st.session_state.get("_triage_model", "AI")
 
+    # Incident diagnosis
+    incident = st.session_state.get("_incident_answer")
+    if incident:
+        ai["incident"] = incident
+        ai["incident_model"] = st.session_state.get("_incident_model", "AI")
+
     # Ask AI conversation history (all providers)
     ask_ai = []
     for provider, hist_key, label in [
@@ -718,6 +724,12 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     # Render AI responses outside the expander to avoid scroll issues with long content
     render_ai_responses()
+
+    # --- 3.5. Incident Assistant ---
+    from app_incident import render_incident_assistant
+    with st.expander("Incident Assistant — describe a symptom"):
+        render_incident_assistant(display_events, a, log=log,
+                                  lookup_cache=lookup_cache, store_cache=store_cache)
 
     # --- 4. Event Filters (widgets — values already read above) ---
     render_event_filters(a["events"])
