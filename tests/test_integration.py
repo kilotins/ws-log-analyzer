@@ -106,7 +106,7 @@ class TestMultiFileAnalysis:
 
         html = render_html_report(all_events)
         assert "<!DOCTYPE html>" in html
-        assert "LogPilot Triage Report" in html
+        assert "LogPilot Analysis" in html
         assert "ERROR" in html
 
     def test_gz_and_plain_mixed(self, tmp_path):

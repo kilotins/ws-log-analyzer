@@ -32,6 +32,53 @@ def _sec(sections: set[str] | None, key: str) -> bool:
     return sections is None or key in sections
 
 
+def _report_title(a: dict) -> str:
+    """Build a dynamic report title from file names and time span.
+
+    Example: "LogPilot Analysis — server.log, access.log (2025-03-11 10:15 – 14:32)"
+    """
+    from .analysis import parse_ts_datetime
+
+    file_summary = a.get("file_summary", [])
+    names = [Path(f).name for f, _, _ in file_summary]
+    if len(names) <= 3:
+        files_str = ", ".join(names)
+    else:
+        files_str = f"{names[0]}, {names[1]} + {len(names) - 2} more"
+
+    # Extract time span from first/last event timestamps
+    events = a.get("events", [])
+    time_str = ""
+    if events:
+        first_dt = last_dt = None
+        for e in events:
+            if e.ts:
+                dt = parse_ts_datetime(e.ts)
+                if dt:
+                    first_dt = dt
+                    break
+        for e in reversed(events):
+            if e.ts:
+                dt = parse_ts_datetime(e.ts)
+                if dt:
+                    last_dt = dt
+                    break
+        if first_dt and last_dt:
+            fmt_time = "%H:%M"
+            fmt_full = "%Y-%m-%d %H:%M"
+            if first_dt.date() == last_dt.date():
+                time_str = f"{first_dt.strftime(fmt_full)} – {last_dt.strftime(fmt_time)}"
+            else:
+                time_str = f"{first_dt.strftime(fmt_full)} – {last_dt.strftime(fmt_full)}"
+
+    title = "LogPilot Analysis"
+    if files_str:
+        title += f" — {files_str}"
+    if time_str:
+        title += f" ({time_str})"
+    return title
+
+
 def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
     """Generate a JSON triage report string from parsed events."""
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
@@ -91,7 +138,7 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
     file_summary = a["file_summary"]
 
     md: list[str] = []
-    md.append("# LogPilot Triage Report")
+    md.append(f"# {_report_title(a)}")
     md.append("")
     md.append(f"- Files: {len(file_summary)}")
     md.append(f"- Parsed events: {s['total_events']}")
@@ -296,7 +343,9 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     h.append('<!DOCTYPE html>')
     h.append('<html lang="en"><head><meta charset="UTF-8">')
     h.append('<meta name="viewport" content="width=device-width, initial-scale=1.0">')
-    h.append('<title>LogPilot Triage Report</title>')
+    _title = _report_title(a)
+    from html import escape as _esc
+    h.append(f'<title>{_esc(_title)}</title>')
     h.append('<style>')
     h.append('''
       :root { --purple: #7C3AED; --green: #34D399; --dark: #0F172A; --red: #DC2626;
@@ -347,7 +396,7 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     h.append('</style></head><body>')
 
     # Header
-    h.append('<h1>LogPilot Triage Report</h1>')
+    h.append(f'<h1>{_esc(_title)}</h1>')
     h.append('<p class="subtitle">Log Intelligence Platform &mdash; Item Consulting</p>')
 
     # Metrics
@@ -533,6 +582,8 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
     splunk = a.get("splunk", [])
     hung = a["hung"]
 
+    _pdf_title = _report_title(a)
+
     def _latin1_safe(text: str) -> str:
         return text.encode("latin-1", errors="replace").decode("latin-1")
 
@@ -540,7 +591,7 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
         def header(self):
             self.set_font("Helvetica", "", 7)
             self.set_text_color(148, 163, 184)  # #94A3B8
-            self.cell(0, 6, "LogPilot Triage Report", align="L")
+            self.cell(0, 6, _latin1_safe(_pdf_title), align="L")
             self.cell(0, 6, "item.no", align="R", new_x="LMARGIN", new_y="NEXT")
             self.set_draw_color(226, 232, 240)  # #E2E8F0
             self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
@@ -560,7 +611,7 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
 
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(30, 41, 59)  # #1E293B
-    pdf.cell(0, 12, "LogPilot Triage Report", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 12, _latin1_safe(_pdf_title), new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(100, 116, 139)  # #64748B
     pdf.cell(0, 6, "Log Intelligence Platform", new_x="LMARGIN", new_y="NEXT")

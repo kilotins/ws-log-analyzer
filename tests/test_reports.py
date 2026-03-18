@@ -192,7 +192,7 @@ def test_json_output(sample_log, tmp_path):
 
 def test_render_markdown_report(sample_events):
     report = render_markdown_report(sample_events, top_n=5, samples_n=3, hist_minutes=1)
-    assert "# LogPilot Triage Report" in report
+    assert "# LogPilot Analysis" in report
     assert "Parsed events: 5" in report
     assert "## Top Levels" in report
     assert "## Top WebSphere/Liberty Codes" in report
@@ -340,7 +340,7 @@ class TestRenderHtmlReport:
         events = [make_event(level="ERROR", text="fail")]
         html = render_html_report(events)
         assert "<!DOCTYPE html>" in html
-        assert "<title>LogPilot Triage Report</title>" in html
+        assert "<title>LogPilot Analysis" in html
         assert "</html>" in html
 
     def test_html_contains_event_data(self):
