@@ -353,10 +353,6 @@ if "_local_settings_loaded" not in st.session_state:
     st.session_state._local_settings_loaded = True
 
 
-def get_report_history(limit=20):
-    """Return list of (path, mtime) for recent reports, newest first."""
-    reports = sorted(REPORTS_DIR.glob("report_*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
-    return reports[:limit]
 
 
 # --- Streamlit UI ---
@@ -710,12 +706,12 @@ with st.sidebar:
 
 
 # --- Tabs ---
-_tab_names = ["Analyze", "Realtime Console", "History", "Audit Report", "Cloud Spend"]
+_tab_names = ["Analyze", "Realtime Console", "Audit Report", "Cloud Spend"]
 if st.session_state.debug_payload:
     _tab_names.append("Debug")
 _tabs = st.tabs(_tab_names)
-tab_analyze, tab_realtime, tab_history, tab_audit, tab_spend = _tabs[:5]
-tab_debug = _tabs[5] if len(_tabs) > 5 else None
+tab_analyze, tab_realtime, tab_audit, tab_spend = _tabs[:4]
+tab_debug = _tabs[4] if len(_tabs) > 4 else None
 
 with tab_analyze:
     uploaded_files = st.file_uploader(
@@ -847,8 +843,6 @@ with tab_analyze:
             samples = pa["samples"]
             report_md = render_markdown_report(all_events, _analysis=pa)
             report_json = render_json_report(all_events, _analysis=pa)
-            report_name = f"report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.md"
-            (REPORTS_DIR / report_name).write_text(report_md, encoding="utf-8")
 
             log.info("analysis Analysis complete: %d events, %d errors, %d causes, %d hung threads",
                      len(all_events), error_count, len(causes), len(hung))
@@ -856,7 +850,7 @@ with tab_analyze:
                 log.info("analysis Top codes: %s", ", ".join(f"{c}({n})" for c, n in s["codes"][:5]))
             if s["exceptions"]:
                 log.info("analysis Top exceptions: %s", ", ".join(f"{e}({n})" for e, n in s["exceptions"][:5]))
-            log.info("analysis Report saved: %s", report_name)
+            log.info("analysis Analysis complete")
 
             itl = incident_timeline(all_events, window_seconds=timeline_window)
 
@@ -875,7 +869,6 @@ with tab_analyze:
                 "total_events": len(all_events),
                 "report_md": report_md,
                 "report_json": report_json,
-                "report_name": report_name,
                 "top_n": top_n,
                 "samples_n": samples_n,
                 "hist_minutes": hist_minutes,
@@ -958,44 +951,6 @@ with tab_realtime:
                 st.rerun()
 
     _rt_live_view(log)
-
-with tab_history:
-    reports = get_report_history()
-    if not reports:
-        st.info("No reports yet. Upload and analyze a log file in the **Analyze** tab to generate your first report.")
-    else:
-        if st.session_state.get("_confirm_clear_history"):
-            st.warning(f"Delete all {len(reports)} saved reports? This cannot be undone.")
-            hc1, hc2 = st.columns(2)
-            with hc1:
-                if st.button("Yes, delete all", type="primary", use_container_width=True, key="confirm_clear_history"):
-                    st.session_state._confirm_clear_history = False
-                    log.info("history Cleared %d report(s)", len(reports))
-                    for rpath in reports:
-                        rpath.unlink(missing_ok=True)
-                    st.rerun()
-            with hc2:
-                if st.button("Cancel", use_container_width=True, key="cancel_clear_history"):
-                    st.session_state._confirm_clear_history = False
-                    st.rerun()
-        elif st.button("Clear history", type="secondary",
-                      help="Delete all saved reports"):
-            st.session_state._confirm_clear_history = True
-            st.rerun()
-        for rpath in reports:
-            content = rpath.read_text(encoding="utf-8")
-            col_name, col_dl = st.columns([4, 1])
-            with col_name:
-                with st.expander(rpath.name):
-                    st.markdown(content)
-            with col_dl:
-                st.download_button(
-                    label="Download",
-                    data=content,
-                    file_name=rpath.name,
-                    mime="text/markdown",
-                    key=f"dl_{rpath.name}",
-                )
 
 with tab_audit:
     _audit_html_path = _APP_DIR / "AUDIT_REPORT.html"

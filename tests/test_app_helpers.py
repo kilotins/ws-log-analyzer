@@ -54,7 +54,6 @@ sys.modules["streamlit.components.v1"] = mock.MagicMock()
 from app import (                       # noqa: E402
     _load_json_file,
     _save_json_file,
-    get_report_history,
     _load_keychain,
     _save_keychain,
     _load_provider_history,
@@ -84,7 +83,6 @@ from app import (                       # noqa: E402
     _lookup_cache,
     _store_cache,
     CACHE_FILE,
-    REPORTS_DIR,
 )
 
 
@@ -144,43 +142,6 @@ class TestSaveJsonFile:
         _save_json_file(f, {"data": 1})
         files = list(tmp_path.iterdir())
         assert len(files) == 1 and files[0].name == "clean.json"
-
-
-# ── get_report_history ────────────────────────────────────────────────────
-
-class TestGetReportHistory:
-    def test_returns_recent_reports(self, tmp_path, monkeypatch):
-        # Point REPORTS_DIR to tmp_path
-        import app as app_mod
-        monkeypatch.setattr(app_mod, "REPORTS_DIR", tmp_path)
-
-        # Create some dummy reports with distinct mtimes
-        import time
-        for i in range(5):
-            p = tmp_path / f"report_{i:03d}.md"
-            p.write_text(f"report {i}")
-            # Ensure distinct mtimes
-            import os
-            os.utime(p, (1000 + i, 1000 + i))
-
-        result = get_report_history(limit=3)
-        assert len(result) == 3
-        # Newest first (highest mtime)
-        assert result[0].name == "report_004.md"
-
-    def test_empty_directory(self, tmp_path, monkeypatch):
-        import app as app_mod
-        monkeypatch.setattr(app_mod, "REPORTS_DIR", tmp_path)
-        assert get_report_history() == []
-
-    def test_ignores_non_report_files(self, tmp_path, monkeypatch):
-        import app as app_mod
-        monkeypatch.setattr(app_mod, "REPORTS_DIR", tmp_path)
-        (tmp_path / "notes.md").write_text("not a report")
-        (tmp_path / "report_001.md").write_text("a report")
-        result = get_report_history()
-        assert len(result) == 1
-        assert result[0].name == "report_001.md"
 
 
 # ── _highlight_line ───────────────────────────────────────────────────────
