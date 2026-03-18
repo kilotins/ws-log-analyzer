@@ -712,8 +712,9 @@ def _delete_history_entry(hist_key: str, provider_key: str, idx: int) -> None:
     if 0 <= idx < len(history):
         history.pop(idx)
         st.session_state[hist_key] = history
-        _hf = Path.home() / ".logpilot" / _HIST_DISK_FILES.get(provider_key, "")
-        if _hf.name:
+        _cache_dir = Path(__file__).parent / "cache"
+        _hf = _cache_dir / _HIST_DISK_FILES.get(provider_key, "")
+        if _hf.name and _hf.parent.exists():
             try:
                 _hf.write_text(json.dumps(history), encoding="utf-8")
             except OSError:
