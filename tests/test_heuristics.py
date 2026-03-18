@@ -559,20 +559,20 @@ def test_incident_timeline_window_filters():
 # ── _load_heuristics_from_yaml() ─────────────────────────────────────
 
 def test_load_heuristics_from_yaml_returns_list():
-    """When heuristics.yaml exists, returns a non-empty list."""
-    result = _load_heuristics_from_yaml()
-    if result is None:
-        pytest.skip("yaml not installed or heuristics.yaml missing")
-    assert isinstance(result, list)
-    assert len(result) > 0
+    """When heuristics_data.yaml exists, returns a non-empty heuristics list."""
+    heuristics, correlations, incident_groups = _load_heuristics_from_yaml()
+    if heuristics is None:
+        pytest.skip("yaml not installed or heuristics_data.yaml missing")
+    assert isinstance(heuristics, list)
+    assert len(heuristics) > 0
 
 
 def test_load_heuristics_from_yaml_entry_keys():
     """Each heuristic entry has required keys: match, cause, fixes."""
-    result = _load_heuristics_from_yaml()
-    if result is None:
-        pytest.skip("yaml not installed or heuristics.yaml missing")
-    for entry in result:
+    heuristics, _, _ = _load_heuristics_from_yaml()
+    if heuristics is None:
+        pytest.skip("yaml not installed or heuristics_data.yaml missing")
+    for entry in heuristics:
         assert "match" in entry, f"entry missing 'match': {entry}"
         assert "cause" in entry, f"entry missing 'cause': {entry}"
         assert "fixes" in entry, f"entry missing 'fixes': {entry}"
@@ -580,13 +580,39 @@ def test_load_heuristics_from_yaml_entry_keys():
 
 def test_load_heuristics_from_yaml_patterns_are_compiled():
     """The 'match' field should be a compiled regex pattern."""
-    result = _load_heuristics_from_yaml()
-    if result is None:
-        pytest.skip("yaml not installed or heuristics.yaml missing")
-    for entry in result:
+    heuristics, _, _ = _load_heuristics_from_yaml()
+    if heuristics is None:
+        pytest.skip("yaml not installed or heuristics_data.yaml missing")
+    for entry in heuristics:
         assert isinstance(entry["match"], _re.Pattern), (
             f"'match' is not a compiled regex: {type(entry['match'])}"
         )
+
+
+def test_load_heuristics_from_yaml_correlations():
+    """Correlations should be loaded from YAML."""
+    _, correlations, _ = _load_heuristics_from_yaml()
+    if correlations is None:
+        pytest.skip("yaml not installed or heuristics_data.yaml missing")
+    assert isinstance(correlations, list)
+    assert len(correlations) > 0
+    for c in correlations:
+        assert "id" in c
+        assert "requires" in c
+        assert "cause" in c
+
+
+def test_load_heuristics_from_yaml_incident_groups():
+    """Incident groups should be loaded from YAML."""
+    _, _, incident_groups = _load_heuristics_from_yaml()
+    if incident_groups is None:
+        pytest.skip("yaml not installed or heuristics_data.yaml missing")
+    assert isinstance(incident_groups, list)
+    assert len(incident_groups) > 0
+    for ig in incident_groups:
+        assert "id" in ig
+        assert "trigger_ids" in ig
+        assert isinstance(ig["trigger_ids"], set)
 
 
 # --- 17.3 likely_causes pre-filtering regression test ---

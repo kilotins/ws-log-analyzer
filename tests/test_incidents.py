@@ -2,21 +2,22 @@
 import re
 import pytest
 from logpilot.heuristics import (
-    group_into_incidents, _INCIDENT_GROUPS, _HEURISTICS, _HEURISTICS_INLINE,
-    _merge_heuristics, likely_causes, _CORRELATIONS,
+    group_into_incidents, _INCIDENT_GROUPS, _HEURISTICS,
+    _load_all_data, likely_causes, _CORRELATIONS,
 )
+from logpilot._heuristics_fallback import _HEURISTICS_INLINE
 from logpilot.event import LogEvent
 
 
 class TestMergeHeuristics:
     """Tests for YAML/inline heuristic merge logic."""
 
-    def test_merge_preserves_all_inline_when_no_yaml(self):
-        # _merge_heuristics falls back to inline when YAML not available
-        result = _merge_heuristics()
+    def test_load_all_data_preserves_all_inline(self):
+        # _load_all_data falls back to inline when YAML not available
+        heuristics, _, _ = _load_all_data()
         # Should have at least all inline heuristics
         inline_ids = {h["id"] for h in _HEURISTICS_INLINE}
-        result_ids = {h["id"] for h in result}
+        result_ids = {h["id"] for h in heuristics}
         assert inline_ids <= result_ids
 
     def test_heuristics_has_all_inline_ids(self):
