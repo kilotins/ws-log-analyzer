@@ -199,6 +199,16 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
             md.append(triage)
             md.append("")
 
+        incident = ai_content.get("incident")
+        if incident:
+            md.append("")
+            md.append("## Incident Diagnosis")
+            model = ai_content.get("incident_model", "AI")
+            md.append(f"*Model: {model}*")
+            md.append("")
+            md.append(incident)
+            md.append("")
+
         ask_ai = ai_content.get("ask_ai")
         if ask_ai:
             md.append("## AI Analysis")
@@ -343,6 +353,15 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
             model = ai_content.get("triage_model", "AI")
             h.append(f'<p class="subtitle">Model: {escape(model)}</p>')
             h.append(f'<div class="ai-answer">{escape(triage)}</div>')
+            h.append('</div>')
+
+        incident = ai_content.get("incident")
+        if incident:
+            h.append('<h2>Incident Diagnosis</h2>')
+            h.append('<div class="ai-section">')
+            model = ai_content.get("incident_model", "AI")
+            h.append(f'<p class="subtitle">Model: {escape(model)}</p>')
+            h.append(f'<div class="ai-answer">{escape(incident)}</div>')
             h.append('</div>')
 
         ask_ai = ai_content.get("ask_ai")
@@ -627,6 +646,15 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
             body(f"Model: {model}")
             pdf.ln(2)
             body(triage)
+
+        incident = ai_content.get("incident")
+        if incident:
+            pdf.add_page()
+            heading("Incident Diagnosis")
+            model = ai_content.get("incident_model", "AI")
+            body(f"Model: {model}")
+            pdf.ln(2)
+            body(incident)
 
         ask_ai = ai_content.get("ask_ai")
         if ask_ai:
