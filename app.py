@@ -1131,7 +1131,13 @@ with tab_audit:
 
     if _audit_html_path.is_file():
         _audit_html = _audit_html_path.read_text(encoding="utf-8")
-        _audit_styled = _audit_html.replace("</head>", _AUDIT_LIGHT_CSS + "</head>")
+        # Inject theme override: force dark or light based on app setting
+        _app_theme = st.session_state.get("_app_theme", "system")
+        if _app_theme == "dark":
+            _theme_css = '<style>html { --bg-primary:#0d1117; --bg-secondary:#010409; --bg-tertiary:#161b22; --bg-hover:#1c2128; --border:#21262d; --border-strong:#30363d; --text-primary:#e6edf3; --text-secondary:#c9d1d9; --text-muted:#8b949e; --text-heading:#f0f6fc; --accent:#a78bfa; --green:#6fdd8b; --green-bg:#1b4332; --yellow:#f0c74f; --yellow-bg:#3d2e00; --red:#f47067; --red-bg:#4a1e1e; --blue:#58a6ff; --blue-bg:#1a2332; --purple:#bc8cff; --purple-bg:#272145; } nav { display:none !important; } .layout { display:block !important; } main { max-width:800px !important; margin:0 !important; padding:20px !important; }</style>'
+        else:
+            _theme_css = _AUDIT_LIGHT_CSS
+        _audit_styled = _audit_html.replace("</head>", _theme_css + "</head>")
         st.components.v1.html(_audit_styled, height=2000, scrolling=True)
     else:
         st.info("No audit report yet. Select a model above and click **Run Audit** to analyze the codebase.")
