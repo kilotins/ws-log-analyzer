@@ -527,17 +527,49 @@ with st.sidebar:
             _stcfg.set_option("theme.textColor", "#0F172A")
         st.rerun()
 
-    # Inject CSS to fix sidebar contrast in dark mode
+    # Inject CSS to force dark sidebar when dark theme is active
     if _current_theme == "dark":
         st.markdown("""<style>
-            [data-testid="stSidebar"] * { color: #e6edf3 !important; }
-            [data-testid="stSidebar"] .stExpander summary span { color: #e6edf3 !important; }
-            [data-testid="stSidebar"] label { color: #c9d1d9 !important; }
-            [data-testid="stSidebar"] .stSelectbox label { color: #c9d1d9 !important; }
-            [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #c9d1d9 !important; }
+            /* Sidebar background */
+            [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
+                background-color: #161b22 !important;
+            }
+            /* All sidebar text */
+            [data-testid="stSidebar"] * {
+                color: #c9d1d9 !important;
+            }
+            /* Headings */
             [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
-            [data-testid="stSidebar"] h3 { color: #f0f6fc !important; }
+            [data-testid="stSidebar"] h3, [data-testid="stSidebar"] header {
+                color: #f0f6fc !important;
+            }
+            /* Links */
             [data-testid="stSidebar"] a { color: #a78bfa !important; }
+            /* Expander borders */
+            [data-testid="stSidebar"] details {
+                border-color: #30363d !important;
+            }
+            /* Inputs & selects */
+            [data-testid="stSidebar"] input, [data-testid="stSidebar"] select,
+            [data-testid="stSidebar"] [data-baseweb="select"] {
+                background-color: #0d1117 !important;
+                color: #e6edf3 !important;
+                border-color: #30363d !important;
+            }
+            /* Buttons */
+            [data-testid="stSidebar"] button {
+                background-color: #21262d !important;
+                color: #c9d1d9 !important;
+                border-color: #30363d !important;
+            }
+            /* Dividers */
+            [data-testid="stSidebar"] hr {
+                border-color: #30363d !important;
+            }
+            /* Toggle track */
+            [data-testid="stSidebar"] [data-testid="stToggle"] span {
+                color: #c9d1d9 !important;
+            }
         </style>""", unsafe_allow_html=True)
 
     st.markdown("---")
