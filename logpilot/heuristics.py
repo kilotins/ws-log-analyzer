@@ -1303,8 +1303,8 @@ def likely_causes(events: list[LogEvent]) -> list[dict[str, Any]]:
         h_keywords.append(_heuristic_keywords(h))
 
     candidates: set[int] = {idx for idx, kws in enumerate(h_keywords) if not kws}
-    for e in events:
-        text_lower = (e.text or "").lower()
+    texts_lower = [(e.text or "").lower() for e in events]
+    for text_lower in texts_lower:
         for idx, kws in enumerate(h_keywords):
             if idx in candidates:
                 continue
@@ -1320,9 +1320,21 @@ def likely_causes(events: list[LogEvent]) -> list[dict[str, Any]]:
     matched_ids: set[str] = set()
     for idx in candidates:
         h = _HEURISTICS[idx]
-        count = sum(1 for e in events if h["match"].search(e.text or ""))  # type: ignore[union-attr,misc]
+        count = 0
+        sev = 0
+        match_re = h["match"]
+        for e in events:
+            if match_re.search(e.text or ""):  # type: ignore[union-attr,misc]
+                count += 1
+                if count <= 1000:  # Cap severity sampling
+                    level = e.level or ""
+                    if level in ("FATAL", "SEVERE"):
+                        sev += 10
+                    elif level == "ERROR":
+                        sev += 3
+                    else:
+                        sev += 1
         if count:
-            sev = _severity_score(events, h["match"])
             results.append({
                 "id": h["id"],
                 "title": h["title"],

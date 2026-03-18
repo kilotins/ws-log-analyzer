@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from logpilot import (
-    parse_file, render_markdown_report, render_json_report,
+    parse_file, parse_file_cached, render_markdown_report, render_json_report,
     precompute_analysis, incident_timeline,
 )
 from logpilot.formats import list_formats
@@ -759,6 +759,9 @@ with tab_analyze:
         timeline_window = st.number_input("Timeline window (sec)", min_value=5, max_value=300, value=30,
                                           help="Seconds before/after the first error to include in the incident timeline.")
 
+    sample_info_events = st.checkbox("Sample INFO events (large files)", value=False,
+                                     help="Keep 1 in 10 INFO events to reduce memory. Recommended for access logs >100K lines.")
+
     if uploaded_files and st.button("Analyze", type="primary"):
         total_size = sum(f.size for f in uploaded_files)
         _over_limit = total_size > MAX_UPLOAD_MB * 1024 * 1024
@@ -810,7 +813,10 @@ with tab_analyze:
                                text=f"Parsing {uploaded.name} ({_file_idx + 1}/{_n_files})...")
             try:
                 _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
-                events = parse_file(upload_path, max_lines=max_lines, format_name=_fmt_name)
+                events = parse_file_cached(upload_path, content_hash=_hash,
+                                           cache_dir=UPLOADS_DIR / ".cache",
+                                           max_lines=max_lines, format_name=_fmt_name,
+                                           sample_info=10 if sample_info_events else 0)
                 # Add system label (filename stem without timestamp prefix)
                 _stem = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
                 for ev in events:
@@ -829,7 +835,9 @@ with tab_analyze:
         if not all_events:
             st.error("No log events found. Possible causes: files may be empty, contain no recognizable timestamps, or use an unsupported format.")
         else:
-            pa = precompute_analysis(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
+            def _analysis_progress(text: str, frac: float) -> None:
+                _progress.progress(frac, text=text)
+            pa = precompute_analysis(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes, progress_callback=_analysis_progress)
             s = pa["summary"]
             error_count = sum(1 for e in all_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
             file_summary = pa["file_summary"]

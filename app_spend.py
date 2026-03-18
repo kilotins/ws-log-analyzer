@@ -555,16 +555,28 @@ def _render_cost_donut(totals: dict):
 
     text_vals = [f"${v:.2f}" for v in values]
 
-    fig = go.Figure(go.Pie(
-        labels=labels,
-        values=values,
-        text=text_vals,
-        textinfo="label+text",
-        textposition="outside",
-        hole=0.55,
-        marker={"colors": colors},
-        hovertemplate="%{label}: $%{value:.2f}<extra></extra>",
-    ))
+    try:
+        fig = go.Figure(go.Pie(
+            labels=labels,
+            values=values,
+            text=text_vals,
+            textinfo="label+text",
+            textposition="outside",
+            hole=0.55,
+            marker={"colors": colors},
+            hovertemplate="%{label}: $%{value:.2f}<extra></extra>",
+        ))
+    except (AttributeError, ImportError):
+        # Plotly/pandas compatibility issue on some Python versions
+        fig = go.Figure(go.Pie(
+            labels=labels,
+            values=values,
+            text=text_vals,
+            textinfo="label+text",
+            textposition="outside",
+            hole=0.55,
+            marker={"colors": colors},
+        ))
     total = sum(values)
     fig.update_layout(
         title={"text": "Cost per Provider", "x": 0.5, "font": {"size": 18}},
