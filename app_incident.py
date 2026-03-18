@@ -419,6 +419,21 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         analyze_clicked = st.button("Analyze", type="primary", key="incident_analyze_btn",
                                     use_container_width=True)
 
+    # Cost preview — estimate based on analysis context size
+    _model_info = AI_MODELS.get(selected_model, {})
+    _est_input = estimate_tokens(
+        str(summary.get("total_events", 0))
+        + str(causes[:10]) + str(cascades[:5])
+    ) + 2000  # base system prompt + skills overhead
+    if st.session_state.get("_incident_answer"):
+        _est_input += min(2000, estimate_tokens(st.session_state["_incident_answer"]))
+    _est_output = 2000
+    _est_cost = estimate_cost(_model_info.get("model_id", ""), _est_input, _est_output)
+    if _est_cost > 0:
+        st.caption(f"Est. ~{_est_input:,} input tokens · ~${_est_cost:.4f} with {selected_model}")
+    else:
+        st.caption(f"Est. ~{_est_input:,} input tokens · free (local model)")
+
     # Previous AI answer for conversation context
     previous_answer = st.session_state.get("_incident_answer")
     cached_answer = previous_answer
