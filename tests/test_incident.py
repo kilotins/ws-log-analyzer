@@ -393,7 +393,7 @@ class TestIncidentCacheKey:
 
     def test_returns_hex_string(self, sample_summary):
         key = incident_cache_key("test", sample_summary)
-        assert len(key) == 32  # MD5 hex
+        assert len(key) == 64  # SHA-256 hex
         assert all(c in "0123456789abcdef" for c in key)
 
 

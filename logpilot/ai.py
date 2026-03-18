@@ -840,7 +840,7 @@ def incident_cache_key(description: str, summary: dict, model_id: str = "") -> s
     raw = f"{description}|{summary.get('total_events', 0)}|{model_id}"
     if summary.get("exceptions"):
         raw += "|" + str(summary["exceptions"][:3])
-    return hashlib.md5(raw.encode()).hexdigest()
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "gemini-2.5-flash",

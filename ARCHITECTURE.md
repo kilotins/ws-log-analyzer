@@ -3,24 +3,25 @@
 ```
 ws-log-analyzer/
 ├── logpilot/             # Core engine package (parser, analysis, reports, ai, cli)
-│   ├── event.py          # LogEvent dataclass (63 lines)
-│   ├── parser.py         # Parsing, redaction, format auto-detection
-│   ├── analysis.py       # Summarize, timeline, cross-system cascades (~525 lines)
-│   ├── heuristics.py     # Heuristics, correlations, incidents (~1366 lines)
+│   ├── event.py          # LogEvent dataclass (66 lines)
+│   ├── parser.py         # Parsing, redaction, format auto-detection (~412 lines)
+│   ├── analysis.py       # Summarize, timeline, cross-system cascades (~859 lines)
+│   ├── heuristics.py     # Heuristics, correlations, incidents (~1449 lines)
 │   ├── splunk.py         # Splunk query generation, hung thread drilldown (~141 lines)
-│   ├── reports.py        # Markdown, JSON, HTML, PDF renderers
-│   ├── ai.py             # AI prompt building, skill selection, caching
-│   ├── cli.py            # CLI entry point (argparse)
+│   ├── reports.py        # Markdown, JSON, HTML, PDF renderers (~1054 lines)
+│   ├── ai.py             # AI prompt building, skill selection, caching (~866 lines)
+│   ├── cli.py            # CLI entry point (argparse) (~164 lines)
 │   └── formats/          # 8 format plugins (WAS, JSON, nginx, Log4j, Python, syslog, Enonic, CRI-O)
-├── app.py                # Streamlit GUI entry point (~1084 lines)
-├── app_ai.py             # AI provider orchestration (~885 lines)
-├── app_render.py         # Report rendering UI (~805 lines)
-├── app_audit.py          # Audit report generation (~411 lines)
-├── app_spend.py          # Cost tracking & analytics (~870 lines)
+├── app.py                # Streamlit GUI entry point (~1204 lines)
+├── app_ai.py             # AI provider orchestration (~932 lines)
+├── app_render.py         # Report rendering UI (~967 lines)
+├── app_incident.py       # Unified AI assistant (~763 lines)
+├── app_audit.py          # Audit report generation (~423 lines)
+├── app_spend.py          # Cost tracking & analytics (~882 lines)
 ├── app_realtime.py       # Realtime log monitoring (~162 lines)
-├── app_constants.py      # Shared constants (31 lines)
-├── report_renderer.py    # Markdown → HTML conversion (~819 lines)
-├── tests/                # 1217 tests across 27 test files
+├── app_constants.py      # Shared constants (35 lines)
+├── report_renderer.py    # Markdown → HTML conversion (~854 lines)
+├── tests/                # 1340 tests across 28 test files
 │   ├── test_parsing.py          # Core parsing, redaction, timestamps
 │   ├── test_heuristics.py       # Heuristics, correlations, burst detection
 │   ├── test_incidents.py        # Incident grouping, new heuristics, merge logic
@@ -183,7 +184,7 @@ Split across three modules:
 
 ## `app.py` — Streamlit GUI (split across modules)
 
-UI layer that imports from `logpilot`. No analysis logic lives here. The GUI is split into modules: `app.py` (~1084 lines, entry point and layout), `app_ai.py` (~885 lines, AI provider orchestration), `app_render.py` (~805 lines, report rendering), `app_audit.py` (~411 lines, audit report generation), `app_spend.py` (~870 lines, cost tracking and analytics), `app_realtime.py` (~162 lines, realtime log monitoring), and `app_constants.py` (31 lines, shared constants).
+UI layer that imports from `logpilot`. No analysis logic lives here. The GUI is split into modules: `app.py` (~1204 lines, entry point and layout), `app_ai.py` (~932 lines, AI provider orchestration), `app_render.py` (~967 lines, report rendering), `app_incident.py` (~763 lines, unified AI assistant), `app_audit.py` (~423 lines, audit report generation), `app_spend.py` (~882 lines, cost tracking and analytics), `app_realtime.py` (~162 lines, realtime log monitoring), and `app_constants.py` (35 lines, shared constants).
 
 ### Key GUI Features
 
@@ -247,11 +248,10 @@ Claude query history stored in `cache/claude_history.json` (max 50 entries), loa
 
 ### Tabs
 
-- **Analyze** — file upload, settings, collapsible report sections, incident timeline, Ask AI (Claude + Gemini + OpenAI + local)
-- **Realtime** — tail a log file and see new events as they arrive
-- **History** — browse/download previous reports, clear history
-- **Audit** — AI-driven code quality audit with versioned reports and delta comparison
-- **Spend** — cost tracking, CSV import, per-provider analytics
+- **Analyze** — file upload, settings, collapsible report sections, incident timeline, unified AI assistant (Claude + Gemini + OpenAI + local)
+- **Realtime Console** — tail a log file and see new events as they arrive
+- **Audit Report** — AI-driven code quality audit with versioned reports and delta comparison
+- **Cloud Spend** — cost tracking, CSV import, per-provider analytics
 - **Debug** (debug mode only) — subtabs: Application Log (level-filtered log viewer) + Probe (AI request/response payloads for Ask AI, Triage, and Audit)
 
 ### Directories
