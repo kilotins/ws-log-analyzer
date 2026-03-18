@@ -399,6 +399,37 @@ class TestIncidentCacheKey:
 
 # --- Multimodal message building tests ---
 
+class TestExtractMissingLogs:
+    @pytest.fixture(autouse=True)
+    def import_func(self):
+        from app_incident import _extract_missing_logs
+        self.extract = _extract_missing_logs
+
+    def test_extracts_h2_section(self):
+        answer = "Root cause is X.\n\n## Missing Logs\n- server.log from 07:00-08:00\n- nginx error.log"
+        main, missing = self.extract(answer)
+        assert "Root cause is X" in main
+        assert "server.log" in missing
+        assert "nginx error.log" in missing
+
+    def test_extracts_bold_section(self):
+        answer = "Analysis here.\n\n**Missing Logs**: None — current logs are sufficient."
+        main, missing = self.extract(answer)
+        assert "Analysis here" in main
+        assert "None" in missing
+
+    def test_no_section(self):
+        answer = "Just a regular analysis with no missing logs section."
+        main, missing = self.extract(answer)
+        assert main == answer
+        assert missing == ""
+
+    def test_numbered_heading(self):
+        answer = "Stuff.\n\n## 9. **Missing Logs**\n- XP boot log from March 11"
+        main, missing = self.extract(answer)
+        assert "XP boot log" in missing
+
+
 class TestBuildMultimodalMessages:
     """Test the multimodal message builder from app_incident."""
 
