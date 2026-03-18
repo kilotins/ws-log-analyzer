@@ -182,20 +182,47 @@ def estimate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float
 
 
 def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
-                    timeout: float = 120.0, max_tokens: int = 2048) -> tuple[str, dict]:
-    """Make the actual Claude API call with optional streaming. Returns (answer, usage_dict)."""
+                    timeout: float = 120.0, max_tokens: int = 2048,
+                    images: list[dict] | None = None) -> tuple[str, dict]:
+    """Make the actual Claude API call with optional streaming and optional image content.
+
+    Args:
+        images: Optional list of image dicts with keys ``media_type`` (e.g. ``"image/png"``)
+                and ``data`` (base64-encoded string). When provided, the user message is
+                sent as a multimodal content block (image + text) instead of plain text.
+
+    Returns (answer, usage_dict).
+    """
     try:
         from anthropic import Anthropic
     except ImportError:
         raise ImportError("The `anthropic` package is not installed. Install with: `pip install anthropic`")
     client = Anthropic(api_key=api_key, timeout=timeout)
 
+    # Build user message content — multimodal when images are provided
+    if images:
+        user_content: list[dict] = []
+        for img in images:
+            user_content.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": img["media_type"], "data": img["data"]},
+            })
+        user_content.append({"type": "text", "text": prompt.get("user", "")})
+    else:
+        user_content = prompt.get("user", "")
+
+    # Support pre-built messages list (multimodal path from _build_multimodal_messages)
+    if "messages" in prompt:
+        messages = prompt["messages"]
+    else:
+        messages = [{"role": "user", "content": user_content}]
+
     if stream_placeholder:
         chunks = []
         with client.messages.stream(
             model=model_id, max_tokens=max_tokens,
             system=[{"type": "text", "text": prompt["system"], "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": prompt["user"]}],
+            messages=messages,
         ) as stream:
             for text in stream.text_stream:
                 chunks.append(text)
@@ -208,7 +235,7 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
     message = client.messages.create(
         model=model_id, max_tokens=max_tokens,
         system=[{"type": "text", "text": prompt["system"], "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": prompt["user"]}],
+        messages=messages,
     )
     if not message.content:
         return (None, {})
@@ -229,9 +256,81 @@ def _extract_claude_usage(usage) -> dict:
 
 
 def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
-                    timeout: float = 120.0, max_tokens: int = 2048) -> tuple[str, dict]:
-    """Make the actual Gemini API call. Returns (answer, usage_dict). Streaming not supported."""
-    answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id, timeout=timeout)
+                    timeout: float = 120.0, max_tokens: int = 2048,
+                    images: list[dict] | None = None) -> tuple[str, dict]:
+    """Make the actual Gemini API call with optional image content.
+
+    Args:
+        images: Optional list of image dicts with keys ``media_type`` and ``data``
+                (base64-encoded string). When provided, the call uses the native
+                Gemini SDK directly to send inline image data instead of plain text.
+
+    Returns (answer, usage_dict). Streaming not supported.
+    """
+    import os
+    key = api_key or os.environ.get("GEMINI_API_KEY", "")
+
+    if images:
+        # Multimodal path — use native Gemini SDK with inline_data
+        if not key:
+            raise ValueError("GEMINI_API_KEY is not set.")
+        try:
+            import google.generativeai as genai
+            import base64 as _base64
+        except ImportError:
+            raise ImportError(
+                "The `google-generativeai` package is not installed. "
+                "Install with: pip install google-generativeai"
+            )
+        genai.configure(api_key=key)
+        gen_model = genai.GenerativeModel(model_id, system_instruction=prompt["system"])
+        content_parts: list = []
+        for img in images:
+            content_parts.append({
+                "inline_data": {
+                    "mime_type": img["media_type"],
+                    "data": _base64.b64decode(img["data"]),
+                }
+            })
+        content_parts.append(prompt.get("user", ""))
+        response = gen_model.generate_content(content_parts, request_options={"timeout": timeout})
+        answer = response.text if response else None
+    elif "messages" in prompt:
+        # Pre-built multimodal messages dict (from _build_multimodal_messages)
+        if not key:
+            raise ValueError("GEMINI_API_KEY is not set.")
+        try:
+            import google.generativeai as genai
+            import base64 as _base64
+        except ImportError:
+            raise ImportError(
+                "The `google-generativeai` package is not installed. "
+                "Install with: pip install google-generativeai"
+            )
+        genai.configure(api_key=key)
+        gen_model = genai.GenerativeModel(model_id, system_instruction=prompt["system"])
+        msg = prompt["messages"][0]
+        parts = msg.get("parts", [])
+        content_parts = []
+        for p in parts:
+            if "inline_data" in p:
+                content_parts.append({
+                    "inline_data": {
+                        "mime_type": p["inline_data"]["mime_type"],
+                        "data": _base64.b64decode(p["inline_data"]["data"]),
+                    }
+                })
+            elif "text" in p:
+                content_parts.append(p["text"])
+        response = gen_model.generate_content(
+            content_parts or prompt.get("user", ""),
+            request_options={"timeout": timeout},
+        )
+        answer = response.text if response else None
+    else:
+        # Text-only path — use the logpilot wrapper
+        answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id, timeout=timeout)
+
     # Gemini SDK doesn't return token usage, so estimate from prompt/response text
     usage = {}
     if answer:
@@ -244,23 +343,58 @@ def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
 
 def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
-                    timeout: float = 120.0, max_tokens: int = 2048) -> tuple[str, dict]:
-    """Make the actual OpenAI API call with optional streaming. Returns (answer, usage_dict)."""
+                    timeout: float = 120.0, max_tokens: int = 2048,
+                    images: list[dict] | None = None,
+                    base_url: str | None = None) -> tuple[str, dict]:
+    """Make the actual OpenAI API call with optional streaming and optional image content.
+
+    Args:
+        images: Optional list of image dicts with keys ``media_type`` and ``data``
+                (base64-encoded string). When provided, the user message is sent as
+                a multimodal content block (image_url + text) instead of plain text.
+        base_url: Optional base URL for OpenAI-compatible local servers.
+
+    Returns (answer, usage_dict).
+    """
     try:
         from openai import OpenAI
     except ImportError:
         raise ImportError("The `openai` package is not installed. Install with: `pip install openai`")
-    client = OpenAI(api_key=api_key, timeout=timeout)
+
+    client_kwargs: dict = {"api_key": api_key or "not-needed", "timeout": timeout}
+    if base_url:
+        client_kwargs["base_url"] = base_url
+    client = OpenAI(**client_kwargs)
+
+    # Build messages list — multimodal when images or pre-built messages are present
+    if "messages" in prompt:
+        # Pre-built multimodal messages dict (from _build_multimodal_messages)
+        messages_list = [{"role": "system", "content": prompt["system"]}]
+        messages_list.extend(prompt["messages"])
+    elif images:
+        user_content: list[dict] = []
+        for img in images:
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{img['media_type']};base64,{img['data']}"},
+            })
+        user_content.append({"type": "text", "text": prompt.get("user", "")})
+        messages_list = [
+            {"role": "system", "content": prompt["system"]},
+            {"role": "user", "content": user_content},
+        ]
+    else:
+        messages_list = [
+            {"role": "system", "content": prompt["system"]},
+            {"role": "user", "content": prompt.get("user", "")},
+        ]
 
     if stream_placeholder:
         chunks = []
         response = client.chat.completions.create(
             model=model_id, max_completion_tokens=max_tokens, stream=True,
             stream_options={"include_usage": True},
-            messages=[
-                {"role": "system", "content": prompt["system"]},
-                {"role": "user", "content": prompt["user"]},
-            ],
+            messages=messages_list,
         )
         usage = {}
         for chunk in response:
@@ -274,10 +408,7 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     response = client.chat.completions.create(
         model=model_id, max_completion_tokens=max_tokens,
-        messages=[
-            {"role": "system", "content": prompt["system"]},
-            {"role": "user", "content": prompt["user"]},
-        ],
+        messages=messages_list,
     )
     answer = response.choices[0].message.content
     usage = {}
@@ -288,17 +419,19 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
 def call_local_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
                     timeout: float = 120.0, max_tokens: int = 2048,
-                    base_url: str | None = None) -> tuple[str, dict]:
+                    base_url: str | None = None,
+                    images: list[dict] | None = None) -> tuple[str, dict]:
     """Call a local/inhouse OpenAI-compatible API (LM Studio, Ollama, vLLM, etc.).
 
     Uses the OpenAI SDK with a custom base_url. The api_key can be any
     non-empty string for servers that don't require authentication.
-    """
-    try:
-        from openai import OpenAI
-    except ImportError:
-        raise ImportError("The `openai` package is not installed. Install with: `pip install openai`")
 
+    Args:
+        images: Optional list of image dicts with keys ``media_type`` and ``data``
+                (base64-encoded string). When provided, the user message is sent as
+                a multimodal content block (image_url + text).
+    """
+    # Delegate to call_openai_api with base_url — it handles multimodal + local correctly
     if not base_url:
         # Read from session state or env
         try:
@@ -320,40 +453,16 @@ def call_local_api(api_key: str, model_id: str, prompt: dict, stream_placeholder
             import os
             model_id = os.environ.get("LOGPILOT_AI_MODEL", "default")
 
-    # Local servers often don't need a real API key
-    client = OpenAI(api_key=api_key or "not-needed", base_url=base_url, timeout=timeout)
-
-    if stream_placeholder:
-        chunks = []
-        response = client.chat.completions.create(
-            model=model_id, max_completion_tokens=max_tokens, stream=True,
-            messages=[
-                {"role": "system", "content": prompt["system"]},
-                {"role": "user", "content": prompt["user"]},
-            ],
-        )
-        usage = {}
-        for chunk in response:
-            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                chunks.append(chunk.choices[0].delta.content)
-                stream_placeholder.markdown("".join(chunks) + "\n\n*Streaming...*")
-            if hasattr(chunk, "usage") and chunk.usage:
-                usage = {"input": chunk.usage.prompt_tokens, "output": chunk.usage.completion_tokens}
-        answer = "".join(chunks)
-        return (answer or None, usage)
-
-    response = client.chat.completions.create(
-        model=model_id, max_completion_tokens=max_tokens,
-        messages=[
-            {"role": "system", "content": prompt["system"]},
-            {"role": "user", "content": prompt["user"]},
-        ],
+    return call_openai_api(
+        api_key=api_key or "not-needed",
+        model_id=model_id,
+        prompt=prompt,
+        stream_placeholder=stream_placeholder,
+        timeout=timeout,
+        max_tokens=max_tokens,
+        images=images,
+        base_url=base_url,
     )
-    answer = response.choices[0].message.content
-    usage = {}
-    if response.usage:
-        usage = {"input": response.usage.prompt_tokens, "output": response.usage.completion_tokens}
-    return (answer or None, usage)
 
 
 _API_CALLERS = {

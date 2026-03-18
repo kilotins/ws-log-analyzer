@@ -224,19 +224,52 @@ def _save_provider_history(path: Path, history: list[dict]) -> None:
     _save_json_file(path, history[-MAX_HISTORY_ENTRIES:])
 
 
-_PROVIDER_HISTORY_FILES = {
-    "claude": HISTORY_FILE,
-    "gemini": GEMINI_HISTORY_FILE,
-    "openai": OPENAI_HISTORY_FILE,
-    "local": LOCAL_HISTORY_FILE,
-}
+class ProviderHistoryManager:
+    """Centralises per-provider history file mapping, loading, and saving."""
 
-# Initialize the save_history callbacks in PROVIDER_CONFIG now that history files are set up
+    def __init__(self, cache_dir: Path, provider_files: dict[str, Path]) -> None:
+        self._files: dict[str, Path] = dict(provider_files)
+
+    # Public API ---------------------------------------------------------
+
+    def load(self, provider: str) -> list[dict]:
+        """Load and return history for *provider* from disk."""
+        return _load_provider_history(self._files[provider])
+
+    def save(self, provider: str, history: list[dict]) -> None:
+        """Persist *history* for *provider* to disk."""
+        _save_provider_history(self._files[provider], history)
+
+    def clear_all(self) -> None:
+        """Clear history files for every provider (write empty list)."""
+        for provider in self._files:
+            self.save(provider, [])
+
+    # Expose the file mapping so callers can still inspect paths ----------
+
+    @property
+    def files(self) -> dict[str, Path]:
+        return self._files
+
+
+# Module-level manager instance
+provider_history_manager = ProviderHistoryManager(
+    CACHE_DIR,
+    {
+        "claude": HISTORY_FILE,
+        "gemini": GEMINI_HISTORY_FILE,
+        "openai": OPENAI_HISTORY_FILE,
+        "local": LOCAL_HISTORY_FILE,
+    },
+)
+
+# Backward-compat module-level dict — app_incident.py and tests use this directly
+_PROVIDER_HISTORY_FILES = provider_history_manager.files
+
+# Initialize the save_history callbacks in PROVIDER_CONFIG now that manager is ready
 init_provider_config({
-    "claude": lambda hist: _save_provider_history(HISTORY_FILE, hist),
-    "gemini": lambda hist: _save_provider_history(GEMINI_HISTORY_FILE, hist),
-    "openai": lambda hist: _save_provider_history(OPENAI_HISTORY_FILE, hist),
-    "local": lambda hist: _save_provider_history(LOCAL_HISTORY_FILE, hist),
+    provider: (lambda p: lambda hist: provider_history_manager.save(p, hist))(provider)
+    for provider in _PROVIDER_HISTORY_FILES
 })
 
 
@@ -337,10 +370,10 @@ if st.session_state.get("debug_payload"):
                     ", ".join(sorted(_unexpected_keys)))
 
 # Load persisted history on fresh session
-for _prov, _hpath in _PROVIDER_HISTORY_FILES.items():
-    _hkey = f"{_prov}_history" if _prov != "claude" else "claude_history"
+for _prov in _PROVIDER_HISTORY_FILES:
+    _hkey = f"{_prov}_history"
     if not st.session_state[_hkey]:
-        st.session_state[_hkey] = _load_provider_history(_hpath)
+        st.session_state[_hkey] = provider_history_manager.load(_prov)
 
 # Load persisted local AI settings on fresh session
 if "_local_settings_loaded" not in st.session_state:
@@ -1007,7 +1040,7 @@ with tab_analyze:
             st.session_state.claude_history = []
             st.session_state.selected_code = None
             st.session_state.selected_action = None
-            _save_provider_history(HISTORY_FILE, [])
+            provider_history_manager.save("claude", [])
 
     a = st.session_state.analysis
     if a is not None:

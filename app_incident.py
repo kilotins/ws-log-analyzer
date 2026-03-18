@@ -30,6 +30,7 @@ from app_ai import (
     AI_MODELS, PROVIDER_CONFIG, _API_CALLERS,
     _log_probe, detect_dominant_format, estimate_cost,
     _render_claude_response, clear_all_ai_history,
+    call_claude_api, call_gemini_api, call_openai_api, call_local_api,
 )
 from app_constants import AI_RATE_LIMIT_SECONDS, MAX_SCREENSHOT_MB
 
@@ -92,137 +93,6 @@ def _build_multimodal_messages(
         }
     # Fallback: text-only
     return {"system": system_prompt, "user": user_text}
-
-
-def _call_multimodal_claude(api_key: str, model_id: str, msg_dict: dict,
-                            stream_placeholder=None, max_tokens: int = 4096) -> tuple[str | None, dict]:
-    """Call Claude API with multimodal content blocks."""
-    try:
-        from anthropic import Anthropic
-    except ImportError:
-        raise ImportError("The `anthropic` package is not installed. Install with: `pip install anthropic`")
-
-    client = Anthropic(api_key=api_key, timeout=120.0)
-    messages = msg_dict.get("messages", [{"role": "user", "content": msg_dict.get("user", "")}])
-
-    if stream_placeholder:
-        chunks: list[str] = []
-        with client.messages.stream(
-            model=model_id, max_tokens=max_tokens,
-            system=[{"type": "text", "text": msg_dict["system"], "cache_control": {"type": "ephemeral"}}],
-            messages=messages,
-        ) as stream:
-            for text in stream.text_stream:
-                chunks.append(text)
-                stream_placeholder.markdown("".join(chunks) + "\n\n*Streaming...*")
-            final = stream.get_final_message()
-        answer = "".join(chunks)
-        usage = _extract_usage(final.usage if final else None, "claude")
-        return (answer or None, usage)
-
-    message = client.messages.create(
-        model=model_id, max_tokens=max_tokens,
-        system=[{"type": "text", "text": msg_dict["system"], "cache_control": {"type": "ephemeral"}}],
-        messages=messages,
-    )
-    if not message.content:
-        return (None, {})
-    usage = _extract_usage(message.usage, "claude")
-    return (message.content[0].text, usage)
-
-
-def _call_multimodal_openai(api_key: str, model_id: str, msg_dict: dict,
-                            stream_placeholder=None, max_tokens: int = 4096,
-                            base_url: str | None = None) -> tuple[str | None, dict]:
-    """Call OpenAI (or local) API with multimodal content blocks."""
-    try:
-        from openai import OpenAI
-    except ImportError:
-        raise ImportError("The `openai` package is not installed. Install with: `pip install openai`")
-
-    kwargs = {"api_key": api_key or "not-needed", "timeout": 120.0}
-    if base_url:
-        kwargs["base_url"] = base_url
-    client = OpenAI(**kwargs)
-
-    messages_list = [{"role": "system", "content": msg_dict["system"]}]
-    if "messages" in msg_dict:
-        messages_list.extend(msg_dict["messages"])
-    else:
-        messages_list.append({"role": "user", "content": msg_dict.get("user", "")})
-
-    if stream_placeholder:
-        chunks: list[str] = []
-        response = client.chat.completions.create(
-            model=model_id, max_completion_tokens=max_tokens, stream=True,
-            stream_options={"include_usage": True},
-            messages=messages_list,
-        )
-        usage = {}
-        for chunk in response:
-            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                chunks.append(chunk.choices[0].delta.content)
-                stream_placeholder.markdown("".join(chunks) + "\n\n*Streaming...*")
-            if chunk.usage:
-                usage = {"input": chunk.usage.prompt_tokens, "output": chunk.usage.completion_tokens}
-        answer = "".join(chunks)
-        return (answer or None, usage)
-
-    response = client.chat.completions.create(
-        model=model_id, max_completion_tokens=max_tokens,
-        messages=messages_list,
-    )
-    answer = response.choices[0].message.content
-    usage = {}
-    if response.usage:
-        usage = {"input": response.usage.prompt_tokens, "output": response.usage.completion_tokens}
-    return (answer or None, usage)
-
-
-def _call_multimodal_gemini(api_key: str, model_id: str, msg_dict: dict,
-                            stream_placeholder=None, max_tokens: int = 4096) -> tuple[str | None, dict]:
-    """Call Gemini API with multimodal content (inline_data)."""
-    import os
-    key = api_key or os.environ.get("GEMINI_API_KEY", "")
-    if not key:
-        raise ValueError("GEMINI_API_KEY is not set.")
-    try:
-        import google.generativeai as genai
-    except ImportError:
-        raise ImportError("The `google-generativeai` package is not installed. Install with: pip install google-generativeai")
-
-    genai.configure(api_key=key)
-    gen_model = genai.GenerativeModel(model_id, system_instruction=msg_dict["system"])
-
-    # Build content parts
-    if "messages" in msg_dict and msg_dict["messages"]:
-        msg = msg_dict["messages"][0]
-        parts = msg.get("parts", [])
-        if parts:
-            # Convert inline_data to genai format
-            content_parts = []
-            for p in parts:
-                if "inline_data" in p:
-                    content_parts.append({
-                        "inline_data": {
-                            "mime_type": p["inline_data"]["mime_type"],
-                            "data": base64.b64decode(p["inline_data"]["data"]),
-                        }
-                    })
-                elif "text" in p:
-                    content_parts.append(p["text"])
-            response = gen_model.generate_content(content_parts, request_options={"timeout": 120})
-        else:
-            response = gen_model.generate_content(msg_dict.get("user", ""), request_options={"timeout": 120})
-    else:
-        response = gen_model.generate_content(msg_dict.get("user", ""), request_options={"timeout": 120})
-
-    answer = response.text if response else None
-    usage = {}
-    if answer:
-        input_text = msg_dict.get("system", "") + msg_dict.get("user", "")
-        usage = {"input": estimate_tokens(input_text), "output": estimate_tokens(answer)}
-    return (answer, usage)
 
 
 def _extract_usage(usage_obj, provider: str) -> dict:
@@ -306,22 +176,25 @@ def _run_ai_call(provider, model_id, selected_model, msg_dict, image_bytes,
         try:
             stream_placeholder = st.empty()
             if provider == "claude":
-                answer, usage = _call_multimodal_claude(
+                answer, usage = call_claude_api(
                     st.session_state.get("api_key", ""), model_id, msg_dict,
-                    stream_placeholder=stream_placeholder)
+                    stream_placeholder=stream_placeholder, max_tokens=4096)
             elif provider == "gemini":
-                answer, usage = _call_multimodal_gemini(
-                    st.session_state.get("gemini_api_key", ""), model_id, msg_dict)
-            elif provider in ("openai", "local"):
-                base_url = None
-                api_key_field = "openai_api_key" if provider == "openai" else "local_ai_api_key"
-                api_key = st.session_state.get(api_key_field, "") or "not-needed"
-                if provider == "local":
-                    base_url = getattr(st.session_state, "local_ai_endpoint", "") or None
-                    model_id = getattr(st.session_state, "local_ai_model", "") or model_id
-                answer, usage = _call_multimodal_openai(
-                    api_key, model_id, msg_dict, stream_placeholder=stream_placeholder,
-                    base_url=base_url)
+                answer, usage = call_gemini_api(
+                    st.session_state.get("gemini_api_key", ""), model_id, msg_dict,
+                    max_tokens=4096)
+            elif provider == "openai":
+                answer, usage = call_openai_api(
+                    st.session_state.get("openai_api_key", "") or "not-needed",
+                    model_id, msg_dict, stream_placeholder=stream_placeholder,
+                    max_tokens=4096)
+            elif provider == "local":
+                _local_key = st.session_state.get("local_ai_api_key", "") or "not-needed"
+                _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
+                _local_model = getattr(st.session_state, "local_ai_model", "") or model_id
+                answer, usage = call_local_api(
+                    _local_key, _local_model, msg_dict, stream_placeholder=stream_placeholder,
+                    max_tokens=4096, base_url=_local_url)
             else:
                 st.error(f"Unsupported provider: {provider}")
                 return None
