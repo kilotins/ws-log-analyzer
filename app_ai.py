@@ -692,11 +692,11 @@ def render_ai_history():
 
 
 def clear_all_ai_history():
-    """Clear all AI history, current answers, triage, and incident from session and disk."""
+    """Clear all AI history, current answers, and incident from session and disk."""
     # Clear session state
     for key in ("claude_answer", "gemini_answer", "openai_answer", "local_answer",
                 "claude_query_label", "gemini_query_label", "openai_query_label", "local_query_label",
-                "_triage_answer", "_triage_model", "_incident_answer", "_incident_model"):
+                "_incident_answer", "_incident_model"):
         if key in st.session_state:
             st.session_state[key] = None
     for key in ("claude_history", "gemini_history", "openai_history", "local_history"):

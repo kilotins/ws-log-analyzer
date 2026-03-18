@@ -363,11 +363,11 @@ class TestRenderHtmlReport:
         assert "<!DOCTYPE html>" in html
         assert "LogPilot" in html
 
-    def test_html_includes_ai_triage(self):
+    def test_html_includes_ai_incident(self):
         events = [make_event(level="ERROR", text="fail")]
-        ai = {"triage": "Root cause is DB connection timeout", "triage_model": "Claude"}
+        ai = {"incident": "Root cause is DB connection timeout", "incident_model": "Claude"}
         html = render_html_report(events, ai_content=ai)
-        assert "AI Cross-System Triage" in html
+        assert "AI Analysis" in html
         assert "Root cause is DB connection timeout" in html
         assert "Claude" in html
 
@@ -383,7 +383,6 @@ class TestRenderHtmlReport:
     def test_html_no_ai_when_none(self):
         events = [make_event(level="ERROR", text="fail")]
         html = render_html_report(events, ai_content=None)
-        assert "AI Cross-System Triage" not in html
         assert "AI Analysis" not in html
 
 

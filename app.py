@@ -278,8 +278,6 @@ _STATE_DEFAULTS = {
     "_samples_show_all": False,
     "_samples_total": 0,
     "_context_event_idx": -1,
-    "_triage_answer": None,
-    "_triage_model": None,
     "_audit_delta": None,
     "_local_prev_preset": None,
     "_local_saved_preset": None,
