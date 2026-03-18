@@ -759,7 +759,11 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     # --- 9. Export ---
     st.markdown("---")
     events_for_export = display_events if _is_filtered else a["events"]
-    _pa = precompute_analysis(events_for_export, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
+    # Reuse cached analysis when not filtered to avoid expensive recomputation on every rerun
+    if not _is_filtered:
+        _pa = a  # Already computed at analysis time
+    else:
+        _pa = precompute_analysis(events_for_export, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
 
     if _is_filtered:
         st.info(f"Export contains filtered data ({len(display_events)} of {a['total_events']} events).")
@@ -779,18 +783,25 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         )
     with _dl_col:
         _base = a["report_name"]
-        from logpilot import render_markdown_report, render_json_report
-        if _export_fmt == "Markdown":
-            _md = render_markdown_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
-            _data, _fname, _mime = _md, _base, "text/markdown"
-        elif _export_fmt == "JSON":
-            _json = render_json_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
-            _data, _fname, _mime = _json, _base.replace(".md", ".json"), "application/json"
-        elif _export_fmt == "HTML":
-            _html = render_html_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
-            _data, _fname, _mime = _html, _base.replace(".md", ".html"), "text/html"
-        else:  # PDF
-            _data, _fname, _mime = render_pdf_report(events_for_export, _analysis=_pa, ai_content=_ai_content), _base.replace(".md", ".pdf"), "application/pdf"
+        # Generate export data lazily — only when format/AI content changes
+        _export_key = f"_export_{_export_fmt}_{len(events_for_export)}_{hash(str(_ai_content))}"
+        _cached_export = st.session_state.get(_export_key)
+        if _cached_export:
+            _data, _fname, _mime = _cached_export
+        else:
+            from logpilot import render_markdown_report, render_json_report
+            if _export_fmt == "Markdown":
+                _md = render_markdown_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
+                _data, _fname, _mime = _md, _base, "text/markdown"
+            elif _export_fmt == "JSON":
+                _json = render_json_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
+                _data, _fname, _mime = _json, _base.replace(".md", ".json"), "application/json"
+            elif _export_fmt == "HTML":
+                _html = render_html_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
+                _data, _fname, _mime = _html, _base.replace(".md", ".html"), "text/html"
+            else:  # PDF
+                _data, _fname, _mime = render_pdf_report(events_for_export, _analysis=_pa, ai_content=_ai_content), _base.replace(".md", ".pdf"), "application/pdf"
+            st.session_state[_export_key] = (_data, _fname, _mime)
         st.download_button(
             label=f"Export Log Analysis Report ({_export_fmt}){_ai_note}",
             data=_data,
