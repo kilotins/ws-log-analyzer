@@ -560,6 +560,16 @@ def build_incident_system_prompt(detected_format: str = "", skill_content: str =
         context_line = f"The current logs are from: {role or 'unknown format'}." if role else ""
 
     # Response structure adapts to multi-source vs single-source
+    missing_logs_instruction = "\n".join([
+        "",
+        "IMPORTANT: Always end your response with a **Missing Logs** section.",
+        "List specific log files that would help complete the diagnosis. For each, specify:",
+        "- Log type/name (e.g. 'Enonic XP server.log', 'nginx error.log')",
+        "- Approximate time range needed (e.g. '2026-03-18 07:00-08:00')",
+        "- What you expect to find in it",
+        "If no additional logs are needed, write '**Missing Logs**: None — current logs are sufficient.'",
+    ])
+
     if is_multi_source:
         structure = "\n".join([
             "Structure your response as:",
@@ -571,7 +581,8 @@ def build_incident_system_prompt(detected_format: str = "", skill_content: str =
             "6. **Affected Systems** — which systems were impacted and how",
             "7. **Suggested Actions** — prioritized steps to resolve the issue",
             "8. **Confidence Assessment** — what you're sure about vs. uncertain",
-        ])
+            "9. **Missing Logs** — what additional logs would help (see instruction below)",
+        ]) + missing_logs_instruction
     else:
         structure = "\n".join([
             "Structure your response as:",
@@ -580,7 +591,8 @@ def build_incident_system_prompt(detected_format: str = "", skill_content: str =
             "3. **Root Cause Analysis** — most likely explanation combining all evidence",
             "4. **Suggested Actions** — prioritized steps to resolve the issue",
             "5. **Confidence Assessment** — what you're sure about vs. uncertain",
-        ])
+            "6. **Missing Logs** — what additional logs would help (see instruction below)",
+        ]) + missing_logs_instruction
 
     base = "\n".join([
         role_line,

@@ -237,6 +237,28 @@ def _extract_usage(usage_obj, provider: str) -> dict:
     return usage_obj if isinstance(usage_obj, dict) else {}
 
 
+def _extract_missing_logs(answer: str) -> tuple[str, str]:
+    """Extract the 'Missing Logs' section from an AI response.
+
+    Returns (main_answer, missing_logs_text). If no section found,
+    missing_logs_text is empty.
+    """
+    import re
+    # Match ## Missing Logs, **Missing Logs**, or numbered heading like "9. **Missing Logs**"
+    pattern = r'(?:^#{1,3}\s*(?:\d+\.\s*)?(?:\*\*)?Missing Logs(?:\*\*)?.*$)'
+    match = re.search(pattern, answer, re.MULTILINE | re.IGNORECASE)
+    if not match:
+        # Try simpler pattern: **Missing Logs**:
+        pattern2 = r'(?:^\*\*Missing Logs\*\*\s*[:—-]?\s*)'
+        match = re.search(pattern2, answer, re.MULTILINE | re.IGNORECASE)
+    if match:
+        split_pos = match.start()
+        main = answer[:split_pos].rstrip()
+        missing = answer[match.end():].strip()
+        return main, missing
+    return answer, ""
+
+
 def _save_to_history(query: str, answer: str, provider: str, model_label: str):
     """Save an AI response to the per-provider history."""
     cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["claude"])
@@ -491,8 +513,12 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     # --- Render current result ---
     if cached_answer:
         model_label = st.session_state.get("_incident_model", "AI")
+        # Extract "Missing Logs" section and render it prominently
+        main_answer, missing_logs = _extract_missing_logs(cached_answer)
         st.markdown(f"**AI Analysis** ({model_label}):")
-        _render_claude_response(cached_answer)
+        _render_claude_response(main_answer)
+        if missing_logs and "none" not in missing_logs.lower()[:50]:
+            st.info(f"**Missing Logs — upload these for a more complete diagnosis:**\n\n{missing_logs}", icon="📋")
 
     # --- Render history ---
     _render_ai_history()
