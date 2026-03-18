@@ -10,7 +10,7 @@ from .event import LogEvent
 
 _log = logging.getLogger(__name__)
 
-ERROR_LEVELS = ("ERROR", "SEVERE", "FATAL")
+from .event import ERROR_LEVELS  # noqa: F401
 
 
 def _load_heuristics_from_yaml() -> tuple[list[dict] | None, list[dict] | None, list[dict] | None]:

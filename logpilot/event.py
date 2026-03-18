@@ -7,6 +7,8 @@ from typing import Any
 
 _dc_kwargs: dict = {"slots": True} if sys.version_info >= (3, 10) else {}
 
+ERROR_LEVELS = ("ERROR", "SEVERE", "FATAL")
+
 
 @dataclass(**_dc_kwargs)
 class LogEvent:

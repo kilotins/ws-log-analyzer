@@ -11,7 +11,7 @@ from .event import LogEvent
 
 _log = logging.getLogger(__name__)
 
-ERROR_LEVELS = ("ERROR", "SEVERE", "FATAL")
+from .event import ERROR_LEVELS  # noqa: F401 — re-exported for backwards compat
 
 # Re-export public API from submodules for backwards compatibility
 from .heuristics import group_into_incidents, likely_causes  # noqa: F401
