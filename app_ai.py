@@ -708,7 +708,7 @@ def clear_all_ai_history():
 
     # Clear disk files
     from pathlib import Path
-    cache_dir = Path.home() / ".logpilot"
+    cache_dir = Path(__file__).parent / "cache"
     for fname in ("ai_responses.json", "claude_history.json", "gemini_history.json",
                   "openai_history.json", "local_history.json"):
         p = cache_dir / fname
