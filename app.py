@@ -883,12 +883,18 @@ with tab_analyze:
     a = st.session_state.analysis
     if a is not None:
         # Re-compute analysis if display parameters changed
-        _params_changed = (
+        _heavy_changed = (
             a.get("top_n") != top_n
-            or a.get("samples_n") != samples_n
             or a.get("hist_minutes") != hist_minutes
         )
-        if _params_changed and a.get("events"):
+        _samples_only = (not _heavy_changed and a.get("samples_n") != samples_n)
+        if _samples_only and a.get("events"):
+            # Only samples_n changed — cheap resample without full recomputation
+            from logpilot.analysis import pick_samples
+            _events = a["events"]
+            a["samples"] = pick_samples(_events, samples_n)
+            a["samples_n"] = samples_n
+        elif _heavy_changed and a.get("events"):
             _events = a["events"]
             _pa = precompute_analysis(_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
             _report_md = render_markdown_report(_events, _analysis=_pa)
