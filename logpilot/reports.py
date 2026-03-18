@@ -535,9 +535,8 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
         pdf.ln(2)
 
     body(f"Files: {len(file_summary)}  |  Parsed events: {s['total_events']}")
-    pdf.ln(2)
 
-    # Problem onset
+    # Problem onset (using body() since bold_line is defined later)
     itl = a.get("incident_timeline")
     if itl:
         trigger = itl.get("trigger_event", {})
@@ -548,7 +547,9 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
                 _t_parts.append(trigger["code"])
             if trigger.get("exception"):
                 _t_parts.append(trigger["exception"].rsplit(".", 1)[-1])
-            bold_line(f"Problem onset: {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')} -- {' '.join(_t_parts)}")
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.cell(0, 6, _latin1_safe(f"Problem onset: {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')} -- {' '.join(_t_parts)}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 9)
     pdf.ln(4)
 
     if len(file_summary) > 1:
