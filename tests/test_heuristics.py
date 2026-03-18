@@ -648,3 +648,82 @@ def test_likely_causes_prefiltering_no_false_negatives():
         "config-error", "context-root-conflict",
     }
     assert expected_base_ids.issubset(ids)
+
+
+# --- M42: incident_fingerprint and match_similar_incidents ---
+
+from logpilot.heuristics import incident_fingerprint, match_similar_incidents
+
+
+def test_incident_fingerprint_stable():
+    causes = [
+        {"id": "ssl-trust", "title": "SSL / TLS Trust Failure", "count": 3},
+        {"id": "oom-gc", "title": "OutOfMemory / GC Pressure", "count": 2},
+    ]
+    fp1 = incident_fingerprint(causes)
+    fp2 = incident_fingerprint(causes)
+    assert fp1 == fp2
+    assert len(fp1) == 16  # 16-char hex
+
+
+def test_incident_fingerprint_order_independent():
+    causes_a = [
+        {"id": "ssl-trust", "title": "SSL / TLS Trust Failure"},
+        {"id": "oom-gc", "title": "OutOfMemory / GC Pressure"},
+    ]
+    causes_b = [
+        {"id": "oom-gc", "title": "OutOfMemory / GC Pressure"},
+        {"id": "ssl-trust", "title": "SSL / TLS Trust Failure"},
+    ]
+    assert incident_fingerprint(causes_a) == incident_fingerprint(causes_b)
+
+
+def test_incident_fingerprint_different_causes():
+    fp1 = incident_fingerprint([{"id": "ssl-trust", "title": "SSL Failure"}])
+    fp2 = incident_fingerprint([{"id": "db-pool", "title": "DB Pool Exhaustion"}])
+    assert fp1 != fp2
+
+
+def test_match_similar_incidents_exact():
+    current = [{"id": "ssl-trust", "title": "SSL"}, {"id": "oom-gc", "title": "OOM error"}]
+    history = [{
+        "fingerprint": "abc",
+        "ids": ["ssl-trust", "oom-gc"],
+        "timestamp": "2026-03-18 10:00:00",
+    }]
+    matches = match_similar_incidents(current, history)
+    assert len(matches) == 1
+    assert matches[0]["similarity"] == 1.0
+
+
+def test_match_similar_incidents_partial():
+    current = [{"id": "ssl-trust"}, {"id": "oom-gc"}, {"id": "db-pool"}]
+    history = [{
+        "fingerprint": "abc",
+        "ids": ["ssl-trust", "oom-gc"],
+        "timestamp": "2026-03-18 10:00:00",
+    }]
+    matches = match_similar_incidents(current, history)
+    # Jaccard: 2 / 3 = 0.67 >= 0.5
+    assert len(matches) == 1
+    assert matches[0]["similarity"] >= 0.5
+
+
+def test_match_similar_incidents_below_threshold():
+    current = [{"id": "ssl-trust"}, {"id": "oom-gc"}, {"id": "db-pool"}, {"id": "hung-threads"}]
+    history = [{
+        "fingerprint": "abc",
+        "ids": ["deploy-fail"],
+        "timestamp": "2026-03-18 10:00:00",
+    }]
+    matches = match_similar_incidents(current, history)
+    assert len(matches) == 0
+
+
+def test_match_similar_incidents_empty_history():
+    current = [{"id": "ssl-trust"}]
+    assert match_similar_incidents(current, []) == []
+
+
+def test_match_similar_incidents_empty_causes():
+    assert match_similar_incidents([], [{"ids": ["x"], "timestamp": "t"}]) == []

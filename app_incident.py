@@ -441,8 +441,38 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         analyze_clicked = st.button("Analyze", type="primary", key="incident_analyze_btn",
                                     use_container_width=True)
 
+    # --- Noise filter controls ---
+    from logpilot.analysis import compute_noise_scores, filter_noise
+    noise_threshold = st.slider(
+        "Noise filter",
+        min_value=0.0, max_value=1.0, value=0.5, step=0.1,
+        key="noise_threshold_slider",
+        help="Filter repetitive/low-value events before AI analysis. Higher = more aggressive filtering.",
+    )
+    # Compute noise scores for preview
+    _noise_scores = compute_noise_scores(events)
+    if _noise_scores and noise_threshold > 0:
+        _noisy_codes = [code for code, score in _noise_scores.items() if score >= noise_threshold]
+        _filtered_preview = filter_noise(events, threshold=noise_threshold, noise_scores=_noise_scores)
+        _n_filtered = len(events) - len(_filtered_preview)
+        if _n_filtered > 0:
+            st.caption(f"Filtering {_n_filtered} noisy events ({len(_noisy_codes)} codes)")
+        show_noise_details = st.checkbox("Show noise details", key="show_noise_details")
+        if show_noise_details and _noisy_codes:
+            _detail_rows = []
+            for code, score in sorted(_noise_scores.items(), key=lambda x: -x[1]):
+                if score > 0:
+                    _detail_rows.append({"Code": code, "Noise Score": f"{score:.2f}",
+                                        "Status": "Filtered" if score >= noise_threshold else "Kept"})
+            if _detail_rows:
+                st.table(_detail_rows[:20])
+
     # Cost preview — build a realistic estimate of prompt size
     _model_info = AI_MODELS.get(selected_model, {})
+    _est_events_for_cost = (
+        filter_noise(events, threshold=noise_threshold, noise_scores=_noise_scores)
+        if _noise_scores and noise_threshold > 0 else events
+    )
     _est_parts = [
         str(summary),                                    # log summary
         str(causes[:10]),                                # heuristic findings
@@ -456,7 +486,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     # Per-source summaries for multi-source
     if is_multi_source:
         from logpilot import per_source_summary as _pss
-        _est_parts.append(str(_pss(events)))
+        _est_parts.append(str(_pss(_est_events_for_cost)))
     # Previous answer context
     _prev = st.session_state.get("_incident_answer")
     if _prev:
@@ -510,8 +540,34 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                     st.session_state._incident_model = selected_model
                     cached_answer = answer
 
+                    # Save incident fingerprint to session history
+                    from logpilot.heuristics import incident_fingerprint, match_similar_incidents
+                    if causes:
+                        fp = incident_fingerprint(causes)
+                        cause_ids = [c.get("id", c.get("title", "")) for c in causes]
+                        history = st.session_state.get("incident_history", [])
+                        history.append({
+                            "fingerprint": fp,
+                            "ids": cause_ids,
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        })
+                        st.session_state.incident_history = history
+
     # --- Render current result ---
     if cached_answer:
+        # Check for similar past incidents
+        if causes:
+            from logpilot.heuristics import incident_fingerprint, match_similar_incidents
+            history = st.session_state.get("incident_history", [])
+            if len(history) >= 2:  # Need at least 2 entries (including current)
+                # Exclude the latest entry (which is the current analysis)
+                past_history = history[:-1]
+                similar = match_similar_incidents(causes, past_history)
+                if similar:
+                    best = similar[0]
+                    pct = int(best["similarity"] * 100)
+                    st.info(f"Similar to analysis from {best['timestamp']} ({pct}% match)", icon="🔍")
+
         model_label = st.session_state.get("_incident_model", "AI")
         # Extract "Missing Logs" section and render it prominently
         main_answer, missing_logs = _extract_missing_logs(cached_answer)
@@ -570,14 +626,34 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
         source_formats=source_formats,
     )
 
+    # --- Noise filtering ---
+    noise_threshold = st.session_state.get("noise_threshold_slider", 0.5)
+    if noise_threshold > 0:
+        from logpilot.analysis import compute_noise_scores, filter_noise
+        _noise_scores = compute_noise_scores(events)
+        events_for_ai = filter_noise(events, threshold=noise_threshold, noise_scores=_noise_scores)
+    else:
+        events_for_ai = events
+
     # --- Error events ---
-    error_events = [e for e in events if e.get("level") in ERROR_LEVELS][:5]
+    error_events = [e for e in events_for_ai if e.get("level") in ERROR_LEVELS][:5]
+
+    # Use filtered events for AI prompt if noise filter is active
+    if noise_threshold > 0 and len(events_for_ai) < len(events):
+        from logpilot.analysis import summarize as _summarize_fn
+        ai_summary = _summarize_fn(events_for_ai, 10)
+    else:
+        ai_summary = summary
+
+    # --- What Changed? ---
+    from logpilot.analysis import compare_periods
+    what_changed = compare_periods(events_for_ai)
 
     # --- User prompt ---
     query_label = description or "Cross-system analysis of all uploaded logs"
     user_text = build_incident_user_prompt(
         description=query_label,
-        summary=summary,
+        summary=ai_summary,
         causes=causes,
         itl=itl,
         error_events=error_events,
@@ -587,6 +663,7 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
         per_source=sources_data,
         per_source_errors=source_errors,
         previous_answer=previous_answer,
+        what_changed=what_changed,
     )
 
     # --- Cache ---

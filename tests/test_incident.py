@@ -475,3 +475,51 @@ class TestBuildMultimodalMessages:
     def test_unknown_provider_fallback(self):
         result = self.build("sys", "text", b"\x89PNG", "image/png", "unknown")
         assert result == {"system": "sys", "user": "text"}
+
+
+# --- M42: what_changed in prompt ---
+
+class TestWhatChangedInPrompt:
+    def test_what_changed_included(self, sample_summary):
+        deltas = [{
+            "date": "2026-03-18",
+            "prev_date": "2026-03-17",
+            "new_codes": ["CWWKZ0001E"],
+            "gone_codes": ["SRVE0255E"],
+            "new_exceptions": ["NullPointerException"],
+            "gone_exceptions": [],
+            "volume_changes": [{"code": "DCSV8050I", "prev_count": 10, "curr_count": 25,
+                                "ratio": 2.5, "direction": "up"}],
+            "new_tags": ["OOM/GC"],
+            "gone_tags": [],
+        }]
+        prompt = build_incident_user_prompt(
+            description="What changed?",
+            summary=sample_summary,
+            what_changed=deltas,
+        )
+        assert "<what_changed>" in prompt
+        assert "</what_changed>" in prompt
+        assert "2026-03-17" in prompt
+        assert "2026-03-18" in prompt
+        assert "CWWKZ0001E" in prompt
+        assert "SRVE0255E" in prompt
+        assert "NullPointerException" in prompt
+        assert "DCSV8050I" in prompt
+        assert "OOM/GC" in prompt
+
+    def test_what_changed_none(self, sample_summary):
+        prompt = build_incident_user_prompt(
+            description="Test",
+            summary=sample_summary,
+            what_changed=None,
+        )
+        assert "<what_changed>" not in prompt
+
+    def test_what_changed_empty(self, sample_summary):
+        prompt = build_incident_user_prompt(
+            description="Test",
+            summary=sample_summary,
+            what_changed=[],
+        )
+        assert "<what_changed>" not in prompt

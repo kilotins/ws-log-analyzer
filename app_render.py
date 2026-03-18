@@ -689,6 +689,42 @@ def render_event_filters(events):
     return None
 
 
+def render_what_changed(deltas: list[dict]):
+    """Render day-by-day pattern change deltas."""
+    if not deltas:
+        st.caption("No significant changes detected between days.")
+        return
+
+    for delta in deltas:
+        st.markdown(f"**{delta['prev_date']} → {delta['date']}**")
+
+        items = []
+        if delta["new_codes"]:
+            items.append(("🔴 New codes", ", ".join(delta["new_codes"])))
+        if delta["gone_codes"]:
+            items.append(("🟢 Resolved codes", ", ".join(delta["gone_codes"])))
+        if delta["new_exceptions"]:
+            items.append(("🔴 New exceptions", ", ".join(delta["new_exceptions"])))
+        if delta["gone_exceptions"]:
+            items.append(("🟢 Resolved exceptions", ", ".join(delta["gone_exceptions"])))
+        if delta["new_tags"]:
+            items.append(("🔴 New signal tags", ", ".join(delta["new_tags"])))
+        if delta["gone_tags"]:
+            items.append(("🟢 Resolved signal tags", ", ".join(delta["gone_tags"])))
+
+        for label, value in items:
+            st.markdown(f"- {label}: `{value}`")
+
+        if delta["volume_changes"]:
+            for vc in delta["volume_changes"]:
+                icon = "📈" if vc["direction"] == "up" else "📉"
+                st.markdown(f"- {icon} **{vc['code']}**: {vc['prev_count']} → {vc['curr_count']} ({vc['ratio']}x)")
+
+        if not items and not delta.get("volume_changes"):
+            st.caption("No significant changes")
+        st.markdown("---")
+
+
 def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     """Render all report sections from persisted analysis dict.
 
@@ -743,6 +779,13 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     with st.expander("Summary", expanded=True):
         render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"],
                        events=display_events, incident_timeline=display_itl)
+
+    # --- 1b. What Changed? (day-by-day deltas, shown when logs span ≥2 days) ---
+    from logpilot.analysis import compare_periods
+    what_changed = compare_periods(display_events)
+    if what_changed:
+        with st.expander(f"What Changed? ({len(what_changed)} day transitions)"):
+            render_what_changed(what_changed)
 
     # --- 2. Incident AI Assistant (unified AI analysis) ---
     from app_incident import render_incident_assistant

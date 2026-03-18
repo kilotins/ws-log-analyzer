@@ -638,6 +638,7 @@ def build_incident_user_prompt(
     per_source: list[dict] | None = None,
     per_source_errors: dict | None = None,
     previous_answer: str | None = None,
+    what_changed: list[dict] | None = None,
 ) -> str:
     """Build the user prompt for incident diagnosis, combining symptom + log context.
 
@@ -650,6 +651,8 @@ def build_incident_user_prompt(
         per_source: List of per-source summary dicts from per_source_summary().
         per_source_errors: Dict mapping source label to list of error event dicts.
         previous_answer: The previous AI analysis response to build upon.
+        what_changed: Day-by-day pattern deltas from compare_periods() — highlights
+            new/disappeared codes, exceptions, and signal tags between consecutive days.
     """
     parts: list[str] = []
 
@@ -795,6 +798,31 @@ def build_incident_user_prompt(
                     )
                     parts.append(safe_text)
         parts.append("</per_source_errors>")
+        parts.append("")
+
+    # 9. What Changed? (day-by-day deltas)
+    if what_changed:
+        parts.append("<what_changed>")
+        parts.append("Day-by-day pattern changes detected in the logs:")
+        for delta in what_changed[:7]:  # Limit to 7 days
+            parts.append(f"\n{delta['prev_date']} → {delta['date']}:")
+            if delta["new_codes"]:
+                parts.append(f"  New codes: {', '.join(delta['new_codes'][:10])}")
+            if delta["gone_codes"]:
+                parts.append(f"  Disappeared codes: {', '.join(delta['gone_codes'][:10])}")
+            if delta["new_exceptions"]:
+                parts.append(f"  New exceptions: {', '.join(delta['new_exceptions'][:5])}")
+            if delta["gone_exceptions"]:
+                parts.append(f"  Disappeared exceptions: {', '.join(delta['gone_exceptions'][:5])}")
+            if delta["volume_changes"]:
+                for vc in delta["volume_changes"][:5]:
+                    direction = "↑" if vc["direction"] == "up" else "↓"
+                    parts.append(f"  {direction} {vc['code']}: {vc['prev_count']} → {vc['curr_count']} ({vc['ratio']}x)")
+            if delta["new_tags"]:
+                parts.append(f"  New signal tags: {', '.join(delta['new_tags'])}")
+            if delta["gone_tags"]:
+                parts.append(f"  Disappeared signal tags: {', '.join(delta['gone_tags'])}")
+        parts.append("</what_changed>")
         parts.append("")
 
     user_text = "\n".join(parts)
