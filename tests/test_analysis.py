@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 from logpilot.event import LogEvent
-from logpilot.analysis import compare_periods, compute_noise_scores, filter_noise
+from logpilot.analysis import compare_periods, compute_noise_scores, filter_noise, detect_cross_system_cascades
 
 
 def _ev(ts, code=None, exception=None, level="INFO", tags=None, text="some log line"):
@@ -21,6 +21,9 @@ def _ev(ts, code=None, exception=None, level="INFO", tags=None, text="some log l
 # --- compare_periods ---
 
 class TestComparePeriods:
+    def test_empty_list_returns_empty(self):
+        assert compare_periods([]) == []
+
     def test_single_day_returns_empty(self):
         events = [
             _ev("2026-03-18 10:00:00.000", code="SRVE0255E"),
@@ -204,3 +207,174 @@ class TestFilterNoise:
         # But events without ERROR level and with code "NOISY" with score 0.9 >= 0 → filtered
         # This is fine — threshold=0 is an edge case the UI won't hit (slider starts at 0.0)
         pass
+
+
+# --- detect_cross_system_cascades ---
+
+def _cascade_event(system_label, tags, ts_utc, level="ERROR", text="error"):
+    """Build a minimal LogEvent suitable for cascade detection."""
+    return LogEvent(
+        text=text,
+        level=level,
+        tags=tags,
+        system_label=system_label,
+        ts_utc=ts_utc,
+        ts=ts_utc,
+        file="test.log",
+    )
+
+
+class TestDetectCrossSystemCascades:
+    """One test per cascade pattern in _CASCADE_PATTERNS."""
+
+    # Pattern 1: Database failure -> HTTP errors (DB/Pool -> HTTP, max 30s)
+    def test_db_to_http(self):
+        events = [
+            _cascade_event("db-server", ["DB/Pool"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("web-server", ["HTTP"],   "2026-03-18T10:00:15+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "Database failure \u2192 HTTP errors" in labels
+
+    def test_db_to_http_outside_window_not_detected(self):
+        # 60s delay exceeds the 30s max for this pattern
+        events = [
+            _cascade_event("db-server", ["DB/Pool"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("web-server", ["HTTP"],   "2026-03-18T10:01:00+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "Database failure \u2192 HTTP errors" not in labels
+
+    # Pattern 2: SSL failure -> connection errors (SSL/TLS -> HTTP, max 10s)
+    def test_ssl_to_connection(self):
+        events = [
+            _cascade_event("lb-server",  ["SSL/TLS"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("web-server", ["HTTP"],    "2026-03-18T10:00:05+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "SSL failure \u2192 connection errors" in labels
+
+    def test_ssl_to_connection_outside_window_not_detected(self):
+        # 15s delay exceeds the 10s max for this pattern
+        events = [
+            _cascade_event("lb-server",  ["SSL/TLS"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("web-server", ["HTTP"],    "2026-03-18T10:00:15+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "SSL failure \u2192 connection errors" not in labels
+
+    # Pattern 3: Memory pressure -> thread starvation (OOM/GC -> HungThreads, max 60s)
+    def test_oom_to_hung_threads(self):
+        events = [
+            _cascade_event("app-server-1", ["OOM/GC"],      "2026-03-18T10:00:00+00:00"),
+            _cascade_event("app-server-2", ["HungThreads"], "2026-03-18T10:00:45+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "Memory pressure \u2192 thread starvation" in labels
+
+    def test_oom_to_hung_threads_same_source_ignored(self):
+        # Same system_label means it is not a cross-system cascade
+        events = [
+            _cascade_event("app-server", ["OOM/GC"],      "2026-03-18T10:00:00+00:00"),
+            _cascade_event("app-server", ["HungThreads"], "2026-03-18T10:00:10+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "Memory pressure \u2192 thread starvation" not in labels
+
+    # Pattern 4: Memory pressure -> HTTP errors (OOM/GC -> HTTP, max 60s)
+    def test_oom_to_http(self):
+        events = [
+            _cascade_event("app-server", ["OOM/GC"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("lb-server",  ["HTTP"],   "2026-03-18T10:00:50+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "Memory pressure \u2192 HTTP errors" in labels
+
+    # Pattern 5: Database exhaustion -> hung threads (DB/Pool -> HungThreads, max 30s)
+    def test_db_to_hung_threads(self):
+        events = [
+            _cascade_event("db-server",  ["DB/Pool"],     "2026-03-18T10:00:00+00:00"),
+            _cascade_event("app-server", ["HungThreads"], "2026-03-18T10:00:20+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "Database exhaustion \u2192 hung threads" in labels
+
+    # Pattern 6: Hung threads -> HTTP timeouts (HungThreads -> HTTP, max 15s)
+    def test_hung_threads_to_http(self):
+        events = [
+            _cascade_event("app-server", ["HungThreads"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("lb-server",  ["HTTP"],        "2026-03-18T10:00:10+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "Hung threads \u2192 HTTP timeouts" in labels
+
+    def test_hung_threads_to_http_outside_window_not_detected(self):
+        # 20s delay exceeds the 15s max for this pattern
+        events = [
+            _cascade_event("app-server", ["HungThreads"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("lb-server",  ["HTTP"],        "2026-03-18T10:00:20+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        labels = [c["pattern"] for c in cascades]
+        assert "Hung threads \u2192 HTTP timeouts" not in labels
+
+    # --- General behaviour ---
+
+    def test_fewer_than_two_error_events_returns_empty(self):
+        events = [
+            _cascade_event("app-server", ["DB/Pool"], "2026-03-18T10:00:00+00:00"),
+        ]
+        assert detect_cross_system_cascades(events) == []
+
+    def test_single_source_returns_empty(self):
+        # All events from the same system_label means no cross-system cascade is possible
+        events = [
+            _cascade_event("app-server", ["DB/Pool"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("app-server", ["HTTP"],    "2026-03-18T10:00:10+00:00"),
+        ]
+        assert detect_cross_system_cascades(events) == []
+
+    def test_cascade_result_fields(self):
+        events = [
+            _cascade_event("db-server",  ["DB/Pool"], "2026-03-18T10:00:00+00:00"),
+            _cascade_event("web-server", ["HTTP"],    "2026-03-18T10:00:15+00:00"),
+        ]
+        cascades = detect_cross_system_cascades(events)
+        assert len(cascades) >= 1
+        c = cascades[0]
+        assert "pattern" in c
+        assert "upstream_event" in c
+        assert "downstream_events" in c
+        assert "delay_seconds" in c
+        assert "confidence" in c
+        assert 0.0 < c["confidence"] <= 1.0
+
+    def test_confidence_increases_with_more_downstream_events(self):
+        # Multiple downstream events from the same source increase confidence
+        base_ts = "2026-03-18T10:00:00+00:00"
+        downstream_tss = [
+            "2026-03-18T10:00:05+00:00",
+            "2026-03-18T10:00:08+00:00",
+            "2026-03-18T10:00:11+00:00",
+            "2026-03-18T10:00:14+00:00",
+        ]
+        events = [_cascade_event("db-server", ["DB/Pool"], base_ts)]
+        for ts in downstream_tss:
+            events.append(_cascade_event("web-server", ["HTTP"], ts))
+
+        cascades = detect_cross_system_cascades(events)
+        db_http = next(
+            (c for c in cascades if c["pattern"] == "Database failure \u2192 HTTP errors"),
+            None,
+        )
+        assert db_http is not None
+        assert db_http["confidence"] > 0.5
