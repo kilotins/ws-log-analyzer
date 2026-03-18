@@ -43,6 +43,7 @@ from .analysis import (
 from .reports import (
     render_json_report, render_markdown_report,
     render_html_report, render_pdf_report,
+    REPORT_SECTIONS, ALL_SECTIONS,
 )
 
 # --- ai ---
