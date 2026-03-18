@@ -799,24 +799,28 @@ with tab_analyze:
                 log.info("upload Cleaned old upload: %s", old_file.name)
 
         # Parse each uploaded file
-        for uploaded in uploaded_files:
+        _n_files = len(uploaded_files)
+        _progress = st.progress(0, text=f"Parsing 0/{_n_files} files...")
+        for _file_idx, uploaded in enumerate(uploaded_files):
             safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
             _hash = _hl.md5(uploaded.getvalue()).hexdigest()[:10]
             upload_path = UPLOADS_DIR / f"{_hash}_{safe_name}"
 
-            with st.spinner(f"Parsing {uploaded.name}..."):
-                try:
-                    _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
-                    events = parse_file(upload_path, max_lines=max_lines, format_name=_fmt_name)
-                    # Add system label (filename stem without timestamp prefix)
-                    _stem = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
-                    for ev in events:
-                        ev["system_label"] = _stem
-                    all_events.extend(events)
-                    log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
-                except Exception as ex:
-                    log.error("analysis Failed to parse %s: %s", uploaded.name, ex)
-                    st.error(f"Failed to parse {uploaded.name}: {ex}")
+            _progress.progress((_file_idx) / _n_files,
+                               text=f"Parsing {uploaded.name} ({_file_idx + 1}/{_n_files})...")
+            try:
+                _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
+                events = parse_file(upload_path, max_lines=max_lines, format_name=_fmt_name)
+                # Add system label (filename stem without timestamp prefix)
+                _stem = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
+                for ev in events:
+                    ev["system_label"] = _stem
+                all_events.extend(events)
+                log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
+            except Exception as ex:
+                log.error("analysis Failed to parse %s: %s", uploaded.name, ex)
+                st.error(f"Failed to parse {uploaded.name}: {ex}")
+        _progress.progress(1.0, text=f"Parsed {_n_files} files ({len(all_events):,} events). Analyzing...")
 
         # Sort all events chronologically across files
         from logpilot.analysis import sort_events_chronologically
