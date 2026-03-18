@@ -720,7 +720,7 @@ tab_debug = _tabs[5] if len(_tabs) > 5 else None
 with tab_analyze:
     uploaded_files = st.file_uploader(
         "Upload log file(s)",
-        type=["log", "gz"],
+        type=None,  # Accept any file — parser handles format detection
         accept_multiple_files=True,
         help="Application log files (.log or .gz compressed)",
     )
