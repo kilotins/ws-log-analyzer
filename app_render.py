@@ -851,6 +851,18 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     st.subheader("Export Log Analysis Report")
     _ai_note = " + AI analysis" if _ai_content else ""
+
+    # Section selection
+    from logpilot import REPORT_SECTIONS, ALL_SECTIONS
+    with st.expander("Report sections", expanded=False):
+        _selected_sections: set[str] = set()
+        _cols = st.columns(3)
+        for i, (key, label) in enumerate(REPORT_SECTIONS.items()):
+            with _cols[i % 3]:
+                if st.checkbox(label, value=True, key=f"export_sec_{key}"):
+                    _selected_sections.add(key)
+    _sections = _selected_sections if _selected_sections != ALL_SECTIONS else None
+
     _fmt_col, _dl_col = st.columns([1, 2])
     with _fmt_col:
         _export_fmt = st.selectbox(
@@ -862,24 +874,25 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     with _dl_col:
         from datetime import datetime as _dt
         _base = f"report_{_dt.now().strftime('%Y-%m-%d_%H-%M-%S')}.md"
-        # Generate export data lazily — only when format/AI content changes
-        _export_key = f"_export_{_export_fmt}_{len(events_for_export)}_{hash(str(_ai_content))}"
+        # Generate export data lazily — only when format/AI/sections change
+        _sec_hash = hash(frozenset(_selected_sections)) if _sections else 0
+        _export_key = f"_export_{_export_fmt}_{len(events_for_export)}_{hash(str(_ai_content))}_{_sec_hash}"
         _cached_export = st.session_state.get(_export_key)
         if _cached_export:
             _data, _fname, _mime = _cached_export
         else:
             from logpilot import render_markdown_report, render_json_report
             if _export_fmt == "Markdown":
-                _md = render_markdown_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
+                _md = render_markdown_report(events_for_export, _analysis=_pa, ai_content=_ai_content, sections=_sections)
                 _data, _fname, _mime = _md, _base, "text/markdown"
             elif _export_fmt == "JSON":
-                _json = render_json_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
+                _json = render_json_report(events_for_export, _analysis=_pa, ai_content=_ai_content, sections=_sections)
                 _data, _fname, _mime = _json, _base.replace(".md", ".json"), "application/json"
             elif _export_fmt == "HTML":
-                _html = render_html_report(events_for_export, _analysis=_pa, ai_content=_ai_content)
+                _html = render_html_report(events_for_export, _analysis=_pa, ai_content=_ai_content, sections=_sections)
                 _data, _fname, _mime = _html, _base.replace(".md", ".html"), "text/html"
             else:  # PDF
-                _data, _fname, _mime = render_pdf_report(events_for_export, _analysis=_pa, ai_content=_ai_content), _base.replace(".md", ".pdf"), "application/pdf"
+                _data, _fname, _mime = render_pdf_report(events_for_export, _analysis=_pa, ai_content=_ai_content, sections=_sections), _base.replace(".md", ".pdf"), "application/pdf"
             st.session_state[_export_key] = (_data, _fname, _mime)
         st.download_button(
             label=f"Export Log Analysis Report ({_export_fmt}){_ai_note}",

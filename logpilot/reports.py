@@ -8,8 +8,31 @@ from .parser import MAX_EVENT_TEXT
 from .analysis import precompute_analysis, render_histogram, compact_histogram
 from .event import LogEvent
 
+# Section keys for toggling report content
+REPORT_SECTIONS = {
+    "onset": "Problem Onset",
+    "files": "Per-File Breakdown",
+    "levels": "Severity Distribution",
+    "codes": "Message Codes",
+    "exceptions": "Exceptions/Errors",
+    "tags": "Signal Tags",
+    "causes": "Likely Causes & Fixes",
+    "splunk": "Splunk Searches",
+    "hung": "Hung Thread Drilldown",
+    "timeline": "Timeline",
+    "samples": "Sample Events",
+    "ai": "AI Analysis",
+}
 
-def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
+ALL_SECTIONS = set(REPORT_SECTIONS.keys())
+
+
+def _sec(sections: set[str] | None, key: str) -> bool:
+    """Check if a section should be included."""
+    return sections is None or key in sections
+
+
+def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
     """Generate a JSON triage report string from parsed events."""
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     from .analysis import group_into_incidents
@@ -18,19 +41,30 @@ def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     hist = a["hist"]
     file_summary = a["file_summary"]
     causes = a["causes"]
-    data = {
-        "files": [{"file": f, "events": t, "errors": e} for f, t, e in file_summary],
+    data: dict = {
         "total_events": s["total_events"],
-        "levels": dict(s["levels"]),
-        "codes": dict(s["codes"]),
-        "exceptions": dict(s["exceptions"]),
-        "tags": dict(s["tags"]),
-        "likely_causes": causes,
-        "incident_groups": group_into_incidents(causes) if causes else {"groups": [], "ungrouped": []},
-        "splunk_queries": a["splunk"],
-        "hung_thread_drilldown": a["hung"],
-        "timeline": [{"bucket": b, "total": t, "errors": e} for b, t, e in hist],
-        "samples": [
+    }
+    if _sec(sections, "files"):
+        data["files"] = [{"file": f, "events": t, "errors": e} for f, t, e in file_summary]
+    if _sec(sections, "levels"):
+        data["levels"] = dict(s["levels"])
+    if _sec(sections, "codes"):
+        data["codes"] = dict(s["codes"])
+    if _sec(sections, "exceptions"):
+        data["exceptions"] = dict(s["exceptions"])
+    if _sec(sections, "tags"):
+        data["tags"] = dict(s["tags"])
+    if _sec(sections, "causes"):
+        data["likely_causes"] = causes
+        data["incident_groups"] = group_into_incidents(causes) if causes else {"groups": [], "ungrouped": []}
+    if _sec(sections, "splunk"):
+        data["splunk_queries"] = a["splunk"]
+    if _sec(sections, "hung"):
+        data["hung_thread_drilldown"] = a["hung"]
+    if _sec(sections, "timeline"):
+        data["timeline"] = [{"bucket": b, "total": t, "errors": e} for b, t, e in hist]
+    if _sec(sections, "samples"):
+        data["samples"] = [
             {
                 "level": e.level,
                 "thread_id": e.thread_id,
@@ -42,14 +76,13 @@ def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
                 "text": e.text[:MAX_EVENT_TEXT],
             }
             for e in samples
-        ],
-    }
-    if ai_content:
+        ]
+    if _sec(sections, "ai") and ai_content:
         data["ai_analysis"] = ai_content
     return json.dumps(data, indent=2)
 
 
-def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
+def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
     """Generate a complete markdown triage report from parsed events."""
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     s = a["summary"]
@@ -64,41 +97,46 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
     md.append(f"- Parsed events: {s['total_events']}")
 
     # Problem onset
-    itl = a.get("incident_timeline")
-    if itl:
-        trigger = itl.get("trigger_event", {})
-        trigger_dt = itl.get("trigger_dt")
-        if trigger_dt:
-            _t_parts = [trigger.get("level", "ERROR")]
-            if trigger.get("code"):
-                _t_parts.append(trigger["code"])
-            if trigger.get("exception"):
-                _t_parts.append(trigger["exception"].rsplit(".", 1)[-1])
-            md.append(f"- **Problem onset: {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')}** — {' '.join(_t_parts)}")
+    if _sec(sections, "onset"):
+        itl = a.get("incident_timeline")
+        if itl:
+            trigger = itl.get("trigger_event", {})
+            trigger_dt = itl.get("trigger_dt")
+            if trigger_dt:
+                _t_parts = [trigger.get("level", "ERROR")]
+                if trigger.get("code"):
+                    _t_parts.append(trigger["code"])
+                if trigger.get("exception"):
+                    _t_parts.append(trigger["exception"].rsplit(".", 1)[-1])
+                md.append(f"- **Problem onset: {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')}** — {' '.join(_t_parts)}")
 
     md.append("")
 
-    if len(file_summary) > 1:
+    if _sec(sections, "files") and len(file_summary) > 1:
         md.append("## Per-File Breakdown")
         for fname, total, errors in file_summary:
             err_note = f" ({errors} errors)" if errors else ""
             md.append(f"- `{fname}`: {total} events{err_note}")
         md.append("")
 
-    md.append("## Top Levels")
-    md += [f"- **{k}**: {v}" for k, v in s["levels"]]
-    md.append("")
-    md.append("## Top WebSphere/Liberty Codes")
-    md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
-    md.append("")
-    md.append("## Top Exceptions/Errors")
-    md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
-    md.append("")
-    md.append("## Signal Tags")
-    md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
-    md.append("")
+    if _sec(sections, "levels"):
+        md.append("## Top Levels")
+        md += [f"- **{k}**: {v}" for k, v in s["levels"]]
+        md.append("")
+    if _sec(sections, "codes"):
+        md.append("## Top WebSphere/Liberty Codes")
+        md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
+        md.append("")
+    if _sec(sections, "exceptions"):
+        md.append("## Top Exceptions/Errors")
+        md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
+        md.append("")
+    if _sec(sections, "tags"):
+        md.append("## Signal Tags")
+        md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
+        md.append("")
     causes = a["causes"]
-    if causes:
+    if _sec(sections, "causes") and causes:
         from .analysis import group_into_incidents
         grouped = group_into_incidents(causes)
         md.append("## Likely Causes & Fixes")
@@ -131,7 +169,7 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
                 md.append("")
 
     splunk = a.get("splunk", [])
-    if splunk:
+    if _sec(sections, "splunk") and splunk:
         md.append("## Suggested Splunk Searches")
         md.append("")
         for sq in splunk:
@@ -142,7 +180,7 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
             md.append("")
 
     hung = a["hung"]
-    if hung:
+    if _sec(sections, "hung") and hung:
         md.append("## Hung Thread Drilldown")
         md.append("")
         for t in hung:
@@ -171,40 +209,43 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
             md.append("```")
             md.append("")
 
-    _export_hist = compact_histogram(hist)
-    _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
-    md.append(f"## {_hist_label}")
-    md.append("")
-    md.append("```")
-    md += render_histogram(_export_hist)
-    md.append("```")
-    md.append("")
-    md.append("## Sample Events (sanitized)")
-    md.append("")
-    for idx, e in enumerate(samples, start=1):
-        header = f"### {idx}. {e.level or 'UNKNOWN'}"
-        if e.code: header += f" `{e.code}`"
-        if e.exception: header += f" -- {e.exception}"
-        if e.ts: header += f" ({e.ts})"
-        md.append(header)
-        parts = []
-        if e.tags:
-            parts.append(f"Tags: {', '.join(e.tags)}")
-        if e.thread_id:
-            parts.append(f"Thread: 0x{e.thread_id}")
-        if e.root_cause and e.root_cause != e.exception:
-            parts.append(f"Root cause: `{e.root_cause}`")
-        if parts:
-            md.append(f"- {' | '.join(parts)}")
+    if _sec(sections, "timeline"):
+        _export_hist = compact_histogram(hist)
+        _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
+        md.append(f"## {_hist_label}")
         md.append("")
         md.append("```")
-        md.append(e.text[:MAX_EVENT_TEXT])
-        if len(e.text) > MAX_EVENT_TEXT:
-            md.append("\n...[TRUNCATED]...")
+        md += render_histogram(_export_hist)
         md.append("```")
         md.append("")
 
-    if ai_content:
+    if _sec(sections, "samples"):
+        md.append("## Sample Events (sanitized)")
+        md.append("")
+        for idx, e in enumerate(samples, start=1):
+            header = f"### {idx}. {e.level or 'UNKNOWN'}"
+            if e.code: header += f" `{e.code}`"
+            if e.exception: header += f" -- {e.exception}"
+            if e.ts: header += f" ({e.ts})"
+            md.append(header)
+            parts = []
+            if e.tags:
+                parts.append(f"Tags: {', '.join(e.tags)}")
+            if e.thread_id:
+                parts.append(f"Thread: 0x{e.thread_id}")
+            if e.root_cause and e.root_cause != e.exception:
+                parts.append(f"Root cause: `{e.root_cause}`")
+            if parts:
+                md.append(f"- {' | '.join(parts)}")
+            md.append("")
+            md.append("```")
+            md.append(e.text[:MAX_EVENT_TEXT])
+            if len(e.text) > MAX_EVENT_TEXT:
+                md.append("\n...[TRUNCATED]...")
+            md.append("```")
+            md.append("")
+
+    if _sec(sections, "ai") and ai_content:
         incident = ai_content.get("incident")
         if incident:
             md.append("")
@@ -239,7 +280,7 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
     return "\n".join(md)
 
 
-def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> str:
+def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
     """Generate a styled HTML triage report."""
     from html import escape
 
@@ -321,25 +362,26 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     h.append('</div>')
 
     # Problem onset
-    itl = a.get("incident_timeline")
-    if itl:
-        trigger = itl.get("trigger_event", {})
-        trigger_dt = itl.get("trigger_dt")
-        if trigger_dt:
-            _t_parts = [trigger.get("level", "ERROR")]
-            if trigger.get("code"):
-                _t_parts.append(escape(trigger["code"]))
-            if trigger.get("exception"):
-                _t_parts.append(escape(trigger["exception"].rsplit(".", 1)[-1]))
-            h.append(
-                f'<div style="background:#FEE2E2;border:1px solid #DC2626;border-radius:8px;'
-                f'padding:12px;margin:16px 0;color:#991B1B">'
-                f'<strong>Problem onset: {escape(trigger_dt.strftime("%Y-%m-%d %H:%M:%S"))}</strong>'
-                f' &mdash; {" ".join(_t_parts)}</div>'
-            )
+    if _sec(sections, "onset"):
+        itl = a.get("incident_timeline")
+        if itl:
+            trigger = itl.get("trigger_event", {})
+            trigger_dt = itl.get("trigger_dt")
+            if trigger_dt:
+                _t_parts = [trigger.get("level", "ERROR")]
+                if trigger.get("code"):
+                    _t_parts.append(escape(trigger["code"]))
+                if trigger.get("exception"):
+                    _t_parts.append(escape(trigger["exception"].rsplit(".", 1)[-1]))
+                h.append(
+                    f'<div style="background:#FEE2E2;border:1px solid #DC2626;border-radius:8px;'
+                    f'padding:12px;margin:16px 0;color:#991B1B">'
+                    f'<strong>Problem onset: {escape(trigger_dt.strftime("%Y-%m-%d %H:%M:%S"))}</strong>'
+                    f' &mdash; {" ".join(_t_parts)}</div>'
+                )
 
     # Per-file breakdown
-    if len(file_summary) > 1:
+    if _sec(sections, "files") and len(file_summary) > 1:
         h.append('<h2>Per-File Breakdown</h2>')
         h.append('<table><tr><th>File</th><th>Events</th><th>Errors</th></tr>')
         for fname, total, errors in file_summary:
@@ -347,34 +389,35 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
         h.append('</table>')
 
     # Levels, codes, exceptions
-    h.append('<h2>Severity Distribution</h2>')
-    h.append('<table><tr><th>Level</th><th>Count</th></tr>')
-    for k, v in s["levels"]:
-        cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
-        h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v}</td></tr>')
-    h.append('</table>')
+    if _sec(sections, "levels"):
+        h.append('<h2>Severity Distribution</h2>')
+        h.append('<table><tr><th>Level</th><th>Count</th></tr>')
+        for k, v in s["levels"]:
+            cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
+            h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v}</td></tr>')
+        h.append('</table>')
 
-    if s["codes"]:
+    if _sec(sections, "codes") and s["codes"]:
         h.append('<h2>Top Message Codes</h2>')
         h.append('<table><tr><th>Code</th><th>Count</th></tr>')
         for k, v in s["codes"]:
             h.append(f'<tr><td><code>{escape(k)}</code></td><td>{v}</td></tr>')
         h.append('</table>')
 
-    if s["exceptions"]:
+    if _sec(sections, "exceptions") and s["exceptions"]:
         h.append('<h2>Top Exceptions</h2>')
         h.append('<table><tr><th>Exception</th><th>Count</th></tr>')
         for k, v in s["exceptions"]:
             h.append(f'<tr><td><code>{escape(k)}</code></td><td>{v}</td></tr>')
         h.append('</table>')
 
-    if s["tags"]:
+    if _sec(sections, "tags") and s["tags"]:
         h.append('<h2>Signal Tags</h2>')
         for tag, count in s["tags"]:
             h.append(f'<span class="tag">{escape(tag)}: {count}</span>')
 
     # AI content (placed early — same as UI flow)
-    if ai_content:
+    if _sec(sections, "ai") and ai_content:
         incident = ai_content.get("incident")
         if incident:
             _q = ai_content.get("incident_query", "")
@@ -399,7 +442,7 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
                 h.append('</div>')
 
     # Likely causes
-    if causes:
+    if _sec(sections, "causes") and causes:
         from .analysis import group_into_incidents
         grouped = group_into_incidents(causes)
         h.append('<h2>Likely Causes &amp; Fixes</h2>')
@@ -429,7 +472,7 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
                 h.append('</ul></div>')
 
     # Hung threads
-    if hung:
+    if _sec(sections, "hung") and hung:
         h.append('<h2>Hung Thread Drilldown</h2>')
         for t in hung:
             h.append(f'<h3>{escape(t["thread_name"])} ({t["count"]} occurrence{"s" if t["count"] != 1 else ""})</h3>')
@@ -437,36 +480,38 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
                 h.append(f'<pre>{escape(chr(10).join(t["stack_sample"]))}</pre>')
 
     # Timeline histogram (compact for large datasets)
-    _export_hist = compact_histogram(hist)
-    _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
-    h.append(f'<h2>{_hist_label}</h2>')
-    hist_lines = render_histogram(_export_hist)
-    h.append(f'<pre>{escape(chr(10).join(hist_lines))}</pre>')
+    if _sec(sections, "timeline"):
+        _export_hist = compact_histogram(hist)
+        _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
+        h.append(f'<h2>{_hist_label}</h2>')
+        hist_lines = render_histogram(_export_hist)
+        h.append(f'<pre>{escape(chr(10).join(hist_lines))}</pre>')
 
     # Sample events
-    h.append('<h2>Sample Events</h2>')
-    for idx, e in enumerate(samples, start=1):
-        lvl = e.level or "UNKNOWN"
-        cls = "level-error" if lvl in ("ERROR", "SEVERE", "FATAL") else "level-warning" if lvl in ("WARNING", "WARN") else ""
-        header = f'{idx}. <span class="{cls}">{escape(lvl)}</span>'
-        if e.code:
-            header += f' <code>{escape(e.code)}</code>'
-        if e.exception:
-            header += f' &mdash; {escape(e.exception)}'
-        if e.ts:
-            header += f' ({escape(e.ts)})'
-        h.append(f'<div class="sample"><div class="sample-header">{header}</div>')
-        parts = []
-        if e.tags:
-            parts.append("Tags: " + ", ".join(e.tags))
-        if e.thread_id:
-            parts.append(f"Thread: 0x{e.thread_id}")
-        if e.root_cause and e.root_cause != e.exception:
-            parts.append(f"Root cause: {e.root_cause}")
-        if parts:
-            h.append(f'<p style="font-size:0.8rem;color:var(--gray)">{escape(" | ".join(parts))}</p>')
-        h.append(f'<pre>{escape(e.text[:MAX_EVENT_TEXT])}</pre>')
-        h.append('</div>')
+    if _sec(sections, "samples"):
+        h.append('<h2>Sample Events</h2>')
+        for idx, e in enumerate(samples, start=1):
+            lvl = e.level or "UNKNOWN"
+            cls = "level-error" if lvl in ("ERROR", "SEVERE", "FATAL") else "level-warning" if lvl in ("WARNING", "WARN") else ""
+            header = f'{idx}. <span class="{cls}">{escape(lvl)}</span>'
+            if e.code:
+                header += f' <code>{escape(e.code)}</code>'
+            if e.exception:
+                header += f' &mdash; {escape(e.exception)}'
+            if e.ts:
+                header += f' ({escape(e.ts)})'
+            h.append(f'<div class="sample"><div class="sample-header">{header}</div>')
+            parts = []
+            if e.tags:
+                parts.append("Tags: " + ", ".join(e.tags))
+            if e.thread_id:
+                parts.append(f"Thread: 0x{e.thread_id}")
+            if e.root_cause and e.root_cause != e.exception:
+                parts.append(f"Root cause: {e.root_cause}")
+            if parts:
+                h.append(f'<p style="font-size:0.8rem;color:var(--gray)">{escape(" | ".join(parts))}</p>')
+            h.append(f'<pre>{escape(e.text[:MAX_EVENT_TEXT])}</pre>')
+            h.append('</div>')
 
     # Footer
     h.append('<div class="footer">Powered by LogPilot &mdash; <a href="https://item.no">Item Consulting</a></div>')
@@ -475,7 +520,7 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     return "\n".join(h)
 
 
-def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None) -> bytes:
+def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> bytes:
     """Generate a PDF triage report and return the bytes."""
     from fpdf import FPDF
 
@@ -548,64 +593,69 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
 
     body(f"Files: {len(file_summary)}  |  Parsed events: {s['total_events']}")
 
-    # Problem onset (using body() since bold_line is defined later)
-    itl = a.get("incident_timeline")
-    if itl:
-        trigger = itl.get("trigger_event", {})
-        trigger_dt = itl.get("trigger_dt")
-        if trigger_dt:
-            _t_parts = [trigger.get("level", "ERROR")]
-            if trigger.get("code"):
-                _t_parts.append(trigger["code"])
-            if trigger.get("exception"):
-                _t_parts.append(trigger["exception"].rsplit(".", 1)[-1])
-            pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(0, 6, _latin1_safe(f"Problem onset: {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')} -- {' '.join(_t_parts)}"), new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Helvetica", "", 9)
+    # Problem onset
+    if _sec(sections, "onset"):
+        itl = a.get("incident_timeline")
+        if itl:
+            trigger = itl.get("trigger_event", {})
+            trigger_dt = itl.get("trigger_dt")
+            if trigger_dt:
+                _t_parts = [trigger.get("level", "ERROR")]
+                if trigger.get("code"):
+                    _t_parts.append(trigger["code"])
+                if trigger.get("exception"):
+                    _t_parts.append(trigger["exception"].rsplit(".", 1)[-1])
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.cell(0, 6, _latin1_safe(f"Problem onset: {trigger_dt.strftime('%Y-%m-%d %H:%M:%S')} -- {' '.join(_t_parts)}"), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font("Helvetica", "", 9)
     pdf.ln(4)
 
-    if len(file_summary) > 1:
+    if _sec(sections, "files") and len(file_summary) > 1:
         heading("Per-File Breakdown")
         for fname, total, errors in file_summary:
             err_note = f" ({errors} errors)" if errors else ""
             body(f"  {Path(fname).name}: {total} events{err_note}")
         pdf.ln(2)
 
-    heading("Top Levels")
-    for k, v in s["levels"]:
-        body(f"  {k}: {v}")
-    pdf.ln(2)
-
-    heading("Top WebSphere/Liberty Codes")
-    if s["codes"]:
-        for k, v in s["codes"]:
+    if _sec(sections, "levels"):
+        heading("Top Levels")
+        for k, v in s["levels"]:
             body(f"  {k}: {v}")
-    else:
-        body("  (none detected)")
-    pdf.ln(2)
+        pdf.ln(2)
 
-    heading("Top Exceptions/Errors")
-    if s["exceptions"]:
-        for k, v in s["exceptions"]:
-            body(f"  {k}: {v}")
-    else:
-        body("  (none detected)")
-    pdf.ln(2)
+    if _sec(sections, "codes"):
+        heading("Top WebSphere/Liberty Codes")
+        if s["codes"]:
+            for k, v in s["codes"]:
+                body(f"  {k}: {v}")
+        else:
+            body("  (none detected)")
+        pdf.ln(2)
 
-    heading("Signal Tags")
-    if s["tags"]:
-        for k, v in s["tags"]:
-            body(f"  {k}: {v}")
-    else:
-        body("  (none detected)")
-    pdf.ln(2)
+    if _sec(sections, "exceptions"):
+        heading("Top Exceptions/Errors")
+        if s["exceptions"]:
+            for k, v in s["exceptions"]:
+                body(f"  {k}: {v}")
+        else:
+            body("  (none detected)")
+        pdf.ln(2)
+
+    if _sec(sections, "tags"):
+        heading("Signal Tags")
+        if s["tags"]:
+            for k, v in s["tags"]:
+                body(f"  {k}: {v}")
+        else:
+            body("  (none detected)")
+        pdf.ln(2)
 
     def bold_line(text: str) -> None:
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_x(pdf.l_margin)
         pdf.multi_cell(0, 5, _latin1_safe(text))
 
-    if causes:
+    if _sec(sections, "causes") and causes:
         from .analysis import group_into_incidents
         grouped = group_into_incidents(causes)
         heading("Likely Causes & Fixes")
@@ -631,13 +681,13 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
                     body(f"    - {fix}")
                 pdf.ln(2)
 
-    if splunk:
+    if _sec(sections, "splunk") and splunk:
         heading("Suggested Splunk Searches")
         for sq in splunk:
             bold_line(sq["description"])
             mono(sq["query"])
 
-    if hung:
+    if _sec(sections, "hung") and hung:
         heading("Hung Thread Drilldown")
         for t in hung:
             bold_line(f"{t['thread_name']} ({t['count']} occurrence{'s' if t['count'] != 1 else ''})")
@@ -652,34 +702,36 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
                 mono("\n".join(t["stack_sample"]))
             mono(t["splunk_query"])
 
-    _export_hist = compact_histogram(hist)
-    _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
-    heading(_hist_label)
-    hist_lines = render_histogram(_export_hist)
-    mono("\n".join(hist_lines))
+    if _sec(sections, "timeline"):
+        _export_hist = compact_histogram(hist)
+        _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
+        heading(_hist_label)
+        hist_lines = render_histogram(_export_hist)
+        mono("\n".join(hist_lines))
 
-    heading("Sample Events (sanitized)")
-    for idx, e in enumerate(samples, start=1):
-        header = f"{idx}. {e.level or 'UNKNOWN'}"
-        if e.code:
-            header += f" {e.code}"
-        if e.exception:
-            header += f" -- {e.exception}"
-        if e.ts:
-            header += f" ({e.ts})"
-        bold_line(header)
-        parts = []
-        if e.tags:
-            parts.append(f"Tags: {', '.join(e.tags)}")
-        if e.thread_id:
-            parts.append(f"Thread: 0x{e.thread_id}")
-        if e.root_cause and e.root_cause != e.exception:
-            parts.append(f"Root cause: {e.root_cause}")
-        if parts:
-            body(" | ".join(parts))
-        mono(e.text[:MAX_EVENT_TEXT])
+    if _sec(sections, "samples"):
+        heading("Sample Events (sanitized)")
+        for idx, e in enumerate(samples, start=1):
+            header = f"{idx}. {e.level or 'UNKNOWN'}"
+            if e.code:
+                header += f" {e.code}"
+            if e.exception:
+                header += f" -- {e.exception}"
+            if e.ts:
+                header += f" ({e.ts})"
+            bold_line(header)
+            parts = []
+            if e.tags:
+                parts.append(f"Tags: {', '.join(e.tags)}")
+            if e.thread_id:
+                parts.append(f"Thread: 0x{e.thread_id}")
+            if e.root_cause and e.root_cause != e.exception:
+                parts.append(f"Root cause: {e.root_cause}")
+            if parts:
+                body(" | ".join(parts))
+            mono(e.text[:MAX_EVENT_TEXT])
 
-    if ai_content:
+    if _sec(sections, "ai") and ai_content:
         incident = ai_content.get("incident")
         if incident:
             pdf.add_page()
