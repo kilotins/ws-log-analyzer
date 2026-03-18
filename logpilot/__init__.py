@@ -41,6 +41,7 @@ from .analysis import (
 
 # --- reports ---
 from .reports import (
+    ReportConfig,
     render_json_report, render_markdown_report,
     render_html_report, render_pdf_report,
     REPORT_SECTIONS, ALL_SECTIONS,
@@ -83,6 +84,7 @@ __all__ = [
     "compare_periods",
     "compute_noise_scores", "filter_noise",
     # reports
+    "ReportConfig",
     "render_json_report", "render_markdown_report",
     "render_html_report", "render_pdf_report",
     # ai
