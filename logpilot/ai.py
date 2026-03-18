@@ -255,6 +255,14 @@ def _truncate_event_text(text: str, max_lines: int = 25) -> str:
 def _sanitize_prompt_input(text: str) -> str:
     """Remove XML-like tags and escape XML entities in untrusted input."""
     from xml.sax.saxutils import escape
+    # Normalize Unicode homoglyphs of < and > to their ASCII equivalents
+    # before tag stripping so they cannot be used to reconstruct tags.
+    _LT_HOMOGLYPHS = "\uFE64\uFF1C\u2039\u2329\u27E8"  # ﹤ ＜ ‹ 〈 ⟨
+    _GT_HOMOGLYPHS = "\uFE65\uFF1E\u203A\u232A\u27E9"  # ﹥ ＞ › 〉 ⟩
+    for ch in _LT_HOMOGLYPHS:
+        text = text.replace(ch, "<")
+    for ch in _GT_HOMOGLYPHS:
+        text = text.replace(ch, ">")
     text = re.sub(r'</?(?:user_query|log_excerpt|context|system|system_instruction|instructions|report|domain_knowledge)[^>]*>', '', text)
     text = re.sub(r'</?[a-zA-Z_][a-zA-Z0-9_.-]*[^>]*>', '', text)
     return escape(text)
