@@ -405,8 +405,9 @@ st.markdown("""<style>
     /* LogPilot header — compact inline */
     .logpilot-header { display: flex; align-items: center; gap: 8px; margin-bottom: 0.25rem; }
     .logpilot-header svg { width: 28px; height: 28px; flex-shrink: 0; }
-    .logpilot-header .title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; color: #0F172A; }
+    .logpilot-header .title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
     .logpilot-header .title span { color: #7C3AED; }
+    .logpilot-header .subtitle { font-size: 0.7rem; letter-spacing: 0.05em; margin-top: -2px; }
 </style>""", unsafe_allow_html=True)
 
 # --- Compact header with inline logo ---
@@ -417,7 +418,7 @@ st.markdown('''<div class="logpilot-header">
     </svg>
     <div>
         <div class="title">Log<span>Pilot</span></div>
-        <div style="font-size:0.7rem;color:#64748B;letter-spacing:0.05em;margin-top:-2px">Log Intelligence Ai-Platform</div>
+        <div class="subtitle">Log Intelligence Ai-Platform</div>
     </div>
 </div>''', unsafe_allow_html=True)
 
@@ -594,11 +595,15 @@ with st.sidebar:
             }
             /* Links */
             .stMainBlockContainer a { color: #a78bfa !important; }
-            /* Metric values */
+            /* Metric cards */
+            .stMainBlockContainer [data-testid="stMetric"],
+            .stMainBlockContainer [data-testid="stMetricValue"],
+            .stMainBlockContainer [data-testid="stMetricLabel"] {
+                background-color: transparent !important;
+            }
             .stMainBlockContainer [data-testid="stMetricValue"] {
                 color: #e6edf3 !important;
             }
-            /* Metric labels */
             .stMainBlockContainer [data-testid="stMetricLabel"] {
                 color: #8b949e !important;
             }
