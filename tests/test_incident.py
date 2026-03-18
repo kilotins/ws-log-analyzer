@@ -83,6 +83,16 @@ class TestBuildIncidentSystemPrompt:
         prompt = build_incident_system_prompt("unknown_format")
         assert "specializing in" not in prompt
 
+    def test_with_skill_content(self):
+        prompt = build_incident_system_prompt("was", skill_content="## WAS Message Codes\nCWWKZ = app management")
+        assert "<domain_knowledge>" in prompt
+        assert "WAS Message Codes" in prompt
+        assert "CWWKZ = app management" in prompt
+
+    def test_no_skill_content(self):
+        prompt = build_incident_system_prompt("was", skill_content="")
+        assert "<domain_knowledge>" not in prompt
+
 
 # --- User prompt tests ---
 
@@ -206,6 +216,51 @@ class TestBuildIncidentUserPrompt:
             cascades=[],
         )
         assert "<cascade_detection>" not in prompt
+
+    def test_with_match_result(self, sample_summary):
+        """Matched events from query matching are included."""
+        from logpilot.event import LogEvent
+        match = {
+            "matched": True,
+            "match_type": "code",
+            "codes": ["CWWKZ0001E"],
+            "exceptions": ["NullPointerException"],
+            "tags": ["OOM/GC"],
+            "matching_events": [
+                LogEvent(text="E CWWKZ0001E: App failed to start\njava.lang.NullPointerException"),
+            ],
+        }
+        prompt = build_incident_user_prompt(
+            description="App won't start",
+            summary=sample_summary,
+            match_result=match,
+        )
+        assert "<matched_context>" in prompt
+        assert "CWWKZ0001E" in prompt
+        assert "NullPointerException" in prompt
+        assert "OOM/GC" in prompt
+        assert '<log_excerpt id="1">' in prompt
+        assert "App failed to start" in prompt
+
+    def test_match_result_not_matched(self, sample_summary):
+        """No match context when match_result.matched is False."""
+        match = {"matched": False, "codes": [], "exceptions": [], "tags": [], "matching_events": []}
+        prompt = build_incident_user_prompt(
+            description="General question",
+            summary=sample_summary,
+            match_result=match,
+        )
+        assert "<matched_context>" not in prompt
+        assert "<log_excerpt" not in prompt
+
+    def test_match_result_none(self, sample_summary):
+        """No match context when match_result is None."""
+        prompt = build_incident_user_prompt(
+            description="No match",
+            summary=sample_summary,
+            match_result=None,
+        )
+        assert "<matched_context>" not in prompt
 
 
 # --- Cache key tests ---

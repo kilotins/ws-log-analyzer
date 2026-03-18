@@ -11,6 +11,7 @@ from datetime import datetime
 from logpilot import (
     build_incident_system_prompt, build_incident_user_prompt,
     incident_cache_key, estimate_tokens, TOKEN_LIMITS,
+    match_user_query, select_skills, load_skill_content,
 )
 from app_ai import (
     AI_MODELS, PROVIDER_CONFIG, _API_CALLERS,
@@ -295,8 +296,18 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         model_id = model_info["model_id"]
         detected_format = detect_dominant_format(events)
 
-        # Build prompt
-        system_prompt = build_incident_system_prompt(detected_format)
+        # Query matching — find events relevant to the symptom description
+        match = match_user_query(description, events)
+
+        # Domain skills — select and load relevant .md files
+        skill_files = select_skills(match, description, detected_format=detected_format)
+        skill_content = load_skill_content(skill_files)
+        if skill_files and log:
+            log.info("incident skills selected: %s (format: %s)",
+                     ", ".join(skill_files), detected_format or "unknown")
+
+        # Build prompt with skills in system prompt
+        system_prompt = build_incident_system_prompt(detected_format, skill_content=skill_content)
 
         # Collect error events for context
         error_levels = {"ERROR", "SEVERE", "FATAL"}
@@ -310,6 +321,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
             error_events=error_events,
             cascades=cascades,
             has_screenshot=image_bytes is not None,
+            match_result=match,
         )
 
         # Check cache
