@@ -32,10 +32,12 @@ def _sec(sections: set[str] | None, key: str) -> bool:
     return sections is None or key in sections
 
 
-def _report_title(a: dict) -> str:
-    """Build a dynamic report title from file names and time span.
+def _report_meta(a: dict) -> tuple[str, str]:
+    """Build report title and subtitle from analysis data.
 
-    Example: "LogPilot Analysis — server.log, access.log (2025-03-11 10:15 – 14:32)"
+    Returns:
+        (title, subtitle) — e.g. ("LogPilot Analysis Report",
+        "server.log, access.log — 2025-03-11 10:15 – 14:32 — 1,234 events")
     """
     from .analysis import parse_ts_datetime
 
@@ -71,12 +73,16 @@ def _report_title(a: dict) -> str:
             else:
                 time_str = f"{first_dt.strftime(fmt_full)} – {last_dt.strftime(fmt_full)}"
 
-    title = "LogPilot Analysis"
+    total = a.get("summary", {}).get("total_events", 0)
+    parts = []
     if files_str:
-        title += f" — {files_str}"
+        parts.append(files_str)
     if time_str:
-        title += f" ({time_str})"
-    return title
+        parts.append(time_str)
+    if total:
+        parts.append(f"{total:,} events")
+
+    return "LogPilot Analysis Report", " — ".join(parts)
 
 
 def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
@@ -138,7 +144,10 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
     file_summary = a["file_summary"]
 
     md: list[str] = []
-    md.append(f"# {_report_title(a)}")
+    _title, _subtitle = _report_meta(a)
+    md.append(f"# {_title}")
+    if _subtitle:
+        md.append(f"*{_subtitle}*")
     md.append("")
     md.append(f"- Files: {len(file_summary)}")
     md.append(f"- Parsed events: {s['total_events']}")
@@ -327,8 +336,18 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
     return "\n".join(md)
 
 
+_LOGPILOT_LOGO_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 28" fill="none" style="height:22px;vertical-align:middle">'
+    '<path d="M4 14 L10 6 L13 6 L7 14 L13 22 L10 22 Z" fill="#7C3AED"/>'
+    '<path d="M11 14 L17 6 L20 6 L14 14 L20 22 L17 22 Z" fill="#34D399"/>'
+    '<text x="26" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="var(--text-heading)" letter-spacing="-0.3">Log</text>'
+    '<text x="53" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="#7C3AED" letter-spacing="-0.3">Pilot</text>'
+    '</svg>'
+)
+
+
 def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
-    """Generate a styled HTML triage report."""
+    """Generate a premium styled HTML triage report with sidebar, collapsible sections, and dark/light mode."""
     from html import escape
 
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
@@ -338,172 +357,325 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     file_summary = a["file_summary"]
     causes = a["causes"]
     hung = a["hung"]
+    _title, _subtitle = _report_meta(a)
 
-    h: list[str] = []
-    h.append('<!DOCTYPE html>')
-    h.append('<html lang="en"><head><meta charset="UTF-8">')
-    h.append('<meta name="viewport" content="width=device-width, initial-scale=1.0">')
-    _title = _report_title(a)
-    from html import escape as _esc
-    h.append(f'<title>{_esc(_title)}</title>')
-    h.append('<style>')
-    h.append('''
-      :root { --purple: #7C3AED; --green: #34D399; --dark: #0F172A; --red: #DC2626;
-              --amber: #F59E0B; --gray: #64748B; --light: #F8FAFC; --border: #E2E8F0; }
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: system-ui, -apple-system, sans-serif; color: var(--dark);
-             background: var(--light); line-height: 1.6; max-width: 960px;
-             margin: 0 auto; padding: 24px; }
-      h1 { color: var(--purple); font-size: 1.75rem; margin-bottom: 4px; }
-      h2 { color: var(--dark); font-size: 1.25rem; margin: 24px 0 12px;
-           border-bottom: 2px solid var(--purple); padding-bottom: 4px; }
-      h3 { font-size: 1rem; margin: 16px 0 8px; }
-      .subtitle { color: var(--gray); font-size: 0.875rem; margin-bottom: 16px; }
-      .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-                 gap: 12px; margin: 16px 0; }
-      .metric { background: white; border: 1px solid var(--border); border-radius: 8px;
-                padding: 12px; text-align: center; }
-      .metric .value { font-size: 1.5rem; font-weight: 700; color: var(--purple); }
-      .metric .label { font-size: 0.75rem; color: var(--gray); text-transform: uppercase; }
-      .metric.error .value { color: var(--red); }
-      .metric.warning .value { color: var(--amber); }
-      table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.875rem; }
-      th { background: var(--dark); color: white; padding: 8px 12px; text-align: left; }
-      td { padding: 6px 12px; border-bottom: 1px solid var(--border); }
-      tr:nth-child(even) { background: white; }
-      pre { background: #1E293B; color: #E2E8F0; padding: 12px; border-radius: 6px;
-            overflow-x: auto; font-size: 0.8rem; line-height: 1.4; margin: 8px 0; white-space: pre-wrap; }
-      .tag { display: inline-block; background: var(--purple); color: white; font-size: 0.7rem;
-             padding: 2px 8px; border-radius: 12px; margin: 2px; }
-      .cause { background: white; border-left: 3px solid var(--purple); padding: 12px;
-               margin: 8px 0; border-radius: 0 6px 6px 0; }
-      .cause h3 { margin-top: 0; }
-      .ai-section { background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px;
-                    padding: 16px; margin: 12px 0; }
-      .ai-section h3 { color: var(--purple); }
-      .ai-answer { white-space: pre-wrap; }
-      .level-error { color: var(--red); font-weight: 600; }
-      .level-warning { color: var(--amber); font-weight: 600; }
-      .level-info { color: var(--purple); }
-      .sample { background: white; border: 1px solid var(--border); border-radius: 8px;
-                padding: 12px; margin: 12px 0; }
-      .sample-header { font-weight: 600; margin-bottom: 8px; }
-      .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid var(--border);
-                color: var(--gray); font-size: 0.75rem; text-align: center; }
-      .footer a { color: var(--purple); }
-      @media print { body { max-width: 100%; } pre { white-space: pre-wrap; word-break: break-all; } }
-    ''')
-    h.append('</style></head><body>')
+    # --- Collect nav items ---
+    nav_items: list[tuple[str, str]] = []  # (id, label)
+    _sect_num = 0
 
-    # Header
-    h.append(f'<h1>{_esc(_title)}</h1>')
-    h.append('<p class="subtitle">Log Intelligence Platform &mdash; Item Consulting</p>')
+    def _add_nav(label: str) -> str:
+        nonlocal _sect_num
+        _sect_num += 1
+        sid = f"sect-{_sect_num}"
+        nav_items.append((sid, label))
+        return sid
 
-    # Metrics
+    # Pre-scan which sections will be rendered
     level_counts = dict(s["levels"])
     error_count = sum(level_counts.get(l, 0) for l in ("ERROR", "SEVERE", "FATAL"))
     warn_count = level_counts.get("WARNING", 0) + level_counts.get("WARN", 0)
-    h.append('<div class="metrics">')
-    h.append(f'<div class="metric"><div class="value">{s["total_events"]}</div><div class="label">Events</div></div>')
-    h.append(f'<div class="metric error"><div class="value">{error_count}</div><div class="label">Errors</div></div>')
-    h.append(f'<div class="metric warning"><div class="value">{warn_count}</div><div class="label">Warnings</div></div>')
-    h.append(f'<div class="metric"><div class="value">{len(file_summary)}</div><div class="label">Files</div></div>')
+
+    if _sec(sections, "onset") and a.get("incident_timeline", {}).get("trigger_dt"):
+        _add_nav("Problem Onset")
+    if _sec(sections, "files") and len(file_summary) > 1:
+        _add_nav("Per-File Breakdown")
+    if _sec(sections, "levels"):
+        _add_nav("Severity Distribution")
+    if _sec(sections, "codes") and s["codes"]:
+        _add_nav("Message Codes")
+    if _sec(sections, "exceptions") and s["exceptions"]:
+        _add_nav("Exceptions")
+    if _sec(sections, "tags") and s["tags"]:
+        _add_nav("Signal Tags")
+    if _sec(sections, "causes") and causes:
+        _add_nav("Likely Causes & Fixes")
+    if _sec(sections, "splunk") and a.get("splunk"):
+        _add_nav("Splunk Searches")
+    if _sec(sections, "hung") and hung:
+        _add_nav("Hung Thread Drilldown")
+    if _sec(sections, "timeline"):
+        _add_nav("Timeline")
+    if _sec(sections, "samples"):
+        _add_nav("Sample Events")
+    if _sec(sections, "ai") and ai_content:
+        if ai_content.get("incident"):
+            _add_nav("AI Analysis")
+        if ai_content.get("ask_ai"):
+            _add_nav("AI Queries")
+
+    h: list[str] = []
+    h.append('<!DOCTYPE html>')
+    h.append('<html lang="en" data-theme="auto">')
+    h.append('<head><meta charset="UTF-8">')
+    h.append('<meta name="viewport" content="width=device-width, initial-scale=1.0">')
+    h.append(f'<title>{escape(_title)}</title>')
+    h.append('<style>')
+    # CSS with light/dark theme support via CSS variables
+    h.append('''
+/* --- Light theme (default) --- */
+:root, [data-theme="light"] {
+  --bg-primary: #F8FAFC; --bg-secondary: #FFFFFF; --bg-tertiary: #F1F5F9;
+  --bg-hover: #E2E8F0; --border: #E2E8F0; --border-strong: #CBD5E1;
+  --text-primary: #0F172A; --text-secondary: #334155; --text-muted: #64748B;
+  --text-heading: #0F172A; --accent: #7C3AED;
+  --green: #059669; --green-bg: #ECFDF5; --yellow: #D97706; --yellow-bg: #FFFBEB;
+  --red: #DC2626; --red-bg: #FEF2F2; --blue: #2563EB; --blue-bg: #EFF6FF;
+  --purple: #7C3AED; --purple-bg: #F5F3FF;
+  --code-bg: #1E293B; --code-fg: #E2E8F0;
+}
+/* --- Dark theme --- */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+  --code-bg: #161b22; --code-fg: #e6edf3;
+}}
+[data-theme="dark"] {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+  --code-bg: #161b22; --code-fg: #e6edf3;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin:0;padding:0; font-family:system-ui,-apple-system,sans-serif;
+  background:var(--bg-primary); color:var(--text-secondary); line-height:1.7; font-size:15px; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.layout { display:flex; min-height:100vh; }
+nav { position:sticky; top:0; height:100vh; overflow-y:auto;
+  width:240px; min-width:240px; background:var(--bg-secondary);
+  border-right:1px solid var(--border); padding:20px 14px; font-size:13px;
+  display:flex; flex-direction:column; }
+nav .nav-logo { margin-bottom:12px; }
+nav .nav-subtitle { font-size:11px; color:var(--text-muted);
+  margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+nav .nav-links { flex:1; }
+nav a.nav-link { display:flex; align-items:center; gap:8px;
+  padding:7px 10px; border-radius:6px; color:var(--text-muted);
+  transition:all 0.15s; margin-bottom:1px; font-size:12.5px; }
+nav a.nav-link:hover { background:var(--bg-tertiary); color:var(--text-secondary); text-decoration:none; }
+nav a.nav-link.active { background:var(--bg-tertiary); color:var(--text-primary); font-weight:500; }
+nav a.nav-link .num { display:inline-flex; align-items:center; justify-content:center;
+  min-width:20px; height:20px; border-radius:4px; background:var(--bg-tertiary);
+  color:var(--text-muted); font-size:11px; font-weight:600; }
+nav .nav-controls { margin-top:12px; padding-top:12px;
+  border-top:1px solid var(--border); display:flex; gap:6px; }
+nav .nav-controls button { flex:1; padding:7px; background:var(--bg-tertiary);
+  color:var(--text-muted); border:1px solid var(--border-strong);
+  border-radius:6px; cursor:pointer; font-size:11px; transition:all 0.15s; }
+nav .nav-controls button:hover { background:var(--border-strong); color:var(--text-secondary); }
+main { flex:1; max-width:960px; padding:36px 48px 80px; }
+.report-header { margin-bottom:28px; border-bottom:1px solid var(--border); padding-bottom:20px; }
+.report-meta { color:var(--text-muted); font-size:13px; margin:8px 0 16px; }
+h1 { color:var(--text-heading); font-size:24px; margin:0 0 4px; }
+h2 { color:var(--text-heading); font-size:19px; margin:24px 0 10px; }
+h3 { color:var(--text-primary); font-size:16px; margin:18px 0 8px; }
+strong { color:var(--text-primary); }
+.metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:10px; margin:16px 0; }
+.metric { background:var(--bg-tertiary); border:1px solid var(--border);
+  border-radius:8px; padding:12px; text-align:center; }
+.metric .value { font-size:1.5rem; font-weight:700; color:var(--accent); }
+.metric .label { font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; }
+.metric.error .value { color:var(--red); }
+.metric.warning .value { color:var(--yellow); }
+details.section { margin:10px 0; border:1px solid var(--border); border-radius:8px;
+  background:var(--bg-primary); }
+details.section[open] { background:var(--bg-secondary); }
+details.section > summary { padding:14px 18px; cursor:pointer;
+  font-weight:600; color:var(--text-heading); list-style:none;
+  border-radius:8px; display:flex; align-items:center; gap:10px; user-select:none; }
+details.section > summary::-webkit-details-marker { display:none; }
+details.section > summary::before { content:'\\25B6'; font-size:10px; color:var(--text-muted);
+  transition:transform 0.2s ease; display:inline-block; min-width:14px; }
+details.section[open] > summary::before { transform:rotate(90deg); }
+details.section > summary:hover { background:var(--bg-tertiary); }
+.section-body { padding:4px 18px 18px; }
+.table-wrap { overflow-x:auto; margin:12px 0; border-radius:8px; border:1px solid var(--border); }
+table { width:100%; border-collapse:collapse; font-size:13.5px; }
+thead th { background:var(--bg-tertiary); color:var(--text-primary); text-align:left;
+  padding:10px 14px; font-weight:600; border-bottom:2px solid var(--border-strong); }
+tbody td { padding:8px 14px; border-bottom:1px solid var(--border); }
+tbody tr:hover { background:var(--bg-tertiary); }
+pre { background:var(--code-bg); color:var(--code-fg); padding:14px; border-radius:8px;
+  overflow-x:auto; font-size:13px; line-height:1.5; margin:10px 0;
+  white-space:pre-wrap; word-break:break-word; border:1px solid var(--border);
+  font-family:'SF Mono','Fira Code',Consolas,monospace; }
+code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
+  font-size:0.88em; color:var(--text-primary); }
+.tag { display:inline-block; background:var(--purple-bg); color:var(--purple);
+  font-size:0.75rem; padding:3px 10px; border-radius:12px; margin:3px; font-weight:600; }
+.level-error { color:var(--red); font-weight:600; }
+.level-warning { color:var(--yellow); font-weight:600; }
+.level-info { color:var(--accent); }
+.cause { background:var(--bg-tertiary); border-left:3px solid var(--purple);
+  padding:14px; margin:10px 0; border-radius:0 8px 8px 0; }
+.cause h3 { margin-top:0; }
+.ai-section { background:var(--purple-bg); border:1px solid var(--border);
+  border-radius:8px; padding:16px; margin:12px 0; }
+.ai-section h3 { color:var(--purple); margin-top:0; }
+.ai-answer { white-space:pre-wrap; line-height:1.6; }
+.sample { background:var(--bg-tertiary); border:1px solid var(--border);
+  border-radius:8px; padding:14px; margin:10px 0; }
+.sample-header { font-weight:600; margin-bottom:8px; color:var(--text-heading); }
+.sample-meta { font-size:0.8rem; color:var(--text-muted); margin-bottom:8px; }
+.onset-alert { background:var(--red-bg); border:1px solid var(--red);
+  border-radius:8px; padding:14px; margin:12px 0; color:var(--red); }
+.footer { margin-top:32px; padding-top:12px; border-top:1px solid var(--border);
+  color:var(--text-muted); font-size:0.75rem; text-align:center; }
+.footer a { color:var(--accent); }
+.theme-toggle { background:var(--bg-tertiary); border:1px solid var(--border-strong);
+  border-radius:6px; padding:6px 10px; cursor:pointer; font-size:14px;
+  color:var(--text-muted); transition:all 0.15s; }
+.theme-toggle:hover { background:var(--border-strong); color:var(--text-primary); }
+.back-to-top { position:fixed; bottom:24px; right:24px;
+  width:40px; height:40px; border-radius:50%; background:var(--bg-tertiary);
+  border:1px solid var(--border-strong); color:var(--text-muted);
+  cursor:pointer; font-size:18px; display:none; align-items:center;
+  justify-content:center; z-index:100; }
+.back-to-top:hover { background:var(--border-strong); color:var(--text-primary); }
+.back-to-top.visible { display:flex; }
+@media (max-width:900px) { nav { display:none; } main { padding:20px 16px; } }
+@media print {
+  nav, .back-to-top, .theme-toggle { display:none !important; }
+  details.section { border:none; break-inside:avoid; }
+  details.section > summary::before { content:''; }
+  details.section .section-body { display:block !important; }
+  body { background:#fff; color:#000; }
+}
+''')
+    h.append('</style></head><body>')
+
+    # --- Sidebar nav ---
+    h.append('<div class="layout">')
+    h.append('<nav>')
+    h.append(f'<div class="nav-logo">{_LOGPILOT_LOGO_SVG}</div>')
+    h.append(f'<div class="nav-subtitle">{escape(_subtitle)}</div>')
+    h.append('<div class="nav-links">')
+    for i, (sid, label) in enumerate(nav_items, 1):
+        h.append(f'<a class="nav-link" href="#{sid}"><span class="num">{i}</span> {escape(label)}</a>')
     h.append('</div>')
+    h.append('<div class="nav-controls">')
+    h.append('<button onclick="document.querySelectorAll(\'details.section\').forEach(d=>d.open=true)">Expand all</button>')
+    h.append('<button onclick="document.querySelectorAll(\'details.section\').forEach(d=>d.open=false)">Collapse all</button>')
+    h.append('</div>')
+    h.append('<div style="margin-top:8px;text-align:center">')
+    h.append('<button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">&#9788;</button>')
+    h.append('</div>')
+    h.append('</nav>')
+
+    # --- Main content ---
+    h.append('<main>')
+    h.append('<div class="report-header">')
+    h.append(f'<h1>{escape(_title)}</h1>')
+    h.append(f'<div class="report-meta">{escape(_subtitle)}</div>')
+    # Metrics grid
+    h.append('<div class="metrics">')
+    h.append(f'<div class="metric"><div class="value">{s["total_events"]:,}</div><div class="label">Events</div></div>')
+    h.append(f'<div class="metric error"><div class="value">{error_count:,}</div><div class="label">Errors</div></div>')
+    h.append(f'<div class="metric warning"><div class="value">{warn_count:,}</div><div class="label">Warnings</div></div>')
+    h.append(f'<div class="metric"><div class="value">{len(file_summary)}</div><div class="label">Files</div></div>')
+    h.append('</div></div>')
+
+    # --- Section helpers ---
+    _nav_idx = 0
+
+    def _open_section(open_default: bool = False) -> None:
+        nonlocal _nav_idx
+        sid, label = nav_items[_nav_idx]
+        _open = ' open' if open_default else ''
+        h.append(f'<details class="section" id="{sid}"{_open}><summary><span>{escape(label)}</span></summary><div class="section-body">')
+        _nav_idx += 1
+
+    def _close_section() -> None:
+        h.append('</div></details>')
+
+    # --- Render sections ---
 
     # Problem onset
     if _sec(sections, "onset"):
         itl = a.get("incident_timeline")
-        if itl:
+        if itl and itl.get("trigger_dt"):
+            _open_section(True)
             trigger = itl.get("trigger_event", {})
-            trigger_dt = itl.get("trigger_dt")
-            if trigger_dt:
-                _t_parts = [trigger.get("level", "ERROR")]
-                if trigger.get("code"):
-                    _t_parts.append(escape(trigger["code"]))
-                if trigger.get("exception"):
-                    _t_parts.append(escape(trigger["exception"].rsplit(".", 1)[-1]))
-                h.append(
-                    f'<div style="background:#FEE2E2;border:1px solid #DC2626;border-radius:8px;'
-                    f'padding:12px;margin:16px 0;color:#991B1B">'
-                    f'<strong>Problem onset: {escape(trigger_dt.strftime("%Y-%m-%d %H:%M:%S"))}</strong>'
-                    f' &mdash; {" ".join(_t_parts)}</div>'
-                )
+            trigger_dt = itl["trigger_dt"]
+            _t_parts = [trigger.get("level", "ERROR")]
+            if trigger.get("code"):
+                _t_parts.append(escape(trigger["code"]))
+            if trigger.get("exception"):
+                _t_parts.append(escape(trigger["exception"].rsplit(".", 1)[-1]))
+            h.append(
+                f'<div class="onset-alert">'
+                f'<strong>Problem onset: {escape(trigger_dt.strftime("%Y-%m-%d %H:%M:%S"))}</strong>'
+                f' &mdash; {" ".join(_t_parts)}</div>')
+            _close_section()
 
     # Per-file breakdown
     if _sec(sections, "files") and len(file_summary) > 1:
-        h.append('<h2>Per-File Breakdown</h2>')
-        h.append('<table><tr><th>File</th><th>Events</th><th>Errors</th></tr>')
+        _open_section()
+        h.append('<div class="table-wrap"><table><thead><tr><th>File</th><th>Events</th><th>Errors</th></tr></thead><tbody>')
         for fname, total, errors in file_summary:
-            h.append(f'<tr><td>{escape(Path(fname).name)}</td><td>{total}</td><td>{errors}</td></tr>')
-        h.append('</table>')
+            h.append(f'<tr><td>{escape(Path(fname).name)}</td><td>{total:,}</td><td>{errors:,}</td></tr>')
+        h.append('</tbody></table></div>')
+        _close_section()
 
-    # Levels, codes, exceptions
+    # Severity
     if _sec(sections, "levels"):
-        h.append('<h2>Severity Distribution</h2>')
-        h.append('<table><tr><th>Level</th><th>Count</th></tr>')
+        _open_section(True)
+        h.append('<div class="table-wrap"><table><thead><tr><th>Level</th><th>Count</th></tr></thead><tbody>')
         for k, v in s["levels"]:
             cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
-            h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v}</td></tr>')
-        h.append('</table>')
+            h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v:,}</td></tr>')
+        h.append('</tbody></table></div>')
+        _close_section()
 
+    # Message codes
     if _sec(sections, "codes") and s["codes"]:
-        h.append('<h2>Top Message Codes</h2>')
-        h.append('<table><tr><th>Code</th><th>Count</th></tr>')
+        _open_section()
+        h.append('<div class="table-wrap"><table><thead><tr><th>Code</th><th>Count</th></tr></thead><tbody>')
         for k, v in s["codes"]:
-            h.append(f'<tr><td><code>{escape(k)}</code></td><td>{v}</td></tr>')
-        h.append('</table>')
+            h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
+        h.append('</tbody></table></div>')
+        _close_section()
 
+    # Exceptions
     if _sec(sections, "exceptions") and s["exceptions"]:
-        h.append('<h2>Top Exceptions</h2>')
-        h.append('<table><tr><th>Exception</th><th>Count</th></tr>')
+        _open_section()
+        h.append('<div class="table-wrap"><table><thead><tr><th>Exception</th><th>Count</th></tr></thead><tbody>')
         for k, v in s["exceptions"]:
-            h.append(f'<tr><td><code>{escape(k)}</code></td><td>{v}</td></tr>')
-        h.append('</table>')
+            h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
+        h.append('</tbody></table></div>')
+        _close_section()
 
+    # Signal tags
     if _sec(sections, "tags") and s["tags"]:
-        h.append('<h2>Signal Tags</h2>')
+        _open_section()
         for tag, count in s["tags"]:
-            h.append(f'<span class="tag">{escape(tag)}: {count}</span>')
-
-    # AI content (placed early — same as UI flow)
-    if _sec(sections, "ai") and ai_content:
-        incident = ai_content.get("incident")
-        if incident:
-            _q = ai_content.get("incident_query", "")
-            _q_preview = escape((_q[:80] + "...") if len(_q) > 80 else _q)
-            _heading = f"AI Analysis — {_q_preview}" if _q_preview else "AI Analysis"
-            h.append(f'<h2>{_heading}</h2>')
-            h.append('<div class="ai-section">')
-            model = ai_content.get("incident_model", "AI")
-            h.append(f'<p class="subtitle">Model: {escape(model)}</p>')
-            h.append(f'<div class="ai-answer">{escape(incident)}</div>')
-            h.append('</div>')
-
-        ask_ai = ai_content.get("ask_ai")
-        if ask_ai:
-            h.append('<h2>Previous AI Queries</h2>')
-            for entry in ask_ai:
-                h.append('<div class="ai-section">')
-                h.append(f'<h3>Q: {escape(entry["query"])}</h3>')
-                provider = entry.get("provider", "AI")
-                h.append(f'<p class="subtitle">{escape(provider)} &mdash; {escape(entry.get("timestamp", ""))}</p>')
-                h.append(f'<div class="ai-answer">{escape(entry["answer"])}</div>')
-                h.append('</div>')
+            h.append(f'<span class="tag">{escape(tag)}: {count:,}</span>')
+        _close_section()
 
     # Likely causes
     if _sec(sections, "causes") and causes:
         from .analysis import group_into_incidents
         grouped = group_into_incidents(causes)
-        h.append('<h2>Likely Causes &amp; Fixes</h2>')
+        _open_section(True)
         for g in grouped["groups"]:
-            h.append(f'<div class="cause" style="border-left:3px solid #7C3AED;padding-left:12px;margin-bottom:16px">')
-            h.append(f'<h3>{escape(g["name"])} ({g["total_count"]} events)</h3>')
+            h.append('<div class="cause">')
+            h.append(f'<h3>{escape(g["name"])} ({g["total_count"]:,} events)</h3>')
             h.append(f'<p><em>{escape(g["narrative"])}</em></p>')
             for t in g["triggers"]:
                 h.append(f'<p><strong>{escape(t["title"])}</strong> ({t["count"]} event{"s" if t["count"] != 1 else ""})')
                 h.append(f'<br>Likely cause: {escape(t["cause"])}</p>')
             for e in g["effects"]:
-                h.append(f'<p style="margin-left:16px">↳ {escape(e["title"])} ({e["count"]} event{"s" if e["count"] != 1 else ""})</p>')
+                h.append(f'<p style="margin-left:16px">&#8627; {escape(e["title"])} ({e["count"]})</p>')
             h.append('<ul>')
             for t in g["triggers"]:
                 for fix in t["fixes"]:
@@ -513,38 +685,49 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
             h.append('<h3>Other Findings</h3>')
             for c in grouped["ungrouped"]:
                 h.append('<div class="cause">')
-                h.append(f'<h3>{escape(c["title"])} ({c["count"]} event{"s" if c["count"] != 1 else ""})</h3>')
+                h.append(f'<h3>{escape(c["title"])} ({c["count"]})</h3>')
                 h.append(f'<p><strong>Likely cause:</strong> {escape(c["cause"])}</p>')
                 h.append('<ul>')
                 for fix in c["fixes"]:
                     h.append(f'<li>{escape(fix)}</li>')
                 h.append('</ul></div>')
+        _close_section()
+
+    # Splunk searches
+    splunk = a.get("splunk", [])
+    if _sec(sections, "splunk") and splunk:
+        _open_section()
+        for sq in splunk:
+            h.append(f'<h3>{escape(sq["description"])}</h3>')
+            h.append(f'<pre>{escape(sq["query"])}</pre>')
+        _close_section()
 
     # Hung threads
     if _sec(sections, "hung") and hung:
-        h.append('<h2>Hung Thread Drilldown</h2>')
+        _open_section()
         for t in hung:
             h.append(f'<h3>{escape(t["thread_name"])} ({t["count"]} occurrence{"s" if t["count"] != 1 else ""})</h3>')
             if t["stack_sample"]:
                 h.append(f'<pre>{escape(chr(10).join(t["stack_sample"]))}</pre>')
+        _close_section()
 
-    # Timeline histogram (compact for large datasets)
+    # Timeline
     if _sec(sections, "timeline"):
+        _open_section()
         _export_hist = compact_histogram(hist)
-        _hist_label = "Timeline (events per minute)" if len(_export_hist) == len(hist) else "Timeline (compacted)"
-        h.append(f'<h2>{_hist_label}</h2>')
         hist_lines = render_histogram(_export_hist)
         h.append(f'<pre>{escape(chr(10).join(hist_lines))}</pre>')
+        _close_section()
 
     # Sample events
     if _sec(sections, "samples"):
-        h.append('<h2>Sample Events</h2>')
+        _open_section()
         for idx, e in enumerate(samples, start=1):
             lvl = e.level or "UNKNOWN"
             cls = "level-error" if lvl in ("ERROR", "SEVERE", "FATAL") else "level-warning" if lvl in ("WARNING", "WARN") else ""
             header = f'{idx}. <span class="{cls}">{escape(lvl)}</span>'
             if e.code:
-                header += f' <code>{escape(e.code)}</code>'
+                header += f' <code class="inline">{escape(e.code)}</code>'
             if e.exception:
                 header += f' &mdash; {escape(e.exception)}'
             if e.ts:
@@ -558,12 +741,71 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
             if e.root_cause and e.root_cause != e.exception:
                 parts.append(f"Root cause: {e.root_cause}")
             if parts:
-                h.append(f'<p style="font-size:0.8rem;color:var(--gray)">{escape(" | ".join(parts))}</p>')
+                h.append(f'<div class="sample-meta">{escape(" | ".join(parts))}</div>')
             h.append(f'<pre>{escape(e.text[:MAX_EVENT_TEXT])}</pre>')
             h.append('</div>')
+        _close_section()
+
+    # AI analysis
+    if _sec(sections, "ai") and ai_content:
+        incident = ai_content.get("incident")
+        if incident:
+            _open_section(True)
+            h.append('<div class="ai-section">')
+            model = ai_content.get("incident_model", "AI")
+            _q = ai_content.get("incident_query", "")
+            if _q:
+                h.append(f'<h3>Q: {escape(_q[:120])}</h3>')
+            h.append(f'<div class="sample-meta">Model: {escape(model)}</div>')
+            h.append(f'<div class="ai-answer">{escape(incident)}</div>')
+            h.append('</div>')
+            _close_section()
+
+        ask_ai = ai_content.get("ask_ai")
+        if ask_ai:
+            _open_section()
+            for entry in ask_ai:
+                h.append('<div class="ai-section">')
+                h.append(f'<h3>Q: {escape(entry["query"][:120])}</h3>')
+                provider = entry.get("provider", "AI")
+                h.append(f'<div class="sample-meta">{escape(provider)} &mdash; {escape(entry.get("timestamp", ""))}</div>')
+                h.append(f'<div class="ai-answer">{escape(entry["answer"])}</div>')
+                h.append('</div>')
+            _close_section()
 
     # Footer
-    h.append('<div class="footer">Powered by LogPilot &mdash; <a href="https://item.no">Item Consulting</a></div>')
+    h.append(f'<div class="footer">{_LOGPILOT_LOGO_SVG} Powered by LogPilot &mdash; <a href="https://item.no">Item Consulting</a></div>')
+    h.append('</main></div>')
+
+    # --- Back to top + JS ---
+    h.append('<button class="back-to-top" onclick="scrollTo({top:0,behavior:\'smooth\'})" title="Back to top">&#8593;</button>')
+    h.append("""<script>
+window.addEventListener('scroll',()=>{
+  document.querySelector('.back-to-top').classList.toggle('visible',scrollY>300);
+});
+function toggleTheme(){
+  const html=document.documentElement;
+  const current=html.getAttribute('data-theme');
+  if(current==='dark') html.setAttribute('data-theme','light');
+  else if(current==='light') html.setAttribute('data-theme','dark');
+  else{
+    const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+    html.setAttribute('data-theme',isDark?'light':'dark');
+  }
+}
+const sections=document.querySelectorAll('details.section');
+const navLinks=document.querySelectorAll('nav a.nav-link');
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      navLinks.forEach(l=>l.classList.remove('active'));
+      const link=document.querySelector('nav a[href="#'+e.target.id+'"]');
+      if(link) link.classList.add('active');
+    }
+  });
+},{threshold:0.1,rootMargin:'-80px 0px -70% 0px'});
+sections.forEach(s=>obs.observe(s));
+</script>""")
     h.append('</body></html>')
 
     return "\n".join(h)
@@ -582,7 +824,7 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
     splunk = a.get("splunk", [])
     hung = a["hung"]
 
-    _pdf_title = _report_title(a)
+    _pdf_title, _pdf_subtitle = _report_meta(a)
 
     def _latin1_safe(text: str) -> str:
         return text.encode("latin-1", errors="replace").decode("latin-1")
@@ -614,7 +856,7 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
     pdf.cell(0, 12, _latin1_safe(_pdf_title), new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(100, 116, 139)  # #64748B
-    pdf.cell(0, 6, "Log Intelligence Platform", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, _latin1_safe(_pdf_subtitle or "Log Intelligence Platform"), new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(30, 41, 59)
     pdf.ln(4)
 
