@@ -468,6 +468,8 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                                         "Status": "Filtered" if score >= noise_threshold else "Kept"})
             if _detail_rows:
                 st.table(_detail_rows[:20])
+    elif noise_threshold > 0 and not _noise_scores:
+        st.caption("No message codes found — noise filter has no effect for this log format.")
 
     # Cost preview — build a realistic estimate of prompt size
     _model_info = AI_MODELS.get(selected_model, {})
