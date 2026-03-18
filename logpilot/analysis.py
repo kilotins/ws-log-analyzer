@@ -688,9 +688,85 @@ _NEVER_FILTER_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# Patterns stripped to create a text signature for grouping similar messages
+_SIG_STRIP_RE = re.compile(
+    r'\b[0-9a-f]{8,}\b'          # hex IDs
+    r'|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'  # UUIDs
+    r'|\d{4}[-/]\d{2}[-/]\d{2}[T ]\d{2}:\d{2}:\d{2}[.\d]*\S*'         # timestamps
+    r'|\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b'  # IP:port
+    r'|\b\d+\b',                  # bare numbers
+    re.IGNORECASE,
+)
+
+
+def _text_signature(text: str) -> str:
+    """Normalize event text into a grouping signature by stripping variable parts."""
+    first_line = (text or "").split("\n", 1)[0][:200]
+    return _SIG_STRIP_RE.sub("#", first_line).strip()
+
+
+def _score_group(group_evts: list[LogEvent], total_events: int,
+                 error_dts: list[datetime]) -> float:
+    """Score a group of events for noise likelihood (0.0–1.0)."""
+    score = 0.0
+    count = len(group_evts)
+
+    # High frequency: if this group appears > 5% of all events
+    if total_events > 0 and count / total_events > 0.05:
+        score += 0.4
+
+    # Identical text check: if >80% have identical text
+    texts = [e.text for e in group_evts if e.text]
+    if texts:
+        most_common_text = Counter(texts).most_common(1)[0]
+        if most_common_text[1] / len(texts) > 0.8:
+            score += 0.4
+
+    # INFO/AUDIT severity bonus
+    info_count = sum(1 for e in group_evts if e.level in ("INFO", "AUDIT", "DEBUG"))
+    if info_count > count * 0.8:
+        score += 0.3
+
+    # Near-error protection
+    if error_dts:
+        near_error = False
+        for e in group_evts[:10]:
+            if not e.ts:
+                continue
+            e_dt = parse_ts_datetime(e.ts)
+            if not e_dt:
+                continue
+            for err_dt in error_dts:
+                if abs((e_dt - err_dt).total_seconds()) < 30:
+                    near_error = True
+                    break
+            if near_error:
+                break
+        if near_error:
+            score -= 0.5
+
+    return max(0.0, min(1.0, round(score, 2)))
+
+
+def _collect_error_dts(events: list[LogEvent]) -> list[datetime]:
+    """Parse error event timestamps for proximity checks."""
+    error_dts: list[datetime] = []
+    for e in events:
+        if e.level in ERROR_LEVELS and e.ts:
+            dt = parse_ts_datetime(e.ts)
+            if dt:
+                error_dts.append(dt)
+                if len(error_dts) >= 50:
+                    break
+    return error_dts
+
 
 def compute_noise_scores(events: list[LogEvent]) -> dict[str, float]:
-    """Score each message code 0.0–1.0 for noise likelihood.
+    """Score event groups 0.0–1.0 for noise likelihood.
+
+    Groups events by message code (WAS/Liberty) or by text signature
+    (all other formats). Text signatures normalize variable parts
+    (timestamps, IDs, numbers) so repetitive messages cluster together.
 
     Scoring rules:
     - High frequency + identical text → 0.8 base
@@ -699,83 +775,49 @@ def compute_noise_scores(events: list[LogEvent]) -> dict[str, float]:
     - Never-filter patterns (OOM, hung thread, etc.) → always 0.0
 
     Returns:
-        Dict mapping code → noise_score (0.0 = keep, 1.0 = definitely noise).
+        Dict mapping group key (code or "sig:...") → noise_score.
     """
+    # Group by code if available, otherwise by text signature
     code_events: dict[str, list[LogEvent]] = {}
+    sig_events: dict[str, list[LogEvent]] = {}
     for e in events:
-        if not e.code:
-            continue
-        if e.code not in code_events:
-            code_events[e.code] = []
-        code_events[e.code].append(e)
+        if e.code:
+            if e.code not in code_events:
+                code_events[e.code] = []
+            code_events[e.code].append(e)
+        else:
+            sig = _text_signature(e.text or "")
+            if sig:
+                if sig not in sig_events:
+                    sig_events[sig] = []
+                sig_events[sig].append(e)
 
-    if not code_events:
+    if not code_events and not sig_events:
         return {}
 
-    # Find error timestamps for "near error" protection
-    error_ts: list[str] = []
-    for e in events:
-        if e.level in ERROR_LEVELS and e.ts:
-            error_ts.append(e.ts)
-
-    # Parse error timestamps for proximity check
-    error_dts: list[datetime] = []
-    for ts in error_ts[:50]:  # Limit for performance
-        dt = parse_ts_datetime(ts)
-        if dt:
-            error_dts.append(dt)
-
+    error_dts = _collect_error_dts(events)
     total_events = len(events)
     scores: dict[str, float] = {}
 
+    # Score code-based groups
     for code, code_evts in code_events.items():
-        # Never-filter check
         if _NEVER_FILTER_PATTERNS.search(code):
             scores[code] = 0.0
             continue
-        # Check event text too
         if any(_NEVER_FILTER_PATTERNS.search(e.text or "") for e in code_evts[:3]):
             scores[code] = 0.0
             continue
+        scores[code] = _score_group(code_evts, total_events, error_dts)
 
-        score = 0.0
-        count = len(code_evts)
-
-        # High frequency: if this code appears > 5% of all events
-        if total_events > 0 and count / total_events > 0.05:
-            score += 0.4
-
-        # Identical text check: if >80% of events with this code have identical text
-        texts = [e.text for e in code_evts if e.text]
-        if texts:
-            most_common_text = Counter(texts).most_common(1)[0]
-            if most_common_text[1] / len(texts) > 0.8:
-                score += 0.4
-
-        # INFO/AUDIT severity bonus
-        info_count = sum(1 for e in code_evts if e.level in ("INFO", "AUDIT", "DEBUG"))
-        if info_count > len(code_evts) * 0.8:
-            score += 0.3
-
-        # Near-error protection: if any event with this code is near an error
-        if error_dts:
-            near_error = False
-            for e in code_evts[:10]:
-                if not e.ts:
-                    continue
-                e_dt = parse_ts_datetime(e.ts)
-                if not e_dt:
-                    continue
-                for err_dt in error_dts:
-                    if abs((e_dt - err_dt).total_seconds()) < 30:
-                        near_error = True
-                        break
-                if near_error:
-                    break
-            if near_error:
-                score -= 0.5
-
-        scores[code] = max(0.0, min(1.0, round(score, 2)))
+    # Score signature-based groups (only groups with 3+ events are worth scoring)
+    for sig, sig_evts in sig_events.items():
+        if len(sig_evts) < 3:
+            continue
+        if _NEVER_FILTER_PATTERNS.search(sig):
+            continue
+        if any(_NEVER_FILTER_PATTERNS.search(e.text or "") for e in sig_evts[:3]):
+            continue
+        scores[f"sig:{sig}"] = _score_group(sig_evts, total_events, error_dts)
 
     return scores
 
@@ -800,9 +842,18 @@ def filter_noise(events: list[LogEvent], threshold: float = 0.6,
     if not noise_scores:
         return events
 
-    return [
-        e for e in events
-        if e.level in ERROR_LEVELS
-        or not e.code
-        or noise_scores.get(e.code, 0.0) < threshold
-    ]
+    result = []
+    for e in events:
+        if e.level in ERROR_LEVELS:
+            result.append(e)
+            continue
+        # Check by code first
+        if e.code:
+            if noise_scores.get(e.code, 0.0) < threshold:
+                result.append(e)
+            continue
+        # Check by text signature
+        sig = _text_signature(e.text or "")
+        if noise_scores.get(f"sig:{sig}", 0.0) < threshold:
+            result.append(e)
+    return result
