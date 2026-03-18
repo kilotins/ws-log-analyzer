@@ -261,7 +261,7 @@ def _run_ai_call(provider, model_id, selected_model, msg_dict, image_bytes,
     """
     system_prompt = msg_dict.get("system", "")
     user_text = msg_dict.get("user", "")
-    _req_text = f"[SYSTEM]\n{system_prompt[:300]}...\n\n[USER]\n{user_text[:500]}..."
+    _req_text = f"[SYSTEM]\n{system_prompt[:800]}...\n\n[USER]\n{user_text[:2000]}..."
     prompt_text = system_prompt + user_text
     est_tokens_val = estimate_tokens(prompt_text)
     token_limit = TOKEN_LIMITS.get(provider, TOKEN_LIMITS["claude"])
@@ -419,14 +419,27 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         analyze_clicked = st.button("Analyze", type="primary", key="incident_analyze_btn",
                                     use_container_width=True)
 
-    # Cost preview — estimate based on analysis context size
+    # Cost preview — build a realistic estimate of prompt size
     _model_info = AI_MODELS.get(selected_model, {})
-    _est_input = estimate_tokens(
-        str(summary.get("total_events", 0))
-        + str(causes[:10]) + str(cascades[:5])
-    ) + 2000  # base system prompt + skills overhead
-    if st.session_state.get("_incident_answer"):
-        _est_input += min(2000, estimate_tokens(st.session_state["_incident_answer"]))
+    _est_parts = [
+        str(summary),                                    # log summary
+        str(causes[:10]),                                # heuristic findings
+        str(cascades[:5]),                               # cascades
+        description or "Cross-system analysis",          # user description
+    ]
+    # Estimate incident timeline
+    if itl:
+        _est_parts.append(str(itl.get("trigger_event", {})))
+        _est_parts.append(str(itl.get("window_events", [])[:8]))
+    # Per-source summaries for multi-source
+    if is_multi_source:
+        from logpilot import per_source_summary as _pss
+        _est_parts.append(str(_pss(events)))
+    # Previous answer context
+    _prev = st.session_state.get("_incident_answer")
+    if _prev:
+        _est_parts.append(_prev[:8000])
+    _est_input = estimate_tokens("".join(_est_parts)) + 3000  # system prompt + skills overhead
     _est_output = 2000
     _est_cost = estimate_cost(_model_info.get("model_id", ""), _est_input, _est_output)
     if _est_cost > 0:
