@@ -454,22 +454,23 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     # Compute noise scores for preview
     _noise_scores = compute_noise_scores(events)
     if _noise_scores and noise_threshold > 0:
-        _noisy_codes = [code for code, score in _noise_scores.items() if score >= noise_threshold]
+        _noisy_keys = [k for k, score in _noise_scores.items() if score >= noise_threshold]
         _filtered_preview = filter_noise(events, threshold=noise_threshold, noise_scores=_noise_scores)
         _n_filtered = len(events) - len(_filtered_preview)
         if _n_filtered > 0:
-            st.caption(f"Filtering {_n_filtered} noisy events ({len(_noisy_codes)} codes)")
+            st.caption(f"Filtering {_n_filtered} noisy events ({len(_noisy_keys)} patterns)")
         show_noise_details = st.checkbox("Show noise details", key="show_noise_details")
-        if show_noise_details and _noisy_codes:
+        if show_noise_details:
             _detail_rows = []
-            for code, score in sorted(_noise_scores.items(), key=lambda x: -x[1]):
+            for key, score in sorted(_noise_scores.items(), key=lambda x: -x[1]):
                 if score > 0:
-                    _detail_rows.append({"Code": code, "Noise Score": f"{score:.2f}",
+                    _label = key[4:50] + "..." if key.startswith("sig:") and len(key) > 54 else key[4:] if key.startswith("sig:") else key
+                    _detail_rows.append({"Pattern": _label, "Score": f"{score:.2f}",
                                         "Status": "Filtered" if score >= noise_threshold else "Kept"})
             if _detail_rows:
                 st.table(_detail_rows[:20])
     elif noise_threshold > 0 and not _noise_scores:
-        st.caption("No message codes found — noise filter has no effect for this log format.")
+        st.caption("No repetitive patterns found to filter.")
 
     # Cost preview — build a realistic estimate of prompt size
     _model_info = AI_MODELS.get(selected_model, {})
