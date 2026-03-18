@@ -673,6 +673,31 @@ with st.sidebar:
                                          _local_key, _preset)
 
     st.markdown("---")
+    _theme_options = {"System default": "system", "Light": "light", "Dark": "dark"}
+    _current_theme = st.session_state.get("_app_theme", "system")
+    _theme_label = next((k for k, v in _theme_options.items() if v == _current_theme), "System default")
+    _selected = st.selectbox("Theme", list(_theme_options.keys()), index=list(_theme_options.keys()).index(_theme_label), key="theme_select")
+    if _theme_options[_selected] != _current_theme:
+        st.session_state._app_theme = _theme_options[_selected]
+        # Apply theme change via Streamlit's internal config
+        import streamlit.config as _stcfg
+        if _theme_options[_selected] == "dark":
+            _stcfg.set_option("theme.base", "dark")
+            _stcfg.set_option("theme.backgroundColor", "#0d1117")
+            _stcfg.set_option("theme.secondaryBackgroundColor", "#161b22")
+            _stcfg.set_option("theme.textColor", "#e6edf3")
+        elif _theme_options[_selected] == "light":
+            _stcfg.set_option("theme.base", "light")
+            _stcfg.set_option("theme.backgroundColor", "#FFFFFF")
+            _stcfg.set_option("theme.secondaryBackgroundColor", "#F8FAFC")
+            _stcfg.set_option("theme.textColor", "#0F172A")
+        else:
+            _stcfg.set_option("theme.base", "light")
+            _stcfg.set_option("theme.backgroundColor", "#FFFFFF")
+            _stcfg.set_option("theme.secondaryBackgroundColor", "#F8FAFC")
+            _stcfg.set_option("theme.textColor", "#0F172A")
+        st.rerun()
+
     st.session_state.debug_payload = st.toggle(
         "Debug mode",
         value=st.session_state.debug_payload,
