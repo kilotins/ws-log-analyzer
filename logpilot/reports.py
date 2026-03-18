@@ -375,10 +375,13 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     error_count = sum(level_counts.get(l, 0) for l in ("ERROR", "SEVERE", "FATAL"))
     warn_count = level_counts.get("WARNING", 0) + level_counts.get("WARN", 0)
 
+    # Section order: insights first, raw data last
     if _sec(sections, "onset") and a.get("incident_timeline", {}).get("trigger_dt"):
         _add_nav("Problem Onset")
-    if _sec(sections, "files") and len(file_summary) > 1:
-        _add_nav("Per-File Breakdown")
+    if _sec(sections, "ai") and ai_content and ai_content.get("incident"):
+        _add_nav("AI Analysis")
+    if _sec(sections, "causes") and causes:
+        _add_nav("Likely Causes & Fixes")
     if _sec(sections, "levels"):
         _add_nav("Severity Distribution")
     if _sec(sections, "codes") and s["codes"]:
@@ -387,21 +390,18 @@ def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
         _add_nav("Exceptions")
     if _sec(sections, "tags") and s["tags"]:
         _add_nav("Signal Tags")
-    if _sec(sections, "causes") and causes:
-        _add_nav("Likely Causes & Fixes")
     if _sec(sections, "splunk") and a.get("splunk"):
         _add_nav("Splunk Searches")
     if _sec(sections, "hung") and hung:
         _add_nav("Hung Thread Drilldown")
     if _sec(sections, "timeline"):
         _add_nav("Timeline")
+    if _sec(sections, "files") and len(file_summary) > 1:
+        _add_nav("Per-File Breakdown")
     if _sec(sections, "samples"):
         _add_nav("Sample Events")
-    if _sec(sections, "ai") and ai_content:
-        if ai_content.get("incident"):
-            _add_nav("AI Analysis")
-        if ai_content.get("ask_ai"):
-            _add_nav("AI Queries")
+    if _sec(sections, "ai") and ai_content and ai_content.get("ask_ai"):
+        _add_nav("AI Queries")
 
     h: list[str] = []
     h.append('<!DOCTYPE html>')
@@ -598,9 +598,9 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
     def _close_section() -> None:
         h.append('</div></details>')
 
-    # --- Render sections ---
+    # --- Render sections (insights first, raw data last) ---
 
-    # Problem onset
+    # 1. Problem onset
     if _sec(sections, "onset"):
         itl = a.get("incident_timeline")
         if itl and itl.get("trigger_dt"):
@@ -618,51 +618,22 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 f' &mdash; {" ".join(_t_parts)}</div>')
             _close_section()
 
-    # Per-file breakdown
-    if _sec(sections, "files") and len(file_summary) > 1:
-        _open_section()
-        h.append('<div class="table-wrap"><table><thead><tr><th>File</th><th>Events</th><th>Errors</th></tr></thead><tbody>')
-        for fname, total, errors in file_summary:
-            h.append(f'<tr><td>{escape(Path(fname).name)}</td><td>{total:,}</td><td>{errors:,}</td></tr>')
-        h.append('</tbody></table></div>')
-        _close_section()
+    # 2. AI analysis (primary insight)
+    if _sec(sections, "ai") and ai_content:
+        incident = ai_content.get("incident")
+        if incident:
+            _open_section(True)
+            h.append('<div class="ai-section">')
+            model = ai_content.get("incident_model", "AI")
+            _q = ai_content.get("incident_query", "")
+            if _q:
+                h.append(f'<h3>Q: {escape(_q[:120])}</h3>')
+            h.append(f'<div class="sample-meta">Model: {escape(model)}</div>')
+            h.append(f'<div class="ai-answer">{escape(incident)}</div>')
+            h.append('</div>')
+            _close_section()
 
-    # Severity
-    if _sec(sections, "levels"):
-        _open_section(True)
-        h.append('<div class="table-wrap"><table><thead><tr><th>Level</th><th>Count</th></tr></thead><tbody>')
-        for k, v in s["levels"]:
-            cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
-            h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v:,}</td></tr>')
-        h.append('</tbody></table></div>')
-        _close_section()
-
-    # Message codes
-    if _sec(sections, "codes") and s["codes"]:
-        _open_section()
-        h.append('<div class="table-wrap"><table><thead><tr><th>Code</th><th>Count</th></tr></thead><tbody>')
-        for k, v in s["codes"]:
-            h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
-        h.append('</tbody></table></div>')
-        _close_section()
-
-    # Exceptions
-    if _sec(sections, "exceptions") and s["exceptions"]:
-        _open_section()
-        h.append('<div class="table-wrap"><table><thead><tr><th>Exception</th><th>Count</th></tr></thead><tbody>')
-        for k, v in s["exceptions"]:
-            h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
-        h.append('</tbody></table></div>')
-        _close_section()
-
-    # Signal tags
-    if _sec(sections, "tags") and s["tags"]:
-        _open_section()
-        for tag, count in s["tags"]:
-            h.append(f'<span class="tag">{escape(tag)}: {count:,}</span>')
-        _close_section()
-
-    # Likely causes
+    # 3. Likely causes
     if _sec(sections, "causes") and causes:
         from .analysis import group_into_incidents
         grouped = group_into_incidents(causes)
@@ -693,7 +664,42 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 h.append('</ul></div>')
         _close_section()
 
-    # Splunk searches
+    # 4. Severity
+    if _sec(sections, "levels"):
+        _open_section()
+        h.append('<div class="table-wrap"><table><thead><tr><th>Level</th><th>Count</th></tr></thead><tbody>')
+        for k, v in s["levels"]:
+            cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
+            h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v:,}</td></tr>')
+        h.append('</tbody></table></div>')
+        _close_section()
+
+    # 5. Message codes
+    if _sec(sections, "codes") and s["codes"]:
+        _open_section()
+        h.append('<div class="table-wrap"><table><thead><tr><th>Code</th><th>Count</th></tr></thead><tbody>')
+        for k, v in s["codes"]:
+            h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
+        h.append('</tbody></table></div>')
+        _close_section()
+
+    # 6. Exceptions
+    if _sec(sections, "exceptions") and s["exceptions"]:
+        _open_section()
+        h.append('<div class="table-wrap"><table><thead><tr><th>Exception</th><th>Count</th></tr></thead><tbody>')
+        for k, v in s["exceptions"]:
+            h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
+        h.append('</tbody></table></div>')
+        _close_section()
+
+    # 7. Signal tags
+    if _sec(sections, "tags") and s["tags"]:
+        _open_section()
+        for tag, count in s["tags"]:
+            h.append(f'<span class="tag">{escape(tag)}: {count:,}</span>')
+        _close_section()
+
+    # 8. Splunk searches
     splunk = a.get("splunk", [])
     if _sec(sections, "splunk") and splunk:
         _open_section()
@@ -702,7 +708,7 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
             h.append(f'<pre>{escape(sq["query"])}</pre>')
         _close_section()
 
-    # Hung threads
+    # 9. Hung threads
     if _sec(sections, "hung") and hung:
         _open_section()
         for t in hung:
@@ -711,7 +717,7 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 h.append(f'<pre>{escape(chr(10).join(t["stack_sample"]))}</pre>')
         _close_section()
 
-    # Timeline
+    # 10. Timeline
     if _sec(sections, "timeline"):
         _open_section()
         _export_hist = compact_histogram(hist)
@@ -719,7 +725,16 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
         h.append(f'<pre>{escape(chr(10).join(hist_lines))}</pre>')
         _close_section()
 
-    # Sample events
+    # 11. Per-file breakdown
+    if _sec(sections, "files") and len(file_summary) > 1:
+        _open_section()
+        h.append('<div class="table-wrap"><table><thead><tr><th>File</th><th>Events</th><th>Errors</th></tr></thead><tbody>')
+        for fname, total, errors in file_summary:
+            h.append(f'<tr><td>{escape(Path(fname).name)}</td><td>{total:,}</td><td>{errors:,}</td></tr>')
+        h.append('</tbody></table></div>')
+        _close_section()
+
+    # 12. Sample events
     if _sec(sections, "samples"):
         _open_section()
         for idx, e in enumerate(samples, start=1):
@@ -746,21 +761,8 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
             h.append('</div>')
         _close_section()
 
-    # AI analysis
+    # 13. AI queries (history)
     if _sec(sections, "ai") and ai_content:
-        incident = ai_content.get("incident")
-        if incident:
-            _open_section(True)
-            h.append('<div class="ai-section">')
-            model = ai_content.get("incident_model", "AI")
-            _q = ai_content.get("incident_query", "")
-            if _q:
-                h.append(f'<h3>Q: {escape(_q[:120])}</h3>')
-            h.append(f'<div class="sample-meta">Model: {escape(model)}</div>')
-            h.append(f'<div class="ai-answer">{escape(incident)}</div>')
-            h.append('</div>')
-            _close_section()
-
         ask_ai = ai_content.get("ask_ai")
         if ask_ai:
             _open_section()
