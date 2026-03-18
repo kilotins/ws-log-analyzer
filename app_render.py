@@ -877,10 +877,23 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         _available["hung"] = REPORT_SECTIONS["hung"]
     _available["timeline"] = REPORT_SECTIONS["timeline"]
     _available["samples"] = REPORT_SECTIONS["samples"]
+    # Build list of individual AI entries for per-item selection
+    _ai_entries: list[dict] = []
     if _ai_content:
         _available["ai"] = REPORT_SECTIONS["ai"]
+        if _ai_content.get("incident"):
+            _q = _ai_content.get("incident_query", "")
+            _model = _ai_content.get("incident_model", "AI")
+            _preview = (_q[:50] + "...") if len(_q) > 50 else (_q or "Current analysis")
+            _ai_entries.append({"key": "incident", "label": f"{_model}: {_preview}"})
+        for idx, entry in enumerate(_ai_content.get("ask_ai", [])):
+            _q = entry.get("query", "")
+            _prov = entry.get("provider", "AI")
+            _preview = (_q[:50] + "...") if len(_q) > 50 else _q
+            _ai_entries.append({"key": f"ask_{idx}", "label": f"{_prov}: {_preview}"})
 
     _selected_sections: set[str] = set()
+    _selected_ai: set[str] = set()
     if _available:
         with st.expander("Report sections", expanded=False):
             _cols = st.columns(3)
@@ -888,6 +901,30 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                 with _cols[i % 3]:
                     if st.checkbox(label, value=True, key=f"export_sec_{key}"):
                         _selected_sections.add(key)
+            # Per-AI-entry selection
+            if "ai" in _selected_sections and len(_ai_entries) > 1:
+                st.caption("Include AI responses:")
+                for ae in _ai_entries:
+                    if st.checkbox(ae["label"], value=True, key=f"export_ai_{ae['key']}"):
+                        _selected_ai.add(ae["key"])
+            elif "ai" in _selected_sections:
+                _selected_ai = {ae["key"] for ae in _ai_entries}
+
+    # Filter AI content based on selection
+    if _ai_content and _selected_ai and _selected_ai != {ae["key"] for ae in _ai_entries}:
+        _filtered_ai: dict = {}
+        if "incident" in _selected_ai and _ai_content.get("incident"):
+            _filtered_ai["incident"] = _ai_content["incident"]
+            _filtered_ai["incident_model"] = _ai_content.get("incident_model", "AI")
+            _filtered_ai["incident_query"] = _ai_content.get("incident_query", "")
+        _kept_ask = []
+        for idx, entry in enumerate(_ai_content.get("ask_ai", [])):
+            if f"ask_{idx}" in _selected_ai:
+                _kept_ask.append(entry)
+        if _kept_ask:
+            _filtered_ai["ask_ai"] = _kept_ask
+        _ai_content = _filtered_ai or None
+
     _sections = _selected_sections if _selected_sections != set(_available.keys()) else None
 
     _fmt_col, _dl_col = st.columns([1, 2])
@@ -902,7 +939,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         from datetime import datetime as _dt
         _base = f"report_{_dt.now().strftime('%Y-%m-%d_%H-%M-%S')}.md"
         # Generate export data lazily — only when format/AI/sections change
-        _sec_hash = hash(frozenset(_selected_sections)) if _sections else 0
+        _sec_hash = hash((frozenset(_selected_sections), frozenset(_selected_ai)))
         _export_key = f"_export_{_export_fmt}_{len(events_for_export)}_{hash(str(_ai_content))}_{_sec_hash}"
         _cached_export = st.session_state.get(_export_key)
         if _cached_export:
