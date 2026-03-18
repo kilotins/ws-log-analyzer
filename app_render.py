@@ -671,7 +671,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
       8. Event Samples + Cascades — drill into data
       9. Export — download results
     """
-    from app_ai import render_ask_claude, render_ai_responses, render_analyze_all_button
+    from app_ai import render_analyze_all_button
 
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
                f"Report saved as `{a['report_name']}`.")
@@ -718,16 +718,9 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     if len(_sources) >= 2:
         render_analyze_all_button(a, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
 
-    # --- 3. Ask AI ---
-    with st.expander("Ask AI for help"):
-        render_ask_claude(display_events, log=log, lookup_cache=lookup_cache, store_cache=store_cache)
-
-    # Render AI responses outside the expander to avoid scroll issues with long content
-    render_ai_responses()
-
-    # --- 3.5. Incident Assistant ---
+    # --- 3. Incident Assistant (unified AI analysis) ---
     from app_incident import render_incident_assistant
-    with st.expander("Incident Assistant — describe a symptom"):
+    with st.expander("Ask AI — describe a symptom, paste an error code, or ask a question"):
         render_incident_assistant(display_events, a, log=log,
                                   lookup_cache=lookup_cache, store_cache=store_cache)
 
