@@ -464,18 +464,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     # --- Render history ---
     _render_ai_history()
 
-    # --- Clear button ---
-    has_any = any([
-        cached_answer,
-        len(st.session_state.get("claude_history", [])) > 0,
-        len(st.session_state.get("gemini_history", [])) > 0,
-        len(st.session_state.get("openai_history", [])) > 0,
-        len(st.session_state.get("local_history", [])) > 0,
-    ])
-    if has_any:
-        if st.button("Clear all AI history", key="clear_ai_history_btn"):
-            clear_all_ai_history()
-            st.rerun()
+    # Clear button moved to sidebar (Settings)
 
 
 def _run_analysis(events, description, summary, causes, itl, cascades,

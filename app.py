@@ -28,6 +28,38 @@ from app_spend import render_spend_tab
 
 # --- Paths and directories ---
 _APP_DIR = Path(__file__).parent
+
+
+def _get_version() -> str:
+    """Build version string from pyproject.toml + git commit info.
+
+    Returns e.g. '0.1.0+42.b00bc60' or '0.1.0' if git is unavailable.
+    """
+    # Base version from pyproject.toml
+    base = "0.1.0"
+    try:
+        import tomllib
+        base = tomllib.loads((_APP_DIR / "pyproject.toml").read_text())["project"]["version"]
+    except Exception:
+        pass
+    # Git commit count + short hash
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            capture_output=True, text=True, cwd=str(_APP_DIR), timeout=5,
+        )
+        commit_count = result.stdout.strip() if result.returncode == 0 else None
+        result2 = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, cwd=str(_APP_DIR), timeout=5,
+        )
+        short_hash = result2.stdout.strip() if result2.returncode == 0 else None
+        if commit_count and short_hash:
+            return f"{base}+{commit_count}.{short_hash}"
+    except Exception:
+        pass
+    return base
 UPLOADS_DIR = _APP_DIR / "uploads"
 REPORTS_DIR = _APP_DIR / "reports"
 CACHE_DIR = _APP_DIR / "cache"
@@ -656,44 +688,22 @@ with st.sidebar:
         with _cc1:
             if st.button("Yes, clear", type="primary", use_container_width=True, key="confirm_clear_cache"):
                 st.session_state._confirm_clear_cache = False
-                st.session_state.claude_cache = {}
-                st.session_state.claude_answer = None
-                st.session_state.claude_query_label = None
-                st.session_state.claude_history = []
-                st.session_state.gemini_cache = {}
-                st.session_state.gemini_answer = None
-                st.session_state.gemini_query_label = None
-                st.session_state.gemini_history = []
-                st.session_state.openai_cache = {}
-                st.session_state.openai_answer = None
-                st.session_state.openai_query_label = None
-                st.session_state.openai_history = []
-                st.session_state.local_cache = {}
-                st.session_state.local_answer = None
-                st.session_state.local_query_label = None
-                st.session_state.local_history = []
-                CACHE_FILE.unlink(missing_ok=True)
-                for _hpath in _PROVIDER_HISTORY_FILES.values():
-                    _hpath.unlink(missing_ok=True)
-                log.info("cache Cleared all AI caches")
-                st.success("Cache cleared")
+                from app_ai import clear_all_ai_history
+                clear_all_ai_history()
+                log.info("cache Cleared all AI caches and history")
+                st.success("AI cache and history cleared")
         with _cc2:
             if st.button("Cancel", use_container_width=True, key="cancel_clear_cache"):
                 st.session_state._confirm_clear_cache = False
                 st.rerun()
-    elif st.button("Clear AI cache", help="Clear cached Claude/Gemini/OpenAI responses and history"):
+    elif st.button("Clear AI cache & history", help="Clear all cached AI responses, answers, and conversation history"):
         st.session_state._confirm_clear_cache = True
         st.rerun()
 
     # --- Sidebar footer ---
-    try:
-        import tomllib
-        _version = tomllib.loads((_APP_DIR / "pyproject.toml").read_text())["project"]["version"]
-    except Exception:
-        _version = "0.1.0"
     st.markdown(
         f'<div class="sidebar-footer">'
-        f'v{_version} &middot; <a href="https://item.no" target="_blank">Item Consulting</a>'
+        f'v{_get_version()} &middot; <a href="https://item.no" target="_blank">Item Consulting</a>'
         f'</div>',
         unsafe_allow_html=True,
     )
