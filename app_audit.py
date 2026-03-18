@@ -18,10 +18,22 @@ def _get_app_dir():
 
 
 _AUDIT_FILES_FULL = [
-    "logpilot/parser.py", "logpilot/analysis.py", "logpilot/reports.py", "logpilot/ai.py", "logpilot/cli.py",
-    "app.py", "tests/test_wslog.py", "CLAUDE.md", "ARCHITECTURE.md",
+    # Core engine
+    "logpilot/__init__.py", "logpilot/parser.py", "logpilot/analysis.py",
+    "logpilot/heuristics.py", "logpilot/splunk.py", "logpilot/reports.py",
+    "logpilot/ai.py", "logpilot/cli.py", "logpilot/event.py",
+    # App layer
+    "app.py", "app_ai.py", "app_incident.py", "app_render.py",
+    "app_audit.py", "app_spend.py", "app_realtime.py", "app_constants.py",
+    "report_renderer.py",
+    # Docs
+    "CLAUDE.md", "ARCHITECTURE.md",
 ]
-_AUDIT_FILES_COMPACT = ["logpilot/parser.py", "logpilot/analysis.py", "logpilot/ai.py", "app.py", "CLAUDE.md"]
+_AUDIT_FILES_COMPACT = [
+    "logpilot/parser.py", "logpilot/analysis.py", "logpilot/heuristics.py",
+    "logpilot/ai.py", "logpilot/reports.py", "app.py", "app_incident.py",
+    "CLAUDE.md",
+]
 _AUDIT_SKILL_DIRS = ["skills", ".claude/skills"]
 
 _AUDIT_MODELS = {
