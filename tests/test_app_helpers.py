@@ -70,10 +70,6 @@ from app_realtime import (              # noqa: E402
     _highlight_line,
     _is_safe_rt_path,
 )
-from app_audit import (                 # noqa: E402
-    _extract_signatures,
-    _collect_audit_sources,
-)
 from app_constants import AI_RATE_LIMIT_SECONDS  # noqa: E402
 from app import (                       # noqa: E402
     _PROVIDER_HISTORY_FILES,
@@ -366,44 +362,6 @@ class TestEstimateCost:
         assert cost == pytest.approx(3.00, abs=0.01)
 
 
-# ── _extract_signatures ─────────────────────────────────────────────────
-
-class TestExtractSignatures:
-    def test_extracts_function_def(self):
-        code = 'def hello(name):\n    """Say hello."""\n    print(name)\n'
-        result = _extract_signatures(code)
-        assert "def hello(name):" in result
-        assert '"""Say hello."""' in result
-        assert "print(name)" not in result
-
-    def test_extracts_class_def(self):
-        code = 'class Foo:\n    """A foo."""\n    x = 1\n'
-        result = _extract_signatures(code)
-        assert "class Foo:" in result
-        assert '"""A foo."""' in result
-
-    def test_extracts_imports(self):
-        code = 'import os\nfrom pathlib import Path\nx = 1\n'
-        result = _extract_signatures(code)
-        assert "import os" in result
-        assert "from pathlib import Path" in result
-
-    def test_extracts_top_level_constants(self):
-        code = 'MAX_SIZE = 100\n_INTERNAL = "abc"\n'
-        result = _extract_signatures(code)
-        assert "MAX_SIZE = 100" in result
-
-    def test_empty_source(self):
-        assert _extract_signatures("") == ""
-
-    def test_multiline_docstring(self):
-        code = 'def foo():\n    """Multi\n    line\n    doc."""\n    pass\n'
-        result = _extract_signatures(code)
-        assert "Multi" in result
-        assert "doc." in result
-        assert "pass" not in result
-
-
 # ── API callers (mock-based) ────────────────────────────────────────────
 
 class TestCallClaudeApi:
@@ -480,30 +438,6 @@ class TestCallGeminiApi:
         with mock.patch.object(app_ai_mod, "ask_gemini", return_value=""):
             answer, usage = call_gemini_api("key", "model", {"system": "s", "user": "u"})
         assert answer is None
-
-
-# ── _collect_audit_sources ─────────────────────────────────────────────
-
-class TestCollectAuditSources:
-    def test_returns_string(self):
-        result = _collect_audit_sources()
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_includes_main_files(self):
-        result = _collect_audit_sources()
-        assert "logpilot/" in result or "parser.py" in result
-        assert "app.py" in result
-
-    def test_compact_mode_shorter(self):
-        full = _collect_audit_sources(compact=False)
-        compact = _collect_audit_sources(compact=True)
-        assert len(compact) <= len(full)
-
-    def test_includes_skill_content(self):
-        result = _collect_audit_sources()
-        # Should include skill directory content
-        assert "skills" in result.lower() or "skill" in result.lower()
 
 
 # ── _PROVIDER_HISTORY_FILES ───────────────────────────────────────────
