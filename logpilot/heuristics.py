@@ -1364,3 +1364,74 @@ def likely_causes(events: list[LogEvent]) -> list[dict[str, Any]]:
         r.pop("_sev", None)
 
     return results
+
+
+def incident_fingerprint(causes: list[dict]) -> str:
+    """Create a stable fingerprint from heuristic findings.
+
+    Combines sorted heuristic IDs and top exception names into a
+    deterministic string key for comparing incidents.
+
+    Args:
+        causes: List of cause dicts from likely_causes(), each with 'id' and optionally 'title'.
+
+    Returns:
+        A stable fingerprint string (hash).
+    """
+    import hashlib
+    # Extract heuristic IDs
+    ids = sorted(set(c.get("id", c.get("title", "")) for c in causes))
+    # Extract top exception names from cause descriptions
+    exceptions = sorted(set(
+        c.get("title", "")
+        for c in causes
+        if any(kw in c.get("title", "").lower() for kw in ("exception", "error", "failure", "oom", "timeout"))
+    ))
+    fingerprint_data = "|".join(ids) + "||" + "|".join(exceptions)
+    return hashlib.sha256(fingerprint_data.encode("utf-8")).hexdigest()[:16]
+
+
+def match_similar_incidents(current_causes: list[dict],
+                            history: list[dict]) -> list[dict]:
+    """Compare current incident against a history of past analyses.
+
+    Uses Jaccard similarity on heuristic ID sets.
+
+    Args:
+        current_causes: Current cause dicts from likely_causes().
+        history: List of past incident dicts, each with 'fingerprint', 'ids', 'timestamp'.
+
+    Returns:
+        List of matching incidents with similarity >= 0.5, each containing:
+        {fingerprint, timestamp, similarity}.
+    """
+    if not current_causes or not history:
+        return []
+
+    current_ids = set(c.get("id", c.get("title", "")) for c in current_causes)
+    if not current_ids:
+        return []
+
+    matches = []
+    for past in history:
+        past_ids = set(past.get("ids", []))
+        if not past_ids:
+            continue
+
+        # Jaccard similarity
+        intersection = len(current_ids & past_ids)
+        union = len(current_ids | past_ids)
+        if union == 0:
+            continue
+        similarity = intersection / union
+
+        if similarity >= 0.5:
+            matches.append({
+                "fingerprint": past.get("fingerprint", ""),
+                "timestamp": past.get("timestamp", ""),
+                "similarity": round(similarity, 2),
+            })
+
+    # Sort by similarity descending
+    matches.sort(key=lambda m: -m["similarity"])
+    return matches

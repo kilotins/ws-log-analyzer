@@ -567,3 +567,221 @@ def precompute_analysis(events: list[LogEvent], top_n: int = 10, samples_n: int 
         "hung": hung,
         "cascades": cascades,
     }
+
+
+def compare_periods(events: list[LogEvent], split: str = "day") -> list[dict]:
+    """Compare consecutive time periods to find new/disappeared error patterns.
+
+    Groups events by date, then for each consecutive pair computes:
+    - New/disappeared message codes and exceptions
+    - Significant volume changes (>2x increase or >50% drop)
+    - New/disappeared signal tags
+
+    Args:
+        events: List of parsed log events.
+        split: Grouping period ("day" supported).
+
+    Returns:
+        List of dicts with keys: date, new_codes, gone_codes, new_exceptions,
+        gone_exceptions, volume_changes, new_tags, gone_tags.
+    """
+    # Group events by date
+    by_date: dict[str, list[LogEvent]] = {}
+    for e in events:
+        if not e.ts:
+            continue
+        parsed = _parse_ts_parts(e.ts)
+        if not parsed or not parsed[0]:
+            continue
+        date_str = parsed[0]
+        if date_str not in by_date:
+            by_date[date_str] = []
+        by_date[date_str].append(e)
+
+    if len(by_date) < 2:
+        return []
+
+    sorted_dates = sorted(by_date.keys())
+    deltas: list[dict] = []
+
+    for i in range(1, len(sorted_dates)):
+        prev_date = sorted_dates[i - 1]
+        curr_date = sorted_dates[i]
+        prev_events = by_date[prev_date]
+        curr_events = by_date[curr_date]
+
+        # Collect codes, exceptions, tags per day
+        prev_codes = Counter(e.code for e in prev_events if e.code)
+        curr_codes = Counter(e.code for e in curr_events if e.code)
+        prev_exc = Counter(e.exception for e in prev_events if e.exception)
+        curr_exc = Counter(e.exception for e in curr_events if e.exception)
+        prev_tags = set(tag for e in prev_events for tag in e.tags)
+        curr_tags = set(tag for e in curr_events for tag in e.tags)
+
+        # New and disappeared
+        new_codes = sorted(set(curr_codes) - set(prev_codes))
+        gone_codes = sorted(set(prev_codes) - set(curr_codes))
+        new_exceptions = sorted(set(curr_exc) - set(prev_exc))
+        gone_exceptions = sorted(set(prev_exc) - set(curr_exc))
+        new_tags = sorted(curr_tags - prev_tags)
+        gone_tags = sorted(prev_tags - curr_tags)
+
+        # Volume changes (codes present in both periods)
+        volume_changes: list[dict] = []
+        for code in sorted(set(prev_codes) & set(curr_codes)):
+            prev_count = prev_codes[code]
+            curr_count = curr_codes[code]
+            if prev_count == 0:
+                continue
+            ratio = curr_count / prev_count
+            if ratio >= 2.0 or ratio <= 0.5:
+                volume_changes.append({
+                    "code": code,
+                    "prev_count": prev_count,
+                    "curr_count": curr_count,
+                    "ratio": round(ratio, 2),
+                    "direction": "up" if ratio >= 2.0 else "down",
+                })
+
+        deltas.append({
+            "date": curr_date,
+            "prev_date": prev_date,
+            "new_codes": new_codes,
+            "gone_codes": gone_codes,
+            "new_exceptions": new_exceptions,
+            "gone_exceptions": gone_exceptions,
+            "volume_changes": volume_changes,
+            "new_tags": new_tags,
+            "gone_tags": gone_tags,
+        })
+
+    return deltas
+
+
+# --- Noise scoring for AI prompt reduction ---
+
+# Codes that should never be filtered (critical signals)
+_NEVER_FILTER_PATTERNS = re.compile(
+    r'OutOfMemory|OOM|HungThread|WSVR0605W|WSVR0606W|WSVR0661W'
+    r'|FATAL|Deadlock|StackOverflow',
+    re.IGNORECASE,
+)
+
+
+def compute_noise_scores(events: list[LogEvent]) -> dict[str, float]:
+    """Score each message code 0.0–1.0 for noise likelihood.
+
+    Scoring rules:
+    - High frequency + identical text → 0.8 base
+    - INFO/AUDIT severity → +0.3
+    - Near error window → −0.5 (protect from filtering)
+    - Never-filter patterns (OOM, hung thread, etc.) → always 0.0
+
+    Returns:
+        Dict mapping code → noise_score (0.0 = keep, 1.0 = definitely noise).
+    """
+    code_events: dict[str, list[LogEvent]] = {}
+    for e in events:
+        if not e.code:
+            continue
+        if e.code not in code_events:
+            code_events[e.code] = []
+        code_events[e.code].append(e)
+
+    if not code_events:
+        return {}
+
+    # Find error timestamps for "near error" protection
+    error_ts: list[str] = []
+    for e in events:
+        if e.level in ERROR_LEVELS and e.ts:
+            error_ts.append(e.ts)
+
+    # Parse error timestamps for proximity check
+    error_dts: list[datetime] = []
+    for ts in error_ts[:50]:  # Limit for performance
+        dt = parse_ts_datetime(ts)
+        if dt:
+            error_dts.append(dt)
+
+    total_events = len(events)
+    scores: dict[str, float] = {}
+
+    for code, code_evts in code_events.items():
+        # Never-filter check
+        if _NEVER_FILTER_PATTERNS.search(code):
+            scores[code] = 0.0
+            continue
+        # Check event text too
+        if any(_NEVER_FILTER_PATTERNS.search(e.text or "") for e in code_evts[:3]):
+            scores[code] = 0.0
+            continue
+
+        score = 0.0
+        count = len(code_evts)
+
+        # High frequency: if this code appears > 5% of all events
+        if total_events > 0 and count / total_events > 0.05:
+            score += 0.4
+
+        # Identical text check: if >80% of events with this code have identical text
+        texts = [e.text for e in code_evts if e.text]
+        if texts:
+            most_common_text = Counter(texts).most_common(1)[0]
+            if most_common_text[1] / len(texts) > 0.8:
+                score += 0.4
+
+        # INFO/AUDIT severity bonus
+        info_count = sum(1 for e in code_evts if e.level in ("INFO", "AUDIT", "DEBUG"))
+        if info_count > len(code_evts) * 0.8:
+            score += 0.3
+
+        # Near-error protection: if any event with this code is near an error
+        if error_dts:
+            near_error = False
+            for e in code_evts[:10]:
+                if not e.ts:
+                    continue
+                e_dt = parse_ts_datetime(e.ts)
+                if not e_dt:
+                    continue
+                for err_dt in error_dts:
+                    if abs((e_dt - err_dt).total_seconds()) < 30:
+                        near_error = True
+                        break
+                if near_error:
+                    break
+            if near_error:
+                score -= 0.5
+
+        scores[code] = max(0.0, min(1.0, round(score, 2)))
+
+    return scores
+
+
+def filter_noise(events: list[LogEvent], threshold: float = 0.6,
+                 noise_scores: dict[str, float] | None = None) -> list[LogEvent]:
+    """Remove noisy events based on noise scores.
+
+    Always keeps ERROR/SEVERE/FATAL events regardless of noise score.
+
+    Args:
+        events: Full event list.
+        threshold: Noise score threshold (0.0–1.0). Events with score >= threshold are removed.
+        noise_scores: Pre-computed noise scores. If None, computed automatically.
+
+    Returns:
+        Filtered event list.
+    """
+    if noise_scores is None:
+        noise_scores = compute_noise_scores(events)
+
+    if not noise_scores:
+        return events
+
+    return [
+        e for e in events
+        if e.level in ERROR_LEVELS
+        or not e.code
+        or noise_scores.get(e.code, 0.0) < threshold
+    ]

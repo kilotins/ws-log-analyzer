@@ -35,6 +35,8 @@ from .analysis import (
     detect_cross_system_cascades,
     correlate_by_trace_id, find_cross_system_chains,
     precompute_analysis,
+    compare_periods,
+    compute_noise_scores, filter_noise,
 )
 
 # --- reports ---
@@ -77,6 +79,8 @@ __all__ = [
     "detect_cross_system_cascades",
     "correlate_by_trace_id", "find_cross_system_chains",
     "precompute_analysis",
+    "compare_periods",
+    "compute_noise_scores", "filter_noise",
     # reports
     "render_json_report", "render_markdown_report",
     "render_html_report", "render_pdf_report",
