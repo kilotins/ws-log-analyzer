@@ -739,8 +739,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
       8. Event Samples + Cascades — drill into data
       9. Export — download results
     """
-    st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s). "
-               f"Report saved as `{a['report_name']}`.")
+    st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s).")
 
     # --- Pre-compute filtered data from session_state (before rendering) ---
     # Filter widget values persist in session_state between reruns, so we can
@@ -861,7 +860,8 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
             label_visibility="collapsed",
         )
     with _dl_col:
-        _base = a["report_name"]
+        from datetime import datetime as _dt
+        _base = f"report_{_dt.now().strftime('%Y-%m-%d_%H-%M-%S')}.md"
         # Generate export data lazily — only when format/AI content changes
         _export_key = f"_export_{_export_fmt}_{len(events_for_export)}_{hash(str(_ai_content))}"
         _cached_export = st.session_state.get(_export_key)
