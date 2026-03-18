@@ -856,7 +856,20 @@ def incident_cache_key(description: str, summary: dict, model_id: str = "") -> s
 
 def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "gemini-2.5-flash",
                timeout: int = 120) -> str:
-    """Send a prompt to Google Gemini and return the text response."""
+    """Send a prompt to Google Gemini and return the text response.
+
+    This is the canonical core implementation for text-only Gemini calls, used by
+    both the CLI (via ``logpilot.ask_gemini``) and the GUI (via
+    ``app_ai.call_gemini_api``, which delegates here for the text-only path).
+
+    For multimodal (image) calls, ``app_ai.call_gemini_api`` handles those
+    directly using the native Gemini SDK without going through this function.
+
+    Note: This function lives in the core ``logpilot/`` package because it is
+    part of the public API and must remain importable without Streamlit.  The
+    ``google-generativeai`` SDK import is deferred so the core still works with
+    zero required dependencies when Gemini is not used.
+    """
     import os
     key = api_key or os.environ.get("GEMINI_API_KEY", "")
     if not key:

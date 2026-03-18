@@ -1,6 +1,8 @@
 """AI provider orchestration module for the Streamlit GUI."""
 from __future__ import annotations
 
+import logging
+import time
 import streamlit as st
 from datetime import datetime
 
@@ -10,7 +12,78 @@ from logpilot import (
     estimate_tokens, TOKEN_LIMITS,
 )
 from logpilot.ai import _FORMAT_PLACEHOLDER
-from app_constants import AI_RATE_LIMIT_SECONDS
+from app_constants import AI_RATE_LIMIT_SECONDS, AI_MAX_RETRIES
+
+_log = logging.getLogger(__name__)
+
+# HTTP status codes that should NOT be retried (auth/client errors)
+_NO_RETRY_STATUS = frozenset({400, 401, 403, 404})
+
+# Transient HTTP status codes that warrant a retry
+_RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
+
+
+def _should_retry(exc: Exception) -> bool:
+    """Return True if *exc* represents a transient error worth retrying."""
+    import socket
+    # Connection-level errors
+    if isinstance(exc, (TimeoutError, ConnectionError, OSError, socket.timeout)):
+        return True
+    # urllib timeout/connection errors
+    try:
+        import urllib.error
+        if isinstance(exc, urllib.error.URLError):
+            return True
+    except ImportError:
+        pass
+    # Check for HTTP status codes embedded in the exception
+    status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+    if status is None:
+        # Anthropic SDK wraps status in .response
+        resp = getattr(exc, "response", None)
+        if resp is not None:
+            status = getattr(resp, "status_code", None)
+    if status in _NO_RETRY_STATUS:
+        return False
+    if status in _RETRY_STATUS:
+        return True
+    # Anthropic/OpenAI SDK exception class names
+    cls_name = type(exc).__name__
+    if any(k in cls_name for k in ("Timeout", "Connection", "RateLimit", "APIStatusError", "ServiceUnavailable")):
+        # Still skip 401/403 even by name
+        if status in _NO_RETRY_STATUS:
+            return False
+        return True
+    return False
+
+
+def _with_retries(func, *args, max_retries: int = AI_MAX_RETRIES, **kwargs):
+    """Call *func* with exponential backoff on transient errors.
+
+    Retries up to *max_retries* times (default from AI_MAX_RETRIES).
+    Backoff delays: 1s, 2s, 4s, ...
+    Auth errors (401/403) and client errors (400) are re-raised immediately.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:
+            if not _should_retry(exc):
+                raise
+            last_exc = exc
+            if attempt < max_retries:
+                delay = 2 ** (attempt - 1)  # 1s, 2s, 4s
+                _log.warning(
+                    "AI API transient error (attempt %d/%d), retrying in %ds: %s",
+                    attempt, max_retries, delay, exc,
+                )
+                time.sleep(delay)
+            else:
+                _log.error(
+                    "AI API call failed after %d attempts: %s", max_retries, exc
+                )
+    raise last_exc
 
 
 def _log_probe(call_type: str, provider: str, model: str, request: str, response: str, error: str | None = None):
@@ -181,18 +254,10 @@ def estimate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float
     return (input_tokens * costs[0] + output_tokens * costs[1]) / 1_000_000
 
 
-def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
-                    timeout: float = 120.0, max_tokens: int = 2048,
-                    images: list[dict] | None = None) -> tuple[str, dict]:
-    """Make the actual Claude API call with optional streaming and optional image content.
-
-    Args:
-        images: Optional list of image dicts with keys ``media_type`` (e.g. ``"image/png"``)
-                and ``data`` (base64-encoded string). When provided, the user message is
-                sent as a multimodal content block (image + text) instead of plain text.
-
-    Returns (answer, usage_dict).
-    """
+def _call_claude_api_impl(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                          timeout: float = 120.0, max_tokens: int = 2048,
+                          images: list[dict] | None = None) -> tuple[str, dict]:
+    """Internal implementation — use call_claude_api (which adds retry logic)."""
     try:
         from anthropic import Anthropic
     except ImportError:
@@ -243,6 +308,28 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
     return (message.content[0].text, usage)
 
 
+def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                    timeout: float = 120.0, max_tokens: int = 2048,
+                    images: list[dict] | None = None) -> tuple[str, dict]:
+    """Make the actual Claude API call with retry logic on transient errors.
+
+    Retries up to AI_MAX_RETRIES times with exponential backoff (1s, 2s, 4s).
+    Auth errors (401/403) and bad-request errors (400) are raised immediately.
+
+    Args:
+        images: Optional list of image dicts with keys ``media_type`` (e.g. ``"image/png"``)
+                and ``data`` (base64-encoded string). When provided, the user message is
+                sent as a multimodal content block (image + text) instead of plain text.
+
+    Returns (answer, usage_dict).
+    """
+    return _with_retries(
+        _call_claude_api_impl, api_key, model_id, prompt,
+        stream_placeholder=stream_placeholder, timeout=timeout,
+        max_tokens=max_tokens, images=images,
+    )
+
+
 def _extract_claude_usage(usage) -> dict:
     """Extract token usage from Claude API response, including cache tokens."""
     if not usage:
@@ -255,18 +342,10 @@ def _extract_claude_usage(usage) -> dict:
     }
 
 
-def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
-                    timeout: float = 120.0, max_tokens: int = 2048,
-                    images: list[dict] | None = None) -> tuple[str, dict]:
-    """Make the actual Gemini API call with optional image content.
-
-    Args:
-        images: Optional list of image dicts with keys ``media_type`` and ``data``
-                (base64-encoded string). When provided, the call uses the native
-                Gemini SDK directly to send inline image data instead of plain text.
-
-    Returns (answer, usage_dict). Streaming not supported.
-    """
+def _call_gemini_api_impl(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                          timeout: float = 120.0, max_tokens: int = 2048,
+                          images: list[dict] | None = None) -> tuple[str, dict]:
+    """Internal implementation — use call_gemini_api (which adds retry logic)."""
     import os
     key = api_key or os.environ.get("GEMINI_API_KEY", "")
 
@@ -342,20 +421,33 @@ def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
     return (answer or None, usage)
 
 
-def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
                     timeout: float = 120.0, max_tokens: int = 2048,
-                    images: list[dict] | None = None,
-                    base_url: str | None = None) -> tuple[str, dict]:
-    """Make the actual OpenAI API call with optional streaming and optional image content.
+                    images: list[dict] | None = None) -> tuple[str, dict]:
+    """Make the actual Gemini API call with retry logic on transient errors.
+
+    Retries up to AI_MAX_RETRIES times with exponential backoff (1s, 2s, 4s).
+    Auth errors (401/403) and bad-request errors (400) are raised immediately.
 
     Args:
         images: Optional list of image dicts with keys ``media_type`` and ``data``
-                (base64-encoded string). When provided, the user message is sent as
-                a multimodal content block (image_url + text) instead of plain text.
-        base_url: Optional base URL for OpenAI-compatible local servers.
+                (base64-encoded string). When provided, the call uses the native
+                Gemini SDK directly to send inline image data instead of plain text.
 
-    Returns (answer, usage_dict).
+    Returns (answer, usage_dict). Streaming not supported.
     """
+    return _with_retries(
+        _call_gemini_api_impl, api_key, model_id, prompt,
+        stream_placeholder=stream_placeholder, timeout=timeout,
+        max_tokens=max_tokens, images=images,
+    )
+
+
+def _call_openai_api_impl(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                          timeout: float = 120.0, max_tokens: int = 2048,
+                          images: list[dict] | None = None,
+                          base_url: str | None = None) -> tuple[str, dict]:
+    """Internal implementation — use call_openai_api (which adds retry logic)."""
     try:
         from openai import OpenAI
     except ImportError:
@@ -417,21 +509,36 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
     return (answer or None, usage)
 
 
-def call_local_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
                     timeout: float = 120.0, max_tokens: int = 2048,
-                    base_url: str | None = None,
-                    images: list[dict] | None = None) -> tuple[str, dict]:
-    """Call a local/inhouse OpenAI-compatible API (LM Studio, Ollama, vLLM, etc.).
+                    images: list[dict] | None = None,
+                    base_url: str | None = None) -> tuple[str, dict]:
+    """Make the actual OpenAI API call with retry logic on transient errors.
 
-    Uses the OpenAI SDK with a custom base_url. The api_key can be any
-    non-empty string for servers that don't require authentication.
+    Retries up to AI_MAX_RETRIES times with exponential backoff (1s, 2s, 4s).
+    Auth errors (401/403) and bad-request errors (400) are raised immediately.
 
     Args:
         images: Optional list of image dicts with keys ``media_type`` and ``data``
                 (base64-encoded string). When provided, the user message is sent as
-                a multimodal content block (image_url + text).
+                a multimodal content block (image_url + text) instead of plain text.
+        base_url: Optional base URL for OpenAI-compatible local servers.
+
+    Returns (answer, usage_dict).
     """
-    # Delegate to call_openai_api with base_url — it handles multimodal + local correctly
+    return _with_retries(
+        _call_openai_api_impl, api_key, model_id, prompt,
+        stream_placeholder=stream_placeholder, timeout=timeout,
+        max_tokens=max_tokens, images=images, base_url=base_url,
+    )
+
+
+def _call_local_api_impl(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                         timeout: float = 120.0, max_tokens: int = 2048,
+                         base_url: str | None = None,
+                         images: list[dict] | None = None) -> tuple[str, dict]:
+    """Internal implementation — use call_local_api (which adds retry logic)."""
+    # Delegate to the OpenAI impl directly (not the retry wrapper) to avoid double retry
     if not base_url:
         # Read from session state or env
         try:
@@ -453,7 +560,7 @@ def call_local_api(api_key: str, model_id: str, prompt: dict, stream_placeholder
             import os
             model_id = os.environ.get("LOGPILOT_AI_MODEL", "default")
 
-    return call_openai_api(
+    return _call_openai_api_impl(
         api_key=api_key or "not-needed",
         model_id=model_id,
         prompt=prompt,
@@ -462,6 +569,30 @@ def call_local_api(api_key: str, model_id: str, prompt: dict, stream_placeholder
         max_tokens=max_tokens,
         images=images,
         base_url=base_url,
+    )
+
+
+def call_local_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
+                   timeout: float = 120.0, max_tokens: int = 2048,
+                   base_url: str | None = None,
+                   images: list[dict] | None = None) -> tuple[str, dict]:
+    """Call a local/inhouse OpenAI-compatible API with retry logic on transient errors.
+
+    Retries up to AI_MAX_RETRIES times with exponential backoff (1s, 2s, 4s).
+    Auth errors (401/403) and bad-request errors (400) are raised immediately.
+
+    Uses the OpenAI SDK with a custom base_url. The api_key can be any
+    non-empty string for servers that don't require authentication.
+
+    Args:
+        images: Optional list of image dicts with keys ``media_type`` and ``data``
+                (base64-encoded string). When provided, the user message is sent as
+                a multimodal content block (image_url + text).
+    """
+    return _with_retries(
+        _call_local_api_impl, api_key, model_id, prompt,
+        stream_placeholder=stream_placeholder, timeout=timeout,
+        max_tokens=max_tokens, base_url=base_url, images=images,
     )
 
 

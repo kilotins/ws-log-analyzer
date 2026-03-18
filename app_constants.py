@@ -33,3 +33,6 @@ MAX_UPLOAD_MB = 200
 
 # Maximum screenshot size for incident assistant (MB)
 MAX_SCREENSHOT_MB = 10
+
+# Maximum number of retry attempts for transient AI API errors (timeout, 429, 500-503)
+AI_MAX_RETRIES = 3
