@@ -350,6 +350,7 @@ if "_local_settings_loaded" not in st.session_state:
         st.session_state.local_ai_model = _saved_local.get("model", "")
         st.session_state.local_ai_api_key = _saved_local.get("api_key", "not-needed")
         st.session_state._local_saved_preset = _saved_local.get("preset", "")
+        st.session_state._local_prev_preset = _saved_local.get("preset", "")
     st.session_state._local_settings_loaded = True
 
 
@@ -570,6 +571,61 @@ with st.sidebar:
             [data-testid="stSidebar"] [data-testid="stToggle"] span {
                 color: #c9d1d9 !important;
             }
+
+            /* === Main content dark mode fixes === */
+
+            /* All main text */
+            .stMainBlockContainer p, .stMainBlockContainer span,
+            .stMainBlockContainer label, .stMainBlockContainer div {
+                color: #c9d1d9 !important;
+            }
+            /* Headings */
+            .stMainBlockContainer h1, .stMainBlockContainer h2,
+            .stMainBlockContainer h3, .stMainBlockContainer h4 {
+                color: #f0f6fc !important;
+            }
+            /* Expander summaries */
+            .stMainBlockContainer details summary span {
+                color: #e6edf3 !important;
+            }
+            /* Expander borders */
+            .stMainBlockContainer details {
+                border-color: #30363d !important;
+            }
+            /* Links */
+            .stMainBlockContainer a { color: #a78bfa !important; }
+            /* Metric values */
+            .stMainBlockContainer [data-testid="stMetricValue"] {
+                color: #e6edf3 !important;
+            }
+            /* Metric labels */
+            .stMainBlockContainer [data-testid="stMetricLabel"] {
+                color: #8b949e !important;
+            }
+            /* Tabs */
+            .stMainBlockContainer [data-baseweb="tab"] {
+                color: #8b949e !important;
+            }
+            .stMainBlockContainer [aria-selected="true"] {
+                color: #a78bfa !important;
+            }
+            /* Info/success/warning boxes */
+            .stMainBlockContainer .stAlert p {
+                color: inherit !important;
+            }
+            /* Table text */
+            .stMainBlockContainer table, .stMainBlockContainer th,
+            .stMainBlockContainer td {
+                color: #c9d1d9 !important;
+            }
+            /* Captions & small text */
+            .stMainBlockContainer .stCaption, .stMainBlockContainer small {
+                color: #8b949e !important;
+            }
+            /* Subheader */
+            .stMainBlockContainer .stSubheader {
+                color: #f0f6fc !important;
+            }
         </style>""", unsafe_allow_html=True)
 
     st.markdown("---")
@@ -646,7 +702,6 @@ with st.sidebar:
             value=st.session_state.local_ai_endpoint,
             placeholder="http://localhost:1234/v1",
             help="OpenAI-compatible API endpoint",
-            key="local_endpoint_input",
         )
         if _local_endpoint != st.session_state.local_ai_endpoint:
             st.session_state.local_ai_endpoint = _local_endpoint
