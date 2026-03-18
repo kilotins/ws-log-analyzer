@@ -691,10 +691,57 @@ def render_ai_history():
                 st.markdown(entry["answer"])
 
 
+def clear_all_ai_history():
+    """Clear all AI history, current answers, triage, and incident from session and disk."""
+    # Clear session state
+    for key in ("claude_answer", "gemini_answer", "openai_answer", "local_answer",
+                "claude_query_label", "gemini_query_label", "openai_query_label", "local_query_label",
+                "_triage_answer", "_triage_model", "_incident_answer", "_incident_model"):
+        if key in st.session_state:
+            st.session_state[key] = None
+    for key in ("claude_history", "gemini_history", "openai_history", "local_history"):
+        if key in st.session_state:
+            st.session_state[key] = []
+    for key in ("claude_cache", "gemini_cache", "openai_cache", "local_cache"):
+        if key in st.session_state:
+            st.session_state[key] = {}
+
+    # Clear disk files
+    from pathlib import Path
+    cache_dir = Path.home() / ".logpilot"
+    for fname in ("ai_responses.json", "claude_history.json", "gemini_history.json",
+                  "openai_history.json", "local_history.json"):
+        p = cache_dir / fname
+        if p.exists():
+            try:
+                p.write_text("{}" if fname == "ai_responses.json" else "[]", encoding="utf-8")
+            except OSError:
+                pass
+
+
 def render_ai_responses():
     """Render current AI analyses and history outside expanders for proper scrolling."""
     render_current_ai_analyses()
     render_ai_history()
+
+    # Clear button — only show if there's any AI content
+    has_any = any([
+        st.session_state.get("claude_answer"),
+        st.session_state.get("gemini_answer"),
+        st.session_state.get("openai_answer"),
+        st.session_state.get("local_answer"),
+        st.session_state.get("_triage_answer"),
+        st.session_state.get("_incident_answer"),
+        len(st.session_state.get("claude_history", [])) > 0,
+        len(st.session_state.get("gemini_history", [])) > 0,
+        len(st.session_state.get("openai_history", [])) > 0,
+        len(st.session_state.get("local_history", [])) > 0,
+    ])
+    if has_any:
+        st.markdown("---")
+        if st.button("Clear all AI history", key="clear_ai_history_btn"):
+            clear_all_ai_history()
+            st.rerun()
 
 
 def render_ask_claude(events, log=None, lookup_cache=None, store_cache=None):
