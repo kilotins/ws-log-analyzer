@@ -945,18 +945,27 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         if _cached_export:
             _data, _fname, _mime = _cached_export
         else:
-            from logpilot import render_markdown_report, render_json_report
+            from logpilot import render_markdown_report, render_json_report, ReportConfig
+            _cfg = ReportConfig(
+                events=events_for_export,
+                top_n=a.get("top_n", 10),
+                samples_n=a.get("samples_n", 5),
+                hist_minutes=a.get("hist_minutes", 1),
+                analysis=_pa,
+                ai_content=_ai_content,
+                sections=_sections,
+            )
             if _export_fmt == "Markdown":
-                _md = render_markdown_report(events_for_export, _analysis=_pa, ai_content=_ai_content, sections=_sections)
+                _md = render_markdown_report(_cfg)
                 _data, _fname, _mime = _md, _base, "text/markdown"
             elif _export_fmt == "JSON":
-                _json = render_json_report(events_for_export, _analysis=_pa, ai_content=_ai_content, sections=_sections)
+                _json = render_json_report(_cfg)
                 _data, _fname, _mime = _json, _base.replace(".md", ".json"), "application/json"
             elif _export_fmt == "HTML":
-                _html = render_html_report(events_for_export, _analysis=_pa, ai_content=_ai_content, sections=_sections)
+                _html = render_html_report(_cfg)
                 _data, _fname, _mime = _html, _base.replace(".md", ".html"), "text/html"
             else:  # PDF
-                _data, _fname, _mime = render_pdf_report(events_for_export, _analysis=_pa, ai_content=_ai_content, sections=_sections), _base.replace(".md", ".pdf"), "application/pdf"
+                _data, _fname, _mime = render_pdf_report(_cfg), _base.replace(".md", ".pdf"), "application/pdf"
             st.session_state[_export_key] = (_data, _fname, _mime)
         st.download_button(
             label=f"Export Log Analysis Report ({_export_fmt}){_ai_note}",

@@ -1,12 +1,33 @@
 """Report rendering: Markdown, JSON, HTML, PDF."""
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
+from typing import Optional
 
 from .parser import MAX_EVENT_TEXT
 from .analysis import precompute_analysis, render_histogram, compact_histogram
 from .event import LogEvent
+
+
+@dataclasses.dataclass
+class ReportConfig:
+    """Configuration bundle for report rendering functions.
+
+    Pass as the first positional argument to any render_*_report function to
+    avoid repeating the same parameters across multiple calls.  All render
+    functions also continue to accept the individual keyword arguments for
+    backwards compatibility.
+    """
+
+    events: list
+    top_n: int = 10
+    samples_n: int = 5
+    hist_minutes: int = 1
+    analysis: Optional[dict] = None
+    ai_content: Optional[dict] = None
+    sections: Optional[set] = None
 
 # Section keys for toggling report content
 REPORT_SECTIONS = {
@@ -85,8 +106,19 @@ def _report_meta(a: dict) -> tuple[str, str]:
     return "LogPilot Analysis Report", " — ".join(parts)
 
 
-def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
+def render_json_report(events: list[LogEvent] | ReportConfig | None = None, top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None, *, config: ReportConfig | None = None) -> str:
     """Generate a JSON triage report string from parsed events."""
+    if isinstance(events, ReportConfig):
+        config = events
+        events = None  # type: ignore[assignment]
+    if config is not None:
+        events = config.events  # type: ignore[assignment]
+        top_n = config.top_n
+        samples_n = config.samples_n
+        hist_minutes = config.hist_minutes
+        _analysis = _analysis or config.analysis
+        ai_content = ai_content if ai_content is not None else config.ai_content
+        sections = sections if sections is not None else config.sections
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     from .analysis import group_into_incidents
     s = a["summary"]
@@ -135,8 +167,19 @@ def render_json_report(events: list[LogEvent], top_n: int = 10, samples_n: int =
     return json.dumps(data, indent=2)
 
 
-def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
+def render_markdown_report(events: list[LogEvent] | ReportConfig | None = None, top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None, *, config: ReportConfig | None = None) -> str:
     """Generate a complete markdown triage report from parsed events."""
+    if isinstance(events, ReportConfig):
+        config = events
+        events = None  # type: ignore[assignment]
+    if config is not None:
+        events = config.events  # type: ignore[assignment]
+        top_n = config.top_n
+        samples_n = config.samples_n
+        hist_minutes = config.hist_minutes
+        _analysis = _analysis or config.analysis
+        ai_content = ai_content if ai_content is not None else config.ai_content
+        sections = sections if sections is not None else config.sections
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     s = a["summary"]
     samples = a["samples"]
@@ -346,10 +389,21 @@ _LOGPILOT_LOGO_SVG = (
 )
 
 
-def render_html_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> str:
+def render_html_report(events: list[LogEvent] | ReportConfig | None = None, top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None, *, config: ReportConfig | None = None) -> str:
     """Generate a premium styled HTML triage report with sidebar, collapsible sections, and dark/light mode."""
     from html import escape
 
+    if isinstance(events, ReportConfig):
+        config = events
+        events = None  # type: ignore[assignment]
+    if config is not None:
+        events = config.events  # type: ignore[assignment]
+        top_n = config.top_n
+        samples_n = config.samples_n
+        hist_minutes = config.hist_minutes
+        _analysis = _analysis or config.analysis
+        ai_content = ai_content if ai_content is not None else config.ai_content
+        sections = sections if sections is not None else config.sections
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     s = a["summary"]
     samples = a["samples"]
@@ -813,10 +867,21 @@ sections.forEach(s=>obs.observe(s));
     return "\n".join(h)
 
 
-def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None) -> bytes:
+def render_pdf_report(events: list[LogEvent] | ReportConfig | None = None, top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, _analysis: dict | None = None, ai_content: dict | None = None, sections: set[str] | None = None, *, config: ReportConfig | None = None) -> bytes:
     """Generate a PDF triage report and return the bytes."""
     from fpdf import FPDF
 
+    if isinstance(events, ReportConfig):
+        config = events
+        events = None  # type: ignore[assignment]
+    if config is not None:
+        events = config.events  # type: ignore[assignment]
+        top_n = config.top_n
+        samples_n = config.samples_n
+        hist_minutes = config.hist_minutes
+        _analysis = _analysis or config.analysis
+        ai_content = ai_content if ai_content is not None else config.ai_content
+        sections = sections if sections is not None else config.sections
     a = _analysis or precompute_analysis(events, top_n, samples_n, hist_minutes)
     s = a["summary"]
     samples = a["samples"]
