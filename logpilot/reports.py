@@ -130,7 +130,7 @@ def render_markdown_report(events: list[LogEvent], top_n: int = 10, samples_n: i
                     md.append(f"- {fix}")
                 md.append("")
 
-    splunk = a["splunk"]
+    splunk = a.get("splunk", [])
     if splunk:
         md.append("## Suggested Splunk Searches")
         md.append("")
@@ -473,7 +473,7 @@ def render_pdf_report(events: list[LogEvent], top_n: int = 10, samples_n: int = 
     hist = a["hist"]
     file_summary = a["file_summary"]
     causes = a["causes"]
-    splunk = a["splunk"]
+    splunk = a.get("splunk", [])
     hung = a["hung"]
 
     def _latin1_safe(text: str) -> str:
