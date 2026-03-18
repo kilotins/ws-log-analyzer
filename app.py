@@ -505,6 +505,43 @@ if not st.session_state.api_key:
 with st.sidebar:
     st.header("Settings")
 
+    # --- Theme selector (top of sidebar) ---
+    _theme_options = {"System default": "system", "Light": "light", "Dark": "dark"}
+    _current_theme = st.session_state.get("_app_theme", "system")
+    _theme_label = next((k for k, v in _theme_options.items() if v == _current_theme), "System default")
+    _selected = st.selectbox("Theme", list(_theme_options.keys()),
+                             index=list(_theme_options.keys()).index(_theme_label),
+                             key="theme_select")
+    if _theme_options[_selected] != _current_theme:
+        st.session_state._app_theme = _theme_options[_selected]
+        import streamlit.config as _stcfg
+        if _theme_options[_selected] == "dark":
+            _stcfg.set_option("theme.base", "dark")
+            _stcfg.set_option("theme.backgroundColor", "#0d1117")
+            _stcfg.set_option("theme.secondaryBackgroundColor", "#161b22")
+            _stcfg.set_option("theme.textColor", "#e6edf3")
+        else:
+            _stcfg.set_option("theme.base", "light")
+            _stcfg.set_option("theme.backgroundColor", "#FFFFFF")
+            _stcfg.set_option("theme.secondaryBackgroundColor", "#F8FAFC")
+            _stcfg.set_option("theme.textColor", "#0F172A")
+        st.rerun()
+
+    # Inject CSS to fix sidebar contrast in dark mode
+    if _current_theme == "dark":
+        st.markdown("""<style>
+            [data-testid="stSidebar"] * { color: #e6edf3 !important; }
+            [data-testid="stSidebar"] .stExpander summary span { color: #e6edf3 !important; }
+            [data-testid="stSidebar"] label { color: #c9d1d9 !important; }
+            [data-testid="stSidebar"] .stSelectbox label { color: #c9d1d9 !important; }
+            [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #c9d1d9 !important; }
+            [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
+            [data-testid="stSidebar"] h3 { color: #f0f6fc !important; }
+            [data-testid="stSidebar"] a { color: #a78bfa !important; }
+        </style>""", unsafe_allow_html=True)
+
+    st.markdown("---")
+
     # Count configured keys for the expander label
     _configured_keys = sum(1 for k in [
         st.session_state.api_key,
@@ -671,30 +708,6 @@ with st.sidebar:
                 _save_local_ai_settings(st.session_state.local_ai_endpoint,
                                          st.session_state.local_ai_model,
                                          _local_key, _preset)
-
-    _theme_options = {"System default": "system", "Light": "light", "Dark": "dark"}
-    _current_theme = st.session_state.get("_app_theme", "system")
-    _theme_label = next((k for k, v in _theme_options.items() if v == _current_theme), "System default")
-    _selected = st.selectbox("Theme", list(_theme_options.keys()), index=list(_theme_options.keys()).index(_theme_label), key="theme_select")
-    if _theme_options[_selected] != _current_theme:
-        st.session_state._app_theme = _theme_options[_selected]
-        import streamlit.config as _stcfg
-        if _theme_options[_selected] == "dark":
-            _stcfg.set_option("theme.base", "dark")
-            _stcfg.set_option("theme.backgroundColor", "#0d1117")
-            _stcfg.set_option("theme.secondaryBackgroundColor", "#161b22")
-            _stcfg.set_option("theme.textColor", "#e6edf3")
-        elif _theme_options[_selected] == "light":
-            _stcfg.set_option("theme.base", "light")
-            _stcfg.set_option("theme.backgroundColor", "#FFFFFF")
-            _stcfg.set_option("theme.secondaryBackgroundColor", "#F8FAFC")
-            _stcfg.set_option("theme.textColor", "#0F172A")
-        else:
-            _stcfg.set_option("theme.base", "light")
-            _stcfg.set_option("theme.backgroundColor", "#FFFFFF")
-            _stcfg.set_option("theme.secondaryBackgroundColor", "#F8FAFC")
-            _stcfg.set_option("theme.textColor", "#0F172A")
-        st.rerun()
 
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
