@@ -348,29 +348,40 @@ def _wrap_sections(html_body: str) -> tuple[str, list[tuple[str, str, str]]]:
 _CSS = """\
 *, *::before, *::after { box-sizing: border-box; }
 
-:root {
-  --bg-primary: #0d1117;
-  --bg-secondary: #010409;
-  --bg-tertiary: #161b22;
-  --bg-hover: #1c2128;
-  --border: #21262d;
-  --border-strong: #30363d;
-  --text-primary: #e6edf3;
-  --text-secondary: #c9d1d9;
-  --text-muted: #8b949e;
-  --text-heading: #f0f6fc;
-  --accent: #58a6ff;
-  --green: #6fdd8b;
-  --green-bg: #1b4332;
-  --yellow: #f0c74f;
-  --yellow-bg: #3d2e00;
-  --red: #f47067;
-  --red-bg: #4a1e1e;
-  --blue: #58a6ff;
-  --blue-bg: #1a2332;
-  --purple: #bc8cff;
-  --purple-bg: #272145;
+/* --- Light theme --- */
+:root, [data-theme="light"] {
+  --bg-primary: #F8FAFC; --bg-secondary: #FFFFFF; --bg-tertiary: #F1F5F9;
+  --bg-hover: #E2E8F0; --border: #E2E8F0; --border-strong: #CBD5E1;
+  --text-primary: #0F172A; --text-secondary: #334155; --text-muted: #64748B;
+  --text-heading: #0F172A; --accent: #7C3AED;
+  --green: #059669; --green-bg: #ECFDF5; --yellow: #D97706; --yellow-bg: #FFFBEB;
+  --red: #DC2626; --red-bg: #FEF2F2; --blue: #2563EB; --blue-bg: #EFF6FF;
+  --purple: #7C3AED; --purple-bg: #F5F3FF;
 }
+/* --- Dark theme (auto via OS preference) --- */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+}}
+/* --- Dark theme (explicit toggle) --- */
+[data-theme="dark"] {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+}
+.theme-toggle { background:var(--bg-tertiary); border:1px solid var(--border-strong);
+  border-radius:6px; padding:6px 10px; cursor:pointer; font-size:14px;
+  color:var(--text-muted); transition:all 0.15s; }
+.theme-toggle:hover { background:var(--border-strong); color:var(--text-primary); }
 
 body {
   margin: 0; padding: 0;
@@ -571,14 +582,27 @@ mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1
   main { padding: 20px 16px; }
 }
 @media print {
-  nav, .back-to-top { display: none !important; }
+  nav, .back-to-top, .theme-toggle { display: none !important; }
   details.section { border: none; break-inside: avoid; }
   details.section > summary::before { content: ''; }
   details.section .section-body { display: block !important; }
+  body { background: #fff; color: #000; }
 }
 """
 
 _JS = """\
+// --- Theme toggle ---
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  if (current === 'dark') html.setAttribute('data-theme', 'light');
+  else if (current === 'light') html.setAttribute('data-theme', 'dark');
+  else {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  }
+}
+
 // --- Expand / Collapse ---
 function expandAll() {
   document.querySelectorAll('details.section').forEach(d => d.open = true);
@@ -718,7 +742,7 @@ def render_html(md_text: str, title: str = "Audit Report") -> str:
 
     return f"""\
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -728,8 +752,16 @@ def render_html(md_text: str, title: str = "Audit Report") -> str:
 <body>
 <div class="layout">
 <nav>
+  <div class="nav-logo" style="margin-bottom:10px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 28" fill="none" style="height:22px">
+      <path d="M4 14 L10 6 L13 6 L7 14 L13 22 L10 22 Z" fill="#7C3AED"/>
+      <path d="M11 14 L17 6 L20 6 L14 14 L20 22 L17 22 Z" fill="#34D399"/>
+      <text x="26" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="var(--text-heading)" letter-spacing="-0.3">Log</text>
+      <text x="53" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="#7C3AED" letter-spacing="-0.3">Pilot</text>
+    </svg>
+  </div>
   <div class="nav-title">Audit Report</div>
-  <div class="nav-subtitle">LogPilot &middot; {timestamp}</div>
+  <div class="nav-subtitle">{timestamp}</div>
   <div class="search-box">
     <input type="text" id="report-search" placeholder="Search report..." autocomplete="off">
     <div class="search-count"></div>
@@ -740,6 +772,9 @@ def render_html(md_text: str, title: str = "Audit Report") -> str:
   <div class="nav-controls">
     <button onclick="expandAll()">Expand all</button>
     <button onclick="collapseAll()">Collapse all</button>
+  </div>
+  <div style="margin-top:8px;text-align:center">
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">&#9788;</button>
   </div>
 </nav>
 <main>

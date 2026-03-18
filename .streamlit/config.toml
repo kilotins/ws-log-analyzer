@@ -1,8 +1,7 @@
 [theme]
+# Item Consulting brand — works in both light and dark mode.
+# Users toggle via Settings > Theme or system preference.
 primaryColor = "#7C3AED"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F8FAFC"
-textColor = "#0F172A"
 font = "sans serif"
 
 [server]
