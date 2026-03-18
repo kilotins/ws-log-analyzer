@@ -852,16 +852,43 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     st.subheader("Export Log Analysis Report")
     _ai_note = " + AI analysis" if _ai_content else ""
 
-    # Section selection
+    # Section selection — only show sections that have data
     from logpilot import REPORT_SECTIONS, ALL_SECTIONS
-    with st.expander("Report sections", expanded=False):
-        _selected_sections: set[str] = set()
-        _cols = st.columns(3)
-        for i, (key, label) in enumerate(REPORT_SECTIONS.items()):
-            with _cols[i % 3]:
-                if st.checkbox(label, value=True, key=f"export_sec_{key}"):
-                    _selected_sections.add(key)
-    _sections = _selected_sections if _selected_sections != ALL_SECTIONS else None
+    _available: dict[str, str] = {}
+    _s = _pa.get("summary", {})
+    _itl = _pa.get("incident_timeline")
+    if _itl and _itl.get("trigger_dt"):
+        _available["onset"] = REPORT_SECTIONS["onset"]
+    if len(_pa.get("file_summary", [])) > 1:
+        _available["files"] = REPORT_SECTIONS["files"]
+    if _s.get("levels"):
+        _available["levels"] = REPORT_SECTIONS["levels"]
+    if _s.get("codes"):
+        _available["codes"] = REPORT_SECTIONS["codes"]
+    if _s.get("exceptions"):
+        _available["exceptions"] = REPORT_SECTIONS["exceptions"]
+    if _s.get("tags"):
+        _available["tags"] = REPORT_SECTIONS["tags"]
+    if _pa.get("causes"):
+        _available["causes"] = REPORT_SECTIONS["causes"]
+    if _pa.get("splunk"):
+        _available["splunk"] = REPORT_SECTIONS["splunk"]
+    if _pa.get("hung"):
+        _available["hung"] = REPORT_SECTIONS["hung"]
+    _available["timeline"] = REPORT_SECTIONS["timeline"]
+    _available["samples"] = REPORT_SECTIONS["samples"]
+    if _ai_content:
+        _available["ai"] = REPORT_SECTIONS["ai"]
+
+    _selected_sections: set[str] = set()
+    if _available:
+        with st.expander("Report sections", expanded=False):
+            _cols = st.columns(3)
+            for i, (key, label) in enumerate(_available.items()):
+                with _cols[i % 3]:
+                    if st.checkbox(label, value=True, key=f"export_sec_{key}"):
+                        _selected_sections.add(key)
+    _sections = _selected_sections if _selected_sections != set(_available.keys()) else None
 
     _fmt_col, _dl_col = st.columns([1, 2])
     with _fmt_col:
