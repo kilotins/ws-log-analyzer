@@ -70,10 +70,12 @@ class TestBuildIncidentSystemPrompt:
         assert "Screenshot Analysis" in prompt
         assert "Root Cause Analysis" in prompt
         assert "untrusted input" in prompt
+        assert "LogPilot supports" in prompt
 
     def test_with_format(self):
         prompt = build_incident_system_prompt("was")
         assert "WebSphere" in prompt
+        assert "current logs are from" in prompt
 
     def test_with_nginx_format(self):
         prompt = build_incident_system_prompt("nginx")
@@ -82,6 +84,15 @@ class TestBuildIncidentSystemPrompt:
     def test_with_unknown_format(self):
         prompt = build_incident_system_prompt("unknown_format")
         assert "specializing in" not in prompt
+
+    def test_lists_all_supported_formats(self):
+        prompt = build_incident_system_prompt()
+        for fmt in ("was", "nginx", "log4j", "json", "python", "syslog", "enonic", "crio"):
+            assert fmt in prompt
+
+    def test_suggests_additional_logs(self):
+        prompt = build_incident_system_prompt("was")
+        assert "additional log formats" in prompt
 
     def test_with_skill_content(self):
         prompt = build_incident_system_prompt("was", skill_content="## WAS Message Codes\nCWWKZ = app management")
