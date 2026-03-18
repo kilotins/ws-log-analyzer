@@ -280,3 +280,47 @@ class TestCliOptions:
             main()
         captured = capsys.readouterr()
         assert "Combined" in captured.err
+
+
+class TestCliExitCode:
+    """Tests for --exit-code and --error-threshold flags."""
+
+    # Log line with an ERROR-level event
+    _error_line = "[10/12/15 21:22:04:257 CEST] 0000001a SystemOut E CWWKZ0002E: An error occurred\n"
+    # Log line with an INFO-level event
+    _info_line = "[10/12/15 21:22:05:100 CEST] 0000001b SystemOut I Normal message\n"
+
+    def test_exit_code_above_threshold_exits_1(self, tmp_path):
+        """--exit-code exits with 1 when error count exceeds threshold."""
+        log = tmp_path / "test.log"
+        log.write_text(self._error_line * 3)
+        out = tmp_path / "report.md"
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", [
+                "logpilot", str(log), "--out", str(out),
+                "--exit-code", "--error-threshold", "0", "-q",
+            ]):
+                main()
+        assert exc_info.value.code == 1
+
+    def test_exit_code_below_or_equal_threshold_exits_0(self, tmp_path):
+        """--exit-code exits normally when error count is within threshold."""
+        log = tmp_path / "test.log"
+        log.write_text(self._error_line)
+        out = tmp_path / "report.md"
+        # threshold=5 means up to 5 errors are allowed — 1 error should not trigger exit 1
+        with patch("sys.argv", [
+            "logpilot", str(log), "--out", str(out),
+            "--exit-code", "--error-threshold", "5", "-q",
+        ]):
+            main()  # must not raise SystemExit(1)
+        assert out.exists()
+
+    def test_without_exit_code_flag_always_exits_normally(self, tmp_path):
+        """Without --exit-code, many errors do not cause a non-zero exit."""
+        log = tmp_path / "test.log"
+        log.write_text(self._error_line * 10)
+        out = tmp_path / "report.md"
+        with patch("sys.argv", ["logpilot", str(log), "--out", str(out), "-q"]):
+            main()  # must not raise SystemExit(1)
+        assert out.exists()

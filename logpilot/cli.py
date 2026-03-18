@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 
-from .event import LogEvent
+from .event import LogEvent, ERROR_LEVELS
 from .parser import parse_file
 from .analysis import summarize
 from .reports import render_json_report, render_markdown_report
@@ -31,6 +31,8 @@ def main() -> None:
     ap.add_argument("--list-formats", action="store_true", help="List available log format plugins and exit.")
     ap.add_argument("--ai-endpoint", default=None, help="Local AI endpoint URL (e.g. http://localhost:1234/v1). Also: LOGPILOT_AI_ENDPOINT env var.")
     ap.add_argument("--ai-model", default=None, help="Local AI model name. Also: LOGPILOT_AI_MODEL env var.")
+    ap.add_argument("--exit-code", action="store_true", help="Exit with code 1 if errors exceed threshold")
+    ap.add_argument("--error-threshold", type=int, default=0, help="Number of errors that triggers non-zero exit (used with --exit-code)")
     args = ap.parse_args()
 
     if args.log_format == "json":
@@ -76,6 +78,12 @@ def main() -> None:
     out_path.write_text(report, encoding="utf-8")
     if not args.quiet:
         print(f"Wrote report: {out_path}")
+
+    # Exit-code check — must run before AI to ensure reliable exit code
+    if args.exit_code:
+        error_count = sum(1 for e in all_events if e.level in ERROR_LEVELS)
+        if error_count > args.error_threshold:
+            sys.exit(1)
 
     # AI analysis — build shared prompt
     _use_ai = args.claude or args.ai_endpoint or args.ai_model
