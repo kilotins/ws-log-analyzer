@@ -540,10 +540,18 @@ def build_incident_system_prompt(detected_format: str = "", skill_content: str =
     """
     role = _FORMAT_SPECIALIST.get(detected_format, "")
     specialist = f" specializing in {role}" if role else ""
+    # Build supported systems list from _FORMAT_SPECIALIST
+    systems_list = ", ".join(f"{fmt}: {desc}" for fmt, desc in _FORMAT_SPECIALIST.items())
+
     base = "\n".join([
         f"You are a senior operations engineer{specialist} performing incident diagnosis.",
         "The user describes a symptom they observed. You have access to their description,",
         "an optional screenshot, parsed log analysis data, and matching log excerpts.",
+        "",
+        f"The current logs are from: {role or 'unknown format'}." if role else "",
+        f"LogPilot supports these log formats: {systems_list}.",
+        "If the analysis would benefit from logs from other systems (e.g. upstream/downstream),",
+        "suggest which additional log formats the user could upload for a more complete picture.",
         "",
         "Structure your response as:",
         "1. **Screenshot Analysis** (only if a screenshot was provided) — what you see in the image",
