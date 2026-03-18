@@ -724,4 +724,9 @@ def _render_ai_history():
                                  help="Remove this response"):
                         history.pop(orig_idx)
                         st.session_state[hist_key] = history
+                        # Persist to disk
+                        from app import _PROVIDER_HISTORY_FILES, _save_provider_history
+                        disk_path = _PROVIDER_HISTORY_FILES.get(provider_key)
+                        if disk_path:
+                            _save_provider_history(disk_path, history)
                         st.rerun()

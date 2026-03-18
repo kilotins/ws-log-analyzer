@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from logpilot import parse_file, parse_file_iter, precompute_analysis, redact
+from logpilot import parse_file_iter, precompute_analysis, redact
 from logpilot.event import LogEvent
 from logpilot.parser import parse_file, parse_file_cached, classify_event
 

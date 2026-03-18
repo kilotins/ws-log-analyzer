@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 import pytest
+from playwright.sync_api import expect
 
 FIXTURE_LOG = Path(__file__).parent / "fixtures" / "sample.log"
 APP_URL = "http://localhost:8501"
@@ -93,7 +94,7 @@ class TestAppLoads:
 
     def test_tabs_visible(self, page):
         assert page.get_by_role("tab", name="Analyze").is_visible()
-        assert page.get_by_role("tab", name="History").is_visible()
+        assert page.get_by_role("tab", name="Audit Report").is_visible()
 
 
 class TestAnalysis:
@@ -227,14 +228,6 @@ class TestRealtimeMonitoring:
         tab.click()
         page.wait_for_timeout(500)
         assert page.get_by_text("Log file path", exact=False).first.is_visible()
-
-
-class TestHistoryTab:
-    def test_history_tab_accessible(self, page):
-        page.get_by_role("tab", name="History").click()
-        page.wait_for_timeout(1000)
-        content = page.text_content("body")
-        assert "report" in content.lower() or "No reports yet" in content
 
 
 class TestApplicationLog:
