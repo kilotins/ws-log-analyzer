@@ -547,16 +547,37 @@ def find_cross_system_chains(events: list[LogEvent], max_chains: int = 10) -> li
     return chains[:max_chains]
 
 
-def precompute_analysis(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1) -> dict[str, Any]:
+def precompute_analysis(events: list[LogEvent], top_n: int = 10, samples_n: int = 5, hist_minutes: int = 1, progress_callback=None) -> dict[str, Any]:
     """Compute all shared analysis data once. Returns a dict."""
+    def _progress(text: str, frac: float) -> None:
+        if progress_callback:
+            progress_callback(text, frac)
+
+    _progress("Summarizing events...", 0.0)
     s = summarize(events, top_n)
+
+    _progress("Picking samples...", 0.10)
     samples = pick_samples(events, samples_n)
+
+    _progress("Building timeline...", 0.20)
     hist = time_histogram(events, bucket_minutes=hist_minutes)
+
+    _progress("Per-file summary...", 0.30)
     file_summary = per_file_summary(events)
+
+    _progress("Running heuristics...", 0.40)
     causes = likely_causes(events)
+
+    _progress("Generating Splunk queries...", 0.70)
     splunk = suggested_splunk_queries(s, causes, hist)
+
+    _progress("Analyzing hung threads...", 0.80)
     hung = hung_thread_drilldown(events)
+
+    _progress("Detecting cascades...", 0.90)
     cascades = detect_cross_system_cascades(events)
+
+    _progress("Analysis complete", 1.0)
     return {
         "summary": s,
         "samples": samples,

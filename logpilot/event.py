@@ -1,11 +1,14 @@
 """LogEvent dataclass — structured representation of a parsed log event."""
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field, fields, asdict
 from typing import Any
 
+_dc_kwargs: dict = {"slots": True} if sys.version_info >= (3, 10) else {}
 
-@dataclass
+
+@dataclass(**_dc_kwargs)
 class LogEvent:
     """A single parsed log event with structured metadata.
 

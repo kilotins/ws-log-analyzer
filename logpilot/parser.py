@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import gzip
+import json
 import logging
 import re
+import sys
 from pathlib import Path
 from typing import IO, Any, Generator
 
@@ -167,10 +169,12 @@ def classify_event(text: str) -> dict[str, Any]:
     wm = WAS_LEVEL_RE.search(text)
     if wm:
         lvl = WAS_LEVEL_MAP.get(wm.group(1), wm.group(1))
+        lvl = sys.intern(lvl)
     else:
         m = LEVEL_RE.search(text)
         if m:
             lvl = m.group(1).upper()
+            lvl = sys.intern(lvl)
 
     # Thread ID
     thread_id = None
@@ -183,6 +187,7 @@ def classify_event(text: str) -> dict[str, Any]:
     cm = WAS_CODE_RE.search(text)
     if cm:
         code = cm.group(1)
+        code = sys.intern(code)
 
     # Exception (first match)
     exc = None
@@ -212,13 +217,15 @@ def classify_event(text: str) -> dict[str, Any]:
     }
 
 
-def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None) -> Generator[LogEvent, None, None]:
+def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0) -> Generator[LogEvent, None, None]:
     """Generator-based parser that yields event dicts one at a time.
 
     Args:
         path: Path to the log file.
         max_lines: Limit lines read (speed/safety).
         format_name: Explicit format name (e.g. "was", "json"). If None, auto-detects.
+        sample_info: When > 0, keep only every Nth plain INFO event (no exception/tags/code).
+            Deterministic: based on line counter modulo. 0 means no sampling (default).
 
     Uses format plugins for timestamp extraction, level detection, and
     continuation line detection. Falls back to WAS format if no format
@@ -239,6 +246,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
     current_meta: dict[str, Any] = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
     has_stacktrace = False
     seen_first_ts = False
+    _event_counter = 0  # counts every emitted event for deterministic INFO sampling
 
     def _build_event() -> LogEvent:
         text = "\n".join(current)
@@ -254,7 +262,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
             root_cause=meta.get("root_cause"),
             tags=meta.get("tags") or [],
             file=current_meta["file"],
-            format=current_meta["format"],
+            format=sys.intern(current_meta["format"]),
             tz_hint=current_meta.get("tz_hint"),
             trace_ids=extract_trace_ids(text),
         )
@@ -268,7 +276,12 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
 
             if ts and current and not fmt.is_continuation(line):
                 if seen_first_ts:
-                    yield _build_event()
+                    _ev = _build_event()
+                    _event_counter += 1
+                    if not (sample_info > 0 and _ev.get("level") == "INFO"
+                            and not _ev.get("exception") and not _ev.get("tags") and not _ev.get("code")
+                            and _event_counter % sample_info != 0):
+                        yield _ev
                 current = []
                 current_meta = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
                 has_stacktrace = False
@@ -282,7 +295,12 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
 
             if not line.strip() and current and has_stacktrace:
                 if seen_first_ts:
-                    yield _build_event()
+                    _ev = _build_event()
+                    _event_counter += 1
+                    if not (sample_info > 0 and _ev.get("level") == "INFO"
+                            and not _ev.get("exception") and not _ev.get("tags") and not _ev.get("code")
+                            and _event_counter % sample_info != 0):
+                        yield _ev
                 current = []
                 current_meta = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
                 has_stacktrace = False
@@ -294,15 +312,98 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
                 has_stacktrace = True
 
     if current and seen_first_ts:
-        yield _build_event()
+        _ev = _build_event()
+        _event_counter += 1
+        if not (sample_info > 0 and _ev.get("level") == "INFO"
+                and not _ev.get("exception") and not _ev.get("tags") and not _ev.get("code")
+                and _event_counter % sample_info != 0):
+            yield _ev
 
 
-def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None) -> list[LogEvent]:
+def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0) -> list[LogEvent]:
     """Parse a log file and return a list of event dicts.
 
     Args:
         path: Path to the log file.
         max_lines: Limit lines read (speed/safety).
         format_name: Explicit format name (e.g. "was", "json"). If None, auto-detects.
+        sample_info: When > 0, keep only every Nth plain INFO event (no exception/tags/code).
+            Deterministic: based on event counter modulo. 0 means no sampling (default).
     """
-    return list(parse_file_iter(path, max_lines=max_lines, format_name=format_name))
+    return list(parse_file_iter(path, max_lines=max_lines, format_name=format_name, sample_info=sample_info))
+
+
+# ---------------------------------------------------------------------------
+# File-level parse cache
+# ---------------------------------------------------------------------------
+
+def _event_to_cache_dict(e: LogEvent) -> dict:
+    """Minimal dict for cache storage."""
+    d: dict = {}
+    if e.text: d["t"] = e.text
+    if e.ts: d["ts"] = e.ts
+    if e.level: d["l"] = e.level
+    if e.thread_id: d["th"] = e.thread_id
+    if e.code: d["c"] = e.code
+    if e.exception: d["ex"] = e.exception
+    if e.root_cause: d["rc"] = e.root_cause
+    if e.tags: d["tg"] = e.tags
+    if e.file: d["f"] = e.file
+    if e.line_num: d["ln"] = e.line_num
+    if e.format: d["fmt"] = e.format
+    if e.tz_hint: d["tz"] = e.tz_hint
+    if e.trace_ids: d["tr"] = e.trace_ids
+    if e.source: d["src"] = e.source
+    return d
+
+
+def _cache_dict_to_event(d: dict) -> LogEvent:
+    """Reconstruct LogEvent from cache dict."""
+    return LogEvent(
+        text=d.get("t", ""),
+        ts=d.get("ts"),
+        level=d.get("l"),
+        thread_id=d.get("th"),
+        code=d.get("c"),
+        exception=d.get("ex"),
+        root_cause=d.get("rc"),
+        tags=d.get("tg", []),
+        file=d.get("f", ""),
+        line_num=d.get("ln", 0),
+        format=d.get("fmt"),
+        tz_hint=d.get("tz"),
+        trace_ids=d.get("tr", []),
+        source=d.get("src"),
+    )
+
+
+def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = None,
+                      max_lines: int = 0, format_name: str | None = None,
+                      sample_info: int = 0) -> list[LogEvent]:
+    """Parse with file-level caching. Falls back to parse_file on cache miss."""
+    cache_path = None
+    if cache_dir:
+        cache_key = f"parsed_{content_hash}_{format_name or 'auto'}_{max_lines}_{sample_info}"
+        cache_path = cache_dir / f"{cache_key}.json.gz"
+        if cache_path.exists():
+            try:
+                with gzip.open(cache_path, "rt", encoding="utf-8") as f:
+                    data = json.loads(f.read())
+                _log.info("Cache hit for %s (%d events)", path.name, len(data))
+                return [_cache_dict_to_event(d) for d in data]
+            except Exception:
+                _log.warning("Cache read failed for %s, re-parsing", path.name)
+
+    events = parse_file(path, max_lines=max_lines or None, format_name=format_name, sample_info=sample_info)
+
+    if cache_path:
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            data = [_event_to_cache_dict(e) for e in events]
+            with gzip.open(cache_path, "wt", encoding="utf-8") as f:
+                f.write(json.dumps(data, separators=(",", ":")))
+            _log.info("Cached %d events for %s", len(events), path.name)
+        except Exception as ex:
+            _log.warning("Cache write failed: %s", ex)
+
+    return events

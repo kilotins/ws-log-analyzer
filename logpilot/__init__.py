@@ -20,7 +20,7 @@ from .parser import (
     TZ_OFFSET_RE, TZ_ABBREV_RE,
     open_text, redact, extract_ts, extract_tz, bucket_tags, classify_event,
     extract_trace_ids,
-    parse_file_iter, parse_file,
+    parse_file_iter, parse_file, parse_file_cached,
 )
 
 # --- analysis ---
@@ -69,7 +69,7 @@ __all__ = [
     "TZ_OFFSET_RE", "TZ_ABBREV_RE",
     "open_text", "redact", "extract_ts", "extract_tz", "bucket_tags", "classify_event",
     "extract_trace_ids",
-    "parse_file_iter", "parse_file",
+    "parse_file_iter", "parse_file", "parse_file_cached",
     # analysis
     "parse_ts_datetime", "normalize_ts_utc", "sort_events_chronologically",
     "summarize", "incident_timeline",
