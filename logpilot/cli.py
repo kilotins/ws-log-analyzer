@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+from .event import LogEvent
 from .parser import parse_file
 from .analysis import summarize
 from .reports import render_json_report, render_markdown_report
@@ -45,7 +46,7 @@ def main() -> None:
     if not args.paths:
         ap.error("the following arguments are required: paths")
 
-    all_events: list[dict] = []
+    all_events: list[LogEvent] = []
     for p in args.paths:
         path = Path(p).expanduser()
         if not path.exists():

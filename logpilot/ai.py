@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import logging
 import re
 import sys
 from pathlib import Path
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 from .parser import WAS_CODE_RE
 from .event import LogEvent
@@ -401,7 +404,7 @@ def build_claude_prompt(user_query: str, match_result: dict, style: str | None =
             f"{skill_content}\n"
             "</domain_knowledge>"
         )
-        print(f"[skills] Selected: {', '.join(skill_files)}", file=sys.stderr)
+        _log.info("skills Selected: %s", ", ".join(skill_files))
     if style:
         system += style
     return {"system": system, "user": "\n".join(parts), "skills": skill_files}
