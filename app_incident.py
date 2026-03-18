@@ -1,4 +1,12 @@
-"""Incident Assistant — symptom-driven debugging with optional screenshot analysis."""
+"""Unified AI analysis — symptom-driven debugging, error code lookup, and general questions.
+
+Merges the former Ask AI and Incident Assistant into a single interface with:
+- Query matching (codes, exceptions, tags → raw log excerpts)
+- Domain skills (.md files) in the system prompt
+- Full analysis context (summary, heuristics, timeline, cascades)
+- Optional multimodal screenshot analysis
+- Per-query history with clear button
+"""
 from __future__ import annotations
 
 import base64
@@ -13,9 +21,11 @@ from logpilot import (
     incident_cache_key, estimate_tokens, TOKEN_LIMITS,
     match_user_query, select_skills, load_skill_content,
 )
+from logpilot.ai import _FORMAT_PLACEHOLDER
 from app_ai import (
     AI_MODELS, PROVIDER_CONFIG, _API_CALLERS,
     _log_probe, detect_dominant_format, estimate_cost,
+    _render_claude_response, clear_all_ai_history,
 )
 from app_constants import AI_RATE_LIMIT_SECONDS, MAX_SCREENSHOT_MB
 
@@ -225,17 +235,37 @@ def _extract_usage(usage_obj, provider: str) -> dict:
     return usage_obj if isinstance(usage_obj, dict) else {}
 
 
+def _save_to_history(query: str, answer: str, provider: str, model_label: str):
+    """Save an AI response to the per-provider history."""
+    cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["claude"])
+    entry = {
+        "query": query,
+        "answer": answer,
+        "provider": model_label,
+        "timestamp": datetime.now().strftime("%H:%M:%S"),
+    }
+    hist = getattr(st.session_state, cfg["history_key"], [])
+    if not any(h["query"] == query and h["answer"] == answer for h in hist):
+        hist.append(entry)
+        if cfg["save_history"]:
+            cfg["save_history"](hist)
+
+
 def render_incident_assistant(events, analysis, log=None, lookup_cache=None, store_cache=None):
-    """Render the Incident Assistant UI section."""
+    """Render the unified AI analysis UI — handles error codes, questions, and symptom descriptions."""
     summary = analysis.get("summary", {})
     causes = analysis.get("causes", [])
     itl = analysis.get("incident_timeline")
     cascades = analysis.get("cascades", [])
 
+    detected_format = detect_dominant_format(events)
+    placeholder = _FORMAT_PLACEHOLDER.get(detected_format,
+        "e.g. CWWKZ0001E, NullPointerException, 502 errors since 14:30, why are threads hanging?")
+
     # --- UI ---
     description = st.text_area(
-        "Describe the symptom you're seeing",
-        placeholder="e.g. Users report 502 errors on checkout page since 14:30, response times doubled",
+        "Describe a symptom, paste an error code, or ask a question",
+        placeholder=placeholder,
         height=100,
         key="incident_description_input",
     )
@@ -262,7 +292,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
             mime_type = mime_map.get(ext, "image/png")
             st.image(image_bytes, caption="Uploaded screenshot", width=400)
 
-    # Model selector
+    # Model selector + button
     model_col, btn_col = st.columns([1, 1])
     with model_col:
         selected_model = st.selectbox(
@@ -272,7 +302,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
             label_visibility="collapsed",
         )
     with btn_col:
-        diagnose_clicked = st.button("Diagnose", type="primary", key="incident_diagnose_btn",
+        diagnose_clicked = st.button("Analyze", type="primary", key="incident_diagnose_btn",
                                      use_container_width=True)
 
     # Show cached result
@@ -280,7 +310,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
 
     if diagnose_clicked:
         if not description.strip():
-            st.warning("Please describe the symptom you're seeing.")
+            st.warning("Enter an error code, question, or symptom description.")
             return
 
         # Rate limiting
@@ -294,16 +324,15 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         model_info = AI_MODELS[selected_model]
         provider = model_info["provider"]
         model_id = model_info["model_id"]
-        detected_format = detect_dominant_format(events)
 
-        # Query matching — find events relevant to the symptom description
+        # Query matching — find events relevant to the description
         match = match_user_query(description, events)
 
         # Domain skills — select and load relevant .md files
         skill_files = select_skills(match, description, detected_format=detected_format)
         skill_content = load_skill_content(skill_files)
         if skill_files and log:
-            log.info("incident skills selected: %s (format: %s)",
+            log.info("ai skills selected: %s (format: %s)",
                      ", ".join(skill_files), detected_format or "unknown")
 
         # Build prompt with skills in system prompt
@@ -331,13 +360,14 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
 
         cached = None
         if lookup_cache and provider != "local" and image_bytes is None:
-            cached = lookup_cache(cache_key, session_cache, f"incident/{provider}", description[:60])
+            cached = lookup_cache(cache_key, session_cache, f"ai/{provider}", description[:60])
 
         if cached:
             st.session_state._incident_answer = cached
             st.session_state._incident_model = selected_model
             cached_answer = cached
-            st.info("Incident diagnosis loaded from cache.")
+            _save_to_history(description, cached, provider, selected_model)
+            st.info("AI analysis loaded from cache.")
         else:
             # Build multimodal messages
             msg_dict = _build_multimodal_messages(system_prompt, user_text, image_bytes, mime_type, provider)
@@ -358,8 +388,13 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
             token_limit = TOKEN_LIMITS.get(provider, TOKEN_LIMITS["claude"])
             _req_text = f"[SYSTEM]\n{system_prompt}\n\n[USER]\n{user_text[:500]}..."
 
-            with st.status(f"Diagnosing with {selected_model}...", expanded=True) as status:
+            with st.status(f"Analyzing with {selected_model}...", expanded=True) as status:
                 st.write(f"Estimated prompt: ~{est_tokens_val:,} tokens")
+                if match.get("matched"):
+                    st.write(f"Found {len(match.get('matching_events', []))} matching event(s) "
+                             f"(match type: {match.get('match_type', 'none')})")
+                if skill_files:
+                    st.write(f"Skills: {', '.join(skill_files)}")
                 if image_bytes:
                     st.write(f"Screenshot: {len(image_bytes) / 1024:.0f} KB")
 
@@ -389,14 +424,17 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
 
                     if not answer:
                         status.update(label="Empty response from AI", state="error")
-                        _log_probe("Incident", provider, model_id, _req_text, "", error="Empty response")
+                        _log_probe("Ask AI", provider, model_id, _req_text, "", error="Empty response")
                         return
 
                     stream_placeholder.empty()
                     st.session_state._incident_answer = answer
                     st.session_state._incident_model = selected_model
                     cached_answer = answer
-                    _log_probe("Incident", provider, model_id, _req_text, answer)
+                    _log_probe("Ask AI", provider, model_id, _req_text, answer)
+
+                    # Save to history
+                    _save_to_history(description, answer, provider, selected_model)
 
                     # Cache (skip if screenshot or local)
                     if store_cache and provider != "local" and image_bytes is None:
@@ -409,27 +447,67 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                         cost = estimate_cost(model_id, inp, out)
                         try:
                             from app_spend import record_spend
-                            record_spend(provider, model_id, inp, out, source="incident",
+                            record_spend(provider, model_id, inp, out, source="ask_ai",
                                          cache_creation=usage.get("cache_creation", 0),
                                          cache_read=usage.get("cache_read", 0))
                         except Exception:
                             pass
-                        st.caption(f"Incident: {inp:,} in + {out:,} out tokens — est. **${cost:.4f}**")
+                        st.caption(f"{inp:,} in + {out:,} out tokens — est. **${cost:.4f}**")
 
-                    status.update(label="Diagnosis complete!", state="complete")
+                    status.update(label="Analysis complete!", state="complete")
                     if log:
-                        log.info("incident Diagnosis complete (%s)", model_id)
+                        log.info("ai Analysis complete (%s)", model_id)
 
                 except Exception as ex:
-                    _log_probe("Incident", provider, model_id, _req_text, "", error=str(ex))
-                    status.update(label="Diagnosis failed", state="error")
+                    _log_probe("Ask AI", provider, model_id, _req_text, "", error=str(ex))
+                    status.update(label="Analysis failed", state="error")
                     st.error(f"AI call failed: {ex}")
                     if log:
-                        log.error("incident Diagnosis failed: %s", ex)
+                        log.error("ai Analysis failed: %s", ex)
                     return
 
-    # Render result
+    # --- Render current result ---
     if cached_answer:
         model_label = st.session_state.get("_incident_model", "AI")
-        st.markdown(f"**Incident Diagnosis** ({model_label}):")
-        st.markdown(cached_answer)
+        st.markdown(f"**AI Analysis** ({model_label}):")
+        _render_claude_response(cached_answer)
+
+    # --- Render history ---
+    _render_ai_history()
+
+    # --- Clear button ---
+    has_any = any([
+        cached_answer,
+        st.session_state.get("_triage_answer"),
+        len(st.session_state.get("claude_history", [])) > 0,
+        len(st.session_state.get("gemini_history", [])) > 0,
+        len(st.session_state.get("openai_history", [])) > 0,
+        len(st.session_state.get("local_history", [])) > 0,
+    ])
+    if has_any:
+        if st.button("Clear all AI history", key="clear_ai_history_btn"):
+            clear_all_ai_history()
+            st.rerun()
+
+
+def _render_ai_history():
+    """Render previous AI query history from all providers."""
+    for provider_key, hist_key, label in [
+        ("claude", "claude_history", "Claude"),
+        ("gemini", "gemini_history", "Gemini"),
+        ("openai", "openai_history", "GPT"),
+        ("local", "local_history", "Local AI"),
+    ]:
+        history = st.session_state.get(hist_key, [])
+        # Skip the latest entry if it matches the current answer (already shown above)
+        current = st.session_state.get("_incident_answer")
+        display_hist = [h for h in history if h.get("answer") != current]
+        if not display_hist:
+            continue
+        st.markdown("---")
+        for entry in reversed(display_hist):
+            query_preview = entry.get("query", "")[:80]
+            provider_label = entry.get("provider", label)
+            ts = entry.get("timestamp", "")
+            with st.expander(f"{provider_label} — {query_preview} ({ts})"):
+                _render_claude_response(entry["answer"])
