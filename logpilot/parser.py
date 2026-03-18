@@ -217,6 +217,15 @@ def classify_event(text: str) -> dict[str, Any]:
     }
 
 
+def _should_emit(ev: LogEvent, sample_info: int, counter: int) -> bool:
+    """Check if an event should be emitted (respecting INFO sampling)."""
+    if sample_info <= 0:
+        return True
+    if ev.level != "INFO" or ev.exception or ev.tags or ev.code:
+        return True
+    return counter % sample_info == 0
+
+
 def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0) -> Generator[LogEvent, None, None]:
     """Generator-based parser that yields event dicts one at a time.
 
@@ -278,9 +287,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
                 if seen_first_ts:
                     _ev = _build_event()
                     _event_counter += 1
-                    if not (sample_info > 0 and _ev.get("level") == "INFO"
-                            and not _ev.get("exception") and not _ev.get("tags") and not _ev.get("code")
-                            and _event_counter % sample_info != 0):
+                    if _should_emit(_ev, sample_info, _event_counter):
                         yield _ev
                 current = []
                 current_meta = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
@@ -297,9 +304,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
                 if seen_first_ts:
                     _ev = _build_event()
                     _event_counter += 1
-                    if not (sample_info > 0 and _ev.get("level") == "INFO"
-                            and not _ev.get("exception") and not _ev.get("tags") and not _ev.get("code")
-                            and _event_counter % sample_info != 0):
+                    if _should_emit(_ev, sample_info, _event_counter):
                         yield _ev
                 current = []
                 current_meta = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
@@ -314,9 +319,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
     if current and seen_first_ts:
         _ev = _build_event()
         _event_counter += 1
-        if not (sample_info > 0 and _ev.get("level") == "INFO"
-                and not _ev.get("exception") and not _ev.get("tags") and not _ev.get("code")
-                and _event_counter % sample_info != 0):
+        if _should_emit(_ev, sample_info, _event_counter):
             yield _ev
 
 
