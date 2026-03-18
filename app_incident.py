@@ -698,8 +698,35 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
     return answer
 
 
+_HIST_DISK_FILES = {
+    "claude": "claude_history.json",
+    "gemini": "gemini_history.json",
+    "openai": "openai_history.json",
+    "local": "local_history.json",
+}
+
+
+def _delete_history_entry(hist_key: str, provider_key: str, idx: int) -> None:
+    """Remove a single AI history entry from session state and disk."""
+    history = st.session_state.get(hist_key, [])
+    if 0 <= idx < len(history):
+        history.pop(idx)
+        st.session_state[hist_key] = history
+        _hf = Path.home() / ".logpilot" / _HIST_DISK_FILES.get(provider_key, "")
+        if _hf.name:
+            try:
+                _hf.write_text(json.dumps(history), encoding="utf-8")
+            except OSError:
+                pass
+
+
 def _render_ai_history():
     """Render previous AI query history from all providers."""
+    # Process any pending deletion first (before rendering)
+    _pending = st.session_state.pop("_pending_hist_delete", None)
+    if _pending:
+        _delete_history_entry(_pending["hist_key"], _pending["provider_key"], _pending["idx"])
+
     for provider_key, hist_key, label in [
         ("claude", "claude_history", "Claude"),
         ("gemini", "gemini_history", "Gemini"),
@@ -724,19 +751,9 @@ def _render_ai_history():
                 with col_delete:
                     if st.button("🗑️", key=f"del_{hist_key}_{orig_idx}",
                                  help="Remove this response"):
-                        history.pop(orig_idx)
-                        st.session_state[hist_key] = history
-                        # Persist to disk
-                        _hist_files = {
-                            "claude": "claude_history.json",
-                            "gemini": "gemini_history.json",
-                            "openai": "openai_history.json",
-                            "local": "local_history.json",
+                        st.session_state["_pending_hist_delete"] = {
+                            "hist_key": hist_key,
+                            "provider_key": provider_key,
+                            "idx": orig_idx,
                         }
-                        _hf = Path.home() / ".logpilot" / _hist_files.get(provider_key, "")
-                        if _hf.name:
-                            try:
-                                _hf.write_text(json.dumps(history), encoding="utf-8")
-                            except OSError:
-                                pass
                         st.rerun()
