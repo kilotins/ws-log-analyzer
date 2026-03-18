@@ -49,6 +49,7 @@ from .ai import (
     CLAUDE_SYSTEM_PROMPT, build_system_prompt,
     select_skills, load_skill_content,
     build_claude_prompt, build_cross_system_prompt,
+    build_incident_system_prompt, build_incident_user_prompt, incident_cache_key,
     TOKEN_LIMITS,
     estimate_tokens, claude_cache_key, triage_cache_key, ask_gemini,
     MAX_SKILLS,
@@ -82,6 +83,7 @@ __all__ = [
     # ai
     "match_user_query", "CLAUDE_SYSTEM_PROMPT", "build_system_prompt",
     "select_skills", "load_skill_content", "build_claude_prompt", "build_cross_system_prompt",
+    "build_incident_system_prompt", "build_incident_user_prompt", "incident_cache_key",
     "TOKEN_LIMITS", "estimate_tokens", "claude_cache_key", "ask_gemini",
     "MAX_SKILLS",
     # event
