@@ -394,7 +394,7 @@ def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = No
                     data = json.loads(f.read())
                 _log.info("Cache hit for %s (%d events)", path.name, len(data))
                 return [_cache_dict_to_event(d) for d in data]
-            except Exception:
+            except (OSError, json.JSONDecodeError, KeyError, TypeError):
                 _log.warning("Cache read failed for %s, re-parsing", path.name)
 
     events = parse_file(path, max_lines=max_lines or None, format_name=format_name, sample_info=sample_info)

@@ -135,7 +135,7 @@ def render_pdf_report(
         pdf.ln(2)
 
     if _sec(sections, "codes"):
-        heading("Top WebSphere/Liberty Codes")
+        heading("Top Message Codes")
         if s["codes"]:
             for k, v in s["codes"]:
                 body(f"  {k}: {v}")

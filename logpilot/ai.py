@@ -887,4 +887,12 @@ def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "g
         model_kwargs["system_instruction"] = system
     gen_model = genai.GenerativeModel(model, **model_kwargs)
     response = gen_model.generate_content(prompt, request_options={"timeout": timeout})
-    return response.text
+    # Handle safety-blocked responses — response.text raises ValueError if blocked
+    try:
+        return response.text
+    except ValueError:
+        # Check if blocked by safety filters
+        if response.candidates and hasattr(response.candidates[0], "finish_reason"):
+            reason = response.candidates[0].finish_reason
+            return f"[Response blocked by safety filter: {reason}]"
+        return "[Response blocked by safety filter]"

@@ -73,7 +73,7 @@ def render_markdown_report(
         md += [f"- **{k}**: {v}" for k, v in s["levels"]]
         md.append("")
     if _sec(sections, "codes"):
-        md.append("## Top WebSphere/Liberty Codes")
+        md.append("## Top Message Codes")
         md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
         md.append("")
     if _sec(sections, "exceptions"):

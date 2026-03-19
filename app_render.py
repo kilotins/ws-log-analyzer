@@ -64,9 +64,9 @@ def render_summary(s, error_count, file_count, file_summary, events=None, incide
         trigger_dt = incident_timeline.get("trigger_dt")
         if trigger_dt:
             trigger_ts = trigger_dt.strftime("%Y-%m-%d %H:%M:%S")
-            trigger_level = trigger.get("level", "ERROR")
-            trigger_code = trigger.get("code", "")
-            trigger_exc = trigger.get("exception", "")
+            trigger_level = trigger.level or "ERROR"
+            trigger_code = trigger.code or ""
+            trigger_exc = trigger.exception or ""
             # Build a description of what happened
             what_parts = [trigger_level]
             if trigger_code:
@@ -78,7 +78,7 @@ def render_summary(s, error_count, file_count, file_summary, events=None, incide
             # Count errors in the burst window
             window_events = incident_timeline.get("window_events", [])
             window_errors = sum(1 for w in window_events
-                                if w["event"].get("level") in ("ERROR", "SEVERE", "FATAL"))
+                                if w["event"].level in ("ERROR", "SEVERE", "FATAL"))
             window_secs = incident_timeline.get("window_seconds", 60)
 
             burst_note = ""
@@ -368,11 +368,11 @@ def render_incident_timeline(itl):
     window_events = itl["window_events"]
 
     times = [w["dt"] for w in window_events]
-    levels = [w["event"].get("level") or "UNKNOWN" for w in window_events]
+    levels = [w["event"].level or "UNKNOWN" for w in window_events]
 
-    trigger_code = trigger.get("code") or ""
-    trigger_exc = (trigger.get("exception") or "").rsplit(".", 1)[-1]
-    trigger_label = f"{trigger.get('level')} {trigger_code} {trigger_exc}".strip()
+    trigger_code = trigger.code or ""
+    trigger_exc = (trigger.exception or "").rsplit(".", 1)[-1]
+    trigger_label = f"{trigger.level} {trigger_code} {trigger_exc}".strip()
     st.caption(
         f"Showing {len(window_events)} events within "
         f"\u00b1{itl['window_seconds']}s of first error: "
@@ -405,7 +405,7 @@ def render_samples(samples, all_events=None):
         return
 
     # Sort by severity (most critical first)
-    samples = sorted(samples, key=lambda e: _SEVERITY_ORDER.get(e.get("level") or "UNKNOWN", 8))
+    samples = sorted(samples, key=lambda e: _SEVERITY_ORDER.get(e.level or "UNKNOWN", 8))
     total = len(samples)
     # Determine how many to show
     # Reset pagination when analysis changes
@@ -420,32 +420,32 @@ def render_samples(samples, all_events=None):
         visible = samples
 
     for idx, e in enumerate(visible, start=1):
-        header = f"{idx}. {e['level'] or 'UNKNOWN'}"
-        if e["code"]:
-            header += f" {e['code']}"
-        if e["exception"]:
-            header += f" -- {e['exception']}"
-        if e["ts"]:
-            header += f" ({e['ts']})"
-        source_label = e.get("system_label") or e.get("source") or ""
+        header = f"{idx}. {e.level or 'UNKNOWN'}"
+        if e.code:
+            header += f" {e.code}"
+        if e.exception:
+            header += f" -- {e.exception}"
+        if e.ts:
+            header += f" ({e.ts})"
+        source_label = e.system_label or e.source or ""
         if source_label:
             header += f" — {source_label}"
         # Sample label (e.g. "First error", "Most frequent", "Cascade trigger")
-        sample_label = getattr(e, "sample_label", None) or e.get("sample_label")
+        sample_label = e.sample_label
         if sample_label:
             header += f"  [{sample_label}]"
         st.markdown(f"**{header}**")
         parts = []
-        if e["tags"]:
-            parts.append(f"Tags: {', '.join(e['tags'])}")
-        if e["thread_id"]:
-            parts.append(f"Thread: 0x{e['thread_id']}")
-        if e["root_cause"] and e["root_cause"] != e["exception"]:
-            parts.append(f"Root cause: {e['root_cause']}")
+        if e.tags:
+            parts.append(f"Tags: {', '.join(e.tags)}")
+        if e.thread_id:
+            parts.append(f"Thread: 0x{e.thread_id}")
+        if e.root_cause and e.root_cause != e.exception:
+            parts.append(f"Root cause: {e.root_cause}")
         if parts:
             st.text("  " + " | ".join(parts))
-        st.code(e["text"][:4000], language="text")
-        if all_events is not None and e.get("ts_utc"):
+        st.code(e.text[:4000], language="text")
+        if all_events is not None and e.ts_utc:
             if st.button("Show context", key=f"ctx_sample_{idx}"):
                 try:
                     ev_idx = all_events.index(e)
@@ -470,7 +470,7 @@ def render_cross_system_timeline(events: list[dict], cascades: list[dict] | None
     # Filter to events with parseable timestamps
     timed = []
     for e in events:
-        ts_utc = e.get("ts_utc")
+        ts_utc = e.ts_utc
         if not ts_utc:
             continue
         try:
@@ -479,7 +479,7 @@ def render_cross_system_timeline(events: list[dict], cascades: list[dict] | None
             continue
         timed.append((e, dt))
 
-    sources = sorted(set(e.get("system_label", "unknown") for e, _ in timed))
+    sources = sorted(set(e.system_label or "unknown" for e, _ in timed))
 
     if not timed or len(sources) < 2:
         return
@@ -507,13 +507,13 @@ def render_cross_system_timeline(events: list[dict], cascades: list[dict] | None
 
     for row_idx, source in enumerate(sources, start=1):
         # Bucket events for this source
-        source_events = [(e, dt) for e, dt in timed if e.get("system_label", "unknown") == source]
+        source_events = [(e, dt) for e, dt in timed if (e.system_label or "unknown") == source]
         buckets: dict[int, Counter] = {}
         for e, dt in source_events:
             b_idx = min(int((dt - t_min).total_seconds() / bucket_secs), max_bucket)
             if b_idx not in buckets:
                 buckets[b_idx] = Counter()
-            lvl = e.get("level") or "UNKNOWN"
+            lvl = e.level or "UNKNOWN"
             norm_lvl = lvl if lvl in severity_colors else "UNKNOWN"
             buckets[b_idx][norm_lvl] += 1
 
@@ -566,15 +566,17 @@ def render_cascade_section(cascades: list[dict]):
             expanded=(i == 0),
         ):
             # Upstream event
-            up = c.get("upstream_event", {})
-            st.markdown(f"**Upstream** ({c['upstream_source']}): `{up.get('code', '')}` "
-                       f"{up.get('exception', '')} — {(up.get('text', '')[:200])}")
+            up = c.get("upstream_event")
+            if up is not None:
+                st.markdown(f"**Upstream** ({c['upstream_source']}): `{up.code or ''}` "
+                           f"{up.exception or ''} — {(up.text or '')[:200]}")
 
             # Downstream events
             for de in c.get("downstream_events", []):
-                ev = de.get("event", {})
-                st.markdown(f"**→ Downstream** ({ev.get('system_label', '')}, +{de['delay_s']}s): "
-                           f"`{ev.get('code', '')}` {ev.get('exception', '')} — {(ev.get('text', '')[:200])}")
+                ev = de.get("event")
+                if ev is not None:
+                    st.markdown(f"**→ Downstream** ({ev.system_label or ''}, +{de['delay_s']}s): "
+                               f"`{ev.code or ''}` {ev.exception or ''} — {(ev.text or '')[:200]}")
 
 
 def render_context_view(selected_idx: int, events: list[dict], window_seconds: int = 30):
@@ -583,7 +585,7 @@ def render_context_view(selected_idx: int, events: list[dict], window_seconds: i
         return
 
     selected = events[selected_idx]
-    sel_ts = selected.get("ts_utc")
+    sel_ts = selected.ts_utc
     if not sel_ts:
         st.warning("Selected event has no timestamp — cannot show context.")
         return
@@ -599,22 +601,22 @@ def render_context_view(selected_idx: int, events: list[dict], window_seconds: i
 
     context_events = [
         e for e in events
-        if e.get("ts_utc") and window_start <= e["ts_utc"] <= window_end
+        if e.ts_utc and window_start <= e.ts_utc <= window_end
     ]
 
     st.markdown(f"**Context view** — ±{window_seconds}s around selected event "
-               f"({len(context_events)} events from {len(set(e.get('system_label', '') for e in context_events))} sources)")
+               f"({len(context_events)} events from {len(set(e.system_label or '' for e in context_events))} sources)")
 
     # Build table data
     rows = []
     for e in context_events:
         is_selected = (e is selected)
-        level = e.get("level", "")
-        source = e.get("system_label", "")
-        ts_display = e.get("ts", "") or e.get("ts_utc", "")
-        code = e.get("code") or ""
-        exc = e.get("exception") or ""
-        preview = (e.get("text", "")[:100]).replace("\n", " ")
+        level = e.level or ""
+        source = e.system_label or ""
+        ts_display = e.ts or e.ts_utc or ""
+        code = e.code or ""
+        exc = e.exception or ""
+        preview = (e.text[:100] if e.text else "").replace("\n", " ")
 
         marker = "→ " if is_selected else "  "
         rows.append({
@@ -636,19 +638,19 @@ def _apply_event_filters(events, levels, code_prefix, exception_types, time_rang
     filtered = list(events)
 
     if sources:
-        filtered = [e for e in filtered if e.get("system_label", "unknown") in sources]
+        filtered = [e for e in filtered if (e.system_label or "unknown") in sources]
 
     if levels:
         level_set = set(levels)
-        filtered = [e for e in filtered if (e.get("level") or "UNKNOWN") in level_set]
+        filtered = [e for e in filtered if (e.level or "UNKNOWN") in level_set]
 
     if code_prefix:
         prefix = code_prefix.strip().upper()
-        filtered = [e for e in filtered if e.get("code") and e["code"].upper().startswith(prefix)]
+        filtered = [e for e in filtered if e.code and e.code.upper().startswith(prefix)]
 
     if exception_types:
         exc_set = set(exception_types)
-        filtered = [e for e in filtered if e.get("exception") in exc_set]
+        filtered = [e for e in filtered if e.exception in exc_set]
 
     if time_range and len(time_range) == 2:
         t_start, t_end = time_range
@@ -656,7 +658,7 @@ def _apply_event_filters(events, levels, code_prefix, exception_types, time_rang
             from logpilot import parse_ts_datetime
             result = []
             for e in filtered:
-                ts = e.get("ts")
+                ts = e.ts
                 if not ts:
                     continue
                 dt = parse_ts_datetime(ts)
@@ -715,8 +717,8 @@ def _apply_sample_filters_from_state(events):
 
 def render_global_filters(events):
     """Render compact global filters (Source + Severity) above the report summary."""
-    all_levels = sorted({e.get("level") or "UNKNOWN" for e in events})
-    all_sources = sorted(set(e.get("system_label", "unknown") for e in events))
+    all_levels = sorted({e.level or "UNKNOWN" for e in events})
+    all_sources = sorted(set(e.system_label or "unknown" for e in events))
 
     # Only show if there's something to filter
     if len(all_levels) <= 1 and len(all_sources) <= 1:
@@ -759,7 +761,7 @@ def render_global_filters(events):
 
 def render_sample_filters(events):
     """Render drill-down filters (Code, Exception, Time) above sample events."""
-    all_exceptions = sorted({e.get("exception") for e in events if e.get("exception")})
+    all_exceptions = sorted({e.exception for e in events if e.exception})
 
     if not all_exceptions:
         return
@@ -862,7 +864,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     if _is_filtered:
         import hashlib as _hl
-        _filter_hash = _hl.md5(str(len(display_events)).encode() + str(sum(hash(e.get("ts", "")) for e in display_events[:100])).encode()).hexdigest()[:12]
+        _filter_hash = _hl.md5(str(len(display_events)).encode() + str(sum(hash(e.ts or "") for e in display_events[:100])).encode()).hexdigest()[:12]
         _filter_key = f"_fa_{len(display_events)}_{_filter_hash}"
         # Evict old filter cache entries (keep max 5)
         _old_fa = [k for k in st.session_state if k.startswith("_fa_") and k != _filter_key]
@@ -878,7 +880,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
             )
             st.session_state[_filter_key] = fa
         display_summary = fa["summary"]
-        display_error_count = sum(1 for e in display_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
+        display_error_count = sum(1 for e in display_events if e.level in ("ERROR", "SEVERE", "FATAL"))
         display_causes = fa["causes"]
         display_hung = fa["hung"]
         display_samples = fa["samples"]
@@ -914,7 +916,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                                   lookup_cache=lookup_cache, store_cache=store_cache)
 
     # --- 4. Cross-System Timeline (multi-source only) ---
-    _sources = set(e.get("system_label", "") for e in display_events)
+    _sources = set(e.system_label or "" for e in display_events)
     if len(_sources) >= 2:
         with st.expander(f"Cross-System Timeline ({len(_sources)} sources)"):
             cascades = a.get("cascades", [])
@@ -1011,8 +1013,6 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         _available["tags"] = REPORT_SECTIONS["tags"]
     if _pa.get("causes"):
         _available["causes"] = REPORT_SECTIONS["causes"]
-    if _pa.get("splunk"):
-        _available["splunk"] = REPORT_SECTIONS["splunk"]
     if _pa.get("hung"):
         _available["hung"] = REPORT_SECTIONS["hung"]
     _available["timeline"] = REPORT_SECTIONS["timeline"]

@@ -610,7 +610,7 @@ def detect_dominant_format(events: list[dict]) -> str:
     if not events:
         return ""
     from collections import Counter
-    formats = Counter(e.get("format", "") for e in events if e.get("format"))
+    formats = Counter(e.format for e in events if e.format)
     if not formats:
         return ""
     return formats.most_common(1)[0][0]
@@ -1055,7 +1055,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
     from logpilot.ai import build_cross_system_prompt, estimate_tokens
 
     events = a.get("events", [])
-    sources = set(e.get("system_label", "") for e in events)
+    sources = set(e.system_label or "" for e in events)
     if len(sources) < 2:
         return  # Only for multi-source
 
