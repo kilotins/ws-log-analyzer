@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,6 +19,14 @@ _log = logging.getLogger(__name__)
 INCLUDE_EXTENSIONS: frozenset[str] = frozenset({
     ".log", ".txt", ".out", ".gz", ".json", ".ndjson",
 })
+
+# Filename patterns that indicate log files regardless of extension
+# (e.g. "accesslog.2026.03.11", "server.log.1", "messages.20260319")
+_LOG_NAME_RE = re.compile(
+    r'(access[-_.]?log|error[-_.]?log|server[-_.]?log|system[-_.]?out|'
+    r'catalina\.out|messages|syslog|SystemOut|SystemErr)',
+    re.IGNORECASE,
+)
 
 EXCLUDE_DIRS: frozenset[str] = frozenset({
     ".git", ".svn", ".hg", "__pycache__", "node_modules",
@@ -145,7 +154,7 @@ def discover_log_files(
             if not include_hidden and fname.startswith("."):
                 continue
 
-            # Check extension
+            # Check extension — with name-based fallback for rotated logs
             suffix = fpath.suffix.lower()
             # For .gz, check the double extension (e.g. .log.gz)
             if suffix == ".gz":
@@ -154,8 +163,11 @@ def discover_log_files(
                     result.rejected.append(RejectedFile(fpath, rel, "extension not in include list"))
                     continue
             elif suffix not in include_extensions:
-                result.rejected.append(RejectedFile(fpath, rel, "extension not in include list"))
-                continue
+                # Fallback: check if filename contains log-like patterns
+                # (e.g. "accesslog.2026.03.11", "server.log.1", "messages.20260319")
+                if not _LOG_NAME_RE.search(fname):
+                    result.rejected.append(RejectedFile(fpath, rel, "extension not in include list"))
+                    continue
 
             # Get file size
             try:
