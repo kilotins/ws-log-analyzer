@@ -327,33 +327,63 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
 
     # 3. Likely causes
     if _sec(sections, "causes") and causes:
-        from ..analysis import group_into_incidents
+        from ..heuristics import group_into_incidents
         grouped = group_into_incidents(causes)
         _open_section(True)
+
+        # Primary incident banner
         for g in grouped["groups"]:
+            if g.get("is_primary"):
+                h.append(f'<div class="onset-alert"><strong>Primary incident: {escape(g["name"])}</strong>'
+                         f' &mdash; {escape(g.get("investigate_first", ""))}</div>')
+                break
+
+        for g in grouped["groups"]:
+            cascade = g.get("cascade_order", "")
+            rank = g.get("rank", "")
+            label = "root cause" if g.get("is_primary") else cascade
             h.append('<div class="cause">')
-            h.append(f'<h3>{escape(g["name"])} ({g["total_count"]:,} events)</h3>')
+            h.append(f'<h3>Step {rank} &mdash; {escape(g["name"])} ({g["total_count"]:,} events) &mdash; {escape(label)}</h3>')
             h.append(f'<p><em>{escape(g["narrative"])}</em></p>')
+
+            # Investigate directive
+            directive = g.get("investigate_first", "")
+            if directive:
+                h.append(f'<p><strong>{escape(directive)}</strong></p>')
+
+            # Evidence
+            ev_parts = []
+            for t in g.get("triggers", []):
+                ev = t.get("evidence", {})
+                if ev.get("ip_addresses"):
+                    ev_parts.append(f'Targets: {", ".join(ev["ip_addresses"])}')
+                if ev.get("durations"):
+                    ev_parts.append(f'Durations: {", ".join(ev["durations"][:3])}')
+                if ev.get("exceptions"):
+                    ev_parts.append(f'Exceptions: {", ".join(ev["exceptions"])}')
+            if ev_parts:
+                h.append(f'<pre style="font-size:12px;padding:8px">{escape(chr(10).join(dict.fromkeys(ev_parts)))}</pre>')
+
             for t in g["triggers"]:
                 h.append(f'<p><strong>{escape(t["title"])}</strong> ({t["count"]} event{"s" if t["count"] != 1 else ""})')
                 h.append(f'<br>Likely cause: {escape(t["cause"])}</p>')
             for e in g["effects"]:
                 h.append(f'<p style="margin-left:16px">&#8627; {escape(e["title"])} ({e["count"]})</p>')
-            h.append('<ul>')
+            h.append('<details><summary>Suggested fixes</summary><ul>')
             for t in g["triggers"]:
                 for fix in t["fixes"]:
                     h.append(f'<li>{escape(fix)}</li>')
-            h.append('</ul></div>')
+            h.append('</ul></details></div>')
         if grouped["ungrouped"]:
             h.append('<h3>Other Findings</h3>')
             for c in grouped["ungrouped"]:
                 h.append('<div class="cause">')
                 h.append(f'<h3>{escape(c["title"])} ({c["count"]})</h3>')
                 h.append(f'<p><strong>Likely cause:</strong> {escape(c["cause"])}</p>')
-                h.append('<ul>')
+                h.append('<details><summary>Fixes</summary><ul>')
                 for fix in c["fixes"]:
                     h.append(f'<li>{escape(fix)}</li>')
-                h.append('</ul></div>')
+                h.append('</ul></details></div>')
         _close_section()
 
     # 4. Severity

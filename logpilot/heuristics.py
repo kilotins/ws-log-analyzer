@@ -124,6 +124,295 @@ def _load_all_data() -> tuple[list[dict], list[dict[str, Any]], list[dict[str, A
 _HEURISTICS, _CORRELATIONS, _INCIDENT_GROUPS = _load_all_data()
 
 
+# ── P1: Evidence extraction regexes ─────────────────────────────────
+
+_IP_PORT_RE = re.compile(r'\b(\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?)\b')
+_DURATION_RE = re.compile(r'(\d[\d,]*)\s*(ms|milliseconds?|seconds?|s)\b', re.IGNORECASE)
+_HOSTNAME_RE = re.compile(r'(?:upstream|connecting to|host)\s+["\']?([a-zA-Z0-9._-]+(?::\d+)?)', re.IGNORECASE)
+
+
+def extract_evidence(events: list[LogEvent], match_re: re.Pattern) -> dict[str, Any]:  # type: ignore[type-arg]
+    """Extract concrete details from events matching a heuristic pattern.
+
+    Returns dict with first/last timestamps, affected systems, IP addresses,
+    durations, hostnames, and a sample line — all extracted from the actual events.
+    """
+    from .analysis import normalize_ts_utc
+
+    first_ts: str | None = None
+    last_ts: str | None = None
+    first_dt = None
+    last_dt = None
+    systems: set[str] = set()
+    ips: set[str] = set()
+    hostnames: set[str] = set()
+    durations: list[str] = []
+    exceptions: set[str] = set()
+    threads: set[str] = set()
+    sample_line: str = ""
+
+    for e in events:
+        text = e.text or ""
+        if not match_re.search(text):
+            continue
+
+        # Timestamps
+        if e.ts_utc or e.ts:
+            dt = normalize_ts_utc(e.ts, tz_hint=e.tz_hint)
+            if dt:
+                if first_dt is None or dt < first_dt:
+                    first_dt = dt
+                    first_ts = e.ts_utc or e.ts
+                if last_dt is None or dt > last_dt:
+                    last_dt = dt
+                    last_ts = e.ts_utc or e.ts
+
+        # Systems
+        if e.system_label:
+            systems.add(e.system_label)
+
+        # IPs
+        for m in _IP_PORT_RE.finditer(text):
+            ip = m.group(1)
+            if not ip.startswith("0.") and not ip.startswith("127."):
+                ips.add(ip)
+
+        # Durations
+        for m in _DURATION_RE.finditer(text):
+            durations.append(f"{m.group(1)} {m.group(2)}")
+
+        # Hostnames
+        for m in _HOSTNAME_RE.finditer(text):
+            hostnames.add(m.group(1))
+
+        # Exceptions
+        if e.exception:
+            short = e.exception.rsplit(".", 1)[-1] if "." in e.exception else e.exception
+            exceptions.add(short)
+
+        # Threads
+        if e.thread_id:
+            threads.add(e.thread_id)
+
+        # Sample line (first match, truncated)
+        if not sample_line:
+            first_line = text.split("\n")[0][:200]
+            sample_line = first_line
+
+    span_seconds = None
+    if first_dt and last_dt:
+        span_seconds = (last_dt - first_dt).total_seconds()
+
+    return {
+        "first_ts": first_ts,
+        "last_ts": last_ts,
+        "span_seconds": span_seconds,
+        "affected_systems": sorted(systems),
+        "ip_addresses": sorted(ips)[:5],
+        "hostnames": sorted(hostnames)[:5],
+        "durations": durations[:5],
+        "exceptions": sorted(exceptions)[:5],
+        "threads": sorted(threads)[:5],
+        "sample_line": sample_line,
+    }
+
+
+# ── P2: Incident ranking ───────────────────────────────────────────
+
+
+def rank_incident_groups(groups: list[dict[str, Any]], causes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Rank incident groups by temporal order and causal depth.
+
+    Determines which group is the root cause (earliest triggers, no upstream parent)
+    and labels others as downstream or concurrent.
+
+    Mutates groups in-place and returns them sorted by rank.
+    """
+    if not groups:
+        return groups
+
+    # Collect all trigger/effect IDs per group
+    group_trigger_ids = []
+    group_effect_ids = []
+    for g in groups:
+        tids = {t["id"] for t in g.get("triggers", [])}
+        eids = {e["id"] for e in g.get("effects", [])}
+        group_trigger_ids.append(tids)
+        group_effect_ids.append(eids)
+
+    # Build causal depth: if group A's triggers appear as group B's effects, A is downstream of B
+    for i, g in enumerate(groups):
+        g["_upstream_of"] = set()
+        for j, other in enumerate(groups):
+            if i == j:
+                continue
+            # If my triggers are effects of another group, that group is my upstream
+            if group_trigger_ids[i] & group_effect_ids[j]:
+                g["_upstream_of"].add(j)
+
+    # Find root groups (no upstream parent)
+    root_ids = {id(g) for g in groups if not g["_upstream_of"]}
+
+    # Temporal ordering: earliest first_trigger_ts
+    for g in groups:
+        evidence_list = [t.get("evidence", {}) for t in g.get("triggers", []) if t.get("evidence")]
+        timestamps = [ev.get("first_ts") for ev in evidence_list if ev.get("first_ts")]
+        g["first_trigger_ts"] = min(timestamps) if timestamps else None
+
+        # Collect affected systems from all triggers + effects
+        all_systems: set[str] = set()
+        for item in g.get("triggers", []) + g.get("effects", []):
+            ev = item.get("evidence", {})
+            all_systems.update(ev.get("affected_systems", []))
+        g["affected_systems"] = sorted(all_systems)
+
+    # Sort: roots first (by timestamp), then downstream (by timestamp)
+    def _sort_key(g):
+        is_root = id(g) in root_ids
+        ts = g.get("first_trigger_ts") or "9999"
+        return (0 if is_root else 1, ts)
+
+    groups.sort(key=_sort_key)
+
+    # Assign rank and cascade labels
+    primary_name = groups[0]["name"] if groups else ""
+    for rank, g in enumerate(groups, 1):
+        g["rank"] = rank
+        is_root = id(g) in root_ids
+
+        if rank == 1:
+            g["is_primary"] = True
+            g["cascade_order"] = "root cause"
+        elif is_root:
+            g["is_primary"] = False
+            g["cascade_order"] = "concurrent"
+        else:
+            g["is_primary"] = False
+            g["cascade_order"] = f"downstream of {primary_name}"
+
+        # Build investigate_first directive
+        trigger_names = [t["title"] for t in g.get("triggers", [])][:2]
+        trigger_str = ", ".join(trigger_names) if trigger_names else "unknown"
+        systems_str = ", ".join(g.get("affected_systems", [])[:3]) or "unknown"
+        ts_str = g.get("first_trigger_ts", "")
+
+        if g.get("is_primary"):
+            g["investigate_first"] = f"Start here: check {systems_str} around {ts_str} for {trigger_str}"
+        elif g["cascade_order"] == "concurrent":
+            g["investigate_first"] = f"Separate issue — investigate {systems_str} independently"
+        else:
+            g["investigate_first"] = f"Likely caused by {primary_name}. Fix that first."
+
+    # Clean internal fields
+    for g in groups:
+        g.pop("_upstream_of", None)
+
+    return groups
+
+
+# ── P3: Narrative builder ───────────────────────────────────────────
+
+
+def build_narrative(group: dict[str, Any]) -> str:
+    """Build a rich narrative for an incident group using extracted evidence.
+
+    Replaces the static narrative template with one that includes specific
+    timestamps, systems, IPs, and cascade information.
+    """
+    parts: list[str] = []
+    triggers = group.get("triggers", [])
+    effects = group.get("effects", [])
+    cascade_order = group.get("cascade_order", "")
+    first_ts = group.get("first_trigger_ts", "")
+
+    # Opening: what and when
+    trigger_names = [t["title"] for t in triggers]
+    systems = group.get("affected_systems", [])
+
+    if first_ts:
+        ts_short = first_ts.split("T")[-1][:8] if "T" in first_ts else first_ts
+        parts.append(f"Starting at {ts_short}")
+    if systems:
+        parts.append(f"on {', '.join(systems[:3])}")
+
+    # What triggered it
+    if trigger_names:
+        parts.append(f"— {', '.join(trigger_names[:2])} detected")
+
+    # Specific evidence from triggers
+    all_ips: list[str] = []
+    all_durations: list[str] = []
+    for t in triggers:
+        ev = t.get("evidence", {})
+        all_ips.extend(ev.get("ip_addresses", []))
+        all_durations.extend(ev.get("durations", []))
+
+    if all_ips:
+        unique_ips = sorted(set(all_ips))[:2]
+        parts.append(f"(target: {', '.join(unique_ips)})")
+    if all_durations:
+        parts.append(f"[{', '.join(all_durations[:2])}]")
+
+    # Effects cascade
+    if effects:
+        effect_summary = []
+        for e in effects[:4]:
+            ev = e.get("evidence", {})
+            sys_str = ""
+            if ev.get("affected_systems"):
+                sys_str = f" on {', '.join(ev['affected_systems'][:2])}"
+            effect_summary.append(f"{e['title']} ({e['count']}){sys_str}")
+        parts.append(f". This cascaded to: {'; '.join(effect_summary)}.")
+    else:
+        parts.append(".")
+
+    # Total impact
+    total = group.get("total_count", 0)
+    if total and systems:
+        parts.append(f" {total} events across {len(systems)} system{'s' if len(systems) != 1 else ''}.")
+
+    narrative = " ".join(parts)
+    # Clean up double spaces and awkward punctuation
+    narrative = narrative.replace(" .", ".").replace("..", ".").replace("  ", " ")
+    return narrative
+
+
+def _merge_evidence(evidence_list: list[dict[str, Any]]) -> dict[str, Any]:
+    """Merge evidence from multiple contributing causes (for correlations)."""
+    merged: dict[str, Any] = {
+        "first_ts": None, "last_ts": None, "span_seconds": None,
+        "affected_systems": [], "ip_addresses": [], "hostnames": [],
+        "durations": [], "exceptions": [], "threads": [], "sample_line": "",
+    }
+    all_systems: set[str] = set()
+    all_ips: set[str] = set()
+    all_hostnames: set[str] = set()
+    for ev in evidence_list:
+        if not ev:
+            continue
+        ts = ev.get("first_ts")
+        if ts and (merged["first_ts"] is None or ts < merged["first_ts"]):
+            merged["first_ts"] = ts
+        ts = ev.get("last_ts")
+        if ts and (merged["last_ts"] is None or ts > merged["last_ts"]):
+            merged["last_ts"] = ts
+        all_systems.update(ev.get("affected_systems", []))
+        all_ips.update(ev.get("ip_addresses", []))
+        all_hostnames.update(ev.get("hostnames", []))
+        merged["durations"].extend(ev.get("durations", []))
+        merged["exceptions"].extend(ev.get("exceptions", []))
+        merged["threads"].extend(ev.get("threads", []))
+        if not merged["sample_line"] and ev.get("sample_line"):
+            merged["sample_line"] = ev["sample_line"]
+    merged["affected_systems"] = sorted(all_systems)
+    merged["ip_addresses"] = sorted(all_ips)[:5]
+    merged["hostnames"] = sorted(all_hostnames)[:5]
+    merged["durations"] = merged["durations"][:5]
+    merged["exceptions"] = sorted(set(merged["exceptions"]))[:5]
+    merged["threads"] = sorted(set(merged["threads"]))[:5]
+    return merged
+
+
 def _heuristic_keywords(h: dict) -> list[str]:
     """Extract quick-check keywords from a heuristic's regex pattern."""
     pattern = h["match"].pattern
@@ -186,8 +475,12 @@ def group_into_incidents(causes: list[dict[str, Any]]) -> dict[str, Any]:
         })
         used_ids |= all_ids
 
-    # Sort groups by total event count (most impactful first)
-    groups.sort(key=lambda g: -g["total_count"])
+    # Rank groups: primary incident, cascade ordering, investigate-first directives
+    rank_incident_groups(groups, causes)
+
+    # Build rich narratives with evidence
+    for g in groups:
+        g["narrative"] = build_narrative(g)
 
     # Ungrouped causes (skip correlation entries — they're explained by their parent causes)
     ungrouped = [c for c in causes if c["id"] not in used_ids
@@ -310,12 +603,14 @@ def likely_causes(events: list[LogEvent]) -> list[dict[str, Any]]:
                     else:
                         sev += 1
         if count:
+            evidence = extract_evidence(events, match_re)
             results.append({
                 "id": h["id"],
                 "title": h["title"],
                 "count": count,
                 "cause": h["cause"],
                 "fixes": list(h["fixes"]),  # type: ignore[arg-type]
+                "evidence": evidence,
                 "_sev": sev,
             })
             matched_ids.add(h["id"])
@@ -327,12 +622,15 @@ def likely_causes(events: list[LogEvent]) -> list[dict[str, Any]]:
             contributing = [r for r in results if r["id"] in corr["requires"]]
             total_count = sum(r["count"] for r in contributing)
             max_sev = max((r["_sev"] for r in contributing), default=0)
+            # Merge evidence from contributing causes
+            corr_evidence = _merge_evidence([r.get("evidence", {}) for r in contributing])
             results.append({
                 "id": corr["id"],
                 "title": corr["title"],
                 "count": total_count,
                 "cause": corr["cause"],
                 "fixes": list(corr["fixes"]),
+                "evidence": corr_evidence,
                 "_sev": max_sev + 5,  # Boost correlations above individual causes
                 "correlated_from": list(corr["requires"]),
             })
