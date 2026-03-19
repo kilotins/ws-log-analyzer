@@ -1,0 +1,31 @@
+[03/15/25 14:25:00:001 UTC] 00000001 TCPChannel     I TCPC0001I: TCP Channel TCP_2 is listening on host * (IPv6) port 9081.
+[03/15/25 14:25:00:150 UTC] 0000000a WASComponent   I ARFM5007I: Application CheckoutApp started successfully.
+[03/15/25 14:25:01:200 UTC] 0000000b SessionMgr     I SESN0176I: Session manager initialized.
+[03/15/25 14:26:00:000 UTC] 00000020 WebContainer   I SRVE0242I: [CheckoutApp] [/checkout] [CheckoutServlet]: Initialization successful.
+[03/15/25 14:27:00:500 UTC] 00000021 WebContainer   I   Request processed successfully for order #88712, trace_id=a1b2c3d4-1234-5678-9abc-def012345678
+[03/15/25 14:28:00:000 UTC] 00000022 WebContainer   I   Inventory check passed for order #88713.
+[03/15/25 14:30:05:123 UTC] 00000042 ConnectionMgr  E J2CA0045E: Connection not available while invoking method createOrWaitForConnection for resource jdbc/CheckoutDS. The connection pool has been exhausted, resulting in a wait timeout of 30005 milliseconds.
+[03/15/25 14:30:06:200 UTC] 00000043 ConnectionMgr  E J2CA0045E: Connection not available while invoking method createOrWaitForConnection for resource jdbc/CheckoutDS.
+[03/15/25 14:30:08:456 UTC] 00000099 ThreadMonitor   W WSVR0605W: Thread "WebContainer : 5" (00000042) has been active for 612123 milliseconds and may be hung. There is/are 1 thread(s) in total in the server that may be hung.
+[03/15/25 14:30:09:100 UTC] 00000099 ThreadMonitor   W WSVR0605W: Thread "WebContainer : 8" (00000043) has been active for 611800 milliseconds and may be hung.
+[03/15/25 14:30:10:789 UTC] 00000050 TransactionMgr W WTRN0006W: Transaction 00000042_00000016 has timed out after 120 seconds.
+[03/15/25 14:30:11:000 UTC] 00000051 TransactionMgr W WTRN0006W: Transaction 00000043_00000017 has timed out after 120 seconds.
+[03/15/25 14:30:20:500 UTC] 00000042 WebContainer   E   Failed to process checkout for order #88750, trace_id=a1b2c3d4-1234-5678-9abc-def012345678
+        com.ibm.ws.checkout.CheckoutException: Unable to complete transaction
+                at com.ibm.ws.checkout.service.OrderService.processPayment(OrderService.java:245)
+                at com.ibm.ws.checkout.servlet.CheckoutServlet.doPost(CheckoutServlet.java:128)
+        Caused by: java.sql.SQLException: Cannot get a connection, pool error Timeout waiting for idle object
+                at org.apache.commons.dbcp.PoolingDataSource.getConnection(PoolingDataSource.java:114)
+                at com.ibm.ws.checkout.dao.OrderDAO.saveOrder(OrderDAO.java:67)
+        Caused by: java.lang.NullPointerException
+                at com.ibm.ws.checkout.dao.OrderDAO.validateConnection(OrderDAO.java:89)
+[03/15/25 14:31:00:000 UTC] 00000060 WebContainer   E   Request timeout for /api/checkout/confirm
+[03/15/25 14:35:00:001 UTC] 00000070 JVMMemory      E   OutOfMemoryError: Java heap space
+        java.lang.OutOfMemoryError: Java heap space
+                at java.util.Arrays.copyOf(Arrays.java:3236)
+                at java.util.ArrayList.grow(ArrayList.java:265)
+                at com.ibm.ws.checkout.cache.SessionCache.put(SessionCache.java:102)
+[03/15/25 14:35:05:200 UTC] 00000071 SessionMgr     E SESN0066E: The session manager could not serialize the session data.
+        java.io.NotSerializableException: Session attribute 'cart' is not serializable
+                at com.ibm.ws.session.SessionManager.serialize(SessionManager.java:345)
+[03/15/25 14:36:00:000 UTC] 00000080 WebContainer   E   Multiple request failures detected on checkout endpoint.

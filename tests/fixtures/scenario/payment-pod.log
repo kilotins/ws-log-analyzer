@@ -1,0 +1,13 @@
+2025-03-15T14:25:00.000000000+00:00 stdout F Starting payment-api container v2.4.1
+2025-03-15T14:25:01.000000000+00:00 stdout F JVM options: -Xmx512m -Xms256m -XX:+UseG1GC
+2025-03-15T14:25:03.000000000+00:00 stdout F Application started successfully on port 8080
+2025-03-15T14:28:00.000000000+00:00 stdout F Health check passed: ready
+2025-03-15T14:30:12.000000000+00:00 stderr F ERROR: Database connection pool exhausted
+2025-03-15T14:30:15.000000000+00:00 stderr F ERROR: Payment gateway timeout after 30s
+2025-03-15T14:30:20.000000000+00:00 stderr F FATAL: JVM heap usage at 98%, triggering GC
+2025-03-15T14:30:25.123000000+00:00 stderr F Container killed due to OOMKilled: memory limit 512Mi exceeded, current usage 524Mi
+2025-03-15T14:30:26.000000000+00:00 stderr F Back-off restarting failed container payment-api in pod payment-api-7b8c9d-x2k4f
+2025-03-15T14:30:28.000000000+00:00 stderr F Warning: CrashLoopBackOff for container payment-api: restarting in 10s
+2025-03-15T14:30:38.000000000+00:00 stdout F Starting payment-api container v2.4.1
+2025-03-15T14:30:39.000000000+00:00 stderr F ERROR: Failed to bind to port 8080, previous instance still terminating
+2025-03-15T14:30:50.000000000+00:00 stderr F Back-off restarting failed container payment-api in pod payment-api-7b8c9d-x2k4f
