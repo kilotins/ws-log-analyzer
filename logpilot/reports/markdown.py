@@ -86,15 +86,43 @@ def render_markdown_report(
         md.append("")
     causes = a["causes"]
     if _sec(sections, "causes") and causes:
-        from ..analysis import group_into_incidents
+        from ..heuristics import group_into_incidents
         grouped = group_into_incidents(causes)
         md.append("## Likely Causes & Fixes")
         md.append("")
+
+        # Primary incident callout
         for g in grouped["groups"]:
-            md.append(f"### {g['name']} ({g['total_count']} events)")
+            if g.get("is_primary"):
+                md.append(f"> **Primary incident: {g['name']}** — {g.get('investigate_first', '')}")
+                md.append("")
+                break
+
+        for g in grouped["groups"]:
+            rank = g.get("rank", "")
+            label = "root cause" if g.get("is_primary") else g.get("cascade_order", "")
+            md.append(f"### Step {rank} — {g['name']} ({g['total_count']} events) — {label}")
             md.append("")
             md.append(f"*{g['narrative']}*")
             md.append("")
+            directive = g.get("investigate_first", "")
+            if directive:
+                md.append(f"**{directive}**")
+                md.append("")
+            # Evidence
+            ev_parts = []
+            for t in g.get("triggers", []):
+                ev = t.get("evidence", {})
+                if ev.get("ip_addresses"):
+                    ev_parts.append(f"Targets: {', '.join(ev['ip_addresses'])}")
+                if ev.get("durations"):
+                    ev_parts.append(f"Durations: {', '.join(ev['durations'][:3])}")
+            if ev_parts:
+                md.append("```")
+                for p in dict.fromkeys(ev_parts):
+                    md.append(p)
+                md.append("```")
+                md.append("")
             for t in g["triggers"]:
                 md.append(f"**{t['title']}** ({t['count']} event{'s' if t['count'] != 1 else ''})")
                 md.append(f"  Likely cause: {t['cause']}")

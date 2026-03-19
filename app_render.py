@@ -139,36 +139,75 @@ def render_summary(s, error_count, file_count, file_summary, events=None, incide
 
 
 def render_likely_causes(causes):
-    """Render likely causes section with incident grouping."""
+    """Render likely causes section with incident grouping, ranking, and evidence."""
     if not causes:
         st.caption("No known issue patterns detected.")
         return
 
-    from logpilot.analysis import group_into_incidents
+    from logpilot.heuristics import group_into_incidents
     grouped = group_into_incidents(causes)
+
+    # Primary incident banner
+    for g in grouped["groups"]:
+        if g.get("is_primary"):
+            st.error(f"**Primary incident: {g['name']}** — {g.get('investigate_first', '')}")
+            break
 
     for g in grouped["groups"]:
         total = g["total_count"]
-        st.markdown(f"### 🔗 {g['name']} ({total} event{'s' if total != 1 else ''})")
+        rank = g.get("rank", "")
+        cascade = g.get("cascade_order", "")
+
+        # Header with rank and cascade label
+        if g.get("is_primary"):
+            st.markdown(f"### Step {rank} — {g['name']} ({total} events) — root cause")
+        elif cascade == "concurrent":
+            st.markdown(f"### Step {rank} — {g['name']} ({total} events) — concurrent")
+        else:
+            st.markdown(f"### Step {rank} — {g['name']} ({total} events) — downstream")
+
+        # Rich narrative
         st.markdown(f"*{g['narrative']}*")
+
+        # Investigate directive
+        directive = g.get("investigate_first", "")
+        if directive:
+            if g.get("is_primary"):
+                st.info(f"**{directive}**")
+            elif cascade == "concurrent":
+                st.warning(directive)
+            else:
+                st.caption(directive)
+
+        # Evidence summary (compact)
+        _evidence_parts = []
+        for t in g.get("triggers", []):
+            ev = t.get("evidence", {})
+            if ev.get("ip_addresses"):
+                _evidence_parts.append(f"Targets: {', '.join(ev['ip_addresses'])}")
+            if ev.get("durations"):
+                _evidence_parts.append(f"Durations: {', '.join(ev['durations'][:3])}")
+            if ev.get("exceptions"):
+                _evidence_parts.append(f"Exceptions: {', '.join(ev['exceptions'])}")
+        if _evidence_parts:
+            st.code("\n".join(dict.fromkeys(_evidence_parts)), language=None)
 
         # Triggers
         for t in g["triggers"]:
-            st.markdown(f"**⚡ {t['title']}** ({t['count']} event{'s' if t['count'] != 1 else ''})")
-            st.markdown(f"*Likely cause:* {t['cause']}")
+            st.markdown(f"**{t['title']}** ({t['count']} event{'s' if t['count'] != 1 else ''})")
 
         # Effects
         for e in g["effects"]:
-            st.markdown(f"**↳ {e['title']}** ({e['count']} event{'s' if e['count'] != 1 else ''})")
+            st.markdown(f"  ↳ {e['title']} ({e['count']})")
 
-        # Collected fixes from triggers
+        # Fixes in expander
         all_fixes = []
         for t in g["triggers"]:
             all_fixes.extend(t["fixes"])
         if all_fixes:
-            st.markdown("**Suggested fixes:**")
-            for fix in all_fixes:
-                st.markdown(f"- {fix}")
+            with st.expander("Suggested fixes"):
+                for fix in all_fixes:
+                    st.markdown(f"- {fix}")
         st.divider()
 
     # Ungrouped findings
@@ -178,8 +217,9 @@ def render_likely_causes(causes):
         for c in grouped["ungrouped"]:
             st.markdown(f"**{c['title']}** ({c['count']} event{'s' if c['count'] != 1 else ''})")
             st.markdown(f"*Likely cause:* {c['cause']}")
-            for fix in c["fixes"]:
-                st.markdown(f"- {fix}")
+            with st.expander("Fixes"):
+                for fix in c["fixes"]:
+                    st.markdown(f"- {fix}")
 
 
 def render_hung_threads(hung):
