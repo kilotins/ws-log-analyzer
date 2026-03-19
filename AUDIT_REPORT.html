@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Technical Audit Report -- LogPilot</title>
+<title>LogPilot Code Audit Report</title>
 <style>*, *::before, *::after { box-sizing: border-box; }
 
 /* --- Light theme --- */
@@ -260,13 +260,13 @@ mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1
     </svg>
   </div>
   <div class="nav-title">Audit Report</div>
-  <div class="nav-subtitle">2026-03-18 23:13</div>
+  <div class="nav-subtitle">2026-03-19 21:17</div>
   <div class="search-box">
     <input type="text" id="report-search" placeholder="Search report..." autocomplete="off">
     <div class="search-count"></div>
   </div>
   <div class="nav-links">
-    <a class="nav-link" href="#sect-1-executive-summary" title="1. Executive Summary"><span class="num">1</span> 1. Executive Summary</a><a class="nav-link" href="#sect-2-repository-overview" title="2. Repository Overview"><span class="num">2</span> 2. Repository Overview</a><a class="nav-link" href="#sect-3-documentation-audit" title="3. Documentation Audit"><span class="num">3</span> 3. Documentation Audit</a><a class="nav-link" href="#sect-4-skills-system-analysis" title="4. Skills System Analysis"><span class="num">4</span> 4. Skills System Analysis</a><a class="nav-link" href="#sect-5-code-review-findings" title="5. Code Review Findings"><span class="num">5</span> 5. Code Review Findings</a><a class="nav-link" href="#sect-6-ai-integration-review" title="6. AI Integration Review"><span class="num">6</span> 6. AI Integration Review</a><a class="nav-link" href="#sect-7-test-coverage-analysis" title="7. Test Coverage Analysis"><span class="num">7</span> 7. Test Coverage Analysis</a><a class="nav-link" href="#sect-8-refactoring-opportunities" title="8. Refactoring Opportunities"><span class="num">8</span> 8. Refactoring Opportunities</a><a class="nav-link" href="#sect-9-feature-opportunities" title="9. Feature Opportunities"><span class="num">9</span> 9. Feature Opportunities</a><a class="nav-link" href="#sect-10-prioritized-improvement-plan" title="10. Prioritized Improvement Plan"><span class="num">10</span> 10. Prioritized Improvement Plan</a>
+    <a class="nav-link" href="#sect-1-executive-summary" title="1. Executive Summary"><span class="num">1</span> 1. Executive Summary</a><a class="nav-link" href="#sect-2-architecture-review" title="2. Architecture Review"><span class="num">2</span> 2. Architecture Review</a><a class="nav-link" href="#sect-3-security" title="3. Security"><span class="num">3</span> 3. Security</a><a class="nav-link" href="#sect-4-performance" title="4. Performance"><span class="num">4</span> 4. Performance</a><a class="nav-link" href="#sect-5-error-handling" title="5. Error Handling"><span class="num">5</span> 5. Error Handling</a><a class="nav-link" href="#sect-6-code-quality" title="6. Code Quality"><span class="num">6</span> 6. Code Quality</a><a class="nav-link" href="#sect-7-test-coverage" title="7. Test Coverage"><span class="num">7</span> 7. Test Coverage</a><a class="nav-link" href="#sect-8-bugs-found-post-m53" title="8. Bugs Found (Post-M53)"><span class="num">8</span> 8. Bugs Found (Post-M53)</a><a class="nav-link" href="#sect-9-p0-issues" title="9. P0 Issues"><span class="num">9</span> 9. P0 Issues</a><a class="nav-link" href="#sect-10-p1-issues" title="10. P1 Issues"><span class="num">10</span> 10. P1 Issues</a><a class="nav-link" href="#sect-11-p2-issues-cosmetic-cleanup" title="11. P2 Issues (Cosmetic/Cleanup)"><span class="num">11</span> 11. P2 Issues (Cosmetic/Cleanup)</a><a class="nav-link" href="#sect-12-improvement-plan" title="12. Improvement Plan"><span class="num">12</span> 12. Improvement Plan</a>
   </div>
   <div class="nav-controls">
     <button onclick="expandAll()">Expand all</button>
@@ -278,221 +278,82 @@ mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1
 </nav>
 <main>
   <div class="report-header">
-    <h1>Technical Audit Report -- LogPilot</h1>
+    <h1>LogPilot Code Audit Report</h1>
     <div class="report-meta">
-      <span>Generated: 2026-03-18 23:13</span>
-      <span>10 sections</span>
+      <span>Generated: 2026-03-19 21:17</span>
+      <span>12 sections</span>
     </div>
-    <div class="severity-grid"><div class="sev-card"><span class="sev-label">Skills System</span><span class="sev-grade good">A</span></div><div class="sev-card"><span class="sev-label">Ai Integration</span><span class="sev-grade good">A-</span></div><div class="sev-card"><span class="sev-label">Overall</span><span class="sev-grade good">A-</span></div></div>
+    
   </div>
-  <h1 id="technical-audit-report-logpilot">Technical Audit Report — LogPilot</h1>
-<p><strong>Auditor:</strong> Claude Opus 4.6 (1M context) <strong>Date:</strong> 2026-03-18 <strong>Scope:</strong> Full codebase review — core engine, app layer, docs, skills, tests, format plugins</p>
-<p><strong>Overall Grade: A-</strong></p>
-<hr>
-<details class="section" id="sect-1-executive-summary" open><summary><span class="section-title">1. Executive Summary</span><span class="badge badge-summary section-badge">1/10</span></summary><div class="section-body">
-<p><strong>Grade: A-</strong></p>
-<p>LogPilot is a mature, well-architected multi-format log analyzer that has evolved from a WebSphere-specific tool into a comprehensive 8-format platform with AI-powered incident analysis. The codebase demonstrates strong engineering discipline across several dimensions.</p>
+  <h1 id="logpilot-code-audit-report">LogPilot Code Audit Report</h1>
+<p><strong>Date:</strong> 2026-03-19 <strong>Auditor:</strong> Claude Opus 4.6 <strong>Score:</strong> 8/10 <strong>Tests:</strong> 1579 passing</p>
+<details class="section" id="sect-1-executive-summary" open><summary><span class="section-title">1. Executive Summary</span><span class="badge badge-summary section-badge">1/12</span></summary><div class="section-body">
+<p>LogPilot is a well-structured, mature Python codebase with strong test coverage (1579 tests), clean module boundaries, and thoughtful security measures. The core parsing and analysis logic is solid. A previous audit (M53) fixed all P0 issues (dead Splunk references, Gemini safety handling) and standardized LogEvent access. The codebase is ready for the next major milestone (M50: Trace to Code).</p>
+<p><strong>Key strengths:</strong> Zero required dependencies for core, 8 format plugins with auto-detection, comprehensive heuristic system (58 patterns, 17 correlations, 7 incident groups), enriched incident analysis with evidence extraction and cascade ranking.</p>
+</div></details><details class="section" id="sect-2-architecture-review"><summary><span class="section-title">2. Architecture Review</span><span class="badge badge-info section-badge">2/12</span></summary><div class="section-body">
 <h3 id="strengths">Strengths</h3>
-<ul><li><strong>Zero-dependency core</strong>: The <code class="inline">logpilot/</code> package runs on Python stdlib only — all optional deps (Streamlit, AI SDKs, fpdf2, plotly) are lazily imported</li><li><strong>Extensive test suite</strong>: 1,394 tests across 27 test files covering parsing, heuristics, reports, AI prompts, format plugins, realtime monitoring, and CLI</li><li><strong>Strong security posture</strong>: Prompt injection protection via <code class="inline">_sanitize_prompt_input()</code> with Unicode homoglyph normalization, secret redaction with 10 patterns, symlink rejection, path traversal prevention</li><li><strong>Modular format plugin system</strong>: Clean <code class="inline">LogFormat</code> protocol with 8 implementations and auto-detection scoring</li><li><strong>ReportConfig dataclass</strong>: Clean configuration bundling for report rendering (recent improvement)</li><li><strong>LogEvent dataclass with dict-protocol</strong>: Backwards-compatible structured events with <code class="inline">__slots__</code> optimization on Python 3.10+</li><li><strong>Heuristics YAML separation</strong>: 58+ heuristics loadable from YAML with Python fallback (recent improvement)</li><li><strong>Four AI providers</strong>: Claude, Gemini, OpenAI, and local (OpenAI-compatible) with unified orchestration</li><li><strong>Cost tracking</strong>: Per-call spend tracking with CSV import for Anthropic/Google/OpenAI console exports</li><li><strong>Premium HTML export</strong>: Dark/light theme, collapsible sections, search, syntax highlighting (recent improvement)</li></ul>
-<h3 id="key-findings">Key Findings</h3>
-<ol><li><strong><code class="inline">cli.py:48</code> type annotation mismatch</strong> — <code class="inline">all_events: list[dict]</code> should be <code class="inline">list[LogEvent]</code> (cosmetic but misleading)</li><li><strong>Duplicated <code class="inline">ERROR_LEVELS</code> constant</strong> — defined in both <code class="inline">analysis.py:14</code> and <code class="inline">heuristics.py:13</code></li><li><strong><code class="inline">reports.py</code> is 1,119 lines</strong> — the largest core module, mixing 4 output formats; could benefit from splitting</li><li><strong>No structured logging in core</strong> — <code class="inline">_log.info/warning/debug</code> is used well but app layer uses <code class="inline">print()</code> in some places</li><li><strong><code class="inline">app_ai.py:97-107</code> token costs are hardcoded</strong> — no mechanism to update pricing without code changes</li><li><strong>Test coverage gap</strong>: No unit tests for <code class="inline">app_render.py</code> rendering functions (only integration via e2e)</li><li><strong>Previous audit issues resolved</strong>: ~~History tab disk storage~~ ✅ Fixed (removed), ~~per-response delete~~ ✅ Fixed, ~~large dataset performance~~ ✅ Fixed (slots, interning, sampling)</li></ol>
-<hr>
-</div></details><details class="section" id="sect-2-repository-overview"><summary><span class="section-title">2. Repository Overview</span><span class="badge badge-info section-badge">2/10</span></summary><div class="section-body">
-<p><strong>Grade: A</strong></p>
-<h3 id="file-counts">File Counts</h3>
-<div class="table-wrap"><table><thead><tr><th>Category</th><th>Files</th><th>Lines</th></tr></thead><tbody>
-<tr><td>Core engine (<code class="inline">logpilot/*.py</code>)</td><td>10</td><td>~4,966</td></tr>
-<tr><td>Format plugins (<code class="inline">logpilot/formats/</code>)</td><td>10</td><td>~2,372</td></tr>
-<tr><td>App layer (<code class="inline">app*.py</code>, <code class="inline">report_renderer.py</code>)</td><td>8</td><td>~6,167</td></tr>
-<tr><td>Tests (<code class="inline">tests/test_*.py</code>)</td><td>27</td><td>~6,900+</td></tr>
-<tr><td>Skills (<code class="inline">skills/</code>, <code class="inline">.claude/skills/</code>)</td><td>29</td><td>~4,000+</td></tr>
-<tr><td>Documentation (<code class="inline">.md</code>)</td><td>5+</td><td>~600+</td></tr>
-<tr><td><strong>Total Python (excl. venv)</strong></td><td><strong>~55</strong></td><td><strong>~13,898</strong></td></tr>
+<ul><li>Clean separation: <code class="inline">logpilot/</code> package is pure stdlib, app layer (<code class="inline">app*.py</code>) depends on Streamlit</li><li>Format plugin system (<code class="inline">logpilot/formats/</code>) with base class and auto-detection is well designed</li><li><code class="inline">LogEvent</code> dataclass with dict-protocol compatibility is a pragmatic bridge pattern</li><li>Report rendering split into per-format modules (<code class="inline">reports/</code>) is clean</li><li>AI prompt building is centralized in <code class="inline">logpilot/ai.py</code> with injection defense</li><li>Discovery module (<code class="inline">logpilot/discovery.py</code>) follows same patterns as parser</li><li>Enriched heuristics (evidence extraction, ranking, narratives) add significant diagnostic value without AI dependency</li></ul>
+<h3 id="module-map">Module Map</h3>
+<pre class="code-block"><code>logpilot/
+├── event.py          LogEvent dataclass (19 fields, __slots__ on 3.10+)
+├── parser.py         Parse + redact + format detect + cache
+├── analysis.py       Summarize, timeline, cascades, samples, noise
+├── heuristics.py     58 heuristics, correlations, incidents, evidence, ranking
+├── discovery.py      Recursive folder scan with filtering
+├── ai.py             AI prompts, caching, skills, Gemini/Claude/OpenAI
+├── cli.py            CLI entry point (--directory, --exit-code)
+├── formats/          8 format plugins (WAS, JSON, nginx, Log4j, CRI-O, Python, syslog, Enonic)
+└── reports/          Per-format renderers (markdown, html, json, pdf, config)
+
+app.py               Streamlit main (session state, upload, folder scan)
+app_render.py         Report sections, filters, export, incident overview
+app_incident.py       Unified AI assistant (multi-source, screenshots, noise filter)
+app_ai.py             AI provider calls, cost tracking, probe logging</code></pre>
+</div></details><details class="section" id="sect-3-security"><summary><span class="section-title">3. Security</span><span class="badge badge-warn section-badge">3/12</span></summary><div class="section-body">
+<h3 id="strengths">Strengths</h3>
+<ul><li><strong>Secret redaction</strong> (<code class="inline">parser.py</code>): JWT, AWS keys, PEM, bearer tokens, Basic auth, passwords, API keys, digest auth, signed URLs. Fast-check regex optimization.</li><li><strong>Prompt injection defense</strong> (<code class="inline">ai.py</code>): Unicode homoglyph sanitization, XML tag stripping, entity escaping.</li><li><strong>Path traversal prevention</strong> (<code class="inline">app.py</code>): <code class="inline">upload_path.resolve().is_relative_to(UPLOADS_DIR.resolve())</code></li><li><strong>API keys</strong>: Stored in session state only, not persisted to disk (except local AI settings).</li><li><strong>Codebase access</strong>: M50 will be strictly READ-ONLY — no git write operations.</li></ul>
+<h3 id="remaining-items">Remaining Items</h3>
+<ul><li><strong>P2</strong>: Local AI settings persisted to disk (<code class="inline">cache/.local_ai_settings.json</code>) — includes API key field (typically &quot;not-needed&quot; but not filtered).</li></ul>
+</div></details><details class="section" id="sect-4-performance"><summary><span class="section-title">4. Performance</span><span class="badge badge-info section-badge">4/12</span></summary><div class="section-body">
+<h3 id="strengths">Strengths</h3>
+<ul><li>Generator-based parsing (<code class="inline">parse_file_iter</code>) for lazy evaluation</li><li>INFO event sampling for large files (<code class="inline">sample_info</code> parameter)</li><li>Parse cache with gzip compression and LRU eviction (50 files max)</li><li>Keyword pre-filtering in <code class="inline">likely_causes()</code> avoids running all 58 regexes on every event</li><li><code class="inline">sys.intern()</code> on repeated strings, <code class="inline">__slots__</code> on Python 3.10+</li></ul>
+<h3 id="remaining-items">Remaining Items</h3>
+<ul><li><strong>P2</strong>: <code class="inline">likely_causes()</code> iterates events twice per matched heuristic (count + evidence). Could be single-pass.</li><li><strong>P2</strong>: Timestamp parsing repeated across analysis functions. A cached <code class="inline">_parsed_dt</code> property on LogEvent would help.</li></ul>
+</div></details><details class="section" id="sect-5-error-handling"><summary><span class="section-title">5. Error Handling</span><span class="badge badge-info section-badge">5/12</span></summary><div class="section-body">
+<h3 id="strengths">Strengths</h3>
+<ul><li>Graceful degradation for optional dependencies (anthropic, google-generativeai, openai, streamlit, PyYAML)</li><li>AI retry logic with exponential backoff</li><li>Atomic JSON writes via tempfile + os.replace</li><li>Cache read/write failures caught and logged, never crash</li><li><code class="inline">ask_gemini()</code> now handles safety-blocked responses (M53 fix)</li></ul>
+</div></details><details class="section" id="sect-6-code-quality"><summary><span class="section-title">6. Code Quality</span><span class="badge badge-info section-badge">6/12</span></summary><div class="section-body">
+<h3 id="strengths">Strengths</h3>
+<ul><li>Consistent naming conventions</li><li>Type hints throughout (PEP 604 union syntax)</li><li>Docstrings on all public functions</li><li><code class="inline">LogEvent</code> dataclass with clean defaults and dict-protocol compat</li><li>All report renderers share <code class="inline">ReportConfig</code> dataclass</li><li>Evidence extraction, incident ranking, and narrative building are well-separated functions</li></ul>
+<h3 id="fixed-in-m53">Fixed in M53</h3>
+<ul><li>Dead Splunk references removed from all Python files</li><li>Format-aware &quot;Top Message Codes&quot; heading</li><li>LogEvent access standardized to attribute-style in app layer</li><li>Redundant Counter import removed</li><li>Audit file lists updated</li></ul>
+<h3 id="remaining-items">Remaining Items</h3>
+<ul><li><strong>P2</strong>: Dict-style <code class="inline">.get()</code> on LogEvent persists in <code class="inline">logpilot/ai.py</code> and report renderers. Functionally correct but inconsistent.</li><li><strong>P2</strong>: Stale Splunk references in documentation (README.md, CONTRIBUTING.md, docs/API.md).</li></ul>
+</div></details><details class="section" id="sect-7-test-coverage"><summary><span class="section-title">7. Test Coverage</span><span class="badge badge-good section-badge">7/12</span></summary><div class="section-body">
+<p><strong>1579 tests across 35 test files.</strong></p>
+<ul><li>Format plugins: 394 tests (WAS, JSON, nginx, Log4j, CRI-O, Python, syslog, Enonic)</li><li>Heuristics/incidents: 49 tests (evidence, ranking, narratives, correlations, groups)</li><li>Scenario simulation: 56 tests (6 log files, format detection, cascades, traces, reports, e2e)</li><li>Discovery: 46 tests (recursion, filtering, limits, gzip, groups, pipeline integration)</li><li>Reports: HTML, Markdown, JSON, PDF rendering tests</li><li>App render: filter logic, AI content collection, export caching</li><li>Performance: <code class="inline">__slots__</code>, caching, large dataset handling</li></ul>
+</div></details><details class="section" id="sect-8-bugs-found-post-m53"><summary><span class="section-title">8. Bugs Found (Post-M53)</span><span class="badge badge-info section-badge">8/12</span></summary><div class="section-body">
+<p>No functional bugs found. All previous P0/P1 issues have been resolved.</p>
+</div></details><details class="section" id="sect-9-p0-issues"><summary><span class="section-title">9. P0 Issues</span><span class="badge badge-info section-badge">9/12</span></summary><div class="section-body">
+<p>None. All P0 issues from previous audit have been fixed.</p>
+</div></details><details class="section" id="sect-10-p1-issues"><summary><span class="section-title">10. P1 Issues</span><span class="badge badge-info section-badge">10/12</span></summary><div class="section-body">
+<p>None remaining. All P1 issues have been addressed in M53.</p>
+</div></details><details class="section" id="sect-11-p2-issues-cosmetic-cleanup"><summary><span class="section-title">11. P2 Issues (Cosmetic/Cleanup)</span><span class="badge badge-info section-badge">11/12</span></summary><div class="section-body">
+<div class="table-wrap"><table><thead><tr><th>#</th><th>File</th><th>Issue</th></tr></thead><tbody>
+<tr><td>1</td><td><code class="inline">README.md</code></td><td>Stale &quot;Splunk Searches&quot; feature claims (3 locations)</td></tr>
+<tr><td>2</td><td><code class="inline">CONTRIBUTING.md</code></td><td>Lists deleted <code class="inline">splunk.py</code> and <code class="inline">reports.py</code></td></tr>
+<tr><td>3</td><td><code class="inline">docs/API.md</code></td><td><code class="inline">precompute_analysis</code> return docs list <code class="inline">splunk</code> key</td></tr>
+<tr><td>4</td><td><code class="inline">logpilot/ai.py</code></td><td>Dict-style <code class="inline">.get()</code> on LogEvent in core</td></tr>
+<tr><td>5</td><td><code class="inline">logpilot/reports/</code></td><td>Same dict-style trigger access in onset section</td></tr>
 </tbody></table></div>
-<h3 id="largest-modules-by-wc-l">Largest Modules (by <code class="inline">wc -l</code>)</h3>
-<div class="table-wrap"><table><thead><tr><th>File</th><th>Lines</th><th>Purpose</th></tr></thead><tbody>
-<tr><td><code class="inline">app.py</code></td><td>1,237</td><td>Streamlit GUI entry point</td></tr>
-<tr><td><code class="inline">logpilot/reports.py</code></td><td>1,119</td><td>Markdown/JSON/HTML/PDF renderers</td></tr>
-<tr><td><code class="inline">logpilot/_heuristics_fallback.py</code></td><td>1,098</td><td>Inline heuristic fallback data</td></tr>
-<tr><td><code class="inline">app_ai.py</code></td><td>1,041</td><td>AI provider orchestration</td></tr>
-<tr><td><code class="inline">app_render.py</code></td><td>976</td><td>Report rendering UI components</td></tr>
-<tr><td><code class="inline">app_spend.py</code></td><td>882</td><td>Cloud spend tracking</td></tr>
-<tr><td><code class="inline">logpilot/ai.py</code></td><td>874</td><td>AI prompt building, skill selection</td></tr>
-<tr><td><code class="inline">logpilot/analysis.py</code></td><td>859</td><td>Core analysis functions</td></tr>
-<tr><td><code class="inline">report_renderer.py</code></td><td>854</td><td>Markdown-to-HTML converter</td></tr>
-<tr><td><code class="inline">app_incident.py</code></td><td>636</td><td>Unified AI assistant</td></tr>
-<tr><td><code class="inline">logpilot/heuristics.py</code></td><td>424</td><td>Heuristic loader, grouping, burst detection</td></tr>
-<tr><td><code class="inline">app_audit.py</code></td><td>423</td><td>Audit report generation</td></tr>
-<tr><td><code class="inline">logpilot/parser.py</code></td><td>412</td><td>Parsing, redaction, format detection</td></tr>
-</tbody></table></div>
-<h3 id="architecture">Architecture</h3>
-<p>The project follows a clear layered architecture:</p>
-<pre class="code-block"><code>LogEvent dataclass (event.py)
-    |
-Format Plugins (formats/*.py) -- LogFormat protocol
-    |
-Parser (parser.py) -- redaction, classification, caching
-    |
-Analysis (analysis.py + heuristics.py + splunk.py) -- summarize, incidents, cascades
-    |
-Reports (reports.py) -- Markdown, JSON, HTML, PDF
-    |
-AI (ai.py) -- prompt building, skill selection, prompt safety
-    |
-CLI (cli.py) / Streamlit GUI (app*.py) -- user-facing layer</code></pre>
-<hr>
-</div></details><details class="section" id="sect-3-documentation-audit"><summary><span class="section-title">3. Documentation Audit</span><span class="badge badge-info section-badge">3/10</span></summary><div class="section-body">
-<p><strong>Grade: A-</strong></p>
-<h3 id="claude-md">CLAUDE.md</h3>
-<ul><li><strong>Accurate</strong>: Correctly describes all 8 format plugins, key files, and skills</li><li><strong>Complete skill table</strong>: All 29 skill files are referenced with correct paths</li><li><strong>Critical gotchas section</strong>: Correctly warns about modular core, no-required-deps, event boundary heuristic, secret redaction, and WAS severity precedence</li><li><strong>Minor issue</strong>: States &quot;58 heuristics, 17 correlations, 7 incident groups&quot; — should be verified as these counts may have changed</li></ul>
-<h3 id="architecture-md">ARCHITECTURE.md</h3>
-<ul><li><strong>Excellent structure</strong>: Clear data flow diagram, function tables, state management documentation</li><li><strong>Line counts mostly accurate</strong>: Listed counts are within ~10% of actual <code class="inline">wc -l</code> values (e.g., <code class="inline">analysis.py</code> listed as ~859, actual 859)</li><li><strong>Test count slightly outdated</strong>: States &quot;1340 tests across 28 test files&quot; — actual is 1,394 tests across 27 test files</li><li>~~Missing <code class="inline">app_constants.py</code> from architecture~~ ✅ Fixed — now listed</li><li><strong>Strengths</strong>: State management documentation with full <code class="inline">_STATE_DEFAULTS</code> listing, caching architecture, tab descriptions</li></ul>
-<hr>
-</div></details><details class="section" id="sect-4-skills-system-analysis"><summary><span class="section-title">4. Skills System Analysis</span><span class="badge badge-good section-badge">4/10</span></summary><div class="section-body">
-<p><strong>Grade: A</strong></p>
-<h3 id="coverage">Coverage</h3>
-<div class="table-wrap"><table><thead><tr><th>Category</th><th>Skills</th><th>Count</th></tr></thead><tbody>
-<tr><td>Runtime domain (<code class="inline">skills/</code>)</td><td>WAS codes, stacktraces, threads, Splunk, startup, servlets, Liberty, deploy, security, noise, GC, JMS, JSON, nginx, Log4j, Python, syslog, Enonic, K8s, cross-system</td><td>20</td></tr>
-<tr><td>Development (<code class="inline">.claude/skills/</code>)</td><td>Log parsing, Streamlit patterns, Claude integration, testing, documentation, format plugins, Docker, packaging, rebranding</td><td>9</td></tr>
-<tr><td><strong>Total</strong></td><td></td><td><strong>29</strong></td></tr>
-</tbody></table></div>
-<h3 id="skill-selection-logic-ai-py-291-340">Skill Selection Logic (<code class="inline">ai.py:291-340</code>)</h3>
-<p>The <code class="inline">select_skills()</code> function uses four signal sources to pick relevant skills:</p>
-<ol><li><strong>Format-specific</strong> (<code class="inline">_SKILL_FORMAT_MAP</code>) — maps each of 8 formats to 1-3 relevant skills</li><li><strong>Signal tags</strong> (<code class="inline">_SKILL_TAG_MAP</code>) — maps 5 signal tags to domain skills</li><li><strong>WAS code prefixes</strong> (<code class="inline">_SKILL_CODE_PREFIX_MAP</code>) — maps 25 code prefixes to skills</li><li><strong>Exception keywords</strong> (<code class="inline">_SKILL_EXCEPTION_MAP</code>) — maps 30+ exception patterns to skills</li><li><strong>Query keywords</strong> (<code class="inline">_SKILL_QUERY_KEYWORDS</code>) — maps 50+ user query terms to skills</li></ol>
-<p>Limited to <code class="inline">MAX_SKILLS = 5</code> per prompt to control token usage.</p>
-<h3 id="gaps">Gaps</h3>
-<ul><li><strong>No Docker/container skill in runtime set</strong>: The <code class="inline">.claude/skills/docker-deployment.md</code> is a dev skill, but <code class="inline">skills/</code> has no Docker-specific troubleshooting skill (partially covered by <code class="inline">openshift-k8s-analysis.md</code>)</li><li><strong>No general performance/APM skill</strong>: Thread dumps and GC are covered, but no skill for CPU profiling, response time analysis, or application metrics correlation</li><li><strong>Skill content not validated</strong>: No mechanism to verify skill file integrity or freshness</li></ul>
-<hr>
-</div></details><details class="section" id="sect-5-code-review-findings"><summary><span class="section-title">5. Code Review Findings</span><span class="badge badge-warn section-badge">5/10</span></summary><div class="section-body">
-<p><strong>Grade: B+</strong></p>
-<h3 id="bugs">Bugs</h3>
-<ol><li><strong><code class="inline">cli.py:48</code> — Wrong type annotation</strong></li></ol>
-<p>   ``<code class="inline">python    all_events: list[dict] = []  # Should be list[LogEvent]    </code>`<code class="inline">    Events returned by </code>parse_file()<code class="inline"> are </code>LogEvent<code class="inline"> instances, not dicts. The dict-protocol on </code>LogEvent` means this works at runtime but is misleading. <strong>Severity: Low</strong></p>
-<ol><li><strong><code class="inline">app_incident.py:738-752</code> — Potential <code class="inline">AttributeError</code> in trigger timeline</strong></li></ol>
-<p>   The code calls <code class="inline">.get()</code> on <code class="inline">trigger_event</code> which may be a <code class="inline">LogEvent</code>. This works via the dict-protocol but relies on an implementation detail. If <code class="inline">trigger_event</code> is ever <code class="inline">None</code>, <code class="inline">.get()</code> would fail on <code class="inline">{}</code> default. <strong>Severity: Low</strong></p>
-<h3 id="style-issues">Style Issues</h3>
-<ol><li><strong>Duplicated <code class="inline">ERROR_LEVELS</code> constant</strong> — Defined identically in <code class="inline">analysis.py:14</code> and <code class="inline">heuristics.py:13</code>. Should be defined once in <code class="inline">event.py</code> or a shared constants module. <strong>Severity: Low</strong></li></ol>
-<ol><li><strong><code class="inline">parser.py:157-161</code> — Single-line if statements</strong></li></ol>
-<p>   ``<code class="inline">python    if OOM_RE.search(text): tags.add(&quot;OOM/GC&quot;)    if HUNG_THREAD_RE.search(text): tags.add(&quot;HungThreads&quot;)    </code>``    These compress conditionals to single lines — functional but against most Python style guides. <strong>Severity: Cosmetic</strong></p>
-<ol><li><strong><code class="inline">app_ai.py</code> — Mixed import style</strong>: Some functions imported at module level, others lazily inside functions. This is intentional (optional deps) but could use a consistent pattern.</li></ol>
-<h3 id="security">Security</h3>
-<ol><li><strong>~~Prompt injection via Unicode homoglyphs~~</strong> ✅ Fixed — <code class="inline">_sanitize_prompt_input()</code> in <code class="inline">ai.py:256-268</code> now normalizes 10 Unicode homoglyphs of <code class="inline">&lt;</code> and <code class="inline">&gt;</code> before stripping XML tags.</li></ol>
-<ol><li><strong><code class="inline">ai.py:404</code> — stderr output of skill names</strong></li></ol>
-<p>   ``<code class="inline">python    print(f&quot;[skills] Selected: {&#x27;, &#x27;.join(skill_files)}&quot;, file=sys.stderr)    </code>`<code class="inline">    Not a security issue per se, but prints internal context to stderr in the library layer. Should use </code>_log.info()` instead.</p>
-<ol><li><strong><code class="inline">app_realtime.py:36-53</code> — Good path safety</strong>: <code class="inline">_is_safe_rt_path()</code> checks extension, rejects symlinks, blocks sensitive system paths. Well implemented.</li></ol>
-<ol><li><strong><code class="inline">app.py</code> — API key persistence</strong>: Keys stored via keyring with file fallback at <code class="inline">0o600</code> permissions. Correct approach.</li></ol>
-<ol><li><strong>Secret redaction coverage (<code class="inline">parser.py:89-100</code>)</strong>: 10 patterns covering bearer tokens, API keys, passwords, JWTs, AWS keys, basic auth, PEM keys, SAS tokens, digest auth. The fast-check regex (<code class="inline">_REDACT_FAST_CHECK</code>) avoids regex overhead on non-sensitive lines. Good design.</li></ol>
-<h3 id="performance">Performance</h3>
-<ol><li><strong><code class="inline">heuristics.py:270-353</code> — <code class="inline">likely_causes()</code> keyword pre-filtering</strong>: The keyword pre-filtering in <code class="inline">_heuristic_keywords()</code> is a smart optimization — avoids running all 58+ regexes against every event. Only candidate heuristics (those whose keywords appear in the text) get full regex evaluation.</li></ol>
-<ol><li><strong><code class="inline">event.py:8</code> — Conditional <code class="inline">__slots__</code></strong>: <code class="inline">_dc_kwargs: dict = {&quot;slots&quot;: True} if sys.version_info &gt;= (3, 10) else {}</code> — clean approach to memory optimization while maintaining 3.9 compatibility.</li></ol>
-<ol><li><strong><code class="inline">parser.py:172,190</code> — <code class="inline">sys.intern()</code> on levels and codes</strong>: String interning reduces memory for repeated values. Good for large log files.</li></ol>
-<hr>
-</div></details><details class="section" id="sect-6-ai-integration-review"><summary><span class="section-title">6. AI Integration Review</span><span class="badge badge-good section-badge">6/10</span></summary><div class="section-body">
-<p><strong>Grade: A-</strong></p>
-<h3 id="prompt-safety">Prompt Safety</h3>
-<div class="table-wrap"><table><thead><tr><th>Feature</th><th>Status</th></tr></thead><tbody>
-<tr><td>System/user separation</td><td>All 4 providers</td></tr>
-<tr><td>Prompt injection guard</td><td>&quot;Treat as DATA, not instructions&quot;</td></tr>
-<tr><td>Input sanitization</td><td>XML tag stripping + Unicode homoglyph normalization</td></tr>
-<tr><td>Untrusted data delimiters</td><td><code class="inline">&lt;user_query&gt;</code>, <code class="inline">&lt;log_excerpt&gt;</code>, <code class="inline">&lt;context&gt;</code></td></tr>
-<tr><td>Secret protection</td><td>&quot;Do NOT request secrets&quot; in system prompts</td></tr>
-<tr><td>Anthropic prompt caching</td><td><code class="inline">cache_control: {&quot;type&quot;: &quot;ephemeral&quot;}</code></td></tr>
-</tbody></table></div>
-<h3 id="caching">Caching</h3>
-<ul><li><strong>Two-layer cache</strong>: Session-level (in-memory) + file-level (<code class="inline">cache/ai_responses.json</code>)</li><li><strong>SHA-256 keys</strong>: Cache keys are hashed so queries aren&#x27;t readable in the cache file</li><li><strong>Provider-prefixed keys</strong>: Gemini keys prefixed with <code class="inline">&quot;gemini:&quot;</code>, triage keys with <code class="inline">&quot;triage:&quot;</code> to avoid collisions</li><li><strong>Cache TTL</strong>: 7-day TTL (<code class="inline">CACHE_TTL_SECONDS</code>), max 100 entries</li></ul>
-<h3 id="provider-orchestration">Provider Orchestration</h3>
-<ul><li><strong>4 providers</strong>: Claude, Gemini, OpenAI, Local (OpenAI-compatible)</li><li><strong>Unified interface</strong>: <code class="inline">PROVIDER_CONFIG</code> dict with per-provider keys, history, and callbacks</li><li><strong><code class="inline">AI_MODELS</code> registry</strong>: 7 models from 4 providers, easily extensible</li><li><strong>Local AI discovery</strong>: <code class="inline">discover_local_models()</code> probes endpoints for available models</li><li><strong>Streaming support</strong>: Claude and OpenAI support streaming responses via <code class="inline">stream_placeholder</code></li><li><strong>Cost estimation</strong>: Per-model token pricing with cache write/read costs for Claude</li><li><strong>Rate limiting</strong>: Configurable cooldown (<code class="inline">AI_RATE_LIMIT_SECONDS = 2.0</code>) between API calls</li><li><strong>Spend tracking</strong>: Every API call recorded with tokens and estimated cost</li></ul>
-<h3 id="multimodal-support">Multimodal Support</h3>
-<ul><li><strong>Screenshot analysis</strong>: <code class="inline">_build_multimodal_messages()</code> in <code class="inline">app_incident.py</code> builds provider-specific multimodal content blocks</li><li><strong>Supported formats</strong>: PNG, JPG, JPEG, GIF, WebP</li><li><strong>Size limit</strong>: 10 MB (<code class="inline">MAX_SCREENSHOT_MB</code>)</li><li>~~Multimodal API format duplication~~ ✅ Fixed — unified in <code class="inline">_build_multimodal_messages()</code></li></ul>
-<h3 id="areas-for-improvement">Areas for Improvement</h3>
-<ol><li><strong><code class="inline">app_ai.py:97-107</code> — Hardcoded token pricing</strong>: No mechanism to update pricing without code changes. Consider loading from a config file or fetching from provider APIs.</li><li><strong><code class="inline">ai.py:854-874</code> — <code class="inline">ask_gemini()</code> standalone</strong>: Unlike Claude/OpenAI which go through <code class="inline">call_*_api()</code> in <code class="inline">app_ai.py</code>, <code class="inline">ask_gemini()</code> lives in the core package. Historical artifact that should be unified.</li><li><strong>No retry logic</strong>: API calls fail immediately on error. Consider adding configurable retry with exponential backoff.</li></ol>
-<hr>
-</div></details><details class="section" id="sect-7-test-coverage-analysis"><summary><span class="section-title">7. Test Coverage Analysis</span><span class="badge badge-good section-badge">7/10</span></summary><div class="section-body">
-<p><strong>Grade: A-</strong></p>
-<h3 id="quantitative">Quantitative</h3>
-<div class="table-wrap"><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>
-<tr><td>Test files</td><td>27</td></tr>
-<tr><td>Total tests</td><td>1,394</td></tr>
-<tr><td>Test collection time</td><td>0.26s</td></tr>
-<tr><td>Frameworks</td><td>pytest, Playwright (e2e)</td></tr>
-</tbody></table></div>
-<h3 id="coverage-by-module">Coverage by Module</h3>
-<div class="table-wrap"><table><thead><tr><th>Module</th><th>Test File(s)</th><th>Approx Tests</th><th>Notes</th></tr></thead><tbody>
-<tr><td><code class="inline">parser.py</code></td><td><code class="inline">test_parsing.py</code></td><td>~50</td><td>Timestamps, levels, redaction, edge cases</td></tr>
-<tr><td><code class="inline">analysis.py</code></td><td><code class="inline">test_analysis.py</code>, <code class="inline">test_reports.py</code></td><td>~40</td><td>Summarize, histogram, samples, cascades</td></tr>
-<tr><td><code class="inline">heuristics.py</code></td><td><code class="inline">test_heuristics.py</code>, <code class="inline">test_incidents.py</code></td><td>~60</td><td>Pattern matching, correlations, bursts, grouping</td></tr>
-<tr><td><code class="inline">ai.py</code></td><td><code class="inline">test_ai_prompt.py</code></td><td>~40</td><td>Prompt building, sanitization, skills, caching</td></tr>
-<tr><td><code class="inline">reports.py</code></td><td><code class="inline">test_reports.py</code></td><td>~30</td><td>Markdown, JSON, PDF, HTML output</td></tr>
-<tr><td><code class="inline">event.py</code></td><td><code class="inline">test_event.py</code></td><td>~15</td><td>Dataclass, dict-protocol</td></tr>
-<tr><td><code class="inline">cli.py</code></td><td><code class="inline">test_cli.py</code></td><td>~15</td><td>Argument parsing, AI integration</td></tr>
-<tr><td>Format plugins (7)</td><td><code class="inline">test_format_*.py</code> (7 files)</td><td>~200</td><td>Per-format detection, parsing, classification</td></tr>
-<tr><td><code class="inline">app_realtime.py</code></td><td><code class="inline">test_app_realtime.py</code></td><td>~30</td><td>Path safety, highlighting, polling</td></tr>
-<tr><td><code class="inline">app_audit.py</code></td><td><code class="inline">test_app_audit.py</code></td><td>~20</td><td>Source collection, signature extraction</td></tr>
-<tr><td><code class="inline">app_spend.py</code></td><td><code class="inline">test_app_spend.py</code></td><td>~30</td><td>CSV import, cost estimation, spend tracking</td></tr>
-<tr><td><code class="inline">report_renderer.py</code></td><td><code class="inline">test_report_renderer.py</code></td><td>~20</td><td>Markdown-to-HTML, sections, grades</td></tr>
-<tr><td>Integration</td><td><code class="inline">test_integration.py</code></td><td>~15</td><td>Multi-file, cross-format</td></tr>
-<tr><td>Performance</td><td><code class="inline">test_performance.py</code>, <code class="inline">test_reports.py</code></td><td>~10</td><td>100k-line parse, 50k-event summarize</td></tr>
-<tr><td>E2E</td><td><code class="inline">test_app_e2e.py</code></td><td>~15</td><td>Playwright browser tests</td></tr>
-</tbody></table></div>
-<h3 id="gaps">Gaps</h3>
-<ol><li><strong><code class="inline">app_render.py</code></strong> — No dedicated unit tests. Rendering functions (<code class="inline">render_summary</code>, <code class="inline">render_likely_causes</code>, <code class="inline">render_samples</code>, etc.) are only tested indirectly through e2e tests.</li><li><strong><code class="inline">app_incident.py</code></strong> — No direct unit tests for <code class="inline">_run_analysis()</code>, <code class="inline">_extract_missing_logs()</code>, <code class="inline">_save_to_history()</code>. These are integration-heavy but could benefit from isolated tests.</li><li><strong><code class="inline">app.py</code></strong> — Main entry point tested only via e2e. State initialization and tab routing could use unit tests.</li><li><strong><code class="inline">splunk.py</code></strong> — Splunk query generation tested indirectly via <code class="inline">test_reports.py</code> but no dedicated test file for edge cases.</li><li><strong>Negative testing for AI</strong>: No tests that verify behavior when AI providers return malformed responses.</li></ol>
-<hr>
-</div></details><details class="section" id="sect-8-refactoring-opportunities"><summary><span class="section-title">8. Refactoring Opportunities</span><span class="badge badge-info section-badge">8/10</span></summary><div class="section-body">
-<p><strong>Grade: B+</strong></p>
-<h3 id="high-priority">High Priority</h3>
-<ol><li><strong>Split <code class="inline">reports.py</code> (1,119 lines)</strong> — Currently contains Markdown, JSON, HTML, and PDF renderers in one file. Each renderer could be its own module under <code class="inline">logpilot/reports/</code>, with a shared <code class="inline">__init__.py</code> re-exporting the public API.</li></ol>
-<ol><li><strong>Extract <code class="inline">ERROR_LEVELS</code> to shared location</strong> — The <code class="inline">(&quot;ERROR&quot;, &quot;SEVERE&quot;, &quot;FATAL&quot;)</code> tuple is duplicated in <code class="inline">analysis.py:14</code> and <code class="inline">heuristics.py:13</code>. Define once in <code class="inline">event.py</code> or a shared constants module.</li></ol>
-<ol><li><strong>Unify <code class="inline">ask_gemini()</code> with provider orchestration</strong> — <code class="inline">ask_gemini()</code> in <code class="inline">logpilot/ai.py</code> is a standalone Gemini call function, while Claude/OpenAI go through <code class="inline">call_*_api()</code> in <code class="inline">app_ai.py</code>. The core package should not contain provider-specific call functions.</li></ol>
-<h3 id="medium-priority">Medium Priority</h3>
-<ol><li><strong>Extract <code class="inline">_sanitize_prompt_input()</code> to a dedicated module</strong> — Currently in <code class="inline">ai.py</code>, but it&#x27;s used by both <code class="inline">ai.py</code> and <code class="inline">cli.py</code>. A <code class="inline">logpilot/security.py</code> module would clarify the separation.</li></ol>
-<ol><li><strong>Type annotations in <code class="inline">app_render.py</code></strong> — Functions accept <code class="inline">events</code> as <code class="inline">list[dict]</code> throughout, but they&#x27;re actually <code class="inline">list[LogEvent]</code>. Adding proper type hints would catch protocol mismatches.</li></ol>
-<ol><li><strong>Move token pricing to configuration</strong> — <code class="inline">TOKEN_COSTS</code> and <code class="inline">CACHE_TOKEN_COSTS</code> in <code class="inline">app_ai.py:97-115</code> are hardcoded. Consider loading from <code class="inline">pyproject.toml</code> or a YAML config.</li></ol>
-<h3 id="low-priority">Low Priority</h3>
-<ol><li><strong><code class="inline">app.py</code> state initialization</strong> — The <code class="inline">_STATE_DEFAULTS</code> pattern is good, but the function that applies them is ~60 lines of repetitive <code class="inline">if key not in st.session_state</code> checks. A loop over the defaults dict would be cleaner.</li></ol>
-<ol><li><strong>Format plugin <code class="inline">__init__.py</code></strong> — The auto-detection logic (read first 50 lines, score each plugin) is sound. Consider adding a <code class="inline">priority</code> field to break ties when two formats score equally.</li></ol>
-<hr>
-</div></details><details class="section" id="sect-9-feature-opportunities"><summary><span class="section-title">9. Feature Opportunities</span><span class="badge badge-info section-badge">9/10</span></summary><div class="section-body">
-<p><strong>Grade: B+</strong></p>
-<h3 id="high-value">High Value</h3>
-<ol><li><strong>Structured error output for CI/CD</strong> — Add a <code class="inline">--exit-code</code> CLI flag that returns non-zero when error thresholds are exceeded. This enables LogPilot as a CI/CD pipeline step.</li></ol>
-<ol><li><strong>Export to observability platforms</strong> — Generate OpenTelemetry-compatible trace spans from correlated events. The <code class="inline">trace_ids</code> field and <code class="inline">correlate_by_trace_id()</code> already extract the IDs.</li></ol>
-<ol><li><strong>Diff mode</strong> — Compare two log files (before/after a deploy) and highlight new error patterns. <code class="inline">compare_periods()</code> already does day-by-day deltas; extend to file-by-file comparison.</li></ol>
-<h3 id="medium-value">Medium Value</h3>
-<ol><li><strong>Plugin marketplace</strong> — Allow users to install custom format plugins from a directory without modifying the core package. The <code class="inline">LogFormat</code> protocol already defines the interface.</li></ol>
-<ol><li><strong>Webhook/Slack notifications</strong> — Send AI analysis results to Slack or webhook endpoints when error thresholds are exceeded in realtime monitoring mode.</li></ol>
-<ol><li><strong>Log sampling strategies</strong> — The <code class="inline">sample_info</code> parameter does deterministic sampling. Add time-weighted sampling (keep more events near errors) and stratified sampling (ensure each code/exception type is represented).</li></ol>
-<h3 id="exploratory">Exploratory</h3>
-<ol><li><strong>Multi-language support</strong> — The UI strings are English-only. Consider <code class="inline">gettext</code> or a simple dict-based i18n system for the Streamlit GUI.</li></ol>
-<ol><li><strong>Git blame integration</strong> — When a deployment-related heuristic fires, automatically identify the most recent commits that touched affected components.</li></ol>
-<hr>
-</div></details><details class="section" id="sect-10-prioritized-improvement-plan"><summary><span class="section-title">10. Prioritized Improvement Plan</span><span class="badge badge-info section-badge">10/10</span></summary><div class="section-body">
-<div class="table-wrap"><table><thead><tr><th>Priority</th><th>Item</th><th>Effort</th><th>Impact</th><th>Section</th></tr></thead><tbody>
-<tr><td>1</td><td>Fix <code class="inline">cli.py:48</code> type annotation (<code class="inline">list[dict]</code> to <code class="inline">list[LogEvent]</code>)</td><td>5 min</td><td>Low</td><td>Code Review</td></tr>
-<tr><td>2</td><td>Extract <code class="inline">ERROR_LEVELS</code> to shared location</td><td>15 min</td><td>Low</td><td>Refactoring</td></tr>
-<tr><td>3</td><td>Add unit tests for <code class="inline">app_render.py</code> rendering functions</td><td>2 hr</td><td>Medium</td><td>Testing</td></tr>
-<tr><td>4</td><td>Add unit tests for <code class="inline">app_incident.py</code> core functions</td><td>2 hr</td><td>Medium</td><td>Testing</td></tr>
-<tr><td>5</td><td>Replace <code class="inline">ai.py:404</code> <code class="inline">print()</code> with <code class="inline">_log.info()</code></td><td>5 min</td><td>Low</td><td>Code Review</td></tr>
-<tr><td>6</td><td>Split <code class="inline">reports.py</code> into per-format modules</td><td>3 hr</td><td>Medium</td><td>Refactoring</td></tr>
-<tr><td>7</td><td>Move token pricing to configuration file</td><td>1 hr</td><td>Medium</td><td>AI Integration</td></tr>
-<tr><td>8</td><td>Add retry logic for AI API calls</td><td>2 hr</td><td>Medium</td><td>AI Integration</td></tr>
-<tr><td>9</td><td>Add <code class="inline">--exit-code</code> CI/CD flag to CLI</td><td>1 hr</td><td>High</td><td>Features</td></tr>
-<tr><td>10</td><td>Add dedicated <code class="inline">splunk.py</code> tests</td><td>1 hr</td><td>Medium</td><td>Testing</td></tr>
-<tr><td>11</td><td>Unify <code class="inline">ask_gemini()</code> into provider orchestration</td><td>2 hr</td><td>Medium</td><td>Refactoring</td></tr>
-<tr><td>12</td><td>Add negative AI response tests</td><td>1 hr</td><td>Medium</td><td>Testing</td></tr>
-</tbody></table></div>
-<h3 id="section-grades-summary">Section Grades Summary</h3>
-<div class="table-wrap"><table><thead><tr><th>Section</th><th>Grade</th></tr></thead><tbody>
-<tr><td>Executive Summary</td><td>A-</td></tr>
-<tr><td>Repository Overview</td><td>A</td></tr>
-<tr><td>Documentation</td><td>A-</td></tr>
-<tr><td>Skills System</td><td>A</td></tr>
-<tr><td>Code Review</td><td>B+</td></tr>
-<tr><td>AI Integration</td><td>A-</td></tr>
-<tr><td>Test Coverage</td><td>A-</td></tr>
-<tr><td>Refactoring Opportunities</td><td>B+</td></tr>
-<tr><td>Feature Opportunities</td><td>B+</td></tr>
-<tr><td><strong>Overall</strong></td><td><strong>A-</strong></td></tr>
-</tbody></table></div></div></details>
+<p>All P2 items are documentation/style issues scheduled for M45 (Documentation refresh).</p>
+</div></details><details class="section" id="sect-12-improvement-plan"><summary><span class="section-title">12. Improvement Plan</span><span class="badge badge-info section-badge">12/12</span></summary><div class="section-body">
+<h3 id="completed-this-session">Completed This Session</h3>
+<ol><li>✅ M43: Production Incident Simulation (50 tests)</li><li>✅ M52: Recursive Log Upload (54 tests)</li><li>✅ M49: Enriched Likely Causes + AI UX (27 tests)</li><li>✅ M53: Audit Fixes — dead code, Gemini safety, LogEvent consistency</li><li>✅ Cache hygiene: eviction, orphan cleanup, atomic writes</li><li>✅ AI history delete fix</li><li>✅ Noise filter table font fix</li><li>✅ Rotated log file support in discovery</li></ol>
+<h3 id="next-steps">Next Steps</h3>
+<ol><li><strong>M45</strong>: Documentation refresh (~1-2h)</li><li><strong>M50</strong>: Trace to Code (~12h) — read-only codebase connector</li><li><strong>M33</strong>: Docker packaging (~30min)</li><li><strong>M34</strong>: PyPI packaging (~45min)</li></ol>
+<h3 id="metrics">Metrics</h3>
+<ul><li><strong>Tests:</strong> 1579 passing</li><li><strong>Format plugins:</strong> 8</li><li><strong>Heuristics:</strong> 58 patterns, 17 correlations, 7 incident groups</li><li><strong>Report formats:</strong> 4 (Markdown, HTML, JSON, PDF)</li><li><strong>Report presets:</strong> 3 (Quick Diagnosis, Incident Report, Deep Analysis)</li><li><strong>AI providers:</strong> 4 (Claude, Gemini, OpenAI, Local)</li></ul></div></details>
 </main>
 </div>
 <button class="back-to-top" title="Back to top">&#8593;</button>
