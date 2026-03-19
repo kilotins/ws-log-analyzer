@@ -903,7 +903,9 @@ with tab_analyze:
             )
         with col_browse:
             if st.button("Browse…", use_container_width=True):
+                _chosen = ""
                 try:
+                    # Try tkinter first (works when available)
                     import tkinter as _tk
                     from tkinter import filedialog as _fd
                     _root = _tk.Tk()
@@ -911,11 +913,22 @@ with tab_analyze:
                     _root.attributes("-topmost", True)
                     _chosen = _fd.askdirectory(title="Select log folder")
                     _root.destroy()
-                    if _chosen:
-                        st.session_state["folder_path"] = _chosen
-                        st.rerun()
-                except Exception as _tk_err:
-                    st.warning(f"Folder picker not available: {_tk_err}")
+                except Exception:
+                    # Fallback: macOS native folder picker via osascript
+                    try:
+                        import subprocess as _sp
+                        _result = _sp.run(
+                            ["osascript", "-e",
+                             'POSIX path of (choose folder with prompt "Select log folder")'],
+                            capture_output=True, text=True, timeout=60,
+                        )
+                        if _result.returncode == 0 and _result.stdout.strip():
+                            _chosen = _result.stdout.strip().rstrip("/")
+                    except Exception as _os_err:
+                        st.warning(f"Folder picker not available: {_os_err}")
+                if _chosen:
+                    st.session_state["folder_path"] = _chosen
+                    st.rerun()
 
         # Discover files if path is set
         _folder_files = []
