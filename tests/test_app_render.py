@@ -101,19 +101,18 @@ def _make_event(
     ts_utc=None,
     text="some log line",
 ):
-    """Build a minimal event dict for filter tests."""
-    return {
-        "text": text,
-        "level": level,
-        "code": code,
-        "exception": exception,
-        "tags": tags or [],
-        "system_label": system_label or "server1",
-        "ts": ts or "10/12/15 21:22:04:257",
-        "ts_utc": ts_utc,
-        "thread_id": None,
-        "root_cause": None,
-    }
+    """Build a LogEvent for filter tests."""
+    from logpilot.event import LogEvent
+    return LogEvent(
+        text=text,
+        level=level,
+        code=code,
+        exception=exception,
+        tags=tags or [],
+        system_label=system_label or "server1",
+        ts=ts or "10/12/15 21:22:04:257",
+        ts_utc=ts_utc,
+    )
 
 
 # ===========================================================================
@@ -425,13 +424,10 @@ class TestApplyEventFilters:
         assert len(result) == 2
 
     def test_source_missing_key_treated_as_unknown(self):
-        """Events without system_label key fall back to 'unknown'."""
-        event_no_label = {
-            "text": "x", "level": "ERROR", "code": None, "exception": None,
-            "tags": [], "ts": "10/12/15 21:22:04:257", "ts_utc": None,
-            "thread_id": None, "root_cause": None,
-            # Note: no "system_label" key
-        }
+        """Events with system_label=None fall back to 'unknown'."""
+        event_no_label = _make_event(system_label=None)
+        # _make_event defaults system_label to "server1", override to None
+        event_no_label.system_label = None
         result = self._call([event_no_label], sources=["unknown"])
         assert len(result) == 1
 

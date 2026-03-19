@@ -195,7 +195,7 @@ def test_render_markdown_report(sample_events):
     assert "# LogPilot Analysis" in report
     assert "Parsed events: 5" in report
     assert "## Top Levels" in report
-    assert "## Top WebSphere/Liberty Codes" in report
+    assert "## Top Message Codes" in report
     assert "## Sample Events (sanitized)" in report
     assert "## Timeline (events per minute)" in report
 
@@ -444,7 +444,7 @@ def test_render_pdf_report_contains_codes_section():
     ]
     pdf_bytes = render_pdf_report(events, top_n=5, samples_n=5)
     pdf_text = _extract_pdf_text(pdf_bytes)
-    assert "Top WebSphere" in pdf_text
+    assert "Top Message Codes" in pdf_text
     assert "CWPKI0022E" in pdf_text
 
 

@@ -175,20 +175,6 @@ class TestAskAI:
         assert len(val) > 0, f"Expected code in input, got empty string"
 
 
-class TestSplunkSection:
-    def test_splunk_section_visible(self, page):
-        _upload_file(page)
-        _click_analyze(page)
-        assert page.get_by_text("Suggested Splunk Searches", exact=False).first.is_visible()
-
-    def test_splunk_has_baseline(self, page):
-        _upload_file(page)
-        _click_analyze(page)
-        page.get_by_text("Suggested Splunk Searches", exact=False).first.click()
-        page.wait_for_timeout(500)
-        assert page.get_by_text("Baseline searches").first.is_visible()
-
-
 class TestTimeline:
     def test_timeline_section(self, page):
         _upload_file(page)

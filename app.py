@@ -1055,7 +1055,7 @@ with tab_analyze:
                                                sample_info=10 if sample_info_events else 0)
                     _stem = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
                     for ev in events:
-                        ev["system_label"] = _stem
+                        ev.system_label = _stem
                     all_events.extend(events)
                     log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
                 except Exception as ex:
@@ -1093,7 +1093,7 @@ with tab_analyze:
                 _progress.progress(frac, text=text)
             pa = precompute_analysis(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes, progress_callback=_analysis_progress)
             s = pa["summary"]
-            error_count = sum(1 for e in all_events if e.get("level") in ("ERROR", "SEVERE", "FATAL"))
+            error_count = sum(1 for e in all_events if e.level in ("ERROR", "SEVERE", "FATAL"))
             file_summary = pa["file_summary"]
             causes = pa["causes"]
             hist = pa["hist"]

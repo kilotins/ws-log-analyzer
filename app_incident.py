@@ -262,7 +262,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         "e.g. CWWKZ0001E, NullPointerException, 502 errors since 14:30, why are threads hanging?")
 
     # Detect multi-source
-    sources = set(e.get("system_label", "") for e in events)
+    sources = set(e.system_label or "" for e in events)
     is_multi_source = len(sources) >= 2
 
     # --- "Analyze All Logs" button (multi-source only) ---
@@ -477,8 +477,8 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
         source_errors = {}
         for s in sources_data:
             errs = [e for e in events
-                    if e.get("system_label") == s["label"]
-                    and e.get("level") in ERROR_LEVELS][:3]
+                    if e.system_label == s["label"]
+                    and e.level in ERROR_LEVELS][:3]
             if errs:
                 source_errors[f"{s['label']} ({s.get('format', '?')})"] = errs
 
@@ -515,7 +515,7 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
         events_for_ai = events
 
     # --- Error events ---
-    error_events = [e for e in events_for_ai if e.get("level") in ERROR_LEVELS][:5]
+    error_events = [e for e in events_for_ai if e.level in ERROR_LEVELS][:5]
 
     # Use filtered events for AI prompt if noise filter is active
     if noise_threshold > 0 and len(events_for_ai) < len(events):

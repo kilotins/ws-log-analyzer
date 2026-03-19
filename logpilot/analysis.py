@@ -352,7 +352,6 @@ def pick_samples(events: list[LogEvent], n: int) -> list[LogEvent]:
             break
 
     # Most frequent (code, exception) combo
-    from collections import Counter
     combo_counts: Counter = Counter()
     for e in events:
         if e.level in ERROR_LEVELS:

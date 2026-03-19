@@ -48,13 +48,6 @@ def _highlight_code(code: str, lang: str) -> str:
         code = re.sub(r"(#[^\n]*)", r'<span class="cm">\1</span>', code)
         code = re.sub(r'(&quot;[^&]*?&quot;|&#x27;[^&]*?&#x27;)',
                        r'<span class="st">\1</span>', code)
-    elif lang in ("spl", "splunk"):
-        code = re.sub(
-            r"\b(index|sourcetype|stats|timechart|table|where|eval|head|"
-            r"sort|count|by|span|earliest|latest|predict|transaction|rex|"
-            r"search|fields|rename|dedup|top|rare)\b",
-            r'<span class="kw">\1</span>', code)
-        code = re.sub(r"(\|)", r'<span class="op">\1</span>', code)
     elif lang in ("bash", "sh", "shell"):
         code = re.sub(r"(#[^\n]*)", r'<span class="cm">\1</span>', code)
         code = re.sub(
