@@ -109,18 +109,13 @@ def render_markdown_report(
             if directive:
                 md.append(f"**{directive}**")
                 md.append("")
-            # Evidence
-            ev_parts = []
-            for t in g.get("triggers", []):
-                ev = t.get("evidence", {})
-                if ev.get("ip_addresses"):
-                    ev_parts.append(f"Targets: {', '.join(ev['ip_addresses'])}")
-                if ev.get("durations"):
-                    ev_parts.append(f"Durations: {', '.join(ev['durations'][:3])}")
-            if ev_parts:
+            # Evidence (deduplicated)
+            from ..heuristics import collect_group_evidence
+            ev_lines = collect_group_evidence(g)
+            if ev_lines:
                 md.append("```")
-                for p in dict.fromkeys(ev_parts):
-                    md.append(p)
+                for line in ev_lines:
+                    md.append(line)
                 md.append("```")
                 md.append("")
             for t in g["triggers"]:
