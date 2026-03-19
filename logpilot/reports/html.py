@@ -453,6 +453,9 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 header += f' &mdash; {escape(e.exception)}'
             if e.ts:
                 header += f' ({escape(e.ts)})'
+            sample_label = getattr(e, "sample_label", None)
+            if sample_label:
+                header += f' <span class="tag">{escape(sample_label)}</span>'
             h.append(f'<div class="sample"><div class="sample-header">{header}</div>')
             parts = []
             if e.tags:
