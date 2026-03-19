@@ -200,7 +200,6 @@ def render_hung_threads(hung):
             st.text("  " + " | ".join(ts_parts))
         if t["stack_sample"]:
             st.code("\n".join(t["stack_sample"]), language="java")
-        st.code(t["splunk_query"], language="spl")
 
 
 def _severity_bar_chart(times, levels, title_suffix="", trigger_dt=None, height=120):
@@ -353,6 +352,9 @@ def render_samples(samples, all_events=None):
             header += f" -- {e['exception']}"
         if e["ts"]:
             header += f" ({e['ts']})"
+        source_label = e.get("system_label") or e.get("source") or ""
+        if source_label:
+            header += f" — {source_label}"
         st.markdown(f"**{header}**")
         parts = []
         if e["tags"]:
@@ -592,16 +594,30 @@ def _apply_event_filters(events, levels, code_prefix, exception_types, time_rang
     return filtered
 
 
-def _apply_filters_from_state(events):
-    """Read filter widget values from session_state and apply them.
+def _apply_global_filters_from_state(events):
+    """Read global filter values (source + severity) from session_state.
 
     Returns (is_filtered: bool, filtered_events: list).
     """
     levels = st.session_state.get("filter_levels", [])
+    sources = st.session_state.get("filter_sources", [])
+
+    has_filters = bool(levels or sources)
+    if not has_filters:
+        return False, events
+
+    filtered = _apply_event_filters(events, levels, "", [], None, sources=sources)
+    return True, filtered
+
+
+def _apply_sample_filters_from_state(events):
+    """Read sample drill-down filter values (code, exception, time) from session_state.
+
+    Returns (is_filtered: bool, filtered_events: list).
+    """
     code_prefix = st.session_state.get("filter_code_prefix", "")
     exceptions = st.session_state.get("filter_exceptions", [])
     use_time = st.session_state.get("filter_use_time", False)
-    sources = st.session_state.get("filter_sources", [])
 
     time_range = None
     if use_time:
@@ -610,83 +626,99 @@ def _apply_filters_from_state(events):
         if t_start or t_end:
             time_range = (t_start, t_end)
 
-    has_filters = bool(levels or (code_prefix and code_prefix.strip()) or exceptions or (use_time and time_range) or sources)
-
+    has_filters = bool((code_prefix and code_prefix.strip()) or exceptions or (use_time and time_range))
     if not has_filters:
         return False, events
 
-    filtered = _apply_event_filters(events, levels, code_prefix, exceptions, time_range, sources=sources)
+    filtered = _apply_event_filters(events, [], code_prefix, exceptions, time_range)
     return True, filtered
 
 
-def render_event_filters(events):
-    """Render event filter widgets inside an expander. Returns filtered events or None if no filters active."""
-    _n_levels = len({e.get("level") or "UNKNOWN" for e in events})
-    _n_exc = len({e.get("exception") for e in events if e.get("exception")})
-    _filter_label = f"Event Filters — {_n_levels} severity levels, {_n_exc} exception types"
-    with st.expander(_filter_label, expanded=False):
-        # Collect available values from events
-        all_levels = sorted({e.get("level") or "UNKNOWN" for e in events})
-        all_exceptions = sorted({e.get("exception") for e in events if e.get("exception")})
+def render_global_filters(events):
+    """Render compact global filters (Source + Severity) above the report summary."""
+    all_levels = sorted({e.get("level") or "UNKNOWN" for e in events})
+    all_sources = sorted(set(e.get("system_label", "unknown") for e in events))
 
-        col_level, col_code = st.columns(2)
-        with col_level:
-            selected_levels = st.multiselect(
-                "Severity Levels",
-                options=all_levels,
+    # Only show if there's something to filter
+    if len(all_levels) <= 1 and len(all_sources) <= 1:
+        return
+
+    cols = st.columns([1, 1] if len(all_sources) > 1 else [1])
+    col_idx = 0
+
+    with cols[col_idx]:
+        st.multiselect(
+            "Severity",
+            options=all_levels,
+            default=[],
+            key="filter_levels",
+            help="Filter entire report by severity level",
+        )
+
+    if len(all_sources) > 1:
+        col_idx += 1
+        with cols[col_idx]:
+            st.multiselect(
+                "Source",
+                options=all_sources,
                 default=[],
-                key="filter_levels",
-                help="Show only events with selected severity levels",
+                key="filter_sources",
+                help="Filter entire report by log source",
             )
+
+    levels = st.session_state.get("filter_levels", [])
+    sources = st.session_state.get("filter_sources", [])
+    if levels or sources:
+        parts = []
+        if levels:
+            parts.append(f"severity: {', '.join(levels)}")
+        if sources:
+            parts.append(f"source: {', '.join(sources)}")
+        filtered = _apply_event_filters(events, levels, "", [], None, sources=sources)
+        st.caption(f"Filtering by {' + '.join(parts)} — {len(filtered):,} of {len(events):,} events")
+
+
+def render_sample_filters(events):
+    """Render drill-down filters (Code, Exception, Time) above sample events."""
+    all_exceptions = sorted({e.get("exception") for e in events if e.get("exception")})
+
+    if not all_exceptions:
+        return
+
+    with st.expander(f"Drill-down Filters — {len(all_exceptions)} exception types", expanded=False):
+        col_code, col_exc = st.columns(2)
         with col_code:
-            code_prefix = st.text_input(
+            st.text_input(
                 "Code Prefix",
                 value="",
                 key="filter_code_prefix",
                 placeholder="e.g. SRVE, WSVR, CWWK",
                 help="Show only events whose message code starts with this prefix",
             )
-
-        col_exc, col_time = st.columns(2)
         with col_exc:
-            selected_exceptions = st.multiselect(
+            st.multiselect(
                 "Exception Types",
                 options=all_exceptions,
                 default=[],
                 key="filter_exceptions",
                 help="Show only events with selected exception types",
             )
-        with col_time:
-            use_time = st.checkbox("Filter by time range", key="filter_use_time")
-            time_range = None
-            if use_time:
-                t_col1, t_col2 = st.columns(2)
-                from datetime import time as dt_time
-                with t_col1:
-                    t_start = st.time_input("Start time", value=dt_time(0, 0), key="filter_time_start")
-                with t_col2:
-                    t_end = st.time_input("End time", value=dt_time(23, 59, 59), key="filter_time_end")
-                time_range = (t_start, t_end)
 
-        all_sources = sorted(set(e.get("system_label", "unknown") for e in events))
-        selected_sources = []
-        if len(all_sources) > 1:
-            selected_sources = st.multiselect(
-                "System / Source",
-                options=all_sources,
-                default=[],
-                key="filter_sources",
-                help="Show only events from selected log sources",
-            )
+        st.checkbox("Filter by time range", key="filter_use_time")
+        if st.session_state.get("filter_use_time"):
+            from datetime import time as dt_time
+            t_col1, t_col2 = st.columns(2)
+            with t_col1:
+                st.time_input("Start time", value=dt_time(0, 0), key="filter_time_start")
+            with t_col2:
+                st.time_input("End time", value=dt_time(23, 59, 59), key="filter_time_end")
 
-        has_filters = bool(selected_levels or code_prefix.strip() or selected_exceptions or (use_time and time_range) or selected_sources)
-
-        if has_filters:
-            filtered = _apply_event_filters(events, selected_levels, code_prefix, selected_exceptions, time_range, sources=selected_sources)
-            st.info(f"Showing {len(filtered)} of {len(events)} events after filtering.")
-            return filtered
-
-    return None
+        code_prefix = st.session_state.get("filter_code_prefix", "")
+        exceptions = st.session_state.get("filter_exceptions", [])
+        use_time = st.session_state.get("filter_use_time", False)
+        if code_prefix.strip() or exceptions or use_time:
+            _, filtered = _apply_sample_filters_from_state(events)
+            st.info(f"Showing {len(filtered)} of {len(events)} events after drill-down filtering.")
 
 
 def render_what_changed(deltas: list[dict]):
@@ -729,22 +761,25 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     """Render all report sections from persisted analysis dict.
 
     Layout order (troubleshooting flow):
+      0. Global Filters — Source + Severity (scope the entire report)
       1. Summary — what happened?
       2. AI Cross-System Triage — what does AI think? (multi-source only)
       3. Ask AI — ask follow-up questions
-      4. Event Filters — narrow down
-      5. Cross-System Timeline — visual overview (multi-source only)
-      6. Incident Timeline — zoom on first error
-      7. Likely Causes & Fixes — heuristic matches
+      4. Cross-System Timeline — visual overview (multi-source only)
+      5. Incident Timeline — zoom on first error
+      6. Likely Causes & Fixes — heuristic matches
+      7. Drill-down Filters — Code, Exception, Time (scope samples only)
       8. Event Samples + Cascades — drill into data
       9. Export — download results
     """
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s).")
 
+    # --- 0. Global Filters (Source + Severity) ---
+    render_global_filters(a["events"])
+
     # --- Pre-compute filtered data from session_state (before rendering) ---
-    # Filter widget values persist in session_state between reruns, so we can
-    # apply filters before the widgets are rendered in the layout.
-    _is_filtered, display_events = _apply_filters_from_state(a["events"])
+    # Global filters (source + severity) affect the entire report.
+    _is_filtered, display_events = _apply_global_filters_from_state(a["events"])
 
     if _is_filtered:
         import hashlib as _hl
@@ -792,10 +827,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         render_incident_assistant(display_events, a, log=log,
                                   lookup_cache=lookup_cache, store_cache=store_cache)
 
-    # --- 4. Event Filters (widgets — values already read above) ---
-    render_event_filters(a["events"])
-
-    # --- 5. Cross-System Timeline (multi-source only) ---
+    # --- 4. Cross-System Timeline (multi-source only) ---
     _sources = set(e.get("system_label", "") for e in display_events)
     if len(_sources) >= 2:
         with st.expander(f"Cross-System Timeline ({len(_sources)} sources)"):
@@ -815,9 +847,21 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         with st.expander(f"Likely Causes & Fixes ({len(display_causes)} detected)"):
             render_likely_causes(display_causes)
 
+    # --- 7b. Drill-down Filters (Code, Exception, Time — scope samples only) ---
+    render_sample_filters(display_events)
+
     # --- 8. Event Samples + Hung Threads + Cascades ---
-    with st.expander(f"Event Samples ({len(display_samples)} shown)"):
-        render_samples(display_samples, all_events=display_events)
+    _sample_filtered, sample_display_events = _apply_sample_filters_from_state(display_events)
+    if _sample_filtered:
+        from logpilot.analysis import precompute_analysis as _pa_fn
+        _sf = _pa_fn(sample_display_events, top_n=a.get("top_n", 10),
+                     samples_n=a.get("samples_n", 5), hist_minutes=a.get("hist_minutes", 1))
+        drill_samples = _sf["samples"]
+    else:
+        drill_samples = display_samples
+
+    with st.expander(f"Event Samples ({len(drill_samples)} shown)"):
+        render_samples(drill_samples, all_events=display_events)
 
     if display_hung:
         with st.expander(f"Hung Thread Analysis ({len(display_hung)} threads)"):

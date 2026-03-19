@@ -8,13 +8,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, os.path.dirname(__file__))
 
 from logpilot import (
-    parse_file, likely_causes, suggested_splunk_queries,
-    hung_thread_drilldown,
+    parse_file, likely_causes,
     render_markdown_report, render_json_report,
     incident_timeline,
     per_file_summary, summarize,
 )
-from logpilot.splunk import _extract_hung_thread_name, _extract_stack_sample
+from logpilot.analysis import hung_thread_drilldown, _extract_hung_thread_name, _extract_stack_sample
 from logpilot.heuristics import _load_heuristics_from_yaml
 from logpilot.event import LogEvent
 from conftest import make_event, empty_match
@@ -277,120 +276,6 @@ def test_multi_file_signals_combined(sample_log, second_log):
     assert "DB/Pool" in tag_dict  # from second_log
 
 
-# --- Suggested Splunk searches ---
-
-def test_splunk_always_has_generic_error_query():
-    """Should always include a generic error query."""
-    s = {"exceptions": [], "codes": [], "tags": []}
-    queries = suggested_splunk_queries(s, [], [])
-    assert len(queries) >= 1
-    assert any("ERROR OR SEVERE OR FATAL" in q["query"] for q in queries)
-
-
-def test_splunk_exception_based_query():
-    """Should generate query for detected exceptions."""
-    s = {
-        "exceptions": [("java.security.cert.CertPathBuilderException", 3)],
-        "codes": [], "tags": [],
-    }
-    queries = suggested_splunk_queries(s, [], [])
-    assert any("CertPathBuilderException" in q["query"] for q in queries)
-
-
-def test_splunk_code_based_query():
-    """Should generate prefix-grouped query for WAS codes."""
-    s = {
-        "exceptions": [],
-        "codes": [("CWPKI0022E", 5), ("CWPKI0033E", 2)],
-        "tags": [],
-    }
-    queries = suggested_splunk_queries(s, [], [])
-    assert any("CWPKI" in q["query"] for q in queries)
-
-
-def test_splunk_ssl_tag_query():
-    """SSL/TLS tag should produce a targeted query."""
-    s = {"exceptions": [], "codes": [], "tags": [("SSL/TLS", 4)]}
-    queries = suggested_splunk_queries(s, [], [])
-    assert any("SSLHandshakeException" in q["query"] for q in queries)
-
-
-def test_splunk_oom_tag_query():
-    """OOM/GC tag should produce a targeted query."""
-    s = {"exceptions": [], "codes": [], "tags": [("OOM/GC", 2)]}
-    queries = suggested_splunk_queries(s, [], [])
-    assert any("OutOfMemoryError" in q["query"] for q in queries)
-
-
-def test_splunk_db_pool_tag_query():
-    """DB/Pool tag should produce a targeted query."""
-    s = {"exceptions": [], "codes": [], "tags": [("DB/Pool", 1)]}
-    queries = suggested_splunk_queries(s, [], [])
-    assert any("J2CA" in q["query"] for q in queries)
-
-
-def test_splunk_hung_threads_tag_query():
-    """HungThreads tag should produce a targeted query."""
-    s = {"exceptions": [], "codes": [], "tags": [("HungThreads", 1)]}
-    queries = suggested_splunk_queries(s, [], [])
-    assert any("WSVR0605W" in q["query"] for q in queries)
-
-
-def test_splunk_spike_query_when_timeline():
-    """Should include timechart query when histogram data exists."""
-    s = {"exceptions": [], "codes": [], "tags": []}
-    hist = [("21:22", 10, 2)]
-    queries = suggested_splunk_queries(s, [], hist)
-    assert any("timechart" in q["query"] for q in queries)
-
-
-def test_splunk_no_spike_query_without_timeline():
-    """Should not include timechart query when no histogram data."""
-    s = {"exceptions": [], "codes": [], "tags": []}
-    queries = suggested_splunk_queries(s, [], [])
-    assert not any("timechart" in q["query"] for q in queries)
-
-
-def test_splunk_max_8_queries():
-    """Should cap at 8 queries even with many detections."""
-    s = {
-        "exceptions": [("a.b.FooException", 5), ("c.d.BarException", 3), ("e.f.BazException", 1)],
-        "codes": [("AAAA0001E", 5), ("BBBB0001E", 3), ("CCCC0001E", 1)],
-        "tags": [("SSL/TLS", 4), ("OOM/GC", 2), ("DB/Pool", 1), ("HungThreads", 1)],
-    }
-    hist = [("21:22", 10, 2)]
-    queries = suggested_splunk_queries(s, [], hist)
-    assert len(queries) <= 8
-
-
-def test_splunk_uses_placeholder_index():
-    """All queries should use the vendor-neutral placeholder prefix."""
-    s = {
-        "exceptions": [("javax.net.ssl.SSLHandshakeException", 2)],
-        "codes": [("CWPKI0022E", 3)],
-        "tags": [("SSL/TLS", 2)],
-    }
-    queries = suggested_splunk_queries(s, [], [("21:22", 10, 2)])
-    for q in queries:
-        assert "index=APP" in q["query"]
-        assert "sourcetype=WAS" in q["query"]
-
-
-def test_splunk_in_markdown_report():
-    events = [make_event("CWPKI0022E: PKIX path building failed: CertPathBuilderException")]
-    report = render_markdown_report(events, top_n=5, samples_n=5)
-    assert "## Suggested Splunk Searches" in report
-    assert "index=APP" in report
-
-
-def test_splunk_in_json_report():
-    events = [make_event("OutOfMemoryError: Java heap space")]
-    report = render_json_report(events, top_n=5, samples_n=5)
-    data = json.loads(report)
-    assert "splunk_queries" in data
-    assert len(data["splunk_queries"]) >= 1
-
-
 # --- Hung thread drilldown ---
 
 def test_extract_hung_thread_name_webcontainer():
@@ -443,8 +328,6 @@ def test_hung_thread_drilldown_webcontainer(hung_webcontainer_log):
     assert "00000150" in wc5["hex_ids"]
     assert len(wc5["stack_sample"]) >= 1
     assert "ServletWrapper" in wc5["stack_sample"][0]
-    assert "index=APP" in wc5["splunk_query"]
-    assert "WebContainer : 5" in wc5["splunk_query"]
 
     # WebContainer : 8 appears once
     wc8 = drilldown[1]
@@ -494,7 +377,6 @@ def test_hung_thread_drilldown_in_markdown_report(hung_webcontainer_log):
     assert "WebContainer : 5" in report
     assert "WebContainer : 8" in report
     assert "ServletWrapper" in report
-    assert "index=APP" in report
 
 
 def test_hung_thread_drilldown_in_json_report(hung_webcontainer_log):

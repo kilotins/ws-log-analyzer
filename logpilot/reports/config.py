@@ -34,7 +34,6 @@ REPORT_SECTIONS = {
     "exceptions": "Exceptions/Errors",
     "tags": "Signal Tags",
     "causes": "Likely Causes & Fixes",
-    "splunk": "Splunk Searches",
     "hung": "Hung Thread Drilldown",
     "timeline": "Timeline",
     "samples": "Sample Events",

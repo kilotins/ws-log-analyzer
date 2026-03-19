@@ -424,6 +424,13 @@ st.markdown("""<style>
     /* Expander headers */
     [data-testid="stExpander"] summary { font-weight: 600; }
 
+    /* Code blocks — prevent overflow */
+    [data-testid="stCode"] pre,
+    [data-testid="stMarkdownContainer"] pre {
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
     /* Subtle dividers */
     hr { border: none; border-top: 1px solid #E2E8F0; margin: 1rem 0; }
 

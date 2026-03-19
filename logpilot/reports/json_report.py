@@ -55,8 +55,6 @@ def render_json_report(
     if _sec(sections, "causes"):
         data["likely_causes"] = causes
         data["incident_groups"] = group_into_incidents(causes) if causes else {"groups": [], "ungrouped": []}
-    if _sec(sections, "splunk"):
-        data["splunk_queries"] = a["splunk"]
     if _sec(sections, "hung"):
         data["hung_thread_drilldown"] = a["hung"]
     if _sec(sections, "timeline"):

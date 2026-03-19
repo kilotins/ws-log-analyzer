@@ -117,17 +117,6 @@ def render_markdown_report(
                     md.append(f"- {fix}")
                 md.append("")
 
-    splunk = a.get("splunk", [])
-    if _sec(sections, "splunk") and splunk:
-        md.append("## Suggested Splunk Searches")
-        md.append("")
-        for sq in splunk:
-            md.append(f"**{sq['description']}**")
-            md.append("```")
-            md.append(sq["query"])
-            md.append("```")
-            md.append("")
-
     hung = a["hung"]
     if _sec(sections, "hung") and hung:
         md.append("## Hung Thread Drilldown")
@@ -152,11 +141,6 @@ def render_markdown_report(
                 md += t["stack_sample"]
                 md.append("```")
                 md.append("")
-            md.append("**Splunk query:**")
-            md.append("```")
-            md.append(t["splunk_query"])
-            md.append("```")
-            md.append("")
 
     if _sec(sections, "timeline"):
         _export_hist = compact_histogram(hist)

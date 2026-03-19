@@ -40,7 +40,6 @@ def render_pdf_report(
     hist = a["hist"]
     file_summary = a["file_summary"]
     causes = a["causes"]
-    splunk = a.get("splunk", [])
     hung = a["hung"]
 
     _pdf_title, _pdf_subtitle = _report_meta(a)
@@ -193,12 +192,6 @@ def render_pdf_report(
                     body(f"    - {fix}")
                 pdf.ln(2)
 
-    if _sec(sections, "splunk") and splunk:
-        heading("Suggested Splunk Searches")
-        for sq in splunk:
-            bold_line(sq["description"])
-            mono(sq["query"])
-
     if _sec(sections, "hung") and hung:
         heading("Hung Thread Drilldown")
         for t in hung:
@@ -212,7 +205,6 @@ def render_pdf_report(
                 body(" | ".join(ts_parts))
             if t["stack_sample"]:
                 mono("\n".join(t["stack_sample"]))
-            mono(t["splunk_query"])
 
     if _sec(sections, "timeline"):
         _export_hist = compact_histogram(hist)

@@ -35,7 +35,6 @@ See [README.md](README.md) for installation, CLI options, and usage.
 | **WAS Codes** | `skills/message-codes.md` — WAS message code prefixes and high-impact codes |
 | **Stacktraces** | `skills/stacktrace-analysis.md` — Java stacktrace reading, common exceptions |
 | **Threads** | `skills/thread-correlation.md` — Thread naming, hung thread patterns |
-| **Splunk** | `skills/splunk-query.md` — Ready-made Splunk queries for WAS |
 | **Startup** | `skills/websphere-startup.md` — Startup sequence, failure patterns |
 | **Servlets** | `skills/servlet-errors.md` — SRVE codes, servlet lifecycle |
 | **Liberty** | `skills/liberty-analysis.md` — Liberty-specific patterns, MicroProfile |

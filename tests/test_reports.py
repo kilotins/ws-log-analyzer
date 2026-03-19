@@ -276,7 +276,7 @@ def test_precompute_analysis_has_all_keys():
                  text="SRVE0255E error"),
     ]
     pa = precompute_analysis(events)
-    for key in ("summary", "samples", "hist", "file_summary", "causes", "splunk", "hung"):
+    for key in ("summary", "samples", "hist", "file_summary", "causes", "hung"):
         assert key in pa, f"Missing key: {key}"
 
 
