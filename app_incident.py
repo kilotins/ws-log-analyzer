@@ -341,7 +341,8 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                     _detail_rows.append({"Pattern": _label, "Score": f"{score:.2f}",
                                         "Status": "Filtered" if score >= noise_threshold else "Kept"})
             if _detail_rows:
-                st.table(_detail_rows[:20])
+                import pandas as _pd
+                st.dataframe(_pd.DataFrame(_detail_rows[:20]), use_container_width=True, hide_index=True)
     elif noise_threshold > 0 and not _noise_scores:
         st.caption("No repetitive patterns found to filter.")
 
