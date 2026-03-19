@@ -593,9 +593,25 @@ def _delete_history_entry(hist_key: str, provider_key: str, idx: int) -> None:
         _hf = _cache_dir / _HIST_DISK_FILES.get(provider_key, "")
         if _hf.name and _hf.parent.exists():
             try:
-                _hf.write_text(json.dumps(history), encoding="utf-8")
+                # Atomic write (tempfile + rename) to prevent corruption
+                import tempfile, os
+                _tmp_name = None
+                with tempfile.NamedTemporaryFile(
+                    mode="w", dir=_hf.parent, suffix=".tmp",
+                    delete=False, encoding="utf-8",
+                ) as tmp:
+                    _tmp_name = tmp.name
+                    json.dump(history, tmp, ensure_ascii=False)
+                    tmp.flush()
+                    os.fsync(tmp.fileno())
+                if _tmp_name:
+                    os.replace(_tmp_name, str(_hf))
             except OSError:
-                pass
+                if _tmp_name:
+                    try:
+                        os.unlink(_tmp_name)
+                    except OSError:
+                        pass
 
 
 def _render_ai_history():

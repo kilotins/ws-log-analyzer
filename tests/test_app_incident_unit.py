@@ -378,30 +378,19 @@ class TestDeleteHistoryEntry:
         # Key not in session_state — defaults to []
         _delete_history_entry("nonexistent_hist", "claude", 0)
 
-    def test_writes_to_disk_when_cache_dir_exists(self):
-        """When the cache dir exists the updated history is written to disk.
+    def test_writes_to_disk_when_cache_dir_exists(self, tmp_path):
+        """When the cache dir exists the updated history is written atomically to disk."""
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+        hist_file = cache_dir / "claude_history.json"
+        hist_file.write_text("[]")
 
-        Code path in _delete_history_entry:
-            _cache_dir = Path(__file__).parent / "cache"   # parent / "cache" = mock_cache_dir
-            _hf = _cache_dir / filename                    # mock_cache_dir / filename = mock_hf
-        """
         with mock.patch("app_incident.Path") as MockPath:
-            mock_hf = mock.MagicMock()
-            mock_hf.name = "claude_history.json"
-            mock_hf.parent.exists.return_value = True
-
-            # _cache_dir = Path(__file__).parent / "cache"
-            # MockPath(__file__).parent = mock_module_parent
-            # mock_module_parent / "cache" = mock_cache_dir
-            # mock_cache_dir / "claude_history.json" = mock_hf
-            mock_cache_dir = mock.MagicMock()
-            mock_cache_dir.__truediv__ = mock.MagicMock(return_value=mock_hf)
-
-            mock_module_parent = mock.MagicMock()
-            mock_module_parent.__truediv__ = mock.MagicMock(return_value=mock_cache_dir)
-
+            # Make Path(__file__).parent / "cache" / "claude_history.json" → real tmp file
             mock_pi = mock.MagicMock()
-            mock_pi.parent = mock_module_parent
+            mock_cache_dir = mock.MagicMock()
+            mock_cache_dir.__truediv__ = mock.MagicMock(return_value=hist_file)
+            mock_pi.parent.__truediv__ = mock.MagicMock(return_value=mock_cache_dir)
             MockPath.return_value = mock_pi
 
             _session_state["claude_history"] = [
@@ -409,9 +398,8 @@ class TestDeleteHistoryEntry:
             ]
             _delete_history_entry("claude_history", "claude", 0)
 
-            mock_hf.write_text.assert_called_once()
-            written_arg = mock_hf.write_text.call_args[0][0]
-            written = json.loads(written_arg)
+            # Verify atomic write produced correct content
+            written = json.loads(hist_file.read_text())
             assert len(written) == 1
             assert written[0]["query"] == "q2"
 
