@@ -282,6 +282,110 @@ class TestCliOptions:
         assert "Combined" in captured.err
 
 
+class TestCliDirectory:
+    """Tests for --directory recursive folder scanning."""
+
+    def test_directory_scans_recursively(self, tmp_path, capsys):
+        """--directory should find log files in subdirectories."""
+        sub = tmp_path / "api"
+        sub.mkdir()
+        (sub / "server.log").write_text(
+            "[10/12/15 21:22:04:257 CEST] 0000001a SystemOut E Error\n"
+        )
+        (tmp_path / "root.log").write_text(
+            "[10/12/15 21:22:05:100 CEST] 0000001b SystemOut I OK\n"
+        )
+        out = tmp_path / "report.md"
+        with patch("sys.argv", ["logpilot", "-d", str(tmp_path), "--out", str(out)]):
+            main()
+        captured = capsys.readouterr()
+        assert "2 files" in captured.err
+        assert out.exists()
+
+    def test_directory_combined_with_files(self, tmp_path, capsys):
+        """--directory can be combined with positional file arguments."""
+        sub = tmp_path / "logs"
+        sub.mkdir()
+        (sub / "a.log").write_text(
+            "[10/12/15 21:22:04:257 CEST] 0000001a SystemOut E Error A\n"
+        )
+        extra = tmp_path / "extra.log"
+        extra.write_text(
+            "[10/12/15 21:22:05:100 CEST] 0000001b SystemOut E Error B\n"
+        )
+        out = tmp_path / "report.md"
+        with patch("sys.argv", ["logpilot", str(extra), "-d", str(sub), "--out", str(out)]):
+            main()
+        captured = capsys.readouterr()
+        assert "Combined" in captured.err
+
+    def test_directory_not_a_dir_exits(self, tmp_path):
+        """--directory pointing to a file should exit with error."""
+        f = tmp_path / "notadir.log"
+        f.write_text("data\n")
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["logpilot", "-d", str(f)]):
+                main()
+        assert exc_info.value.code != 0
+
+    def test_directory_empty_folder_exits(self, tmp_path):
+        """--directory with empty folder (no log files) should exit with error."""
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["logpilot", "-d", str(empty)]):
+                main()
+        assert exc_info.value.code != 0
+
+    def test_directory_skips_binary_files(self, tmp_path, capsys):
+        """Binary files in directory should be skipped."""
+        (tmp_path / "good.log").write_text(
+            "[10/12/15 21:22:04:257 CEST] 0000001a SystemOut E Error\n"
+        )
+        (tmp_path / "bad.log").write_bytes(b"\x00\x01binary\x00")
+        out = tmp_path / "report.md"
+        with patch("sys.argv", ["logpilot", "-d", str(tmp_path), "--out", str(out)]):
+            main()
+        captured = capsys.readouterr()
+        assert "1 skipped" in captured.err
+
+    def test_directory_quiet_mode(self, tmp_path, capsys):
+        """--directory with -q should suppress scan summary."""
+        (tmp_path / "a.log").write_text(
+            "[10/12/15 21:22:04:257 CEST] 0000001a SystemOut E Error\n"
+        )
+        out = tmp_path / "report.md"
+        with patch("sys.argv", ["logpilot", "-d", str(tmp_path), "--out", str(out), "-q"]):
+            main()
+        captured = capsys.readouterr()
+        assert "Scanned" not in captured.err
+
+    def test_directory_sets_system_label(self, tmp_path):
+        """Events from --directory should have system_label set."""
+        (tmp_path / "myapp.log").write_text(
+            "[10/12/15 21:22:04:257 CEST] 0000001a SystemOut E Error\n"
+        )
+        out = tmp_path / "report.json"
+        with patch("sys.argv", ["logpilot", "-d", str(tmp_path), "--out", str(out), "--format", "json", "-q"]):
+            main()
+        import json
+        data = json.loads(out.read_text())
+        # JSON report should contain events referencing the file
+        assert out.exists()
+
+    def test_directory_scenario_files(self, capsys, tmp_path):
+        """--directory should work with the scenario fixture directory."""
+        scenario = Path(__file__).parent / "fixtures" / "scenario"
+        out = tmp_path / "report.md"
+        with patch("sys.argv", ["logpilot", "-d", str(scenario), "--out", str(out)]):
+            main()
+        captured = capsys.readouterr()
+        assert "6 files" in captured.err
+        assert out.exists()
+        content = out.read_text()
+        assert len(content) > 200
+
+
 class TestCliExitCode:
     """Tests for --exit-code and --error-threshold flags."""
 

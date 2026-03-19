@@ -890,6 +890,61 @@ with tab_analyze:
         help="Application log files (.log or .gz compressed)",
     )
 
+    # --- Folder scan (local path) ---
+    with st.expander("Or scan a local folder", expanded=False):
+        col_path, col_browse = st.columns([4, 1])
+        with col_path:
+            folder_path = st.text_input(
+                "Folder path",
+                value=st.session_state.get("folder_path", ""),
+                placeholder="/var/log/myapp",
+                help="Recursively scans for .log, .txt, .out, .gz files",
+                label_visibility="collapsed",
+            )
+        with col_browse:
+            if st.button("Browse…", use_container_width=True):
+                try:
+                    import tkinter as _tk
+                    from tkinter import filedialog as _fd
+                    _root = _tk.Tk()
+                    _root.withdraw()
+                    _root.attributes("-topmost", True)
+                    _chosen = _fd.askdirectory(title="Select log folder")
+                    _root.destroy()
+                    if _chosen:
+                        st.session_state["folder_path"] = _chosen
+                        st.rerun()
+                except Exception as _tk_err:
+                    st.warning(f"Folder picker not available: {_tk_err}")
+
+        # Discover files if path is set
+        _folder_files = []
+        if folder_path and folder_path.strip():
+            from logpilot.discovery import discover_log_files, _fmt_size
+            _fp = Path(folder_path.strip()).expanduser()
+            if _fp.is_dir():
+                _disc = discover_log_files(_fp)
+                if _disc.accepted:
+                    st.success(f"Found **{len(_disc.accepted)} files** ({_fmt_size(_disc.total_size)})")
+                    if _disc.truncated:
+                        st.warning(f"⚠ {_disc.truncation_reason}")
+                    with st.container(height=150):
+                        for _df in _disc.accepted:
+                            st.text(f"✓ {_df.relative_path}  ({_fmt_size(_df.size)})")
+                    if _disc.rejected:
+                        with st.expander(f"{len(_disc.rejected)} files skipped"):
+                            for _rf in _disc.rejected[:20]:
+                                st.text(f"✗ {_rf.relative_path} — {_rf.reason}")
+                    _folder_files = _disc.accepted
+                else:
+                    st.warning("No supported log files found in this folder.")
+                    if _disc.rejected:
+                        with st.expander(f"{len(_disc.rejected)} files skipped"):
+                            for _rf in _disc.rejected[:20]:
+                                st.text(f"✗ {_rf.relative_path} — {_rf.reason}")
+            elif folder_path.strip():
+                st.error("Path is not a valid directory.")
+
     # Format plugins and parsing options
     _formats = list_formats()
     _format_names = ["Auto-detect"] + [f["name"] for f in _formats]
@@ -927,71 +982,92 @@ with tab_analyze:
     sample_info_events = st.checkbox("Sample INFO events (large files)", value=False,
                                      help="Keep 1 in 10 INFO events to reduce memory. Recommended for access logs >100K lines.")
 
-    if uploaded_files and st.button("Analyze", type="primary"):
-        total_size = sum(f.size for f in uploaded_files)
-        _over_limit = total_size > MAX_UPLOAD_MB * 1024 * 1024
-        if _over_limit:
-            st.error(f"Total upload size ({total_size / 1024 / 1024:.1f} MB) exceeds the {MAX_UPLOAD_MB} MB limit. Please upload smaller files.")
-        elif total_size > 50 * 1024 * 1024:
-            st.warning("Large files detected (>50MB). Parsing may take a while.")
-        if _over_limit:
-            st.stop()
+    _has_input = bool(uploaded_files) or bool(_folder_files)
+    if _has_input and st.button("Analyze", type="primary"):
+        # Size check for uploaded files
+        if uploaded_files:
+            total_size = sum(f.size for f in uploaded_files)
+            _over_limit = total_size > MAX_UPLOAD_MB * 1024 * 1024
+            if _over_limit:
+                st.error(f"Total upload size ({total_size / 1024 / 1024:.1f} MB) exceeds the {MAX_UPLOAD_MB} MB limit. Please upload smaller files.")
+                st.stop()
+            elif total_size > 50 * 1024 * 1024:
+                st.warning("Large files detected (>50MB). Parsing may take a while.")
+
         all_events = []
 
-        # Clean old uploads (keep only files from this session)
+        # --- Parse uploaded files ---
         import hashlib as _hl
         _session_uploads: set[str] = set()
+        _upload_count = len(uploaded_files) if uploaded_files else 0
+        _total_files = _upload_count + len(_folder_files)
+        _progress = st.progress(0, text=f"Parsing 0/{_total_files} files...")
 
-        for uploaded in uploaded_files:
-            safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
-            content = uploaded.getvalue()
-            # Use content hash to deduplicate — same file won't be re-saved
-            _hash = _hl.md5(content).hexdigest()[:10]
-            upload_name = f"{_hash}_{safe_name}"
-            upload_path = UPLOADS_DIR / upload_name
-            # Verify path stays inside uploads directory
-            if not upload_path.resolve().is_relative_to(UPLOADS_DIR.resolve()):
-                st.error(f"Invalid filename: {uploaded.name}")
-                continue
-            _session_uploads.add(upload_path.name)
-            if not upload_path.exists():
-                upload_path.write_bytes(content)
-                log.info("upload File saved: %s (%d bytes)", upload_name, len(content))
-            else:
-                log.info("upload File reused (identical): %s", upload_name)
+        if uploaded_files:
+            for uploaded in uploaded_files:
+                safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
+                content = uploaded.getvalue()
+                _hash = _hl.md5(content).hexdigest()[:10]
+                upload_name = f"{_hash}_{safe_name}"
+                upload_path = UPLOADS_DIR / upload_name
+                if not upload_path.resolve().is_relative_to(UPLOADS_DIR.resolve()):
+                    st.error(f"Invalid filename: {uploaded.name}")
+                    continue
+                _session_uploads.add(upload_path.name)
+                if not upload_path.exists():
+                    upload_path.write_bytes(content)
+                    log.info("upload File saved: %s (%d bytes)", upload_name, len(content))
+                else:
+                    log.info("upload File reused (identical): %s", upload_name)
 
-        # Remove old uploads not in this batch
-        for old_file in UPLOADS_DIR.iterdir():
-            if old_file.name not in _session_uploads and old_file.is_file():
-                old_file.unlink()
-                log.info("upload Cleaned old upload: %s", old_file.name)
+            # Remove old uploads not in this batch
+            for old_file in UPLOADS_DIR.iterdir():
+                if old_file.name not in _session_uploads and old_file.is_file():
+                    old_file.unlink()
+                    log.info("upload Cleaned old upload: %s", old_file.name)
 
-        # Parse each uploaded file
-        _n_files = len(uploaded_files)
-        _progress = st.progress(0, text=f"Parsing 0/{_n_files} files...")
-        for _file_idx, uploaded in enumerate(uploaded_files):
-            safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
-            _hash = _hl.md5(uploaded.getvalue()).hexdigest()[:10]
-            upload_path = UPLOADS_DIR / f"{_hash}_{safe_name}"
+            # Parse each uploaded file
+            for _file_idx, uploaded in enumerate(uploaded_files):
+                safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
+                _hash = _hl.md5(uploaded.getvalue()).hexdigest()[:10]
+                upload_path = UPLOADS_DIR / f"{_hash}_{safe_name}"
 
-            _progress.progress((_file_idx) / _n_files,
-                               text=f"Parsing {uploaded.name} ({_file_idx + 1}/{_n_files})...")
+                _progress.progress(_file_idx / _total_files,
+                                   text=f"Parsing {uploaded.name} ({_file_idx + 1}/{_total_files})...")
+                try:
+                    _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
+                    events = parse_file_cached(upload_path, content_hash=_hash,
+                                               cache_dir=UPLOADS_DIR / ".cache",
+                                               max_lines=max_lines, format_name=_fmt_name,
+                                               sample_info=10 if sample_info_events else 0)
+                    _stem = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
+                    for ev in events:
+                        ev["system_label"] = _stem
+                    all_events.extend(events)
+                    log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
+                except Exception as ex:
+                    log.error("analysis Failed to parse %s: %s", uploaded.name, ex)
+                    st.error(f"Failed to parse {uploaded.name}: {ex}")
+
+        # --- Parse folder files (read directly from disk) ---
+        for _fi, _df in enumerate(_folder_files):
+            _idx = _upload_count + _fi
+            _progress.progress(_idx / _total_files,
+                               text=f"Parsing {_df.relative_path} ({_idx + 1}/{_total_files})...")
             try:
                 _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
-                events = parse_file_cached(upload_path, content_hash=_hash,
-                                           cache_dir=UPLOADS_DIR / ".cache",
-                                           max_lines=max_lines, format_name=_fmt_name,
-                                           sample_info=10 if sample_info_events else 0)
-                # Add system label (filename stem without timestamp prefix)
-                _stem = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
+                events = parse_file(_df.path, max_lines=max_lines, format_name=_fmt_name)
+                _stem = _df.path.stem if _df.path.suffix.lower() != ".gz" else Path(_df.path.stem).stem
+                _label = f"{_df.group}/{_stem}" if _df.group else _stem
                 for ev in events:
-                    ev["system_label"] = _stem
+                    ev.system_label = _label
                 all_events.extend(events)
-                log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
+                log.info("analysis Parsed %d events from %s", len(events), _df.relative_path)
             except Exception as ex:
-                log.error("analysis Failed to parse %s: %s", uploaded.name, ex)
-                st.error(f"Failed to parse {uploaded.name}: {ex}")
-        _progress.progress(1.0, text=f"Parsed {_n_files} files ({len(all_events):,} events). Analyzing...")
+                log.error("analysis Failed to parse %s: %s", _df.relative_path, ex)
+                st.error(f"Failed to parse {_df.relative_path}: {ex}")
+
+        _progress.progress(1.0, text=f"Parsed {_total_files} files ({len(all_events):,} events). Analyzing...")
 
         # Sort all events chronologically across files
         from logpilot.analysis import sort_events_chronologically
