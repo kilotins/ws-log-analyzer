@@ -622,16 +622,17 @@ def _render_ai_history():
             query_preview = entry.get("query", "")[:80]
             provider_label = entry.get("provider", label)
             ts = entry.get("timestamp", "")
-            with st.expander(f"{provider_label} — {query_preview} ({ts})"):
-                col_content, col_delete = st.columns([10, 1])
-                with col_content:
+            # Delete button OUTSIDE expander to avoid Streamlit key issues
+            col_exp, col_del = st.columns([12, 1])
+            with col_exp:
+                with st.expander(f"{provider_label} — {query_preview} ({ts})"):
                     _render_claude_response(entry["answer"])
-                with col_delete:
-                    if st.button("🗑️", key=f"del_{hist_key}_{orig_idx}",
-                                 help="Remove this response"):
-                        st.session_state["_pending_hist_delete"] = {
-                            "hist_key": hist_key,
-                            "provider_key": provider_key,
-                            "idx": orig_idx,
-                        }
-                        st.rerun()
+            with col_del:
+                if st.button("🗑️", key=f"del_{hist_key}_{orig_idx}",
+                             help="Remove this response"):
+                    st.session_state["_pending_hist_delete"] = {
+                        "hist_key": hist_key,
+                        "provider_key": provider_key,
+                        "idx": orig_idx,
+                    }
+                    st.rerun()
