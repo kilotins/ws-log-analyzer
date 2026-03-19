@@ -853,6 +853,10 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
       8. Event Samples + Cascades — drill into data
       9. Export — download results
     """
+    # Process pending AI history deletions BEFORE rendering (ensures it runs on every rerun)
+    from app_incident import process_pending_delete
+    process_pending_delete()
+
     st.success(f"Parsed {a['total_events']} events from {a['file_count']} file(s).")
 
     # --- 0. Global Filters (Source + Severity) ---
