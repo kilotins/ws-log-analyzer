@@ -327,3 +327,100 @@ class TestConstants:
         assert DEFAULT_MAX_FILES == 100
         assert DEFAULT_MAX_TOTAL_SIZE == 500 * 1024 * 1024
         assert DEFAULT_MAX_FILE_SIZE == 100 * 1024 * 1024
+
+
+# ── P4: Integration with parser pipeline ────────────────────────────
+
+
+class TestPipelineIntegration:
+    """Test that discovered files parse correctly and retain metadata."""
+
+    def test_scenario_files_discoverable(self):
+        """The scenario fixture directory should discover all 6 log files."""
+        scenario = Path(__file__).parent / "fixtures" / "scenario"
+        result = discover_log_files(scenario)
+        assert len(result.accepted) == 6
+
+    def test_discovered_files_parseable(self):
+        """All discovered scenario files should parse without error."""
+        from logpilot.parser import parse_file
+
+        scenario = Path(__file__).parent / "fixtures" / "scenario"
+        result = discover_log_files(scenario)
+        total = 0
+        for df in result.accepted:
+            events = parse_file(df.path)
+            assert len(events) > 0, f"{df.relative_path} produced no events"
+            total += len(events)
+        assert total == 85  # known count from scenario
+
+    def test_group_labels_in_nested_structure(self, tmp_path):
+        """Files in subdirs get group labels from path."""
+        import shutil
+        scenario = Path(__file__).parent / "fixtures" / "scenario"
+        # Create nested structure
+        (tmp_path / "frontend").mkdir()
+        (tmp_path / "backend").mkdir()
+        shutil.copy(scenario / "frontend-lb.log", tmp_path / "frontend" / "access.log")
+        shutil.copy(scenario / "checkout-was.log", tmp_path / "backend" / "app.log")
+
+        result = discover_log_files(tmp_path)
+        groups = {df.group for df in result.accepted}
+        assert "frontend" in groups
+        assert "backend" in groups
+
+    def test_system_label_from_group(self, tmp_path):
+        """system_label should include group prefix when files are nested."""
+        import shutil
+        from logpilot.parser import parse_file
+        from logpilot.analysis import per_source_summary
+
+        scenario = Path(__file__).parent / "fixtures" / "scenario"
+        (tmp_path / "api").mkdir()
+        shutil.copy(scenario / "checkout-was.log", tmp_path / "api" / "server.log")
+        shutil.copy(scenario / "frontend-lb.log", tmp_path / "access.log")
+
+        result = discover_log_files(tmp_path)
+        all_events = []
+        for df in result.accepted:
+            evts = parse_file(df.path)
+            stem = df.path.stem
+            label = f"{df.group}/{stem}" if df.group else stem
+            for e in evts:
+                e.system_label = label
+            all_events.extend(evts)
+
+        sources = per_source_summary(all_events)
+        labels = {s["label"] for s in sources}
+        assert "api/server" in labels
+        assert "access" in labels
+
+    def test_many_sources_handled(self, tmp_path):
+        """per_source_summary handles 12+ sources gracefully."""
+        from logpilot.parser import parse_file
+        from logpilot.analysis import per_source_summary
+
+        # Create 12 files with simple content
+        for i in range(12):
+            (tmp_path / f"svc{i:02d}.log").write_text(
+                f"[10/12/15 21:22:04:257 CEST] 0000001a Comp E CODE{i:02d}E: Error in service {i}\n"
+            )
+
+        result = discover_log_files(tmp_path)
+        all_events = []
+        for df in result.accepted:
+            evts = parse_file(df.path)
+            for e in evts:
+                e.system_label = df.path.stem
+            all_events.extend(evts)
+
+        sources = per_source_summary(all_events)
+        assert len(sources) == 12
+
+    def test_public_api_exports(self):
+        """Discovery classes should be importable from logpilot."""
+        from logpilot import discover_log_files, DiscoveredFile, DiscoveryResult, RejectedFile
+        assert callable(discover_log_files)
+        assert DiscoveredFile is not None
+        assert DiscoveryResult is not None
+        assert RejectedFile is not None
