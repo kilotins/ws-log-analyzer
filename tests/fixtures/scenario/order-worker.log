@@ -1,0 +1,29 @@
+2025-03-15 14:25:00,100 - celery.worker - INFO - Connected to amqp://guest:**@10.0.1.3:5672//
+2025-03-15 14:25:01,200 - celery.worker - INFO - celery@order-worker-1 ready.
+2025-03-15 14:26:00,000 - orders.tasks - INFO - Processing order #88712: inventory check passed
+2025-03-15 14:27:00,500 - orders.tasks - INFO - Order #88713 fulfilled successfully
+2025-03-15 14:28:00,000 - celery.worker - INFO - Heartbeat OK, active tasks: 0
+2025-03-15 14:30:30,456 - celery.worker - ERROR - celery Task orders.tasks.process_order[abc123] raised unexpected: SoftTimeLimitExceeded()
+Traceback (most recent call last):
+  File "/app/orders/tasks.py", line 45, in process_order
+    result = db.session.execute(query)
+  File "/app/venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2230, in execute
+    return self._execute_internal(statement)
+celery.exceptions.SoftTimeLimitExceeded: SoftTimeLimitExceeded()
+2025-03-15 14:30:32,100 - orders.tasks - ERROR - Database connection failed for order #88750
+Traceback (most recent call last):
+  File "/app/orders/tasks.py", line 38, in process_order
+    conn = psycopg2.connect(dsn=DATABASE_URL)
+  File "/app/venv/lib/python3.11/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn)
+psycopg2.OperationalError: could not connect to server: Connection refused
+	Is the server running on host "10.0.1.5" and accepting TCP/IP connections on port 5432?
+2025-03-15 14:30:33,500 - orders.tasks - ERROR - Retry 1/3 for order #88751 failed
+Traceback (most recent call last):
+  File "/app/orders/tasks.py", line 38, in process_order
+    conn = psycopg2.connect(dsn=DATABASE_URL)
+psycopg2.OperationalError: could not connect to server: Connection refused
+2025-03-15 14:30:35,000 - orders.tasks - WARNING - Queue depth rising: 23 pending orders
+2025-03-15 14:31:00,000 - celery.worker - ERROR - celery Task orders.tasks.send_confirmation[def456] raised unexpected: SoftTimeLimitExceeded()
+2025-03-15 14:35:00,000 - orders.tasks - ERROR - Database still unreachable after 5 minutes, switching to fallback queue
+2025-03-15 14:40:00,000 - orders.tasks - INFO - Database connection restored, processing backlog of 45 orders

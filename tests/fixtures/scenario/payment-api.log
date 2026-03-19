@@ -1,0 +1,24 @@
+2025-03-15 14:25:00,100 INFO  [main] com.example.payment.PaymentApplication - Starting PaymentApplication v2.4.1 using Java 17.0.8
+2025-03-15 14:25:01,500 INFO  [main] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-03-15 14:25:02,200 INFO  [main] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-03-15 14:25:03,000 INFO  [main] com.example.payment.PaymentApplication - Started PaymentApplication in 3.2 seconds
+2025-03-15 14:26:00,000 INFO  [http-nio-8080-exec-1] com.example.payment.controller.PaymentController - Processing payment for order #88712
+2025-03-15 14:27:00,500 INFO  [http-nio-8080-exec-2] com.example.payment.controller.PaymentController - Payment confirmed for order #88713
+2025-03-15 14:28:00,000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats (total=10, active=2, idle=8, waiting=0)
+2025-03-15 14:30:12,456 ERROR [http-nio-8080-exec-3] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Connection is not available, request timed out after 30000ms.
+        java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+                at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+                at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+                at com.example.payment.dao.PaymentDAO.processCharge(PaymentDAO.java:45)
+2025-03-15 14:30:13,100 ERROR [http-nio-8080-exec-4] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Connection is not available, request timed out after 30000ms.
+2025-03-15 14:30:15,789 ERROR [http-nio-8080-exec-5] com.example.payment.gateway.StripeClient - Payment gateway request failed
+        java.net.SocketTimeoutException: Read timed out
+                at java.net.SocketInputStream.socketRead0(Native Method)
+                at com.example.payment.gateway.StripeClient.chargeCard(StripeClient.java:112)
+        Caused by: java.net.SocketTimeoutException: connect timed out
+                at java.net.PlainSocketImpl.socketConnect(Native Method)
+2025-03-15 14:30:16,500 ERROR [http-nio-8080-exec-3] com.example.payment.controller.PaymentController - Failed to process payment for order #88750
+2025-03-15 14:30:17,000 WARN  [http-nio-8080-exec-6] com.example.payment.controller.PaymentController - Retrying payment for order #88751, attempt 2/3
+2025-03-15 14:30:30,000 ERROR [http-nio-8080-exec-6] com.example.payment.controller.PaymentController - Payment retry exhausted for order #88751
+2025-03-15 14:35:00,000 WARN  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats (total=10, active=10, idle=0, waiting=12)
+2025-03-15 14:40:00,000 INFO  [http-nio-8080-exec-1] com.example.payment.controller.PaymentController - Payment processed successfully for order #88760, service recovering.

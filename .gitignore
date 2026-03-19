@@ -2,6 +2,7 @@
 __pycache__
 .pytest_cache
 *.log
+!tests/fixtures/**/*.log
 *.gz
 report.md
 report-*.md
