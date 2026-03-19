@@ -864,6 +864,10 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         import hashlib as _hl
         _filter_hash = _hl.md5(str(len(display_events)).encode() + str(sum(hash(e.get("ts", "")) for e in display_events[:100])).encode()).hexdigest()[:12]
         _filter_key = f"_fa_{len(display_events)}_{_filter_hash}"
+        # Evict old filter cache entries (keep max 5)
+        _old_fa = [k for k in st.session_state if k.startswith("_fa_") and k != _filter_key]
+        for _ok in _old_fa[:-4]:  # keep 4 most recent + current
+            del st.session_state[_ok]
         fa = st.session_state.get(_filter_key)
         if fa is None:
             fa = precompute_analysis(
@@ -1081,8 +1085,14 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         from datetime import datetime as _dt
         _base = f"report_{_dt.now().strftime('%Y-%m-%d_%H-%M-%S')}.md"
         # Generate export data lazily — only when format/AI/sections change
-        _sec_hash = hash((frozenset(_selected_sections), frozenset(_selected_ai)))
-        _export_key = f"_export_{_export_fmt}_{len(events_for_export)}_{hash(str(_ai_content))}_{_sec_hash}"
+        import hashlib as _hl_exp
+        _sec_hash = _hl_exp.md5(str(sorted(_selected_sections)).encode() + str(sorted(_selected_ai)).encode()).hexdigest()[:12]
+        _ai_hash = _hl_exp.md5(str(_ai_content).encode()).hexdigest()[:12] if _ai_content else "none"
+        _export_key = f"_export_{_export_fmt}_{len(events_for_export)}_{_ai_hash}_{_sec_hash}"
+        # Evict old export cache entries (keep max 5)
+        _old_exp = [k for k in st.session_state if k.startswith("_export_") and k != _export_key]
+        for _ok in _old_exp[:-4]:
+            del st.session_state[_ok]
         _cached_export = st.session_state.get(_export_key)
         if _cached_export:
             _data, _fname, _mime = _cached_export

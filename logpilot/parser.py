@@ -406,7 +406,22 @@ def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = No
             with gzip.open(cache_path, "wt", encoding="utf-8") as f:
                 f.write(json.dumps(data, separators=(",", ":")))
             _log.info("Cached %d events for %s", len(events), path.name)
+            # Evict oldest cache files if more than 50
+            _evict_parse_cache(cache_dir, max_files=50)
         except Exception as ex:
             _log.warning("Cache write failed: %s", ex)
 
     return events
+
+
+def _evict_parse_cache(cache_dir: Path, max_files: int = 50) -> None:
+    """Remove oldest parse cache files if count exceeds max_files."""
+    try:
+        cache_files = sorted(cache_dir.glob("parsed_*.json.gz"),
+                             key=lambda f: f.stat().st_mtime)
+        if len(cache_files) > max_files:
+            for old in cache_files[:len(cache_files) - max_files]:
+                old.unlink(missing_ok=True)
+                _log.debug("Evicted parse cache: %s", old.name)
+    except OSError:
+        pass
