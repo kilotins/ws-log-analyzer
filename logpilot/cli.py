@@ -17,6 +17,7 @@ def main() -> None:
     """CLI entry point: parse log files, generate triage report."""
     ap = argparse.ArgumentParser(description="LogPilot — Log analyzer (quick triage).")
     ap.add_argument("paths", nargs="*", help="Log files (supports .gz). Globs allowed by shell.")
+    ap.add_argument("-d", "--directory", default=None, help="Recursively scan directory for log files.")
     ap.add_argument("--max-lines", type=int, default=None, help="Limit lines per file (speed/safety).")
     ap.add_argument("--top", type=int, default=10, help="Top-N items in summary.")
     ap.add_argument("--samples", type=int, default=5, help="How many sample events to print.")
@@ -45,16 +46,37 @@ def main() -> None:
             print(f"  {f['name']:12s}  {f['description']}")
         return
 
-    if not args.paths:
-        ap.error("the following arguments are required: paths")
+    # Collect file paths from both positional args and --directory
+    file_paths: list[Path] = []
+    for p in args.paths:
+        file_paths.append(Path(p).expanduser())
+
+    if args.directory:
+        from .discovery import discover_log_files
+        dir_path = Path(args.directory).expanduser()
+        if not dir_path.is_dir():
+            ap.error(f"--directory: {dir_path} is not a directory")
+        result = discover_log_files(dir_path)
+        if not args.quiet:
+            print(f"  Scanned {dir_path}: {len(result.accepted)} files ({len(result.rejected)} skipped)", file=sys.stderr)
+            if result.truncated:
+                print(f"  Warning: {result.truncation_reason}", file=sys.stderr)
+        for df in result.accepted:
+            file_paths.append(df.path)
+
+    if not file_paths:
+        ap.error("no input: provide file paths or --directory")
 
     all_events: list[LogEvent] = []
-    for p in args.paths:
-        path = Path(p).expanduser()
+    for path in file_paths:
         if not path.exists():
             print(f"Skip (not found): {path}", file=sys.stderr)
             continue
         file_events = parse_file(path, args.max_lines, format_name=args.log_type)
+        # Set system_label from filename stem
+        stem = path.stem if path.suffix.lower() != ".gz" else Path(path.stem).stem
+        for ev in file_events:
+            ev.system_label = stem
         if not args.quiet:
             print(f"  {path.name}: {len(file_events)} events", file=sys.stderr)
         all_events.extend(file_events)
@@ -63,8 +85,8 @@ def main() -> None:
         print("No events parsed. Are the files empty or binary/scanned?", file=sys.stderr)
         sys.exit(2)
 
-    if not args.quiet and len(args.paths) > 1:
-        print(f"  Combined: {len(all_events)} events from {len(args.paths)} files", file=sys.stderr)
+    if not args.quiet and len(file_paths) > 1:
+        print(f"  Combined: {len(all_events)} events from {len(file_paths)} files", file=sys.stderr)
 
     out_path = Path(args.out)
     if args.format == "json" and args.out == "report.md":
