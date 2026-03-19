@@ -36,6 +36,7 @@ class LogEvent:
     system_label: str | None = None
     ts_utc: str | None = None
     source: str | None = None
+    sample_label: str | None = None
 
     # --- Dict-protocol compatibility ---
 

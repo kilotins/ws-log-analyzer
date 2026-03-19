@@ -329,3 +329,62 @@ class TestPrecomputeIntegration:
 
     def test_analysis_has_hung_threads(self, analysis):
         assert len(analysis["hung"]) >= 1
+
+
+# ── M49b: Sample labels ────────────────────────────────────────────
+
+
+class TestSampleLabels:
+    def test_samples_have_labels(self, all_events):
+        from logpilot.analysis import pick_samples
+        samples = pick_samples(all_events, 10)
+        labels = [getattr(s, "sample_label", None) for s in samples]
+        labeled = [l for l in labels if l]
+        assert len(labeled) >= 1, "At least one sample should have a label"
+
+    def test_first_error_label(self, all_events):
+        from logpilot.analysis import pick_samples
+        samples = pick_samples(all_events, 10)
+        labels = {getattr(s, "sample_label", None) for s in samples}
+        assert "First error" in labels
+
+    def test_most_frequent_label(self, all_events):
+        from logpilot.analysis import pick_samples
+        samples = pick_samples(all_events, 10)
+        labels = {getattr(s, "sample_label", None) for s in samples}
+        assert "Most frequent" in labels
+
+    def test_cascade_trigger_or_first_error(self, all_events):
+        """Cascade trigger event may overlap with First error — at least one must be labeled."""
+        from logpilot.analysis import pick_samples
+        samples = pick_samples(all_events, 10)
+        labels = {getattr(s, "sample_label", None) for s in samples}
+        assert labels & {"Cascade trigger", "First error"}, f"Expected cascade or first error label, got {labels}"
+
+
+# ── M49b: Filename strip ───────────────────────────────────────────
+
+
+class TestFilenameStrip:
+    def test_hash_prefix_stripped_in_report_meta(self):
+        """Hash prefix (e.g. 'a3b4c5d6e7_') should be stripped from filenames."""
+        from logpilot.reports.config import _report_meta
+        a = {
+            "file_summary": [("a3b4c5d6e7_server.log", 10, 3)],
+            "summary": {"total_events": 10},
+            "events": [],
+        }
+        title, subtitle = _report_meta(a)
+        assert "a3b4c5d6e7" not in subtitle
+        assert "server.log" in subtitle
+
+    def test_non_hash_prefix_preserved(self):
+        """Filenames without hash prefix should be unchanged."""
+        from logpilot.reports.config import _report_meta
+        a = {
+            "file_summary": [("checkout-was.log", 17, 7)],
+            "summary": {"total_events": 17},
+            "events": [],
+        }
+        title, subtitle = _report_meta(a)
+        assert "checkout-was.log" in subtitle

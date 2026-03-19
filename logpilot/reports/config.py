@@ -58,7 +58,15 @@ def _report_meta(a: dict) -> tuple[str, str]:
     from ..analysis import parse_ts_datetime
 
     file_summary = a.get("file_summary", [])
-    names = [Path(f).name for f, _, _ in file_summary]
+    names = []
+    for f, _, _ in file_summary:
+        name = Path(f).name
+        # Strip hash prefix (e.g. "a3b4c5d6e7_server.log" → "server.log")
+        if "_" in name and len(name.split("_", 1)[0]) == 10:
+            prefix = name.split("_", 1)[0]
+            if all(c in "0123456789abcdef" for c in prefix):
+                name = name.split("_", 1)[1]
+        names.append(name)
     if len(names) <= 3:
         files_str = ", ".join(names)
     else:

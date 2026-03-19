@@ -138,6 +138,48 @@ def render_summary(s, error_count, file_count, file_summary, events=None, incide
             st.text(f"  {count:>4}  {tag}")
 
 
+def _render_incident_overview(causes, analysis_dict):
+    """Render compact Incident Overview — always visible, above Summary.
+
+    Shows primary incident, affected systems, first detected time.
+    If AI analysis exists, shows it inline below the deterministic data.
+    """
+    if not causes:
+        return
+
+    from logpilot.heuristics import group_into_incidents
+    grouped = group_into_incidents(causes)
+    groups = grouped.get("groups", [])
+    if not groups:
+        return
+
+    primary = groups[0]
+    if not primary.get("is_primary"):
+        return
+
+    # Compact overview
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown(f"### {primary['name']}")
+        st.markdown(f"*{primary['narrative']}*")
+    with col2:
+        systems = primary.get("affected_systems", [])
+        ts = primary.get("first_trigger_ts", "")
+        if ts:
+            ts_short = ts.split("T")[-1][:8] if "T" in ts else ts
+            st.metric("First detected", ts_short)
+        st.caption(f"{len(systems)} system{'s' if len(systems) != 1 else ''} affected")
+
+    # AI answer inline (if available)
+    ai_answer = st.session_state.get("_incident_answer")
+    ai_model = st.session_state.get("_incident_model")
+    if ai_answer:
+        with st.expander(f"AI Analysis ({ai_model or 'unknown'})", expanded=False):
+            st.markdown(ai_answer)
+    else:
+        st.caption("Run Incident AI Assistant below to enrich with AI analysis.")
+
+
 def render_likely_causes(causes):
     """Render likely causes section with incident grouping, ranking, and evidence."""
     if not causes:
@@ -388,6 +430,10 @@ def render_samples(samples, all_events=None):
         source_label = e.get("system_label") or e.get("source") or ""
         if source_label:
             header += f" — {source_label}"
+        # Sample label (e.g. "First error", "Most frequent", "Cascade trigger")
+        sample_label = getattr(e, "sample_label", None) or e.get("sample_label")
+        if sample_label:
+            header += f"  [{sample_label}]"
         st.markdown(f"**{header}**")
         parts = []
         if e["tags"]:
@@ -842,6 +888,9 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         display_samples = a["samples"]
         display_itl = a.get("incident_timeline")
 
+    # --- 0b. Incident Overview (always visible) ---
+    _render_incident_overview(display_causes, a)
+
     # --- 1. Summary ---
     with st.expander("Summary", expanded=True):
         render_summary(display_summary, display_error_count, a["file_count"], a["file_summary"],
@@ -926,8 +975,18 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     # Collect AI content from session_state for export
     _ai_content = _collect_ai_content()
 
-    st.subheader("Export Log Analysis Report")
+    st.subheader("Generate Report")
     _ai_note = " + AI analysis" if _ai_content else ""
+
+    # Report presets
+    _PRESETS = {
+        "Custom": None,
+        "Quick Diagnosis": {"onset", "causes", "samples"},
+        "Incident Report": {"onset", "causes", "hung", "timeline", "samples", "ai"},
+        "Deep Analysis": None,  # All sections
+    }
+    _preset = st.selectbox("Report preset", list(_PRESETS.keys()), key="report_preset",
+                           help="Quick Diagnosis: causes + samples. Incident Report: full triage. Deep Analysis: everything.")
 
     # Section selection — only show sections that have data
     from logpilot import REPORT_SECTIONS, ALL_SECTIONS
@@ -971,12 +1030,18 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     _selected_sections: set[str] = set()
     _selected_ai: set[str] = set()
+    _preset_sections = _PRESETS.get(_preset)
     if _available:
-        with st.expander("Report sections", expanded=False):
+        with st.expander("Report sections", expanded=(_preset == "Custom")):
             _cols = st.columns(3)
             for i, (key, label) in enumerate(_available.items()):
+                # Preset determines default value
+                if _preset_sections is not None:
+                    _default = key in _preset_sections
+                else:
+                    _default = True
                 with _cols[i % 3]:
-                    if st.checkbox(label, value=True, key=f"export_sec_{key}"):
+                    if st.checkbox(label, value=_default, key=f"export_sec_{key}_{_preset}"):
                         _selected_sections.add(key)
             # Per-AI-entry selection
             if "ai" in _selected_sections and len(_ai_entries) > 1:

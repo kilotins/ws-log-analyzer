@@ -336,7 +336,46 @@ def render_histogram(hist: list[tuple[str, int, int]], bar_width: int = 40) -> l
 
 
 def pick_samples(events: list[LogEvent], n: int) -> list[LogEvent]:
-    """Select diverse sample events (by code/exception/tag)."""
+    """Select diverse sample events (by code/exception/tag).
+
+    Each returned event gets a ``sample_label`` attribute describing why
+    it was selected (e.g. "First error", "Most frequent", "Cascade trigger").
+    """
+    if not events:
+        return []
+
+    # --- Identify special events ---
+    first_error = None
+    for e in events:
+        if e.level in ERROR_LEVELS and (e.ts_utc or e.ts):
+            first_error = e
+            break
+
+    # Most frequent (code, exception) combo
+    from collections import Counter
+    combo_counts: Counter = Counter()
+    for e in events:
+        if e.level in ERROR_LEVELS:
+            key = (e.code or "", e.exception or "")
+            if key != ("", ""):
+                combo_counts[key] += 1
+    most_frequent_key = combo_counts.most_common(1)[0][0] if combo_counts else None
+    most_frequent_event = None
+    if most_frequent_key:
+        for e in events:
+            if (e.code or "", e.exception or "") == most_frequent_key and e.level in ERROR_LEVELS:
+                most_frequent_event = e
+                break
+
+    # Cascade trigger — first event with DB/Pool or OOM/GC tag
+    cascade_trigger = None
+    for e in events:
+        if e.level in ERROR_LEVELS and e.tags:
+            if any(t in ("DB/Pool", "OOM/GC", "HungThreads") for t in e.tags):
+                cascade_trigger = e
+                break
+
+    # --- Standard diverse selection ---
     seen: set[tuple] = set()
     unique = []
     for e in events:
@@ -354,7 +393,30 @@ def pick_samples(events: list[LogEvent], n: int) -> list[LogEvent]:
         if e.code: s += 1
         if e.tags: s += 1
         return -s
-    return sorted(unique, key=score)[:n]
+
+    selected = sorted(unique, key=score)[:n]
+
+    # Ensure special events are included
+    special = [(first_error, "First error"), (most_frequent_event, "Most frequent"),
+               (cascade_trigger, "Cascade trigger")]
+    for evt, _label in special:
+        if evt and evt not in selected:
+            if len(selected) >= n:
+                selected[-1] = evt  # Replace lowest-priority
+            else:
+                selected.append(evt)
+
+    # Assign labels
+    labeled_ids: set[int] = set()
+    for evt, label in special:
+        if evt:
+            for s in selected:
+                if s is evt and id(s) not in labeled_ids:
+                    s.sample_label = label  # type: ignore[attr-defined]
+                    labeled_ids.add(id(s))
+                    break
+
+    return selected
 
 
 def per_file_summary(events: list[LogEvent]) -> list[tuple[str, int, int]]:
