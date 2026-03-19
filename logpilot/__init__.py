@@ -59,6 +59,9 @@ from .ai import (
     MAX_SKILLS,
 )
 
+# --- discovery ---
+from .discovery import discover_log_files, DiscoveredFile, DiscoveryResult, RejectedFile
+
 # --- cli ---
 from .cli import main
 
@@ -93,6 +96,8 @@ __all__ = [
     "build_incident_system_prompt", "build_incident_user_prompt", "incident_cache_key",
     "TOKEN_LIMITS", "estimate_tokens", "claude_cache_key", "ask_gemini",
     "MAX_SKILLS",
+    # discovery
+    "discover_log_files", "DiscoveredFile", "DiscoveryResult", "RejectedFile",
     # event
     "LogEvent",
     # cli
