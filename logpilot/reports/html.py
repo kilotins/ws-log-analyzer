@@ -351,18 +351,11 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
             if directive:
                 h.append(f'<p><strong>{escape(directive)}</strong></p>')
 
-            # Evidence
-            ev_parts = []
-            for t in g.get("triggers", []):
-                ev = t.get("evidence", {})
-                if ev.get("ip_addresses"):
-                    ev_parts.append(f'Targets: {", ".join(ev["ip_addresses"])}')
-                if ev.get("durations"):
-                    ev_parts.append(f'Durations: {", ".join(ev["durations"][:3])}')
-                if ev.get("exceptions"):
-                    ev_parts.append(f'Exceptions: {", ".join(ev["exceptions"])}')
-            if ev_parts:
-                h.append(f'<pre style="font-size:12px;padding:8px">{escape(chr(10).join(dict.fromkeys(ev_parts)))}</pre>')
+            # Evidence (deduplicated)
+            from ..heuristics import collect_group_evidence
+            ev_lines = collect_group_evidence(g)
+            if ev_lines:
+                h.append(f'<pre style="font-size:12px;padding:8px">{escape(chr(10).join(ev_lines))}</pre>')
 
             for t in g["triggers"]:
                 h.append(f'<p><strong>{escape(t["title"])}</strong> ({t["count"]} event{"s" if t["count"] != 1 else ""})')

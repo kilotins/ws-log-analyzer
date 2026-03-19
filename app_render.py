@@ -179,18 +179,11 @@ def render_likely_causes(causes):
             else:
                 st.caption(directive)
 
-        # Evidence summary (compact)
-        _evidence_parts = []
-        for t in g.get("triggers", []):
-            ev = t.get("evidence", {})
-            if ev.get("ip_addresses"):
-                _evidence_parts.append(f"Targets: {', '.join(ev['ip_addresses'])}")
-            if ev.get("durations"):
-                _evidence_parts.append(f"Durations: {', '.join(ev['durations'][:3])}")
-            if ev.get("exceptions"):
-                _evidence_parts.append(f"Exceptions: {', '.join(ev['exceptions'])}")
-        if _evidence_parts:
-            st.code("\n".join(dict.fromkeys(_evidence_parts)), language=None)
+        # Evidence summary (compact, deduplicated)
+        from logpilot.heuristics import collect_group_evidence
+        _evidence_lines = collect_group_evidence(g)
+        if _evidence_lines:
+            st.code("\n".join(_evidence_lines), language=None)
 
         # Triggers
         for t in g["triggers"]:

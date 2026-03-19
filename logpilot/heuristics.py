@@ -128,7 +128,7 @@ _HEURISTICS, _CORRELATIONS, _INCIDENT_GROUPS = _load_all_data()
 
 _IP_PORT_RE = re.compile(r'\b(\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?)\b')
 _DURATION_RE = re.compile(r'(\d[\d,]*)\s*(ms|milliseconds?|seconds?|s)\b', re.IGNORECASE)
-_HOSTNAME_RE = re.compile(r'(?:upstream|connecting to|host)\s+["\']?([a-zA-Z0-9._-]+(?::\d+)?)', re.IGNORECASE)
+_HOSTNAME_RE = re.compile(r'(?:upstream|connecting to|host)\s+["\']?([a-zA-Z][a-zA-Z0-9._-]*\.[a-zA-Z0-9._-]+(?::\d+)?)', re.IGNORECASE)
 
 
 def extract_evidence(events: list[LogEvent], match_re: re.Pattern) -> dict[str, Any]:  # type: ignore[type-arg]
@@ -181,9 +181,11 @@ def extract_evidence(events: list[LogEvent], match_re: re.Pattern) -> dict[str, 
         for m in _DURATION_RE.finditer(text):
             durations.append(f"{m.group(1)} {m.group(2)}")
 
-        # Hostnames
+        # Hostnames (exclude bare IPs — those go in ip_addresses)
         for m in _HOSTNAME_RE.finditer(text):
-            hostnames.add(m.group(1))
+            host = m.group(1)
+            if not re.match(r'^\d{1,3}(\.\d{1,3}){3}', host):
+                hostnames.add(host)
 
         # Exceptions
         if e.exception:
@@ -411,6 +413,37 @@ def _merge_evidence(evidence_list: list[dict[str, Any]]) -> dict[str, Any]:
     merged["exceptions"] = sorted(set(merged["exceptions"]))[:5]
     merged["threads"] = sorted(set(merged["threads"]))[:5]
     return merged
+
+
+def collect_group_evidence(group: dict[str, Any]) -> list[str]:
+    """Collect deduplicated evidence lines from all triggers in a group.
+
+    Returns a list of unique "Key: value" strings suitable for display.
+    """
+    all_ips: set[str] = set()
+    all_durations: list[str] = []
+    all_exceptions: set[str] = set()
+    all_hostnames: set[str] = set()
+
+    for t in group.get("triggers", []):
+        ev = t.get("evidence", {})
+        all_ips.update(ev.get("ip_addresses", []))
+        for d in ev.get("durations", []):
+            if d not in all_durations:
+                all_durations.append(d)
+        all_exceptions.update(ev.get("exceptions", []))
+        all_hostnames.update(ev.get("hostnames", []))
+
+    lines: list[str] = []
+    if all_ips:
+        lines.append(f"Targets: {', '.join(sorted(all_ips))}")
+    if all_hostnames:
+        lines.append(f"Hosts: {', '.join(sorted(all_hostnames))}")
+    if all_durations:
+        lines.append(f"Durations: {', '.join(all_durations[:4])}")
+    if all_exceptions:
+        lines.append(f"Exceptions: {', '.join(sorted(all_exceptions))}")
+    return lines
 
 
 def _heuristic_keywords(h: dict) -> list[str]:
