@@ -84,8 +84,6 @@ def render_html_report(
         _add_nav("Exceptions")
     if _sec(sections, "tags") and s["tags"]:
         _add_nav("Signal Tags")
-    if _sec(sections, "splunk") and a.get("splunk"):
-        _add_nav("Splunk Searches")
     if _sec(sections, "hung") and hung:
         _add_nav("Hung Thread Drilldown")
     if _sec(sections, "timeline"):
@@ -393,16 +391,7 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
             h.append(f'<span class="tag">{escape(tag)}: {count:,}</span>')
         _close_section()
 
-    # 8. Splunk searches
-    splunk = a.get("splunk", [])
-    if _sec(sections, "splunk") and splunk:
-        _open_section()
-        for sq in splunk:
-            h.append(f'<h3>{escape(sq["description"])}</h3>')
-            h.append(f'<pre>{escape(sq["query"])}</pre>')
-        _close_section()
-
-    # 9. Hung threads
+    # 8. Hung threads
     if _sec(sections, "hung") and hung:
         _open_section()
         for t in hung:

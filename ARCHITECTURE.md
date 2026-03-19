@@ -5,9 +5,8 @@ ws-log-analyzer/
 ├── logpilot/             # Core engine package (parser, analysis, reports, ai, cli)
 │   ├── event.py          # LogEvent dataclass (66 lines)
 │   ├── parser.py         # Parsing, redaction, format auto-detection (~412 lines)
-│   ├── analysis.py       # Summarize, timeline, cross-system cascades (~859 lines)
+│   ├── analysis.py       # Summarize, timeline, cross-system cascades, hung thread drilldown (~900 lines)
 │   ├── heuristics.py     # Heuristics, correlations, incidents (~1449 lines)
-│   ├── splunk.py         # Splunk query generation, hung thread drilldown (~141 lines)
 │   ├── reports.py        # Markdown, JSON, HTML, PDF renderers (~1054 lines)
 │   ├── ai.py             # AI prompt building, skill selection, caching (~866 lines)
 │   ├── cli.py            # CLI entry point (argparse) (~164 lines)
@@ -127,6 +126,7 @@ Split across three modules:
 | `detect_cross_system_cascades()` | 6 cascade patterns (DB→HTTP, SSL→conn, OOM→threads, etc.) |
 | `correlate_by_trace_id()` | Groups events by shared trace/correlation IDs |
 | `find_cross_system_chains()` | Finds request flows spanning multiple systems |
+| `hung_thread_drilldown()` | Per-thread analysis: counts, first/last timestamps, hex IDs, stack samples |
 | `precompute_analysis()` | Computes all shared analysis data once for renderers |
 
 **`heuristics.py`** — Pattern matching and incident grouping:
@@ -138,13 +138,6 @@ Split across three modules:
 | `_detect_burst()` | Sliding window: 50+ errors in 120s = error storm |
 | `_severity_score()` | FATAL=10, ERROR=3, other=1 |
 | `_merge_heuristics()` | Merges YAML + inline heuristic sources |
-
-**`splunk.py`** — Splunk query generation:
-
-| Function | Purpose |
-|----------|---------|
-| `suggested_splunk_queries()` | Generates 3-8 Splunk queries based on summary, causes, and timeline |
-| `hung_thread_drilldown()` | Per-thread analysis: counts, first/last timestamps, stack samples, Splunk queries |
 
 ### Reporting Layer
 
@@ -164,7 +157,7 @@ Split across three modules:
 | `_sanitize_prompt_input()` | Strips XML delimiter tags (incl. `<system_instruction>`) from untrusted input |
 | `claude_cache_key()` | Stable cache key from query + match context — SHA-256 hashed |
 | `ask_gemini()` | Gemini API call with separate `system_instruction` parameter |
-| `build_system_prompt()` | Dynamic format-aware system prompt (specialist role, Splunk sourcetype) |
+| `build_system_prompt()` | Dynamic format-aware system prompt (specialist role per log format) |
 | `select_skills()` | Picks relevant domain skill files based on tags, codes, exceptions, query, format |
 | `load_skill_content()` | Reads and concatenates selected skill files for prompt injection |
 | `build_cross_system_prompt()` | Multi-system triage prompt with per-source summaries and cascades |
@@ -268,7 +261,6 @@ Log file(s)  →  parse_file()  →  list[LogEvent]
                                     ├── summarize()
                                     ├── likely_causes()
                                     │   └── group_into_incidents()
-                                    ├── suggested_splunk_queries()
                                     ├── hung_thread_drilldown()
                                     ├── time_histogram()  →  render_histogram()
                                     ├── pick_samples()
