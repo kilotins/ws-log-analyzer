@@ -614,12 +614,15 @@ def _delete_history_entry(hist_key: str, provider_key: str, idx: int) -> None:
                         pass
 
 
-def _render_ai_history():
-    """Render previous AI query history from all providers."""
-    # Process any pending deletion first (before rendering)
+def process_pending_delete():
+    """Process any pending AI history deletion. Call early in the render cycle."""
     _pending = st.session_state.pop("_pending_hist_delete", None)
     if _pending:
         _delete_history_entry(_pending["hist_key"], _pending["provider_key"], _pending["idx"])
+
+
+def _render_ai_history():
+    """Render previous AI query history from all providers."""
 
     for provider_key, hist_key, label in [
         ("claude", "claude_history", "Claude"),
