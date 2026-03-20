@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogPilot Dream Architecture — From Scratch</title>
+<style>
+  :root {
+    --purple: #7C3AED;
+    --purple-light: #EDE9FE;
+    --green: #34D399;
+    --green-light: #D1FAE5;
+    --dark: #0F172A;
+    --gray-50: #F8FAFC;
+    --gray-100: #F1F5F9;
+    --gray-200: #E2E8F0;
+    --gray-300: #CBD5E1;
+    --gray-400: #94A3B8;
+    --gray-500: #64748B;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1E293B;
+    --orange-light: #FFF7ED;
+    --orange: #F97316;
+    --blue-light: #EFF6FF;
+    --blue: #3B82F6;
+    --red-light: #FEF2F2;
+    --red: #EF4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color: var(--dark);
+    line-height: 1.7;
+    background: var(--gray-50);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 3px solid var(--purple);
+  }
+  .header .brand {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+  }
+  .header h1 {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+  }
+  .header .subtitle {
+    font-size: 1.1rem;
+    color: var(--gray-500);
+    font-weight: 400;
+  }
+  .header .date {
+    font-size: 0.85rem;
+    color: var(--gray-400);
+    margin-top: 0.75rem;
+  }
+
+  /* Vision box */
+  .vision {
+    background: linear-gradient(135deg, var(--purple), #6D28D9);
+    color: white;
+    padding: 1.75rem 2rem;
+    border-radius: 12px;
+    margin-bottom: 2.5rem;
+    font-size: 1.15rem;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .vision em { font-style: normal; color: var(--green); font-weight: 700; }
+
+  /* TOC */
+  .toc {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 3rem;
+  }
+  .toc h2 {
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    margin-bottom: 1rem;
+  }
+  .toc ol {
+    columns: 2;
+    column-gap: 2rem;
+    padding-left: 1.25rem;
+  }
+  .toc li {
+    margin-bottom: 0.4rem;
+    font-size: 0.95rem;
+    break-inside: avoid;
+  }
+  .toc a {
+    color: var(--purple);
+    text-decoration: none;
+  }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Sections */
+  section { margin-bottom: 3rem; }
+
+  h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--purple-light);
+  }
+  h2 .num {
+    color: var(--purple);
+    margin-right: 0.25em;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--gray-700);
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin: 1.25rem 0 0.5rem;
+  }
+
+  p { margin-bottom: 0.85rem; }
+
+  /* Lists */
+  ul, ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  li { margin-bottom: 0.35rem; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.9rem;
+  }
+  thead th {
+    background: var(--gray-800);
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+  }
+  thead th:first-child { border-radius: 8px 0 0 0; }
+  thead th:last-child { border-radius: 0 8px 0 0; }
+  tbody td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+  tbody tr:nth-child(even) { background: var(--gray-50); }
+  tbody tr:hover { background: var(--purple-light); }
+
+  /* Code blocks */
+  pre {
+    background: var(--gray-800);
+    color: #E2E8F0;
+    padding: 1.25rem 1.5rem;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    margin: 1rem 0 1.5rem;
+  }
+  pre .comment { color: #64748B; }
+  pre .keyword { color: #C084FC; }
+  pre .string { color: #34D399; }
+  pre .type { color: #38BDF8; }
+
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+    background: var(--gray-100);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: var(--purple);
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  /* Callout boxes */
+  .callout {
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin: 1.25rem 0;
+  }
+  .callout-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem;
+  }
+  .callout-insight {
+    background: var(--purple-light);
+    border-left: 4px solid var(--purple);
+  }
+  .callout-insight .callout-title { color: var(--purple); }
+  .callout-warning {
+    background: var(--orange-light);
+    border-left: 4px solid var(--orange);
+  }
+  .callout-warning .callout-title { color: var(--orange); }
+  .callout-info {
+    background: var(--blue-light);
+    border-left: 4px solid var(--blue);
+  }
+  .callout-info .callout-title { color: var(--blue); }
+  .callout-success {
+    background: var(--green-light);
+    border-left: 4px solid var(--green);
+  }
+  .callout-success .callout-title { color: #059669; }
+
+  /* Diagram box */
+  .diagram {
+    background: var(--dark);
+    color: #CBD5E1;
+    padding: 1.5rem;
+    border-radius: 12px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 1rem 0 1.5rem;
+  }
+
+  /* Comparison table */
+  .compare-table thead th:first-child { min-width: 140px; }
+  .compare-table .dream { color: var(--purple); font-weight: 600; }
+  .compare-table .pragmatic { color: #059669; font-weight: 600; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 2px solid var(--gray-200);
+    color: var(--gray-400);
+    font-size: 0.85rem;
+  }
+  .footer strong { color: var(--gray-600); }
+
+  /* Print */
+  @media print {
+    body { background: white; }
+    .page { padding: 1rem 0; max-width: 100%; }
+    pre, .diagram { font-size: 0.72rem; }
+    section { break-inside: avoid; }
+    h2 { break-after: avoid; }
+    .toc { break-after: page; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="brand">Item Consulting</div>
+  <h1>LogPilot Dream Architecture</h1>
+  <div class="subtitle">From Scratch &mdash; Full Technical Blueprint</div>
+  <div class="date">March 2026</div>
+</div>
+
+<div class="vision">
+  Core value: <em>Turn raw logs into a clear explanation of what is broken and why.</em><br>
+  Not a log viewer. Not a monitoring tool. An incident intelligence platform.
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#architecture">High-Level Architecture</a></li>
+    <li><a href="#stack">Tech Stack Choices</a></li>
+    <li><a href="#deployment">Two Deployment Modes</a></li>
+    <li><a href="#one-codebase">One Codebase &mdash; Adapter Pattern</a></li>
+    <li><a href="#workspaces">Workspaces &amp; Auth</a></li>
+    <li><a href="#ai">AI Integration Layer</a></li>
+    <li><a href="#privacy">Privacy &amp; Data Residency</a></li>
+    <li><a href="#data">Data Processing Strategy</a></li>
+    <li><a href="#integrations">API &amp; Integrations</a></li>
+    <li><a href="#codebase-intelligence">Future: Source Code Lookup</a></li>
+    <li><a href="#packaging">Packaging &amp; Distribution</a></li>
+    <li><a href="#costs">Cost Analysis</a></li>
+    <li><a href="#tradeoffs">Tradeoffs</a></li>
+    <li><a href="#comparison">Dream vs. Pragmatic Stack</a></li>
+  </ol>
+</div>
+
+<!-- 1. HIGH-LEVEL ARCHITECTURE -->
+<section id="architecture">
+<h2><span class="num">1.</span> High-Level Architecture</h2>
+
+<div class="diagram">
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;                          CLIENTS                                &#9474;
+&#9474;  Web App (React)  |  CLI  |  API consumers  |  Integrations    &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+         |              |            |               |
+         v              v            v               v
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;                   API GATEWAY  (FastAPI)                        &#9474;
+&#9474;  Auth | Rate limit | Workspace ctx | File upload | WebSocket   &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+         |
+    &#9484;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+    v                                          v
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;                    &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;  SYNC PATH   &#9474;                    &#9474;   ASYNC WORKERS    &#9474;
+&#9474;  (small jobs) &#9474;                    &#9474;   (via task queue)  &#9474;
+&#9474;   &lt; 50 MB     &#9474;                    &#9474;                    &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;                    &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+       |                                      |
+       v                                      v
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;                  ANALYSIS ENGINE  (Rust / PyO3)                  &#9474;
+&#9474;  Parse | Classify | Heuristics | Correlate | Incidents          &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+    |               |              |              |
+    v               v              v              v
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;   &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;Postgres&#9474;   &#9474;Object    &#9474;  &#9474;ClickHouse&#9474;  &#9474;Redis     &#9474;
+&#9474;(meta,  &#9474;   &#9474;Store     &#9474;  &#9474;(events,  &#9474;  &#9474;(cache,   &#9474;
+&#9474;w.spaces&#9474;   &#9474;(raw logs,&#9474;  &#9474; SaaS     &#9474;  &#9474; sessions,&#9474;
+&#9474;audit)  &#9474;   &#9474;artifacts)&#9474;  &#9474; scale)   &#9474;  &#9474; queue)   &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;   &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+         |
+         v
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;                       AI LAYER                                   &#9474;
+&#9474;  Redaction gate &#8594; Provider router &#8594; Streaming &#8594; Cost tracking  &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</div>
+
+<h3>Data Flow</h3>
+<ol>
+  <li><strong>Ingest</strong> &mdash; Upload via web, CLI, or API &rarr; store raw log in Object Store</li>
+  <li><strong>Parse</strong> &mdash; Rust engine, streaming: raw bytes &rarr; structured LogEvent stream</li>
+  <li><strong>Classify</strong> &mdash; Enrich each event with level, code, exception, signal tags</li>
+  <li><strong>Persist</strong> &mdash; Write structured events to Parquet / ClickHouse</li>
+  <li><strong>Analyze</strong> &mdash; Heuristics, cascades, incidents, evidence extraction</li>
+  <li><strong>Notify</strong> &mdash; WebSocket push: &ldquo;analysis ready&rdquo;</li>
+  <li><strong>AI Explain</strong> &mdash; User-triggered: redaction gate &rarr; provider &rarr; streamed response</li>
+  <li><strong>Report</strong> &mdash; Generate PDF/HTML/JSON/Markdown artifacts</li>
+</ol>
+</section>
+
+<!-- 2. TECH STACK CHOICES -->
+<section id="stack">
+<h2><span class="num">2.</span> Tech Stack Choices</h2>
+
+<table>
+  <thead>
+    <tr><th>Concern</th><th>Choice</th><th>Phase</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Frontend</strong></td>
+      <td>React + TypeScript + Tailwind + shadcn/ui</td>
+      <td><strong>V1</strong></td>
+      <td>LogPilot needs real interactivity: expandable incident trees, timeline scrubbing, live updates, drag-and-drop. React has the largest ecosystem.</td>
+    </tr>
+    <tr>
+      <td><strong>State mgmt</strong></td>
+      <td>Tanstack Query</td>
+      <td><strong>V1</strong></td>
+      <td>Server state with caching, optimistic updates, WebSocket invalidation.</td>
+    </tr>
+    <tr>
+      <td><strong>Charts</strong></td>
+      <td>Recharts or Plotly.js</td>
+      <td><strong>V1</strong></td>
+      <td>Timeline histograms, cascade visualizations.</td>
+    </tr>
+    <tr>
+      <td><strong>Large lists</strong></td>
+      <td>react-virtuoso</td>
+      <td><strong>V1</strong></td>
+      <td>Renders 1M+ events without DOM explosion.</td>
+    </tr>
+    <tr>
+      <td><strong>Log viewer</strong></td>
+      <td>Monaco Editor</td>
+      <td><strong>V1</strong></td>
+      <td>Syntax highlighting, search, familiar (VS Code engine).</td>
+    </tr>
+    <tr>
+      <td><strong>Backend / API</strong></td>
+      <td>Python + FastAPI</td>
+      <td><strong>V1</strong></td>
+      <td>Domain expertise is in Python. FastAPI gives async I/O, OpenAPI docs, Pydantic models, dependency injection.</td>
+    </tr>
+    <tr>
+      <td><strong>Analysis engine</strong></td>
+      <td>Python (V1) &rarr; Rust via PyO3 (V2)</td>
+      <td><strong>V1: Python<br>V2: Rust</strong></td>
+      <td>V1: existing Python parser with ProcessPoolExecutor. V2: Rust rewrite when customers hit GB-scale file limits. PyO3 bridge means same API.</td>
+    </tr>
+    <tr>
+      <td><strong>Background jobs</strong></td>
+      <td>InlineQueue (V1 local) &rarr; Dramatiq + Redis (V1 team)</td>
+      <td><strong>V1</strong></td>
+      <td>Inline for laptop (no Redis needed). Dramatiq + Redis for team/SaaS.</td>
+    </tr>
+    <tr>
+      <td><strong>Primary DB</strong></td>
+      <td>SQLite (local) / PostgreSQL (team/SaaS)</td>
+      <td><strong>V1: both</strong></td>
+      <td>SQLite for zero-config laptop. Postgres for team/SaaS with RLS.</td>
+    </tr>
+    <tr>
+      <td><strong>Event storage</strong></td>
+      <td>Postgres JSONB (V1) &rarr; ClickHouse (scale)</td>
+      <td><strong>V1: Postgres<br>Scale: ClickHouse</strong></td>
+      <td>Postgres JSONB handles up to ~10M events/workspace. ClickHouse when query performance demands it.</td>
+    </tr>
+    <tr>
+      <td><strong>Event analytics (local)</strong></td>
+      <td>SQLite (V1) &rarr; DuckDB + Parquet (V2)</td>
+      <td><strong>V1: SQLite<br>V2: DuckDB</strong></td>
+      <td>SQLite + filesystem is simplest for laptop V1. DuckDB adds columnar queries when needed.</td>
+    </tr>
+    <tr>
+      <td><strong>Object store</strong></td>
+      <td>Filesystem (local) / S3-compatible (team/SaaS)</td>
+      <td><strong>V1: both</strong></td>
+      <td>Filesystem for laptop. S3 adapter ready for team deployments.</td>
+    </tr>
+    <tr>
+      <td><strong>Cache / realtime</strong></td>
+      <td>In-memory (local) / Redis (team/SaaS)</td>
+      <td><strong>V1: both</strong></td>
+      <td>Dict cache for laptop. Redis for team/SaaS (queue + pub/sub + cache).</td>
+    </tr>
+    <tr>
+      <td><strong>RAG / vector search</strong></td>
+      <td>pgvector (Postgres) / local embeddings</td>
+      <td><strong>V2</strong></td>
+      <td>Needs accumulated AI explanations first. Add after workspaces have incident history.</td>
+    </tr>
+    <tr>
+      <td><strong>Source code lookup</strong></td>
+      <td>Git connector + symbol indexer</td>
+      <td><strong>V2+</strong></td>
+      <td>Optional enrichment. Core product must work without it.</td>
+    </tr>
+    <tr>
+      <td><strong>Kubernetes / Helm</strong></td>
+      <td>Helm chart</td>
+      <td><strong>Scale</strong></td>
+      <td>Docker Compose is enough for V1. Helm when enterprise customers need HA.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Phase legend</div>
+  <p><strong>V1</strong> = built from day one. <strong>V2</strong> = added after first paying customers. <strong>Scale</strong> = added when specific scaling demands require it. The architecture supports all components, but they are built in order of customer value.</p>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">Key insight</div>
+  <p>The API layer is I/O-bound (database, AI calls, file handling) &mdash; Python is fine. The CPU-bound work (parsing, classification) starts in Python (V1) and graduates to Rust (V2) when performance demands it. This split means we ship fast and optimize later.</p>
+</div>
+</section>
+
+<!-- 3. DEPLOYMENT MODES -->
+<section id="deployment">
+<h2><span class="num">3.</span> Two Deployment Modes</h2>
+
+<p>Not three modes. Not &ldquo;local vs self-hosted vs SaaS&rdquo;. <strong>Two modes:</strong></p>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Key simplification</div>
+  <p>Local and self-hosted are the same product. A developer on a laptop and an enterprise team in their cloud run the exact same image &mdash; only configuration differs. We call this <strong>Self-service</strong>.</p>
+</div>
+
+<table>
+  <thead>
+    <tr><th></th><th>Self-service</th><th>SaaS</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Who hosts</strong></td><td>The customer (laptop, server, or cloud)</td><td>We host</td></tr>
+    <tr><td><strong>Billing</strong></td><td>No</td><td>Yes</td></tr>
+    <tr><td><strong>Our monitoring/ops</strong></td><td>No</td><td>Yes</td></tr>
+    <tr><td><strong>Provisioning</strong></td><td>Customer does it</td><td>We automate it</td></tr>
+    <tr><td><strong>Workspaces</strong></td><td>Yes &mdash; same model</td><td>Yes &mdash; same model</td></tr>
+    <tr><td><strong>Data isolation</strong></td><td>Yes &mdash; per workspace</td><td>Yes &mdash; per workspace</td></tr>
+    <tr><td><strong>Auth</strong></td><td>None (laptop) or OIDC (team)</td><td>OIDC</td></tr>
+  </tbody>
+</table>
+
+<h3>The Deployment Spectrum</h3>
+<p>Self-service covers the entire range from a single developer on a laptop to a large enterprise team. It&rsquo;s the same Docker image &mdash; configuration scales it up:</p>
+
+<div class="diagram">
+Laptop (1 person)  &rarr;  Team server  &rarr;  Customer cloud  &rarr;  Our SaaS
+      &boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh; Self-service &boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;          |
+                    (same image)                        SaaS |
+                                                   (+ billing, our ops)</div>
+
+<table>
+  <thead>
+    <tr><th>Scenario</th><th>Database</th><th>Events</th><th>Storage</th><th>Queue</th><th>Auth</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Laptop</strong> (zero config)</td>
+      <td>SQLite</td>
+      <td>SQLite</td>
+      <td>Filesystem</td>
+      <td>Inline</td>
+      <td>None &rarr; auto &ldquo;Personal&rdquo; workspace</td>
+    </tr>
+    <tr>
+      <td><strong>Team server</strong></td>
+      <td>Postgres</td>
+      <td>Postgres</td>
+      <td>Filesystem or S3</td>
+      <td>Redis</td>
+      <td>OIDC &rarr; workspaces for dev, devops, secops</td>
+    </tr>
+    <tr>
+      <td><strong>Customer cloud</strong></td>
+      <td>Postgres</td>
+      <td>ClickHouse or Postgres</td>
+      <td>S3 / Azure Blob / GCS</td>
+      <td>Redis</td>
+      <td>OIDC (their Azure AD / Okta)</td>
+    </tr>
+    <tr>
+      <td><strong>SaaS</strong> (we host)</td>
+      <td>Postgres</td>
+      <td>ClickHouse</td>
+      <td>S3</td>
+      <td>Redis</td>
+      <td>OIDC + billing</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code><span class="comment"># settings.py &mdash; smart defaults, no "mode" needed</span>
+<span class="keyword">class</span> <span class="type">Settings</span>(BaseSettings):
+    database_url: str = <span class="string">"sqlite:///~/.logpilot/db.sqlite"</span>
+    storage_backend: Literal[<span class="string">"filesystem"</span>, <span class="string">"s3"</span>] = <span class="string">"filesystem"</span>
+    storage_path: str = <span class="string">"~/.logpilot/data"</span>
+    queue_backend: Literal[<span class="string">"inline"</span>, <span class="string">"redis"</span>] = <span class="string">"inline"</span>
+    cache_backend: Literal[<span class="string">"memory"</span>, <span class="string">"redis"</span>] = <span class="string">"memory"</span>
+    auth_backend: Literal[<span class="string">"none"</span>, <span class="string">"local"</span>, <span class="string">"oidc"</span>] = <span class="string">"none"</span>
+    billing_enabled: bool = False  <span class="comment"># only True in SaaS</span>
+
+    <span class="keyword">class</span> <span class="type">Config</span>:
+        env_prefix = <span class="string">"LOGPILOT_"</span>
+
+<span class="comment"># Zero env vars = laptop mode (SQLite, filesystem, no auth)
+# Set DATABASE_URL + AUTH = team/enterprise mode
+# Set BILLING_ENABLED = SaaS mode
+# Same image. Same code. Configuration is the only difference.</span></code></pre>
+</section>
+
+<!-- 4. ONE CODEBASE -->
+<section id="one-codebase">
+<h2><span class="num">4.</span> One Codebase &mdash; Adapter Pattern</h2>
+
+<p>Every infrastructure concern has a Python Protocol with exactly two implementations: one simple (local), one production (SaaS). Feature code never touches infrastructure directly.</p>
+
+<h3>Project Structure</h3>
+<pre><code>logpilot/
+&#9500;&#9472;&#9472; core/           <span class="comment"># Parsing, heuristics, analysis &mdash; 100% shared</span>
+&#9500;&#9472;&#9472; api/            <span class="comment"># FastAPI routes &mdash; 100% shared</span>
+&#9500;&#9472;&#9472; adapters/       <span class="comment"># Infrastructure abstractions</span>
+&#9474;   &#9500;&#9472;&#9472; storage/    <span class="comment">#   S3Store, LocalStore</span>
+&#9474;   &#9500;&#9472;&#9472; database/   <span class="comment">#   PostgresDB, SQLiteDB</span>
+&#9474;   &#9500;&#9472;&#9472; events/     <span class="comment">#   ClickHouseEvents, DuckDBEvents</span>
+&#9474;   &#9500;&#9472;&#9472; queue/      <span class="comment">#   RedisQueue, InlineQueue</span>
+&#9474;   &#9500;&#9472;&#9472; cache/      <span class="comment">#   RedisCache, MemoryCache</span>
+&#9474;   &#9492;&#9472;&#9472; auth/       <span class="comment">#   OIDCAuth, LocalAuth, NoAuth</span>
+&#9500;&#9472;&#9472; ai/             <span class="comment"># Redaction, providers, prompts &mdash; 100% shared</span>
+&#9500;&#9472;&#9472; workers/        <span class="comment"># Background jobs &mdash; 100% shared</span>
+&#9492;&#9472;&#9472; frontend/       <span class="comment"># React app &mdash; 100% shared</span></code></pre>
+
+<h3>Adapter Interfaces</h3>
+<pre><code><span class="comment"># adapters/storage/base.py</span>
+<span class="keyword">class</span> <span class="type">ObjectStore</span>(Protocol):
+    <span class="keyword">async def</span> put(self, key: str, data: bytes) -> None: ...
+    <span class="keyword">async def</span> get(self, key: str) -> bytes: ...
+    <span class="keyword">async def</span> delete(self, key: str) -> None: ...
+    <span class="keyword">async def</span> list_keys(self, prefix: str) -> list[str]: ...
+    <span class="keyword">async def</span> presign_upload(self, key: str, ttl: int = 3600) -> str | None: ...
+
+<span class="comment"># adapters/queue/base.py</span>
+<span class="keyword">class</span> <span class="type">JobQueue</span>(Protocol):
+    <span class="keyword">async def</span> enqueue(self, job_type: str, payload: dict) -> str: ...
+    <span class="keyword">async def</span> get_status(self, job_id: str) -> JobStatus: ...</code></pre>
+
+<h3>Dependency Injection in Routes</h3>
+<pre><code><span class="comment"># Routes use only the interface &mdash; never know which backend</span>
+@router.post(<span class="string">"/sessions/{session_id}/upload"</span>)
+<span class="keyword">async def</span> upload_log(
+    file: UploadFile,
+    storage: <span class="type">ObjectStore</span> = Depends(get_storage),
+    db: <span class="type">Database</span> = Depends(get_database),
+):
+    key = f<span class="string">"{session.workspace_id}/{session_id}/{file.filename}"</span>
+    <span class="keyword">await</span> storage.put(key, <span class="keyword">await</span> file.read())
+    <span class="keyword">await</span> db.create_upload(session_id, key, file.filename)</code></pre>
+
+<h3>Adapter Code Volume</h3>
+<table>
+  <thead>
+    <tr><th>Interface</th><th>Local impl</th><th>SaaS impl</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>ObjectStore</td><td>LocalStore &mdash; ~40 lines</td><td>S3Store &mdash; ~60 lines</td></tr>
+    <tr><td>Database</td><td>SQLiteDB &mdash; ~150 lines</td><td>PostgresDB &mdash; ~150 lines</td></tr>
+    <tr><td>EventStore</td><td>DuckDBEvents &mdash; ~100 lines</td><td>ClickHouseEvents &mdash; ~120 lines</td></tr>
+    <tr><td>JobQueue</td><td>InlineQueue &mdash; ~20 lines</td><td>RedisQueue &mdash; ~50 lines</td></tr>
+    <tr><td>Cache</td><td>MemoryCache &mdash; ~30 lines</td><td>RedisCache &mdash; ~40 lines</td></tr>
+    <tr><td>Auth</td><td>NoAuth &mdash; ~10 lines</td><td>OIDCAuth &mdash; ~80 lines</td></tr>
+  </tbody>
+</table>
+
+<div class="callout callout-success">
+  <div class="callout-title">Total adapter code: ~850 lines</div>
+  <p>The rest of the codebase (tens of thousands of lines) is 100% shared. Adding a feature, fixing a bug, or updating heuristics &mdash; you change it once, it works everywhere.</p>
+</div>
+
+<h3>Testing Strategy</h3>
+<pre><code><span class="comment"># Same test suite runs against both implementations</span>
+@pytest.fixture(params=[<span class="string">"sqlite"</span>, <span class="string">"postgres"</span>])
+<span class="keyword">def</span> database(request):
+    <span class="keyword">if</span> request.param == <span class="string">"sqlite"</span>:
+        <span class="keyword">return</span> SQLiteDB(<span class="string">":memory:"</span>)
+    <span class="keyword">return</span> PostgresDB(test_postgres_url)
+
+<span class="keyword">async def</span> test_save_and_get_analysis(database):
+    <span class="keyword">await</span> database.save_analysis(<span class="string">"s1"</span>, sample_result)
+    result = <span class="keyword">await</span> database.get_analysis(<span class="string">"s1"</span>)
+    <span class="keyword">assert</span> result == sample_result</code></pre>
+
+<h3>Developer Experience</h3>
+<pre><code><span class="comment"># Development (local, zero config)</span>
+logpilot serve
+<span class="comment"># &rarr; SQLite + filesystem + inline queue + no auth</span>
+<span class="comment"># &rarr; Open http://localhost:8080</span>
+
+<span class="comment"># Staging (Docker Compose, one file)</span>
+docker compose up
+<span class="comment"># &rarr; Postgres + Redis + MinIO + OIDC test IdP</span>
+
+<span class="comment"># Production (same code, different config)</span>
+helm install logpilot ./chart \
+  --set database.url=postgres://... \
+  --set storage.bucket=logpilot-prod \
+  --set auth.issuer=https://login.microsoftonline.com/...</code></pre>
+</section>
+
+<!-- 5. WORKSPACES & AUTH -->
+<section id="workspaces">
+<h2><span class="num">5.</span> Organizations, Workspaces &amp; Auth</h2>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Three-layer model</div>
+  <p><strong>Organization</strong> (the customer) &rarr; <strong>Workspaces</strong> (data isolation) &rarr; <strong>Members</strong> (users with roles). On a laptop, all three layers are auto-created and invisible. In SaaS/enterprise, they unlock team structure, billing, and cross-workspace admin.</p>
+</div>
+
+<h3>The Hierarchy</h3>
+<div class="diagram">
+Organization: Acme Corp                    (billing, IdP config, org-admin)
+&#9500;&#9472;&#9472; Workspace: DevOps                     (isolated data, AI settings)
+&#9474;   &#9500;&#9472;&#9472; Anna  (admin)
+&#9474;   &#9492;&#9472;&#9472; Erik  (member)
+&#9500;&#9472;&#9472; Workspace: SecOps                     (isolated data, AI settings)
+&#9474;   &#9500;&#9472;&#9472; Erik  (viewer)                   &larr; same person, different role
+&#9474;   &#9492;&#9472;&#9472; Maria (admin)
+&#9492;&#9472;&#9472; Workspace: Developers                 (isolated data, AI settings)
+    &#9500;&#9472;&#9472; Anna  (member)                   &larr; same person, different role
+    &#9492;&#9472;&#9472; Johan (member)</div>
+
+<ul>
+  <li><strong>Organization</strong> &mdash; the paying customer (Acme Corp, Contoso, etc). Owns billing, OIDC/IdP configuration, and org-level admin. In SaaS: one org per customer. Self-hosted: typically one org per installation.</li>
+  <li><strong>Workspace</strong> &mdash; the data isolation boundary. Each workspace has its own log sessions, analysis results, AI history, and settings. Data never leaks between workspaces &mdash; enforced by the database (RLS), not just application code.</li>
+  <li><strong>Member</strong> &mdash; a user + role in a workspace. A user can be a member of multiple workspaces with different roles (admin in DevOps, viewer in SecOps).</li>
+</ul>
+
+<h3>Data Model (Conceptual)</h3>
+<p><em>This is the design-level schema showing the three-layer hierarchy. For the complete production DDL with all tables, indexes, and RLS policies, see the <a href="logpilot-project-plan.html#schema">Project Plan &mdash; Database Schema</a>.</em></p>
+<pre><code><span class="comment">-- Layer 1: Organization (the customer)</span>
+<span class="keyword">CREATE TABLE</span> organizations (
+    id          uuid <span class="keyword">PRIMARY KEY</span>,
+    name        text <span class="keyword">NOT NULL</span>,
+    slug        text <span class="keyword">UNIQUE NOT NULL</span>,    <span class="comment">-- URL: app.logpilot.io/klp/...</span>
+    plan        text <span class="keyword">DEFAULT</span> <span class="string">'free'</span>,     <span class="comment">-- free | pro | enterprise (SaaS billing)</span>
+    settings    jsonb <span class="keyword">DEFAULT</span> <span class="string">'{}'</span>,     <span class="comment">-- OIDC config, default AI keys, retention</span>
+    created_at  timestamptz <span class="keyword">DEFAULT NOW</span>()
+);
+
+<span class="comment">-- Layer 2: Workspaces (data isolation)</span>
+<span class="keyword">CREATE TABLE</span> workspaces (
+    id          uuid <span class="keyword">PRIMARY KEY</span>,
+    org_id      uuid <span class="keyword">REFERENCES</span> organizations <span class="keyword">NOT NULL</span>,
+    name        text <span class="keyword">NOT NULL</span>,
+    slug        text <span class="keyword">NOT NULL</span>,            <span class="comment">-- URL: app.logpilot.io/klp/devops/...</span>
+    settings    jsonb <span class="keyword">DEFAULT</span> <span class="string">'{}'</span>,     <span class="comment">-- overrides org defaults (AI keys, limits)</span>
+    created_at  timestamptz <span class="keyword">DEFAULT NOW</span>(),
+    <span class="keyword">UNIQUE</span>(org_id, slug)
+);
+
+<span class="comment">-- Users (global, can belong to multiple orgs/workspaces)</span>
+<span class="keyword">CREATE TABLE</span> users (
+    id              uuid <span class="keyword">PRIMARY KEY</span>,
+    email           text <span class="keyword">UNIQUE NOT NULL</span>,
+    name            text,
+    auth_provider   text,               <span class="comment">-- "google", "azure_ad", "local", "none"</span>
+    auth_subject    text,               <span class="comment">-- external IdP subject ID</span>
+    created_at      timestamptz <span class="keyword">DEFAULT NOW</span>()
+);
+
+<span class="comment">-- Org membership (org-level role: org-admin can manage all workspaces)</span>
+<span class="keyword">CREATE TABLE</span> org_memberships (
+    org_id       uuid <span class="keyword">REFERENCES</span> organizations,
+    user_id      uuid <span class="keyword">REFERENCES</span> users,
+    role         text <span class="keyword">NOT NULL</span>,           <span class="comment">-- org_admin | member</span>
+    <span class="keyword">PRIMARY KEY</span> (org_id, user_id)
+);
+
+<span class="comment">-- Layer 3: Workspace membership (per-workspace role)</span>
+<span class="keyword">CREATE TABLE</span> workspace_memberships (
+    workspace_id uuid <span class="keyword">REFERENCES</span> workspaces,
+    user_id      uuid <span class="keyword">REFERENCES</span> users,
+    role         text <span class="keyword">NOT NULL</span>,           <span class="comment">-- admin | member | viewer</span>
+    <span class="keyword">PRIMARY KEY</span> (workspace_id, user_id)
+);
+
+<span class="comment">-- All data is scoped to a workspace</span>
+<span class="keyword">CREATE TABLE</span> sessions (
+    id            uuid <span class="keyword">PRIMARY KEY</span>,
+    workspace_id  uuid <span class="keyword">REFERENCES</span> workspaces <span class="keyword">NOT NULL</span>,
+    name          text,
+    created_by    uuid <span class="keyword">REFERENCES</span> users,
+    created_at    timestamptz <span class="keyword">DEFAULT NOW</span>()
+);</code></pre>
+
+<h3>How It Scales Across Scenarios</h3>
+<table>
+  <thead>
+    <tr><th>Scenario</th><th>Org</th><th>Workspaces</th><th>Auth</th><th>User experience</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Laptop</strong></td>
+      <td>Auto (&ldquo;Local&rdquo;)</td>
+      <td>Auto (&ldquo;Personal&rdquo;)</td>
+      <td>None</td>
+      <td>App starts, user is already in. No login, no setup. Zero friction.</td>
+    </tr>
+    <tr>
+      <td><strong>Small team</strong></td>
+      <td>1 (&ldquo;Our Team&rdquo;)</td>
+      <td>1&ndash;3</td>
+      <td>Local passwords or OIDC</td>
+      <td>Admin creates workspaces, invites members.</td>
+    </tr>
+    <tr>
+      <td><strong>Enterprise</strong></td>
+      <td>1 (&ldquo;Acme Corp&rdquo;)</td>
+      <td>Many (dev, devops, secops, QA)</td>
+      <td>OIDC (Azure AD)</td>
+      <td>SSO login. Org-admin manages workspaces + members. Erik sees DevOps + SecOps in his sidebar.</td>
+    </tr>
+    <tr>
+      <td><strong>SaaS</strong></td>
+      <td>1 per customer</td>
+      <td>Many per org</td>
+      <td>OIDC</td>
+      <td>Sign up &rarr; org + first workspace auto-created &rarr; invite team &rarr; create more workspaces.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Laptop: Invisible Scaffolding</h3>
+<p>On a laptop, the three-layer model still exists in the database &mdash; but the user never sees it. Everything is auto-created at first start:</p>
+
+<pre><code><span class="comment"># First-start logic &mdash; laptop mode needs zero user interaction</span>
+<span class="keyword">async def</span> ensure_local_setup(db: <span class="type">Database</span>):
+    <span class="string">"""Called at startup when auth_backend == 'none'.
+    Auto-creates org + workspace + user. User goes straight to work."""</span>
+    <span class="keyword">if await</span> db.has_any_org():
+        <span class="keyword">return</span>
+    org = <span class="keyword">await</span> db.create_org(name=<span class="string">"Local"</span>, slug=<span class="string">"local"</span>)
+    ws = <span class="keyword">await</span> db.create_workspace(org.id, name=<span class="string">"Personal"</span>, slug=<span class="string">"personal"</span>)
+    user = <span class="keyword">await</span> db.create_user(email=<span class="string">"local@logpilot"</span>, name=<span class="string">"Local User"</span>)
+    <span class="keyword">await</span> db.add_org_member(org.id, user.id, role=<span class="string">"org_admin"</span>)
+    <span class="keyword">await</span> db.add_ws_member(ws.id, user.id, role=<span class="string">"admin"</span>)
+    <span class="comment"># User opens the app &rarr; already logged in &rarr; already in "Personal" workspace
+    # No login screen, no org picker, no workspace selector. Just the app.</span></code></pre>
+
+<div class="callout callout-info">
+  <div class="callout-title">The day you grow</div>
+  <p>When a laptop user later connects to a team server or upgrades to SaaS, the structure is already there. Enable auth, create more workspaces, invite teammates. No migration, no schema change &mdash; just configuration.</p>
+</div>
+
+<h3>Settings Inheritance</h3>
+<p>Settings cascade: <strong>organization &rarr; workspace</strong>. Workspace settings override org defaults. This means an org-admin can set a default AI key for the whole organization, but the SecOps workspace can override it with their own key.</p>
+
+<pre><code><span class="comment"># Resolve effective settings for a workspace</span>
+<span class="keyword">def</span> resolve_settings(org: Organization, ws: Workspace) -> EffectiveSettings:
+    base = org.settings.copy()         <span class="comment"># org defaults</span>
+    base.update(ws.settings)           <span class="comment"># workspace overrides</span>
+    <span class="keyword">return</span> EffectiveSettings(**base)
+
+<span class="comment"># Example:
+# org.settings  = {"ai_provider": "claude", "ai_key": "sk-org-..."}
+# ws.settings   = {"ai_key": "sk-secops-..."}   &larr; SecOps uses own key
+# effective     = {"ai_provider": "claude", "ai_key": "sk-secops-..."}</span></code></pre>
+
+<h3>Row-Level Security (Defense in Depth)</h3>
+<pre><code><span class="comment">-- Even application bugs can't leak data across workspaces</span>
+<span class="keyword">CREATE POLICY</span> workspace_isolation <span class="keyword">ON</span> sessions
+    <span class="keyword">USING</span> (workspace_id = current_setting(<span class="string">'app.current_workspace_id'</span>)::uuid);
+
+<span class="comment">-- Applied to ALL workspace-scoped tables: sessions, events, analyses, ai_audit_log
+-- Org-admins see workspaces they manage, but still go through RLS per workspace</span></code></pre>
+
+<h3>Auth Abstraction</h3>
+<pre><code><span class="keyword">class</span> <span class="type">AuthProvider</span>(Protocol):
+    <span class="keyword">async def</span> authenticate(self, request: Request) -> AuthUser: ...
+    <span class="keyword">async def</span> get_login_url(self, redirect: str) -> str: ...
+    <span class="keyword">async def</span> handle_callback(self, request: Request) -> AuthUser: ...
+
+<span class="keyword">class</span> <span class="type">OIDCProvider</span>:     ...  <span class="comment"># Azure AD, Google, Okta (config from org.settings)</span>
+<span class="keyword">class</span> <span class="type">LocalAuthProvider</span>: ...  <span class="comment"># email + password (bcrypt)</span>
+<span class="keyword">class</span> <span class="type">NoAuthProvider</span>:    ...  <span class="comment"># auto-returns local user, skips login entirely</span>
+
+<span class="comment"># FastAPI dependency chain</span>
+<span class="keyword">async def</span> get_workspace_context(
+    user: <span class="type">AuthUser</span> = Depends(get_current_user),
+    org_slug: str = Path(...),
+    workspace_slug: str = Path(...),
+) -> <span class="type">WorkspaceContext</span>:
+    <span class="comment"># 1. Resolve org from slug
+    # 2. Verify user is org member
+    # 3. Resolve workspace from org + slug
+    # 4. Verify user is workspace member (or org_admin)
+    # 5. Set RLS context
+    # 6. Return WorkspaceContext with resolved settings</span>
+    ...</code></pre>
+
+<div class="callout callout-success">
+  <div class="callout-title">One model, all scenarios</div>
+  <p>Laptop user: invisible scaffolding, zero friction, straight to work. Enterprise team: org-admin manages workspaces, members belong to multiple teams with different roles, data is fully isolated. SaaS: same model with billing on the org layer. No feature divergence, no special cases.</p>
+</div>
+</section>
+
+<!-- 6. AI INTEGRATION LAYER -->
+<section id="ai">
+<h2><span class="num">6.</span> AI Integration Layer</h2>
+
+<div class="diagram">
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;                     AI Pipeline                       &#9474;
+&#9474;                                                       &#9474;
+&#9474;  Context Builder &#8594; Redaction Gate &#8594; Provider Router  &#9474;
+&#9474;                                        |              &#9474;
+&#9474;                  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9474;
+&#9474;                  v         v         v         v  &#9474;
+&#9474;              Claude    OpenAI    Gemini    Local  &#9474;
+&#9474;                                                       &#9474;
+&#9474;  Cost Tracker  |  Audit Logger  |  Response Cache    &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</div>
+
+<h3>Typed Redaction Gate (Non-Bypassable)</h3>
+
+<div class="callout callout-warning">
+  <div class="callout-title">Critical security design</div>
+  <p>AI providers only accept <code>RedactedText</code>, a wrapper type that can only be created by the <code>RedactionGate</code>. It is architecturally impossible to send unredacted data to an external AI provider.</p>
+</div>
+
+<pre><code><span class="keyword">class</span> <span class="type">RedactedText</span>:
+    <span class="string">"""Newtype wrapper. Cannot be constructed except by RedactionGate."""</span>
+    _value: str  <span class="comment"># private</span>
+
+    <span class="keyword">def</span> __init__(self):
+        <span class="keyword">raise</span> TypeError(<span class="string">"Use RedactionGate.redact()"</span>)
+
+<span class="keyword">class</span> <span class="type">RedactionGate</span>:
+    <span class="keyword">def</span> redact(self, text: str, ws_config: WorkspaceConfig) -> <span class="type">RedactedText</span>:
+        <span class="comment"># 1. Standard: tokens, passwords, API keys, emails, IPs</span>
+        <span class="comment"># 2. Workspace-specific patterns (custom regex from settings)</span>
+        <span class="comment"># 3. Optional named entity removal</span>
+        ...
+
+<span class="keyword">class</span> <span class="type">AIProvider</span>(Protocol):
+    <span class="keyword">async def</span> complete(
+        self,
+        system: <span class="type">RedactedText</span>,   <span class="comment"># &larr; cannot pass raw str</span>
+        user: <span class="type">RedactedText</span>,     <span class="comment"># &larr; cannot pass raw str</span>
+        model: str,
+        stream: bool = True,
+    ) -> AsyncIterator[str]: ...</code></pre>
+
+<h3>Context Builder</h3>
+<p>AI never sees raw log lines. It receives structured analysis results:</p>
+<pre><code><span class="keyword">class</span> <span class="type">IncidentContext</span>:
+    incident: IncidentGroup
+    evidence: EvidenceBlock
+    timeline_summary: str
+    affected_systems: list[str]
+    cascade_chain: list[CascadeStep]
+    similar_past_incidents: list[IncidentFingerprint]</code></pre>
+
+<h3>Audit Trail</h3>
+<pre><code><span class="comment">-- Every AI call is logged</span>
+<span class="keyword">CREATE TABLE</span> ai_audit_log (
+    id                  uuid <span class="keyword">PRIMARY KEY</span>,
+    workspace_id        uuid <span class="keyword">REFERENCES</span> workspaces,
+    user_id             uuid <span class="keyword">REFERENCES</span> users,
+    session_id          uuid,
+    provider            text,          <span class="comment">-- "claude", "openai", "gemini"</span>
+    model               text,
+    input_tokens        int,
+    output_tokens       int,
+    cost_usd            decimal,
+    redacted_prompt_hash text,         <span class="comment">-- for debugging without storing PII</span>
+    response_summary    text,          <span class="comment">-- first 200 chars</span>
+    created_at          timestamptz
+);</code></pre>
+
+<h3>Knowledge Retrieval (RAG)</h3>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Not generic RAG</div>
+  <p>RAG in LogPilot is not about searching the internet or general documentation. It&rsquo;s about letting the AI reference <strong>the customer&rsquo;s own history and ops knowledge</strong> &mdash; previous incidents, runbooks, and internal procedures. The system gets smarter the more it is used.</p>
+</div>
+
+<p>Three knowledge sources, all opt-in per workspace:</p>
+
+<table>
+  <thead>
+    <tr><th>Source</th><th>What is indexed</th><th>Value</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Previous incidents</strong></td>
+      <td>Incident fingerprints, AI explanations, and resolutions from the same workspace</td>
+      <td>&ldquo;This matches an incident from Nov 12 &mdash; the root cause was DNS failover after a provider outage.&rdquo;</td>
+    </tr>
+    <tr>
+      <td><strong>Runbooks / documentation</strong></td>
+      <td>Confluence pages, wikis, markdown files &mdash; ops procedures indexed per workspace</td>
+      <td>&ldquo;Your runbook says: restart nodeagent first when CWWKZ0002E occurs.&rdquo;</td>
+    </tr>
+    <tr>
+      <td><strong>Source code</strong></td>
+      <td>Vector embeddings of functions and classes (extends source lookup from <a href="#codebase-intelligence">section 9</a>)</td>
+      <td>&ldquo;Related code in ConnectionPool.java &mdash; the retry logic was changed 3 days ago.&rdquo;</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>RAG context is assembled <em>after</em> heuristics and <em>before</em> the redaction gate &mdash; it enriches the AI prompt, it does not replace the structured analysis:</p>
+
+<div class="diagram">
+Incident detected
+  &rarr; Heuristics + Evidence              (always)
+  &rarr; Source code lookup                  (if repo connected)
+  &rarr; RAG: similar past incidents         (if history exists)
+  &rarr; RAG: relevant runbook sections      (if indexed)
+  &rarr; All assembled &rarr; RedactionGate &rarr; AI &rarr; Explanation</div>
+
+<h4>Vector Index Strategy</h4>
+<ul>
+  <li><strong>Storage:</strong> <code>pgvector</code> extension in Postgres &mdash; no new database, same adapter pattern. Self-service uses SQLite with a lightweight vector extension.</li>
+  <li><strong>Embedding model:</strong> Configurable per workspace. Cloud: OpenAI <code>text-embedding-3-small</code> or similar. Self-service: local model (e.g. <code>all-MiniLM-L6-v2</code> via sentence-transformers, ~80 MB, runs on CPU).</li>
+  <li><strong>Incremental indexing:</strong> Every AI explanation LogPilot produces is automatically embedded and indexed. Previous incidents become searchable knowledge without any manual effort.</li>
+  <li><strong>Search:</strong> Cosine similarity on incident fingerprint + text embedding. Top 3 most similar results included in prompt context.</li>
+</ul>
+
+<div class="callout callout-success">
+  <div class="callout-title">Compound learning</div>
+  <p>Every incident LogPilot explains becomes knowledge for the next incident. After 6 months of use, the AI doesn&rsquo;t just analyze logs &mdash; it draws on the workspace&rsquo;s entire incident history. &ldquo;We&rsquo;ve seen this pattern 4 times before. Each time the fix was X. The last occurrence was 3 weeks ago.&rdquo;</p>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">Build priority: V2</div>
+  <p>RAG requires good AI explanations to exist first &mdash; they are the content that gets indexed. Ship the core AI pipeline in V1, then add RAG retrieval in V2 once workspaces have accumulated incident history worth searching.</p>
+</div>
+</section>
+
+<!-- 7. PRIVACY & DATA RESIDENCY -->
+<section id="privacy">
+<h2><span class="num">7.</span> Privacy &amp; Data Residency</h2>
+
+<div class="callout callout-warning">
+  <div class="callout-title">This is not a feature &mdash; it is a core invariant</div>
+  <p>Sensitive data must never leave the system unredacted. Customer data must never be forced outside their chosen region. These are not configurable options &mdash; they are architectural guarantees enforced by the type system and deployment model.</p>
+</div>
+
+<h3>Principle 1: No Raw Data to External AI</h3>
+
+<p>The <code>RedactedText</code> newtype (described in <a href="#ai">section 6</a>) enforces this at the code level. But the principle extends beyond AI:</p>
+
+<table>
+  <thead>
+    <tr><th>Data flow</th><th>What happens</th><th>Enforcement</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Log events &rarr; AI provider</td>
+      <td>Redacted before sending. Tokens, passwords, API keys, emails, IPs stripped. Custom workspace patterns applied.</td>
+      <td>Type system: AI providers only accept <code>RedactedText</code></td>
+    </tr>
+    <tr>
+      <td>Log events &rarr; reports</td>
+      <td>Redacted at parse time. Reports contain only redacted text.</td>
+      <td><code>redact()</code> runs during parsing, before events enter the system</td>
+    </tr>
+    <tr>
+      <td>Log events &rarr; database</td>
+      <td>Stored post-redaction. Raw log content is in object store only.</td>
+      <td>Parse pipeline: redaction is step 2, before persist</td>
+    </tr>
+    <tr>
+      <td>AI prompts &rarr; audit log</td>
+      <td>Prompt hash stored, not prompt text. For debugging without storing PII.</td>
+      <td>Audit table schema: <code>redacted_prompt_hash</code>, not <code>prompt_text</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>What Gets Redacted</h3>
+<table>
+  <thead>
+    <tr><th>Category</th><th>Examples</th><th>Method</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Authentication tokens</td><td>Bearer tokens, JWT, session cookies, API keys</td><td>Pattern replacement: <code>[REDACTED_TOKEN]</code></td></tr>
+    <tr><td>Passwords</td><td>Password fields in URLs, config lines, log messages</td><td>Pattern replacement: <code>[REDACTED_PASSWORD]</code></td></tr>
+    <tr><td>Personal identifiers</td><td>Email addresses, phone numbers, national IDs (SSN, f&oslash;dselsnummer)</td><td>Pattern replacement: <code>[REDACTED_EMAIL]</code>, <code>[REDACTED_ID]</code></td></tr>
+    <tr><td>Network identifiers</td><td>IP addresses (optional, configurable per workspace)</td><td>Configurable: redact, anonymize (hash), or keep</td></tr>
+    <tr><td>Custom patterns</td><td>Workspace-specific regex (e.g. customer account numbers, internal IDs)</td><td>Admin-defined patterns in workspace settings</td></tr>
+  </tbody>
+</table>
+
+<h3>Principle 2: Data Stays Where the Customer Chooses</h3>
+
+<table>
+  <thead>
+    <tr><th>Deployment</th><th>Where data lives</th><th>What leaves the system</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Laptop (self-service)</strong></td>
+      <td>Local disk only (~/.logpilot/)</td>
+      <td>Nothing &mdash; unless user explicitly enables external AI. Then: only redacted prompts to chosen provider.</td>
+    </tr>
+    <tr>
+      <td><strong>Team server (self-service)</strong></td>
+      <td>Customer&rsquo;s own Postgres + filesystem/S3</td>
+      <td>Only redacted AI prompts, only if external AI is enabled.</td>
+    </tr>
+    <tr>
+      <td><strong>Customer cloud (self-service)</strong></td>
+      <td>Customer&rsquo;s own cloud account (EU, Norway, anywhere)</td>
+      <td>Only redacted AI prompts. Customer controls which AI provider and region.</td>
+    </tr>
+    <tr>
+      <td><strong>SaaS (we host)</strong></td>
+      <td>Our infrastructure &mdash; EU region (Norway/EU data center)</td>
+      <td>Only redacted AI prompts to customer&rsquo;s chosen AI provider.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>SaaS Data Residency</h3>
+<ul>
+  <li><strong>Default SaaS region: EU</strong> (Norway or EU data center). Not US. This is a deliberate market positioning choice for Nordic/European customers.</li>
+  <li><strong>All customer data</strong> (logs, events, analysis results, AI conversations) stays in the chosen region.</li>
+  <li><strong>AI providers are configurable per workspace.</strong> Customer can choose EU-hosted AI endpoints, or disable external AI entirely and use local models only.</li>
+  <li><strong>No telemetry or usage data leaves the region</strong> without explicit opt-in.</li>
+</ul>
+
+<h3>Disable External AI Entirely</h3>
+<p>For customers who cannot send any data to external providers (government, defense, financial):</p>
+
+<pre><code><span class="comment"># Workspace setting: disable all external AI</span>
+{
+  <span class="string">"ai_provider"</span>: <span class="string">"local_only"</span>,    <span class="comment">// only Ollama / vLLM / local models</span>
+  <span class="string">"ai_external_enabled"</span>: false  <span class="comment">// hard block: no API calls to Claude/OpenAI/Gemini</span>
+}
+<span class="comment">// With this setting, the RedactionGate still runs (defense in depth),</span>
+<span class="comment">// but no data reaches any external endpoint regardless.</span></code></pre>
+
+<h3>GDPR Compliance</h3>
+<table>
+  <thead>
+    <tr><th>GDPR right</th><th>How LogPilot supports it</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Right to erasure</strong></td><td>Delete workspace &rarr; cascading delete of all sessions, events, analyses, AI conversations, audit log entries. Object store files deleted. Verified by test.</td></tr>
+    <tr><td><strong>Right to access</strong></td><td>Export all workspace data as JSON via API: <code>GET /api/v1/workspaces/{slug}/export</code></td></tr>
+    <tr><td><strong>Data minimization</strong></td><td>Redaction at parse time. Only structured events stored, not raw log content (raw stays in object store with configurable TTL).</td></tr>
+    <tr><td><strong>Purpose limitation</strong></td><td>Audit log tracks every AI call and data access. Who accessed what, when, why.</td></tr>
+    <tr><td><strong>Data processing agreement</strong></td><td>SaaS customers sign DPA. Self-service customers control their own data entirely.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout callout-success">
+  <div class="callout-title">The self-service advantage</div>
+  <p>For the most privacy-sensitive customers, self-service deployment is the answer: their data never touches our infrastructure. They run LogPilot in their own cloud, use local AI models, and we have zero access. This is a genuine competitive advantage over SaaS-only competitors.</p>
+</div>
+</section>
+
+<!-- 8. DATA PROCESSING STRATEGY -->
+<section id="data">
+<h2><span class="num">8.</span> Data Processing Strategy</h2>
+
+<h3>The Problem</h3>
+<p>A 10 GB log file contains ~50M lines, ~10M events. Loading everything into a Python list = OOM.</p>
+
+<h3>Solution: Streaming Pipeline with Materialized Checkpoints</h3>
+
+<table>
+  <thead>
+    <tr><th>Stage</th><th>Engine</th><th>Input</th><th>Output</th><th>Memory</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1. Parse</strong></td>
+      <td>Rust, streaming</td>
+      <td>Raw file (mmap)</td>
+      <td>Events in 100K-row Parquet batches</td>
+      <td>~Constant</td>
+    </tr>
+    <tr>
+      <td><strong>2. Classify</strong></td>
+      <td>Rust, batch parallel</td>
+      <td>Parquet batches</td>
+      <td>Enriched Parquet (added columns)</td>
+      <td>~Batch size</td>
+    </tr>
+    <tr>
+      <td><strong>3. Index</strong></td>
+      <td>Rust</td>
+      <td>Enriched Parquet</td>
+      <td>Time-series index + inverted index</td>
+      <td>Small (fits in RAM)</td>
+    </tr>
+    <tr>
+      <td><strong>4. Analyze</strong></td>
+      <td>Python</td>
+      <td>Index artifacts (not raw events!)</td>
+      <td>Heuristic matches, incidents</td>
+      <td>Small</td>
+    </tr>
+    <tr>
+      <td><strong>5. AI</strong></td>
+      <td>Python, on-demand</td>
+      <td>Analysis results (not raw events)</td>
+      <td>Explanation, streamed to user</td>
+      <td>Prompt size</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Key insight</div>
+  <p>After Stage 3, most operations work on <strong>indexes and aggregates</strong>, not raw events. The heuristic engine needs &ldquo;how many events match pattern X?&rdquo; and &ldquo;give me 5 examples&rdquo; (a targeted Parquet scan) &mdash; not 10M events in memory.</p>
+</div>
+
+<h3>Why Parquet as the Intermediate Format</h3>
+<ul>
+  <li><strong>Columnar:</strong> Reading only <code>ts_utc + level</code> for a histogram doesn&rsquo;t load <code>text</code> (90% of the data)</li>
+  <li><strong>Compressed:</strong> Repetitive log text compresses 10&ndash;20x with ZSTD</li>
+  <li><strong>Memory-mappable:</strong> DuckDB queries Parquet without full loading</li>
+  <li><strong>Portable:</strong> Same format for local (DuckDB) and SaaS (ClickHouse ingests Parquet)</li>
+</ul>
+
+<h3>Caching Strategy</h3>
+<table>
+  <thead>
+    <tr><th>Artifact</th><th>Storage</th><th>TTL</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Parsed events (Parquet)</td><td>Object store</td><td>Session + 7 days</td></tr>
+    <tr><td>Analysis results</td><td>Postgres JSONB</td><td>Session lifetime</td></tr>
+    <tr><td>Time-series index</td><td>Object store</td><td>Same as Parquet</td></tr>
+    <tr><td>AI responses</td><td>Postgres</td><td>Indefinite (audit)</td></tr>
+    <tr><td>Heuristic match cache</td><td>Redis</td><td>1 hour</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- 8. API & INTEGRATIONS -->
+<section id="integrations">
+<h2><span class="num">9.</span> API &amp; Integrations</h2>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Core principle</div>
+  <p>Everything the web app can do, the API can do. The React frontend is just one client &mdash; Enonic XP, Kubernetes, CI/CD pipelines, and custom scripts are others. LogPilot is an <strong>API-first</strong> platform.</p>
+</div>
+
+<h3>API Architecture</h3>
+<div class="diagram">
+External systems                          LogPilot API (FastAPI)
+                                          &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+Enonic XP  &rarr; log shipper &rarr;  POST /ingest  &#9474; Auth (API key per workspace)  &#9474;
+K8s/CRI-O  &rarr; fluentbit  &rarr;  POST /ingest  &#9474; Rate limiting                 &#9474;
+CI/CD      &rarr; curl       &rarr;  POST /ingest  &#9474; Workspace scoping             &#9474;
+Custom     &rarr; SDK        &rarr;  any endpoint  &#9474;                               &#9474;
+                                          &#9474; &rarr; Parse &rarr; Analyze &rarr; Notify  &#9474;
+React app  &rarr; fetch      &rarr;  any endpoint  &#9474; &rarr; Webhooks out                &#9474;
+                                          &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</div>
+
+<h3>REST API Surface</h3>
+<table>
+  <thead>
+    <tr><th>Area</th><th>Endpoints</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Ingest</strong></td>
+      <td><code>POST /api/v1/ingest</code><br><code>POST /api/v1/ingest/stream</code></td>
+      <td>Push log data (file upload, streaming, or JSON lines). Returns session ID for tracking.</td>
+    </tr>
+    <tr>
+      <td><strong>Sessions</strong></td>
+      <td><code>GET/POST/DELETE /api/v1/sessions</code></td>
+      <td>List, create, delete analysis sessions within a workspace.</td>
+    </tr>
+    <tr>
+      <td><strong>Analysis</strong></td>
+      <td><code>POST /api/v1/sessions/{id}/analyze</code><br><code>GET /api/v1/sessions/{id}/results</code></td>
+      <td>Trigger analysis, retrieve results (incidents, heuristics, timeline).</td>
+    </tr>
+    <tr>
+      <td><strong>Incidents</strong></td>
+      <td><code>GET /api/v1/sessions/{id}/incidents</code></td>
+      <td>Structured incident data: groups, causes, evidence, cascade chains.</td>
+    </tr>
+    <tr>
+      <td><strong>AI</strong></td>
+      <td><code>POST /api/v1/sessions/{id}/explain</code><br><code>GET /api/v1/sessions/{id}/explanations</code></td>
+      <td>Trigger AI explanation, retrieve AI responses. Streaming via SSE.</td>
+    </tr>
+    <tr>
+      <td><strong>Reports</strong></td>
+      <td><code>GET /api/v1/sessions/{id}/report?format=pdf</code></td>
+      <td>Generate and download reports (PDF, HTML, JSON, Markdown).</td>
+    </tr>
+    <tr>
+      <td><strong>Events</strong></td>
+      <td><code>GET /api/v1/sessions/{id}/events</code></td>
+      <td>Query parsed events with filters (level, code, time range, tags). Paginated.</td>
+    </tr>
+    <tr>
+      <td><strong>Webhooks</strong></td>
+      <td><code>POST/GET/DELETE /api/v1/webhooks</code></td>
+      <td>Register webhook endpoints for workspace notifications.</td>
+    </tr>
+    <tr>
+      <td><strong>Workspace</strong></td>
+      <td><code>GET/POST /api/v1/workspaces</code><br><code>POST /api/v1/workspaces/{id}/api-keys</code></td>
+      <td>Manage workspaces and API keys (org-admin only).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>API Keys (Per Workspace)</h3>
+<p>Each workspace can have multiple API keys with different scopes. An Enonic integration might have <code>ingest</code> + <code>read</code> scope, while a reporting dashboard has <code>read</code> only.</p>
+
+<pre><code><span class="comment">-- API keys are scoped to a workspace, not a user</span>
+<span class="keyword">CREATE TABLE</span> api_keys (
+    id            uuid <span class="keyword">PRIMARY KEY</span>,
+    workspace_id  uuid <span class="keyword">REFERENCES</span> workspaces <span class="keyword">NOT NULL</span>,
+    name          text <span class="keyword">NOT NULL</span>,            <span class="comment">-- "Enonic XP production"</span>
+    key_hash      text <span class="keyword">NOT NULL</span>,            <span class="comment">-- bcrypt hash of the key</span>
+    key_prefix    text <span class="keyword">NOT NULL</span>,            <span class="comment">-- "lp_live_a3f2..." (first 8 chars, for display)</span>
+    scopes        text[] <span class="keyword">NOT NULL</span>,          <span class="comment">-- {"ingest", "read", "analyze", "admin"}</span>
+    expires_at    timestamptz,              <span class="comment">-- optional expiry</span>
+    created_by    uuid <span class="keyword">REFERENCES</span> users,
+    created_at    timestamptz <span class="keyword">DEFAULT NOW</span>(),
+    last_used_at  timestamptz
+);
+
+<span class="comment">-- Key format: lp_live_a3f2b8c1d9e0f7... (easy to identify as LogPilot key)</span></code></pre>
+
+<pre><code><span class="comment"># Authentication: API key OR session cookie (web app)</span>
+<span class="keyword">async def</span> get_current_user(request: Request) -> <span class="type">AuthUser</span>:
+    <span class="comment"># 1. Check Authorization header: "Bearer lp_live_..."</span>
+    <span class="keyword">if</span> api_key := extract_api_key(request):
+        <span class="keyword">return await</span> authenticate_api_key(api_key)
+    <span class="comment"># 2. Fall back to session cookie (web app)</span>
+    <span class="keyword">return await</span> auth_provider.authenticate(request)</code></pre>
+
+<h3>Ingest API (Push Logs to LogPilot)</h3>
+<p>The ingest endpoint is how external systems send logs to LogPilot without manual file upload.</p>
+
+<pre><code><span class="comment"># Simple: upload a log file</span>
+curl -X POST https://logpilot.io/api/v1/ingest \
+  -H <span class="string">"Authorization: Bearer lp_live_a3f2..."</span> \
+  -F <span class="string">"file=@/var/log/enonic/server.log"</span> \
+  -F <span class="string">"source=enonic-prod"</span> \
+  -F <span class="string">"session=auto"</span>
+
+<span class="comment"># Streaming: pipe logs directly</span>
+tail -f /var/log/enonic/server.log | curl -X POST \
+  https://logpilot.io/api/v1/ingest/stream \
+  -H <span class="string">"Authorization: Bearer lp_live_a3f2..."</span> \
+  -H <span class="string">"Content-Type: text/plain"</span> \
+  -H <span class="string">"X-LogPilot-Source: enonic-prod"</span> \
+  --data-binary @-
+
+<span class="comment"># Structured: send JSON log events directly</span>
+curl -X POST https://logpilot.io/api/v1/ingest \
+  -H <span class="string">"Authorization: Bearer lp_live_a3f2..."</span> \
+  -H <span class="string">"Content-Type: application/x-ndjson"</span> \
+  -d <span class="string">'{"ts":"2026-03-20T10:15:00Z","level":"ERROR","msg":"Connection refused","source":"enonic-prod"}'</span></code></pre>
+
+<h3>Webhooks (LogPilot Notifies External Systems)</h3>
+<p>When LogPilot detects something, it can notify external systems &mdash; Slack, PagerDuty, custom endpoints.</p>
+
+<pre><code><span class="comment"># Register a webhook</span>
+curl -X POST https://logpilot.io/api/v1/webhooks \
+  -H <span class="string">"Authorization: Bearer lp_live_a3f2..."</span> \
+  -d <span class="string">'{
+    "url": "https://hooks.slack.com/services/T.../B.../xxx",
+    "events": ["incident.detected", "analysis.complete"],
+    "secret": "whsec_..."
+  }'</span></code></pre>
+
+<table>
+  <thead>
+    <tr><th>Event</th><th>Fires when</th><th>Payload includes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ingest.complete</code></td><td>Log file parsed and stored</td><td>Session ID, file count, event count</td></tr>
+    <tr><td><code>analysis.complete</code></td><td>Heuristics and incident detection done</td><td>Session ID, incident count, top severity</td></tr>
+    <tr><td><code>incident.detected</code></td><td>New incident group identified</td><td>Incident summary, affected systems, evidence</td></tr>
+    <tr><td><code>explanation.ready</code></td><td>AI explanation generated</td><td>Session ID, summary excerpt</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="comment"># Webhook payload (signed with HMAC-SHA256)</span>
+{
+  <span class="string">"event"</span>: <span class="string">"incident.detected"</span>,
+  <span class="string">"workspace"</span>: <span class="string">"devops"</span>,
+  <span class="string">"timestamp"</span>: <span class="string">"2026-03-20T10:17:42Z"</span>,
+  <span class="string">"data"</span>: {
+    <span class="string">"session_id"</span>: <span class="string">"f47ac10b-58cc-..."</span>,
+    <span class="string">"incident"</span>: <span class="string">"Database Connection Cascade"</span>,
+    <span class="string">"severity"</span>: <span class="string">"critical"</span>,
+    <span class="string">"affected_systems"</span>: [<span class="string">"enonic-prod"</span>, <span class="string">"postgres-main"</span>],
+    <span class="string">"evidence"</span>: <span class="string">"Connection pool exhausted → 47 timeouts in 3 min"</span>,
+    <span class="string">"url"</span>: <span class="string">"https://logpilot.io/klp/devops/sessions/f47ac10b/incidents"</span>
+  }
+}</code></pre>
+
+<h3>Integration Example: Enonic XP</h3>
+<p>A typical Enonic XP integration uses two touchpoints:</p>
+
+<div class="diagram">
+Enonic XP server
+  &#9474;
+  &#9500;&#9472; server.log    &rarr;  Filebeat / cron job  &rarr;  POST /api/v1/ingest  &rarr;  LogPilot
+  &#9500;&#9472; request.log   &rarr;  Filebeat / cron job  &rarr;  POST /api/v1/ingest  &rarr;  LogPilot
+  &#9492;&#9472; (cluster logs) &rarr;  Filebeat / cron job  &rarr;  POST /api/v1/ingest  &rarr;  LogPilot
+                                                                        &#9474;
+LogPilot                                                                &#9474;
+  &#9500;&#9472; Auto-detects format (Enonic plugin)                              &#9474;
+  &#9500;&#9472; Parses, classifies, runs heuristics                             &#9474;
+  &#9500;&#9472; Detects incident: "Repository blob store corruption"             &#9474;
+  &#9492;&#9472; Webhook &rarr; Slack #enonic-alerts: "Critical incident detected"  &#9496;</div>
+
+<pre><code><span class="comment"># enonic-logpilot.sh &mdash; cron job example (runs every 5 min)</span>
+#!/bin/bash
+LOGPILOT_KEY=<span class="string">"lp_live_a3f2..."</span>
+LOGPILOT_URL=<span class="string">"https://logpilot.io/api/v1/ingest"</span>
+
+<span class="comment"># Ship rotated logs (only new files since last run)</span>
+find /opt/enonic/home/logs -name <span class="string">"*.log"</span> -newer /tmp/.logpilot-last-run \
+  -exec curl -s -X POST "$LOGPILOT_URL" \
+    -H <span class="string">"Authorization: Bearer $LOGPILOT_KEY"</span> \
+    -F <span class="string">"file=@{}"</span> \
+    -F <span class="string">"source=enonic-prod"</span> \
+    -F <span class="string">"session=auto"</span> \;
+
+touch /tmp/.logpilot-last-run</code></pre>
+
+<h3>SDKs (Future)</h3>
+<p>Since the API is OpenAPI-documented (FastAPI auto-generates this), client SDKs can be auto-generated or hand-written:</p>
+
+<table>
+  <thead>
+    <tr><th>SDK</th><th>Primary use case</th><th>Priority</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>logpilot-python</code></td><td>Scripts, CI/CD pipelines, Jupyter notebooks</td><td>V1 &mdash; hand-written, thin wrapper</td></tr>
+    <tr><td><code>logpilot-js</code></td><td>Node.js integrations, custom dashboards</td><td>V1 &mdash; auto-generated from OpenAPI</td></tr>
+    <tr><td><code>logpilot-cli</code></td><td>Terminal power users, shell scripts</td><td>V1 &mdash; already exists (the CLI)</td></tr>
+    <tr><td><code>logpilot-java</code></td><td>Enonic XP plugin, Spring Boot apps</td><td>V2 &mdash; when enterprise demand exists</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="comment"># Python SDK example</span>
+<span class="keyword">from</span> logpilot <span class="keyword">import</span> LogPilotClient
+
+client = LogPilotClient(
+    url=<span class="string">"https://logpilot.io"</span>,
+    api_key=<span class="string">"lp_live_a3f2..."</span>,
+)
+
+<span class="comment"># Upload and analyze in one call</span>
+session = client.ingest(
+    files=[<span class="string">"/var/log/enonic/server.log"</span>, <span class="string">"/var/log/enonic/request.log"</span>],
+    source=<span class="string">"enonic-prod"</span>,
+    auto_analyze=True,
+)
+
+<span class="comment"># Wait for analysis, get incidents</span>
+session.wait_for_analysis()
+<span class="keyword">for</span> incident <span class="keyword">in</span> session.incidents:
+    print(f<span class="string">"{incident.severity}: {incident.name}"</span>)
+    print(f<span class="string">"  Evidence: {incident.evidence.summary}"</span>)
+
+<span class="comment"># Ask AI to explain</span>
+explanation = session.explain(prompt=<span class="string">"What caused the blob store errors?"</span>)
+print(explanation.text)</code></pre>
+
+<div class="callout callout-success">
+  <div class="callout-title">API-first = integration-ready</div>
+  <p>Every feature in LogPilot is accessible via API from day one. The web app is one consumer of the same API. Customers integrate with their existing tools &mdash; Enonic, Kubernetes, CI/CD, Slack, PagerDuty &mdash; without waiting for us to build dedicated plugins.</p>
+</div>
+</section>
+
+<!-- 9. CODEBASE INTELLIGENCE (FUTURE) -->
+<section id="codebase-intelligence">
+<h2><span class="num">10.</span> Future: Source Code Lookup</h2>
+
+<div class="callout callout-warning">
+  <div class="callout-title">This is NOT Sentry</div>
+  <p>LogPilot does not instrument your application. No SDK, no agent, no runtime access. Instead, when LogPilot finds a stacktrace in your logs, it can <em>optionally</em> look up the corresponding source code in a connected Git repo &mdash; giving the AI more context to explain the bug. This is a <strong>post-hoc investigation tool</strong>, not real-time error tracking.</p>
+</div>
+
+<h3>The Idea</h3>
+<p>LogPilot already extracts exceptions and stacktraces from logs. Today, the AI explains them based on the log context alone. With an optional Git repo connection, LogPilot can also show <em>which code</em> the stacktrace points to &mdash; enriching the investigation without requiring any changes to the customer&rsquo;s application.</p>
+
+<div class="diagram">
+What LogPilot already does            What source lookup adds (optional)
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;      &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474; Parses logs                 &#9474;      &#9474; Resolves stacktrace frames     &#9474;
+&#9474; Detects incidents           &#9474;  +   &#9474; to actual source files + lines &#9474;
+&#9474; Finds root causes           &#9474;      &#9474; Shows surrounding code         &#9474;
+&#9474; AI explains from log data   &#9474;      &#9474; AI explains from log + code    &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;      &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+      works without repo              requires optional repo connection</div>
+
+<h3>How It Works</h3>
+<ol>
+  <li><strong>Workspace admin connects a repo</strong> (optional, one-time). Read-only access via GitHub App, deploy key, PAT, or local path.</li>
+  <li><strong>LogPilot indexes symbols</strong> in the background: builds a lookup table of <code>package.class.method &rarr; file:line</code>. This is a lightweight symbol table, not a full copy of the code.</li>
+  <li><strong>When a stacktrace appears in an incident</strong>, LogPilot resolves frames against the symbol table: <code>com.enonic.xp.repo.BlobStore.get()</code> &rarr; <code>src/repo/BlobStore.java:142</code>.</li>
+  <li><strong>The AI context builder</strong> includes the resolved source lines (20 lines around the frame) alongside the existing incident data. The AI can now explain the bug in terms of actual code.</li>
+</ol>
+
+<h3>What the User Sees</h3>
+<table>
+  <thead>
+    <tr><th>Without source lookup (default)</th><th>With source lookup (repo connected)</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>Incident:</strong> Database Connection Cascade<br>
+        <strong>Cause:</strong> NullPointerException in BlobStore.get()<br>
+        <strong>Evidence:</strong> 47 occurrences, 3 systems affected<br>
+        <strong>AI says:</strong> &ldquo;The blob store lookup fails when the cache key is null, likely during an index rebuild...&rdquo;
+      </td>
+      <td>
+        <strong>Incident:</strong> Database Connection Cascade<br>
+        <strong>Cause:</strong> NullPointerException in BlobStore.get()<br>
+        <strong>Source:</strong> <code>src/repo/BlobStore.java:142</code><br>
+        <strong>Code:</strong> <code>blob = cache.get(key);</code><br>
+        <strong>Last changed:</strong> Feb 15 by dev@enonic.com<br>
+        <strong>AI says:</strong> &ldquo;Line 142 passes <code>key</code> to <code>cache.get()</code> without null check. The <code>key</code> becomes null when <code>RepoIndex.rebuild()</code> (line 89) runs during a cluster split. Fix: add <code>if (key == null) return Optional.empty();</code> before the cache lookup.&rdquo;
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The product works fully without a repo connection. Source lookup is a &ldquo;plug in your repo for deeper insights&rdquo; feature, not a requirement.</p>
+
+<h3>Architecture (Lightweight)</h3>
+<table>
+  <thead>
+    <tr><th>Component</th><th>What it does</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Git connector</strong></td>
+      <td>Read-only shallow clone or local path mount. Fetches incrementally (on webhook or schedule). Never writes to the repo.</td>
+    </tr>
+    <tr>
+      <td><strong>Symbol indexer</strong></td>
+      <td>Parses source files, builds <code>class.method &rarr; file:line</code> lookup. Stored in Postgres per workspace. Small: ~1MB per 100K LOC repo.</td>
+    </tr>
+    <tr>
+      <td><strong>Frame resolver</strong></td>
+      <td>Maps stacktrace frames from log events to source locations using the symbol index. Fast in-memory lookup.</td>
+    </tr>
+    <tr>
+      <td><strong>Context enricher</strong></td>
+      <td>Reads ~20 lines of source around resolved locations. Adds git blame (who, when). Feeds into existing AI context builder.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Connection Options</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Best for</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GitHub App</td><td>SaaS customers on GitHub &mdash; one-click install</td></tr>
+    <tr><td>GitLab OAuth / project token</td><td>GitLab users</td></tr>
+    <tr><td>Deploy key (SSH, read-only)</td><td>Any Git host, self-hosted Git</td></tr>
+    <tr><td>Local path</td><td>Self-service on laptop &mdash; just point to your repo folder, no network needed</td></tr>
+  </tbody>
+</table>
+
+<h3>Language Support</h3>
+<table>
+  <thead>
+    <tr><th>Language</th><th>How stacktrace &rarr; source works</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Java / Kotlin</td><td>Package path maps deterministically to file path. Best support.</td></tr>
+    <tr><td>Python</td><td>Tracebacks include file path and line number directly.</td></tr>
+    <tr><td>JavaScript / TypeScript</td><td>Node.js traces include paths. Bundled browser code needs source maps.</td></tr>
+    <tr><td>Go</td><td>Panic traces include file:line.</td></tr>
+  </tbody>
+</table>
+
+<h3>Security</h3>
+<ul>
+  <li><strong>Read-only:</strong> LogPilot never writes to the repo. No push access, no PRs, no modifications.</li>
+  <li><strong>Workspace-scoped:</strong> Repo connection and symbol index belong to the workspace. RLS applies. Other workspaces cannot see the code.</li>
+  <li><strong>Redaction applies:</strong> Source code sent to AI passes through the same <code>RedactionGate</code>. Hardcoded secrets in code are redacted.</li>
+  <li><strong>Minimal data:</strong> LogPilot stores a symbol index (~1MB), not a full code copy. Source lines are fetched on-demand for resolved frames only.</li>
+</ul>
+
+<div class="callout callout-info">
+  <div class="callout-title">Build priority: V2+</div>
+  <p>The core product &mdash; log parsing, heuristics, incident detection, AI explanation &mdash; must work excellently <strong>without</strong> any repo connection. Source lookup is an enrichment layer that makes the AI smarter when available. Architecturally, it is a new adapter (Git connector) and an additional input to the existing AI context builder &mdash; no changes to the core analysis pipeline.</p>
+</div>
+</section>
+
+<!-- 10. PACKAGING & DISTRIBUTION -->
+<section id="packaging">
+<h2><span class="num">11.</span> Packaging &amp; Distribution</h2>
+
+<h3>Self-service (laptop &rarr; team &rarr; enterprise)</h3>
+<table>
+  <thead>
+    <tr><th>Format</th><th>Target</th><th>What it includes</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>pip install logpilot</code></td>
+      <td>Developer on laptop</td>
+      <td>Python package + pre-built Rust wheel (PyO3). SQLite + filesystem, zero external deps. <code>logpilot serve</code> starts on localhost:8080. Auto-creates &ldquo;Personal&rdquo; workspace.</td>
+    </tr>
+    <tr>
+      <td>Single Docker container</td>
+      <td>Developer / small team</td>
+      <td>API + worker + embedded SQLite. <code>docker run -v ./logs:/data logpilot/logpilot</code></td>
+    </tr>
+    <tr>
+      <td>Docker Compose</td>
+      <td>Team / department</td>
+      <td>LogPilot + Postgres + Redis. Set <code>LOGPILOT_AUTH_BACKEND=oidc</code> for team auth. Multiple workspaces.</td>
+    </tr>
+    <tr>
+      <td>Helm chart</td>
+      <td>Enterprise / large team</td>
+      <td>Same chart as SaaS, deployed to customer&rsquo;s Kubernetes. Full HA, ClickHouse optional.</td>
+    </tr>
+    <tr>
+      <td>Marketplace</td>
+      <td>Cloud customers</td>
+      <td>AWS AMI / Azure Container App / GCP Cloud Run. Same images, platform wrappers.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>SaaS (we host)</h3>
+<table>
+  <thead>
+    <tr><th>Component</th><th>Deployment</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>API</td><td>2&ndash;10 replicas, HPA on CPU</td></tr>
+    <tr><td>Workers</td><td>2&ndash;20 replicas, HPA on queue depth</td></tr>
+    <tr><td>Frontend</td><td>Nginx serving static React build</td></tr>
+    <tr><td>Infra</td><td>Managed Postgres, ClickHouse, Redis, S3</td></tr>
+  </tbody>
+</table>
+
+<div class="callout callout-success">
+  <div class="callout-title">One image, one CI pipeline</div>
+  <p>Self-service and SaaS use the same Docker images. The only difference is configuration. A customer who starts on their laptop can later deploy the same image to their Kubernetes cluster &mdash; just add env vars for Postgres, Redis, and OIDC.</p>
+</div>
+</section>
+
+<!-- 12. COST ANALYSIS (brief, details in GTM doc) -->
+<section id="costs">
+<h2><span class="num">12.</span> Cost Profile</h2>
+
+<div class="callout callout-info">
+  <div class="callout-title">All open source, zero license fees</div>
+  <p>Every component in the stack (React, FastAPI, Rust, PostgreSQL, Redis, ClickHouse, DuckDB, MinIO, Dramatiq, Docker) is open source. The only costs are infrastructure hosting and AI provider tokens. See the <a href="logpilot-go-to-market.html#pricing">Go-To-Market Strategy</a> for detailed cost analysis, unit economics, and pricing.</p>
+</div>
+
+<table>
+  <thead>
+    <tr><th>Scenario</th><th>Infrastructure cost</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Laptop (self-service)</strong></td><td>$0 &mdash; runs on local hardware</td></tr>
+    <tr><td><strong>Team server (self-service)</strong></td><td>~$50/month (single VM with Docker Compose)</td></tr>
+    <tr><td><strong>SaaS (we host)</strong></td><td>~$200&ndash;500/month (managed Postgres, Redis, S3, compute)</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- 10. TRADEOFFS -->
+<section id="tradeoffs">
+<h2><span class="num">13.</span> Tradeoffs</h2>
+
+<h3>Optimize For</h3>
+<table>
+  <thead>
+    <tr><th>Priority</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Time-to-first-insight</strong></td>
+      <td>Users upload logs because something is broken <em>right now</em>. Parse speed and analysis latency are the product. This justifies the Rust engine investment.</td>
+    </tr>
+    <tr>
+      <td><strong>Data isolation &amp; security</strong></td>
+      <td>Enterprise won&rsquo;t adopt a log tool that can leak data. RLS, typed redaction, audit logging are day-one requirements.</td>
+    </tr>
+    <tr>
+      <td><strong>Deployment flexibility</strong></td>
+      <td>Running locally AND as SaaS is a competitive advantage. The adapter pattern costs ~20% more upfront but unlocks the full market.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Deliberately NOT Optimize Early</h3>
+<table>
+  <thead>
+    <tr><th>Temptation</th><th>Why skip</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Real-time log streaming / tail -f</td><td>Different product (Datadog territory). Add later as an optional agent.</td></tr>
+    <tr><td>ClickHouse in local mode</td><td>DuckDB + Parquet is enough for single-user.</td></tr>
+    <tr><td>Multi-region SaaS</td><td>Self-service mode solves data residency until scale justifies it.</td></tr>
+    <tr><td>Custom heuristic editor UI</td><td>YAML + Git is fine for V1.</td></tr>
+    <tr><td>Plugin marketplace</td><td>Extensible system yes, public registry no. Premature.</td></tr>
+  </tbody>
+</table>
+
+<h3>Where Complexity IS Justified</h3>
+<table>
+  <thead>
+    <tr><th>Investment</th><th>Cost</th><th>Justification</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Rust parse engine</td><td>High</td><td>100x performance. Enables GB-scale without infrastructure scaling.</td></tr>
+    <tr><td>Typed redaction gate</td><td>Medium</td><td>Eliminates an entire class of data-leak bugs.</td></tr>
+    <tr><td>Postgres RLS</td><td>Medium</td><td>Defense-in-depth. Application bugs can&rsquo;t leak data.</td></tr>
+    <tr><td>Adapter-based infra</td><td>Medium</td><td>Self-service + SaaS from one codebase, laptop to enterprise.</td></tr>
+    <tr><td>Parquet intermediate format</td><td>Low&ndash;medium</td><td>Columnar queries without loading everything into RAM.</td></tr>
+  </tbody>
+</table>
+
+<h3>Where Complexity is NOT Justified</h3>
+<table>
+  <thead>
+    <tr><th>Temptation</th><th>Why skip</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Microservices from day one</td><td>Modular monolith is simpler. Extract services only at specific scaling bottlenecks.</td></tr>
+    <tr><td>GraphQL</td><td>REST + WebSocket is simpler. Query patterns are known and finite.</td></tr>
+    <tr><td>Event sourcing</td><td>Overkill. Standard CRUD + JSONB works.</td></tr>
+    <tr><td>Kubernetes operators</td><td>Helm chart is enough until 100+ enterprise installations.</td></tr>
+    <tr><td>Custom query language</td><td>DuckDB SQL over Parquet is already powerful. Don&rsquo;t invent a DSL.</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- 11. DREAM VS PRAGMATIC -->
+<section id="comparison">
+<h2><span class="num">14.</span> Dream vs. Pragmatic Stack</h2>
+
+<table class="compare-table">
+  <thead>
+    <tr>
+      <th>Concern</th>
+      <th><span class="dream">Dream Stack</span></th>
+      <th><span class="pragmatic">Pragmatic Stack</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Frontend</strong></td>
+      <td>React + TS + Tailwind</td>
+      <td>Same &mdash; no shortcut here</td>
+    </tr>
+    <tr>
+      <td><strong>API</strong></td>
+      <td>FastAPI</td>
+      <td>Same</td>
+    </tr>
+    <tr>
+      <td><strong>Parse engine</strong></td>
+      <td>Rust + PyO3</td>
+      <td><strong>Python + ProcessPoolExecutor</strong>. Rewrite to Rust at product-market fit.</td>
+    </tr>
+    <tr>
+      <td><strong>Background jobs</strong></td>
+      <td>Dramatiq + Redis</td>
+      <td><strong>RQ</strong> &mdash; simpler, fewer concepts</td>
+    </tr>
+    <tr>
+      <td><strong>Primary DB</strong></td>
+      <td>Postgres with RLS</td>
+      <td>Same</td>
+    </tr>
+    <tr>
+      <td><strong>Event storage</strong></td>
+      <td>ClickHouse (SaaS) + Parquet</td>
+      <td><strong>Postgres JSONB</strong> for events too &mdash; good to ~10M events/workspace</td>
+    </tr>
+    <tr>
+      <td><strong>Object store</strong></td>
+      <td>S3 + MinIO</td>
+      <td><strong>Filesystem</strong> with S3 adapter ready but unused</td>
+    </tr>
+    <tr>
+      <td><strong>Cache</strong></td>
+      <td>Redis</td>
+      <td><strong>In-process LRU + Redis</strong> for queue only</td>
+    </tr>
+    <tr>
+      <td><strong>Auth</strong></td>
+      <td>OIDC abstraction</td>
+      <td><strong>Custom OIDC abstraction</strong> &mdash; Clerk/Auth0 can&rsquo;t run in self-service deployments. Simple OIDC adapter (~80 lines) is the right trade-off.</td>
+    </tr>
+    <tr>
+      <td><strong>Local mode</strong></td>
+      <td>SQLite + DuckDB + Parquet + filesystem</td>
+      <td><strong>SQLite + filesystem</strong> &mdash; DuckDB + Parquet added in V2 when columnar queries needed</td>
+    </tr>
+    <tr>
+      <td><strong>Deployment</strong></td>
+      <td>Kubernetes Helm chart</td>
+      <td><strong>Docker Compose</strong> for everything</td>
+    </tr>
+    <tr>
+      <td><strong>AI redaction</strong></td>
+      <td>Typed RedactedText newtype</td>
+      <td><strong>Same</strong> &mdash; cheap and critical, no shortcut</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Summary</div>
+  <p>Start pragmatic, graduate to dream as revenue justifies the investment. The adapter pattern makes this evolution possible without rewrites. See the <a href="logpilot-project-plan.html">Project Plan</a> for detailed build phases and timeline.</p>
+</div>
+</section>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p><strong>LogPilot Dream Architecture</strong> &mdash; Item Consulting &mdash; March 2026</p>
+  <p>Generated with Claude Code</p>
+</div>
+
+</div>
+</body>
+</html>

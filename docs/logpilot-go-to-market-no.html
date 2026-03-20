@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogPilot — Go-To-Market-strategi</title>
+<style>
+  :root {
+    --purple: #7C3AED;
+    --purple-light: #EDE9FE;
+    --green: #34D399;
+    --green-light: #D1FAE5;
+    --dark: #0F172A;
+    --gray-50: #F8FAFC;
+    --gray-100: #F1F5F9;
+    --gray-200: #E2E8F0;
+    --gray-300: #CBD5E1;
+    --gray-400: #94A3B8;
+    --gray-500: #64748B;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1E293B;
+    --orange-light: #FFF7ED;
+    --orange: #F97316;
+    --blue-light: #EFF6FF;
+    --blue: #3B82F6;
+    --red-light: #FEF2F2;
+    --red: #EF4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color: var(--dark);
+    line-height: 1.7;
+    background: var(--gray-50);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 3px solid var(--purple);
+  }
+  .header .brand {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+  }
+  .header h1 {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+  }
+  .header .subtitle {
+    font-size: 1.1rem;
+    color: var(--gray-500);
+    font-weight: 400;
+  }
+  .header .date {
+    font-size: 0.85rem;
+    color: var(--gray-400);
+    margin-top: 0.75rem;
+  }
+
+  /* Vision box */
+  .vision {
+    background: linear-gradient(135deg, var(--purple), #6D28D9);
+    color: white;
+    padding: 1.75rem 2rem;
+    border-radius: 12px;
+    margin-bottom: 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    line-height: 1.6;
+  }
+  .vision em { font-style: normal; color: var(--green); font-weight: 700; }
+  .vision .positioning {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+
+  /* TOC */
+  .toc {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 3rem;
+  }
+  .toc h2 {
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    margin-bottom: 1rem;
+    border: none;
+    padding: 0;
+  }
+  .toc ol {
+    columns: 2;
+    column-gap: 2rem;
+    padding-left: 1.25rem;
+  }
+  .toc li {
+    margin-bottom: 0.4rem;
+    font-size: 0.95rem;
+    break-inside: avoid;
+  }
+  .toc a {
+    color: var(--purple);
+    text-decoration: none;
+  }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Sections */
+  section { margin-bottom: 3rem; }
+
+  h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--purple-light);
+  }
+  h2 .num {
+    color: var(--purple);
+    margin-right: 0.25em;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--gray-700);
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin: 1.25rem 0 0.5rem;
+  }
+
+  p { margin-bottom: 0.85rem; }
+
+  ul, ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  li { margin-bottom: 0.35rem; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.9rem;
+  }
+  thead th {
+    background: var(--gray-800);
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+  }
+  thead th:first-child { border-radius: 8px 0 0 0; }
+  thead th:last-child { border-radius: 0 8px 0 0; }
+  tbody td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+  tbody tr:nth-child(even) { background: var(--gray-50); }
+  tbody tr:hover { background: var(--purple-light); }
+
+  /* Callout boxes */
+  .callout {
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin: 1.25rem 0;
+  }
+  .callout-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem;
+  }
+  .callout-insight {
+    background: var(--purple-light);
+    border-left: 4px solid var(--purple);
+  }
+  .callout-insight .callout-title { color: var(--purple); }
+  .callout-warning {
+    background: var(--orange-light);
+    border-left: 4px solid var(--orange);
+  }
+  .callout-warning .callout-title { color: var(--orange); }
+  .callout-info {
+    background: var(--blue-light);
+    border-left: 4px solid var(--blue);
+  }
+  .callout-info .callout-title { color: var(--blue); }
+  .callout-success {
+    background: var(--green-light);
+    border-left: 4px solid var(--green);
+  }
+  .callout-success .callout-title { color: #059669; }
+  .callout-danger {
+    background: var(--red-light);
+    border-left: 4px solid var(--red);
+  }
+  .callout-danger .callout-title { color: var(--red); }
+
+  /* Blockquote for positioning statements */
+  blockquote {
+    background: var(--gray-100);
+    border-left: 4px solid var(--purple);
+    padding: 1rem 1.25rem;
+    margin: 1rem 0 1.25rem;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--gray-700);
+    border-radius: 0 8px 8px 0;
+  }
+
+  /* Pricing table */
+  .pricing-table thead th { text-align: center; }
+  .pricing-table thead th:first-child { text-align: left; }
+  .pricing-table tbody td { text-align: center; }
+  .pricing-table tbody td:first-child { text-align: left; font-weight: 600; }
+  .pricing-table .price-row td {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--purple);
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+  .pricing-table .price-row td:first-child { color: var(--dark); }
+
+  /* Checklist */
+  .checklist {
+    list-style: none;
+    padding-left: 0;
+  }
+  .checklist li {
+    padding-left: 1.75rem;
+    position: relative;
+    margin-bottom: 0.5rem;
+  }
+  .checklist li::before {
+    content: "\2610";
+    position: absolute;
+    left: 0;
+    color: var(--purple);
+    font-size: 1.1rem;
+  }
+
+  /* Expansion flow */
+  .flow {
+    background: var(--dark);
+    color: #CBD5E1;
+    padding: 1.5rem;
+    border-radius: 12px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 1rem 0 1.5rem;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 2px solid var(--gray-200);
+    color: var(--gray-400);
+    font-size: 0.85rem;
+  }
+  .footer strong { color: var(--gray-600); }
+
+  /* Print */
+  @media print {
+    body { background: white; }
+    .page { padding: 1rem 0; max-width: 100%; }
+    section { break-inside: avoid; }
+    h2 { break-after: avoid; }
+    .toc { break-after: page; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="brand">Item Consulting</div>
+  <h1>LogPilot Go-To-Market-strategi</h1>
+  <div class="subtitle">Fra produkt til betalende kunder</div>
+  <div class="date">Mars 2026</div>
+</div>
+
+<div class="vision">
+  <span class="positioning">&ldquo;LogPilot hjelper driftsteam å forstå produksjonshendelser på minutter i stedet for timer &mdash; uten å installere agenter, sette opp infrastruktur eller lese tusenvis av logglinjer.&rdquo;</span>
+  Ikke et overvåkingsverktøy. Ikke en feilsporer. En <em>incident intelligence-plattform</em> som fungerer med loggene du allerede har.
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h2>Innhold</h2>
+  <ol>
+    <li><a href="#product">Produktforståelse</a></li>
+    <li><a href="#customer">Målkunde</a></li>
+    <li><a href="#pain">Kjerneproblem &amp; verdi</a></li>
+    <li><a href="#positioning">Posisjonering</a></li>
+    <li><a href="#competition">Konkurranselandskap</a></li>
+    <li><a href="#gtm">Go-To-Market-strategi</a></li>
+    <li><a href="#pricing">Prising &amp; pakker</a></li>
+    <li><a href="#first-customers">Raskeste vei til første kunder</a></li>
+    <li><a href="#launch">Lanseringsplan</a></li>
+    <li><a href="#risks">Risikoer &amp; feilmoduser</a></li>
+    <li><a href="#next-steps">Anbefalte neste steg</a></li>
+  </ol>
+</div>
+
+<!-- 1. PRODUCT UNDERSTANDING -->
+<section id="product">
+<h2><span class="num">1.</span> Produktforståelse</h2>
+
+<p><strong>LogPilot</strong> er en incident intelligence-plattform som gjør rå serverlogger om til en klar forklaring på hva som gikk galt og hvorfor.</p>
+
+<table>
+  <thead>
+    <tr><th>Aspekt</th><th>Detalj</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Hva det gjør</strong></td>
+      <td>Leser inn loggfiler fra flere systemer, auto-oppdager format (8 plugins: WAS, JSON, nginx, Log4j, Python, syslog, Enonic XP, Kubernetes/CRI-O), parser og strukturerer hendelser, oppdager mønstre/kaskader/hendelser, identifiserer rotårsaker, og bruker AI til å forklare funnene.</td>
+    </tr>
+    <tr>
+      <td><strong>Problemet det løser</strong></td>
+      <td>Når produksjon havarerer, kaster ingeniører bort timer på å lese tusenvis av logglinjer på tvers av systemer for å forstå hva som skjedde. LogPilot gjør denne analysen på sekunder.</td>
+    </tr>
+    <tr>
+      <td><strong>Hvem det er for</strong></td>
+      <td>Driftsingeniører, DevOps-team og utviklere som etterforsker produksjonshendelser &mdash; spesielt i Java/JVM-miljøer og Kubernetes-infrastruktur.</td>
+    </tr>
+    <tr>
+      <td><strong>Utrulling</strong></td>
+      <td>Kjører på en bærbar (null konfigurasjon), som en teamserver (Docker Compose), eller som SaaS. Samme produkt overalt.</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- 2. TARGET CUSTOMER -->
+<section id="customer">
+<h2><span class="num">2.</span> Målkunde</h2>
+
+<h3>Primær: Vakthavende ingeniør klokken 02.00</h3>
+<ul>
+  <li>Mellomstore bedrifter (50&ndash;500 ansatte) som kjører Java-baserte applikasjoner på WAS/Liberty, Spring Boot eller Enonic XP</li>
+  <li>Team uten sentralisert observability (ingen Datadog, eller Datadog er for dyrt/komplekst for deres behov)</li>
+  <li>DevOps- og plattformteam som mottar eskalerte produksjonshendelser</li>
+  <li>Konsulentfirmaer som feilsøker klientinfrastruktur</li>
+</ul>
+
+<h3>Sekundær: Enterprise-driftsteam</h3>
+<ul>
+  <li>Store organisasjoner med flere team (dev, devops, secops) som trenger isolerte arbeidsområder</li>
+  <li>Selskaper med etterlevelseskrav (revisjonsspor, dataisolasjon, on-prem-utrulling)</li>
+</ul>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Jobben som skal gjøres</div>
+  <p>&ldquo;Noe er ødelagt i produksjon. Jeg har loggfiler fra 3 systemer. Jeg trenger å forstå hva som skjedde, hva som forårsaket det, og hva jeg skal fikse &mdash; på minutter, ikke timer.&rdquo;</p>
+</div>
+</section>
+
+<!-- 3. CORE PAIN & VALUE -->
+<section id="pain">
+<h2><span class="num">3.</span> Kjerneproblem &amp; verdi</h2>
+
+<h3>Smerten i dag</h3>
+<table>
+  <thead>
+    <tr><th>Problem</th><th>Konsekvens</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Manuell gjennomgang av 50 000 logglinjer etter en hendelse</td>
+      <td>2&ndash;4 timer per hendelse, ofte under tidspress</td>
+    </tr>
+    <tr>
+      <td>Korrelering av hendelser på tvers av flere systemer er feilutsatt</td>
+      <td>Rotårsak oversett, feil løsning anvendt, hendelsen gjentar seg</td>
+    </tr>
+    <tr>
+      <td>Kunnskap sitter låst i erfarne ingeniørers hoder</td>
+      <td>Junioringeniører sliter, kunnskap går tapt ved avgang</td>
+    </tr>
+    <tr>
+      <td>Eksisterende verktøy er for dyre eller for komplekse</td>
+      <td>Datadog: $50K+/år. ELK: uker å sette opp. grep: skalerer ikke.</td>
+    </tr>
+    <tr>
+      <td>Hendelseskunnskap går tapt etter løsning</td>
+      <td>Samme hendelse skjer igjen, etterforskning starter fra bunnen</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Hvorfor nåværende løsninger ikke passer</h3>
+<table>
+  <thead>
+    <tr><th>Løsning</th><th>Problem</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Datadog / Splunk / New Relic</strong></td>
+      <td>Bra for sanntidsovervåking, men overdrevent og dyrt for etterfaktum-hendelsesetterforskning. Krever agenter, instrumentering og løpende infrastruktur.</td>
+    </tr>
+    <tr>
+      <td><strong>ELK / Grafana Loki</strong></td>
+      <td>Kraftig, men krever betydelig oppsett og ekspertise. Bra for søk, dårlig for forklaring.</td>
+    </tr>
+    <tr>
+      <td><strong>Sentry / Bugsnag</strong></td>
+      <td>Fanger individuelle feil i sanntid med SDK. Analyserer ikke loggfiler, korrelerer ikke på tvers av systemer, forklarer ikke hendelser.</td>
+    </tr>
+    <tr>
+      <td><strong>grep / awk / manuell lesing</strong></td>
+      <td>Gratis, men skalerer ikke, korrelerer ikke, forklarer ikke.</td>
+    </tr>
+    <tr>
+      <td><strong>Lim inn i ChatGPT</strong></td>
+      <td>Overraskende vanlig. Raskt for enkle tilfeller, men ingen struktur, ingen persistens, ingen korrelering på tvers av systemer, ingen historikk.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>LogPilots konkrete verdi</h3>
+<table>
+  <thead>
+    <tr><th>Verdi</th><th>Hva det betyr</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Null oppsett</strong></td>
+      <td>Last opp loggfiler, få resultater. Ingen agenter, ingen SDK, ingen infrastruktur å vedlikeholde.</td>
+    </tr>
+    <tr>
+      <td><strong>Korrelering på tvers av systemer</strong></td>
+      <td>Oppdager automatisk kaskadesvikt på tvers av flere loggkilder og systemer.</td>
+    </tr>
+    <tr>
+      <td><strong>AI-forklaring, ikke bare søk</strong></td>
+      <td>Finner ikke bare feil &mdash; forklarer hva som forårsaket dem og hva man bør gjøre.</td>
+    </tr>
+    <tr>
+      <td><strong>Kunnskapsakkumulering</strong></td>
+      <td>Tidligere hendelser blir søkbare. Systemet blir smartere over tid. (V2)</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- 4. POSITIONING -->
+<section id="positioning">
+<h2><span class="num">4.</span> Posisjonering</h2>
+
+<h3>Primær posisjonering</h3>
+<blockquote>
+  &ldquo;LogPilot hjelper driftsteam å forstå produksjonshendelser på minutter i stedet for timer &mdash; uten å installere agenter, sette opp infrastruktur eller lese tusenvis av logglinjer.&rdquo;
+</blockquote>
+
+<h3>Alternative vinkler</h3>
+
+<h4>«Øyeblikkelig ekspert»-vinkelen</h4>
+<blockquote>
+  &ldquo;LogPilot gir alle ingeniørene de samme hendelsesanalyseferdighetene som din mest erfarne driftsperson.&rdquo;
+</blockquote>
+<p>Best for: team med junioringeniører, høy gjennomtrekk eller 24/7 vaktturnuser der ikke alle er like erfarne.</p>
+
+<h4>«Anti-Datadog»-vinkelen</h4>
+<blockquote>
+  &ldquo;Du trenger ikke en observability-plattform til $50K/år for å forstå hvorfor produksjon gikk ned. Last opp loggene dine. Få svar.&rdquo;
+</blockquote>
+<p>Best for: selskaper som har vurdert Datadog/Splunk og besluttet at det er for dyrt eller komplekst for deres behov.</p>
+
+<h4>«Anti-ChatGPT»-vinkelen (kritisk)</h4>
+<blockquote>
+  &ldquo;ChatGPT leser logger. LogPilot forstår systemer.&rdquo;
+</blockquote>
+<p>Dette er den viktigste differensieringen å kommunisere. Alle potensielle kunder vil tenke «kan jeg ikke bare lime dette inn i ChatGPT?» Svaret må være umiddelbart og klart:</p>
+<table>
+  <thead>
+    <tr><th>ChatGPT</th><th>LogPilot</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Én fil av gangen</td><td>5&ndash;20 filer korrelert på tvers av systemer</td></tr>
+    <tr><td>Ingen struktur &mdash; prosa-output</td><td>Hendelsesgrupper, kaskader, bevisblokker, tidslinje</td></tr>
+    <tr><td>Glemmer alt etter chatten</td><td>Arbeidsområdehistorikk, søkbar på tvers av hendelser (V2)</td></tr>
+    <tr><td>Du limer inn hemmeligheter</td><td>Automatisk redaksjon før AI ser noe</td></tr>
+    <tr><td>Ren språkmodell &mdash; ingen domèneregler</td><td>83 regelbaserte heuristikker + AI på toppen</td></tr>
+    <tr><td>Ingen repeterbarhet</td><td>Samme logger &rarr; samme strukturerte analyse hver gang</td></tr>
+  </tbody>
+</table>
+<p>Best for: alle potensielle kunder. Denne innvendingen vil dukke opp i alle salgssamtaler og i alle «Show HN»-kommentartråder. Forbered deg på det.</p>
+
+<h4>«Kunnskapsretensjon»-vinkelen (V2)</h4>
+<blockquote>
+  &ldquo;Slutt å miste hendelseskunnskap når folk slutter. LogPilot husker alle hendelser teamet ditt har løst.&rdquo;
+</blockquote>
+<p>Best for: enterprise-team der driftskunnskap er et strategisk aktiva og gjennomtrekk er et reelt problem.</p>
+</section>
+
+<!-- 5. COMPETITIVE LANDSCAPE -->
+<section id="competition">
+<h2><span class="num">5.</span> Konkurranselandskap</h2>
+
+<table>
+  <thead>
+    <tr><th>Konkurrent</th><th>Relasjon</th><th>Hvorfor de kan vinne</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Datadog / Splunk / New Relic</strong></td>
+      <td>Annen kategori. Sanntidsovervåking + varsling. LogPilot gjør etterfaktum-etterforskning.</td>
+      <td>&ldquo;Vi betaler allerede for Datadog, hvorfor legge til et nytt verktøy?&rdquo;</td>
+    </tr>
+    <tr>
+      <td><strong>ELK Stack / Grafana Loki</strong></td>
+      <td>Open source-loggsøk. Overlapper på innlesing, men analyserer eller forklarer ikke.</td>
+      <td>&ldquo;Vi har allerede ELK, vi trenger bare bedre dashbord.&rdquo;</td>
+    </tr>
+    <tr>
+      <td><strong>Sentry / Bugsnag</strong></td>
+      <td>Feilsporing med kodekontekst. SDK-basert, sanntid.</td>
+      <td>&ldquo;Vi vil ha live feilfangst, ikke loggfilanalyse.&rdquo;</td>
+    </tr>
+    <tr>
+      <td><strong>grep + awk + erfaren ingeniør</strong></td>
+      <td>Den egentlige konkurrenten. Det alle gjør i dag.</td>
+      <td>&ldquo;Jeg kan bare lese loggene selv.&rdquo; (Inntil de ikke kan.)</td>
+    </tr>
+    <tr>
+      <td><strong>Lim inn i ChatGPT</strong></td>
+      <td><strong>Konkurrent nr. 1.</strong> Overraskende vanlig. Raskt, gratis, ingenting å lære. Fungerer fint for enkeltfil, enkeltfeil-tilfeller.</td>
+      <td>&ldquo;Jeg limer bare inn feilen i ChatGPT.&rdquo; LogPilot må vinne klart på flerfilkorrelering, strukturert output, redaksjon og repeterbarhet. Se <a href="#positioning">Anti-ChatGPT-posisjonering</a> ovenfor.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-danger">
+  <div class="callout-title">Ærlig vurdering</div>
+  <p>Den største konkurrenten er <strong>ChatGPT + kopier-og-lim</strong>. Alle potensielle kunder vil prøve dette først. LogPilot vinner bare når hendelsen involverer flere loggfiler fra flere systemer &mdash; som er nøyaktig når ChatGPT feiler (kontekstvindubegrensninger, ingen korrelering, ingen struktur, ingen hukommelse). <strong>Demoen må vise en hendelse med flere systemer.</strong> Enkeltfilanalyse gir ikke nok differensiering.</p>
+</div>
+</section>
+
+<!-- 6. GO-TO-MARKET STRATEGY -->
+<section id="gtm">
+<h2><span class="num">6.</span> Go-To-Market-strategi</h2>
+
+<h3>a) Første inngang: Enonic XP + Item Consultings nettverk</h3>
+
+<p><strong>Hvorfor Enonic XP er den perfekte første inngangen:</strong></p>
+<ul>
+  <li>Item Consulting har dyp Enonic-ekspertise og eksisterende klientrelasjoner</li>
+  <li>Enonic XP har et dedikert community, men ingen dedikerte verktøy for hendelsesanalyse</li>
+  <li>LogPilot har allerede en Enonic-format-plugin &mdash; det fungerer rett ut av boksen</li>
+  <li>Enonic-kunder er mellomstore selskaper: for små for Splunk, ikke cloud-native nok for Datadog</li>
+</ul>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Inngangsscenarioet</div>
+  <p>En Enonic XP-kunde har en produksjonshendelse. Driftsteamet bruker 3 timer på å lese server.log + request.log på tvers av 3 noder. Med LogPilot laster de opp loggene og får et hendelsessammendrag på 2 minutter.</p>
+</div>
+
+<p><strong>Utvid fra Enonic til bredere Java/JVM:</strong> Enonic kjører på JVM &rarr; samme heuristikker gjelder for WAS, Liberty, Spring Boot &rarr; naturlig ekspansjonssti til et mye større marked.</p>
+
+<h3>b) Distribusjonsstrategi</h3>
+
+<table>
+  <thead>
+    <tr><th>Kanal</th><th>Tilnærming</th><th>Tidslinje</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Item Consulting-klienter</strong></td>
+      <td>Bruk LogPilot under konsulentoppdrag. Klienter ser verdien, vil ha det selv.</td>
+      <td>Umiddelbart</td>
+    </tr>
+    <tr>
+      <td><strong>Enonic-community</strong></td>
+      <td>Marketplace-oppføring, blogginnlegg, foredrag på Enonic Connect.</td>
+      <td>Måned 1&ndash;3</td>
+    </tr>
+    <tr>
+      <td><strong>Dev/ops-communities</strong></td>
+      <td>Reddit r/devops, r/sysadmin, Hacker News &ldquo;Show HN&rdquo;. Demo-drevet.</td>
+      <td>Måned 2&ndash;4</td>
+    </tr>
+    <tr>
+      <td><strong>Innhold / SEO</strong></td>
+      <td>&ldquo;How to analyze WebSphere logs&rdquo;, &ldquo;K8s CrashLoopBackOff debugging&rdquo;. Målrett 02.00-søk.</td>
+      <td>Måned 3&ndash;6</td>
+    </tr>
+    <tr>
+      <td><strong>GitHub / Open source</strong></td>
+      <td>Open source CLI. Stjerner &rarr; bevissthet &rarr; SaaS-konvertering.</td>
+      <td>Måned 3&ndash;6</td>
+    </tr>
+    <tr>
+      <td><strong>Integrasjonsmarkedplasser</strong></td>
+      <td>Enonic Marketplace, Kubernetes/Helm-økosystem.</td>
+      <td>Måned 6+</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>c) Aktiveringsstrategi</h3>
+
+<div class="callout callout-success">
+  <div class="callout-title">Mål: 10 sekunder til «wow», 2 minutter til «dette trenger jeg»</div>
+  <p>
+    <strong>10 sekunder (øyeblikkelig wow):</strong><br>
+    1. Bruker lander på logpilot.io<br>
+    2. Landingssiden viser en <strong>live demo-analyse</strong> &mdash; en ekte hendelse allerede analysert, med sammendrag, årsaker, bevis og AI-forklaring synlig umiddelbart<br>
+    3. Bruker tenker: &ldquo;dette er det jeg trenger&rdquo;<br>
+    <br>
+    <strong>30 sekunder (prøv det selv):</strong><br>
+    4. Klikker &ldquo;Prøv med eksempellogger&rdquo; &mdash; ett klikk, ingen opplasting, ingen registrering<br>
+    5. Ser en ny analyse generert fra eksempeldata<br>
+    <br>
+    <strong>2 minutter (hektet):</strong><br>
+    6. Drar og slipper egne loggfiler<br>
+    7. Ser egne hendelser analysert<br>
+    8. Klikker &ldquo;Forklar med AI&rdquo; &rarr; strømmende respons<br>
+    <br>
+    <strong>Ingen registrering kreves for første analyse.</strong> Registrer deg for å lagre resultater, opprette arbeidsområder, bruke API.
+  </p>
+</div>
+
+<p>Hvis brukeren må opprette en konto, konfigurere noe eller lese dokumentasjon før de ser verdi, vil de fleste forlate siden. Produktet må selge seg selv gjennom umiddelbar opplevelse.</p>
+
+<div class="callout callout-info">
+  <div class="callout-title">Landingssiden må kommunisere tre ting umiddelbart</div>
+  <p>
+    1. <strong>&ldquo;Gjør rå logger om til en klar hendelsesrapport&rdquo;</strong> &mdash; hva det gjør<br>
+    2. <strong>&ldquo;Ingenting forlater maskinen din&rdquo;</strong> &mdash; tillit/sikkerhet (kritisk for enterprise)<br>
+    3. <strong>En synlig demo-analyse</strong> &mdash; vis, ikke fortell
+  </p>
+</div>
+
+<h3>d) Ekspansjonsstrategi</h3>
+
+<div class="flow">
+Individuell utvikler (gratis, lokalt)
+  &rarr; "Dette er nyttig, la meg dele det med teamet mitt"
+  &rarr; Teamarbeidsområde (betalt, delt analyse + historikk)
+  &rarr; "Andre team vil ha dette også"
+  &rarr; Organisasjon med flere arbeidsområder (dev, devops, secops)
+  &rarr; "Vi vil ha dette integrert i pipeline-en vår"
+  &rarr; API-integrasjon + webhooks (enterprise)
+  &rarr; "Vi trenger dette on-prem / i vår sky"
+  &rarr; Self-service enterprise-utrulling</div>
+
+<p>Klassisk bottom-up SaaS-bevegelse: individuell &rarr; team &rarr; organisasjon. Hvert steg er en naturlig eskalering drevet av brukeren, ikke av salgsoppsøk.</p>
+</section>
+
+<!-- 7. PRICING & PACKAGING -->
+<section id="pricing">
+<h2><span class="num">7.</span> Prising &amp; pakker</h2>
+
+<table class="pricing-table">
+  <thead>
+    <tr>
+      <th></th>
+      <th>Gratis</th>
+      <th>Team</th>
+      <th>Enterprise</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="price-row">
+      <td>Pris</td>
+      <td>$0</td>
+      <td>$49/mnd per arbeidsområde</td>
+      <td>Tilpasset (fra $499/mnd)</td>
+    </tr>
+    <tr>
+      <td>Brukere</td>
+      <td>1</td>
+      <td>Opptil 10 per arbeidsområde</td>
+      <td>Ubegrenset</td>
+    </tr>
+    <tr>
+      <td>Analyseøkter</td>
+      <td>5 / måned</td>
+      <td>Ubegrenset</td>
+      <td>Ubegrenset</td>
+    </tr>
+    <tr>
+      <td>Loggvolum</td>
+      <td>500 MB / måned</td>
+      <td>10 GB / måned</td>
+      <td>Tilpasset</td>
+    </tr>
+    <tr>
+      <td>AI-forklaringer</td>
+      <td>3 / måned (BYO key: ubegrenset)</td>
+      <td>50 / måned (BYO key: ubegrenset)</td>
+      <td>Tilpasset (eller BYO key)</td>
+    </tr>
+    <tr>
+      <td>Historikk / RAG</td>
+      <td>Siste 5 økter</td>
+      <td>Full historikk + søk</td>
+      <td>Full + RAG på tvers av hendelser</td>
+    </tr>
+    <tr>
+      <td>API-tilgang</td>
+      <td>&mdash;</td>
+      <td>Ja</td>
+      <td>Ja + webhooks</td>
+    </tr>
+    <tr>
+      <td>Kildekodeoppslag</td>
+      <td>&mdash;</td>
+      <td>1 repo</td>
+      <td>Ubegrenset antall repos</td>
+    </tr>
+    <tr>
+      <td>Autentisering</td>
+      <td>Kun lokalt</td>
+      <td>OIDC</td>
+      <td>OIDC + SSO + SCIM</td>
+    </tr>
+    <tr>
+      <td>Utrulling</td>
+      <td>Lokalt (pip / Docker)</td>
+      <td>SaaS</td>
+      <td>SaaS eller self-service</td>
+    </tr>
+    <tr>
+      <td>Support</td>
+      <td>Community</td>
+      <td>E-post</td>
+      <td>Dedikert + SLA</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Prisgrunnlag</h3>
+<ul>
+  <li><strong>Gratisnivået er generøst nok til å være nyttig</strong> &mdash; en individuell utvikler kan bruke det regelmessig uten å betale. Dette driver adopsjon og jungeltelegrafen.</li>
+  <li><strong>$49/arbeidsområde/måned er tilgjengelig</strong> &mdash; et team på 5 DevOps-ingeniører som deler et arbeidsområde koster mindre enn én Datadog-host per måned.</li>
+  <li><strong>BYO API-nøkkel fjerner AI-kostnad som barriere</strong> &mdash; kunder som allerede har Anthropic/OpenAI-nøkler får ubegrenset AI-forklaring uten påslag fra oss.</li>
+  <li><strong>Enterprise er tilpasset</strong> &mdash; enterprise-avtaler er alltid tilpasset. Å prissette dem offentlig taper flere avtaler enn det vinner.</li>
+  <li><strong>$49 er bevisst lavt for lansering</strong> &mdash; feilsøking av hendelser har høy betalingsvilje (3 timer spart = $450+ i ingeniørtid). $49 driver adopsjon nå. Prisøkninger til $99&ndash;149 er naturlige etter at verdien er bevist og kundebasen er etablert. Per-hendelse eller verdibasert prising er et fremtidig alternativ for enterprise.</li>
+</ul>
+
+<h3>Valgfritt: Forbruksbasert komponent</h3>
+<p>For storbrukere kan det vurderes å legge til et forbruksbasert element:</p>
+<ul>
+  <li>Grunnpris: $49/arbeidsområde/måned (inkluderer 10 GB)</li>
+  <li>Overskridelse: $2/GB utover inkludert volum</li>
+  <li>Tilpasser kostnaden til verdien &mdash; kunder som analyserer mer logger får mer verdi og betaler proporsjonalt mer</li>
+</ul>
+
+<h3>Enhetsøkonomi: Våre kostnader</h3>
+
+<p>Alle komponenter i stacken er open source. Ingen lisensavgifter. Kostnader er kun infrastruktur:</p>
+
+<table>
+  <thead>
+    <tr><th>Komponent</th><th>Lisens</th><th>Kostnad</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>React, TypeScript, Tailwind, shadcn/ui</td><td>MIT</td><td>Gratis</td></tr>
+    <tr><td>FastAPI, Pydantic</td><td>MIT</td><td>Gratis</td></tr>
+    <tr><td>PostgreSQL, Redis, ClickHouse, DuckDB</td><td>Diverse OSS</td><td>Gratis</td></tr>
+    <tr><td>Docker, Kubernetes, Helm</td><td>Apache 2.0</td><td>Gratis</td></tr>
+  </tbody>
+</table>
+
+<h4>SaaS-infrastruktur (hva vi betaler)</h4>
+<table>
+  <thead>
+    <tr><th>Tjeneste</th><th>~Månedlig kostnad</th><th>Kan selvhostes i stedet</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Managed Postgres (RDS / Cloud SQL)</td><td>$50&ndash;200</td><td>Ja</td></tr>
+    <tr><td>Managed Redis (ElastiCache)</td><td>$30&ndash;100</td><td>Ja</td></tr>
+    <tr><td>S3 / GCS / Azure Blob</td><td>~$23/TB</td><td>Ja (MinIO)</td></tr>
+    <tr><td>ClickHouse Cloud (kun ved skala)</td><td>$200+</td><td>Ja</td></tr>
+    <tr><td>Compute (VMs)</td><td>$50&ndash;500</td><td>&mdash;</td></tr>
+  </tbody>
+</table>
+<p><strong>Total SaaS i liten skala: ~$200&ndash;500/måned.</strong> Med 10 Team-arbeidsområder ($490/måned inntekt) går vi i null på infrastruktur. Hvert ekstra arbeidsområde gir ~90% margin.</p>
+
+<h4>AI-leverandørkostnader (per token)</h4>
+<table>
+  <thead>
+    <tr><th>Leverandør</th><th>~Kostnad per 1M tokens</th><th>Hvem betaler</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Claude (Anthropic)</td><td>$3&ndash;15</td><td>Kunde (BYO key) eller vi (inkludert nivå)</td></tr>
+    <tr><td>OpenAI</td><td>$2.50&ndash;15</td><td>Kunde (BYO key) eller vi</td></tr>
+    <tr><td>Gemini (Google)</td><td>$1.25&ndash;10</td><td>Kunde (BYO key) eller vi</td></tr>
+    <tr><td>Lokale modeller (Ollama)</td><td>Gratis</td><td>Kundens maskinvare</td></tr>
+  </tbody>
+</table>
+
+<h4>Plan for faktureringsovergang</h4>
+<p>Før Stripe-integrasjon (~20+ betalende kunder):</p>
+<ul>
+  <li><strong>Gratisnivå:</strong> Self-service, ingen fakturering nødvendig</li>
+  <li><strong>Team-nivå:</strong> Manuell fakturering via e-post. Månedlig faktura, bankoverføring eller Vipps.</li>
+  <li><strong>Enterprise:</strong> Tilpasset kontrakt, standard fakturering</li>
+</ul>
+<p>Stripe-integrasjon legges til når manuell fakturering blir en byrde (&gt; 20 kunder).</p>
+</section>
+
+<!-- 8. FASTEST PATH TO FIRST CUSTOMERS -->
+<section id="first-customers">
+<h2><span class="num">8.</span> Raskeste vei til første kunder</h2>
+
+<h3>Første 10 kunder (måned 1&ndash;3)</h3>
+
+<table>
+  <thead>
+    <tr><th>Kilde</th><th>Hvordan</th><th>Forventet</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Item Consulting-klienter</strong></td>
+      <td>Bruk LogPilot under konsulentoppdrag. &ldquo;Vi brukte dette verktøyet til å finne problemet ditt på 5 minutter. Vil dere ha tilgang for teamet?&rdquo;</td>
+      <td>3&ndash;5 kunder</td>
+    </tr>
+    <tr>
+      <td><strong>Enonic-community</strong></td>
+      <td>Post i Enonic-forum/Slack. Gratis beta-tilgang. Be om tilbakemeldinger og attester.</td>
+      <td>3&ndash;5 kunder</td>
+    </tr>
+    <tr>
+      <td><strong>Personlig nettverk</strong></td>
+      <td>Andre konsulenter, DevOps-kontakter, tidligere kolleger. &ldquo;Prøv dette med din siste produksjonshendelse.&rdquo;</td>
+      <td>2&ndash;3 kunder</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Nøkkelprinsipp</div>
+  <p><strong>Ikke selg. La dem oppleve.</strong> Produktet selger seg selv hvis personen nylig har hatt en smertefull hendelse. Jobben er å plassere LogPilot foran dem i det øyeblikket.</p>
+</div>
+
+<h3>Første 100 brukere (måned 3&ndash;6)</h3>
+
+<table>
+  <thead>
+    <tr><th>Kanal</th><th>Handling</th><th>Hvorfor det fungerer</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Hacker News</strong></td>
+      <td>&ldquo;Show HN: LogPilot &mdash; Last opp loggene dine, forstå hendelsen din&rdquo;</td>
+      <td>HN-publikum er teknisk, skeptisk og har nettopp dette problemet. Trenger en fungerende demo med eksempellogger.</td>
+    </tr>
+    <tr>
+      <td><strong>SEO-innhold</strong></td>
+      <td>Mål 02.00-søk: &ldquo;websphere CWWKZ0002E troubleshooting&rdquo;, &ldquo;kubernetes CrashLoopBackOff debug&rdquo;, &ldquo;java OutOfMemoryError production&rdquo;</td>
+      <td>Disse søkene skjer når noen har det vondt. LogPilot er svaret de ser etter.</td>
+    </tr>
+    <tr>
+      <td><strong>Open source CLI</strong></td>
+      <td>GitHub-repo med <code>pip install logpilot</code>. Overbevisende README med ekte eksempler.</td>
+      <td>GitHub-stjerner &rarr; bevissthet &rarr; SaaS-konvertering for teamfunksjoner.</td>
+    </tr>
+    <tr>
+      <td><strong>Enonic Marketplace</strong></td>
+      <td>Ett-klikks integrasjon for Enonic-brukere.</td>
+      <td>Fanget publikum som trenger nettopp dette verktøyet.</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- 9. LAUNCH PLAN -->
+<section id="launch">
+<h2><span class="num">9.</span> Lanseringsplan: Fra bygging til buzz</h2>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Vinkelen</div>
+  <p>Ikke lanser som &ldquo;kjøp produktet vårt.&rdquo; Lanser som <strong>&ldquo;se hva vi har bygd &mdash; vil du prøve det?&rdquo;</strong> Item Consulting som deler et AI-prosjekt de har bygd er interessant. Item Consulting som selger et SaaS-produkt er støy. Led med historien, ikke salget.</p>
+</div>
+
+<h3>Fase 1: Stille beta (uke 1&ndash;4 etter at SaaS er klar)</h3>
+
+<p>Mål: 10&ndash;20 brukere, ekte tilbakemeldinger, fikse skjær i kursen før offentlig lansering.</p>
+
+<table>
+  <thead>
+    <tr><th>Handling</th><th>Kanal</th><th>Detalj</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Inviter Item Consulting-klienter</td>
+      <td>Direkte e-post/chat</td>
+      <td>&ldquo;Vi har bygd noe vi tror du vil finne nyttig. Vil du være blant de første til å teste det?&rdquo; Personlig, eksklusivt. Ikke en masseutsendelse.</td>
+    </tr>
+    <tr>
+      <td>Inviter Enonic-community-kontakter</td>
+      <td>Direktemeldinger</td>
+      <td>Håndplukk 5&ndash;10 aktive Enonic-brukere/selskaper. Tilby 60 dagers gratis tilgang.</td>
+    </tr>
+    <tr>
+      <td>Intern dogfooding</td>
+      <td>Item Consulting-teamet</td>
+      <td>Bruk LogPilot på alle konsulentoppdrag. Samle skjermbilder og historier.</td>
+    </tr>
+    <tr>
+      <td>Samle attester</td>
+      <td>Beta-brukere</td>
+      <td>Spør: &ldquo;Kan jeg sitere deg på dette?&rdquo; etter enhver positiv reaksjon. Få 3&ndash;5 sitater før offentlig lansering.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Fase 2: LinkedIn-lansering (uke 5&ndash;6)</h3>
+
+<p>Mål: bevissthet, registreringer og posisjonering av Item Consulting som AI-kompetent.</p>
+
+<h4>Innlegg 1: Historien (mandag)</h4>
+<div class="callout callout-info">
+  <div class="callout-title">LinkedIn-innleggsmal</div>
+  <p>
+    <strong>Vi bygde en AI-drevet plattform for hendelsesanalyse. Her er hvorfor.</strong><br><br>
+    Hos Item Consulting har vi tilbrakt år med å hjelpe kunder feilsøke produksjonshendelser. Prosessen er alltid den samme: last ned logger fra 3&ndash;5 systemer, åpne dem i en teksteditor, scroll gjennom tusenvis av linjer og prøv å finne hva som gikk galt.<br><br>
+    Så vi bygde LogPilot &mdash; et verktøy som gjør på 2 minutter det som pleide å ta oss 3 timer:<br>
+    &bull; Last opp loggfiler fra et hvilket som helst system<br>
+    &bull; Få et øyeblikkelig hendelsessammendrag med rotårsaksanalyse<br>
+    &bull; AI forklarer hva som skjedde på et forståelig språk<br><br>
+    Vi bygde det med Claude Code som et AI-ingeniørprosjekt, og nå gjør vi det tilgjengelig for alle å prøve.<br><br>
+    <strong>Gratis i 30 dager. Ingen kredittkort. Last opp loggene dine, se hva det finner.</strong><br><br>
+    &rarr; [lenke til logpilot.io]<br><br>
+    <em>#devops #incidentresponse #AI #loganalysis</em>
+  </p>
+</div>
+
+<h4>Innlegg 2: Demoen (onsdag)</h4>
+<p>90-sekunders skjermopptak: last opp en ekte loggfil &rarr; hendelsessammendrag dukker opp &rarr; klikk &ldquo;Forklar&rdquo; &rarr; AI forklarer rotårsaken. LinkedIn-videoinnlegg får 3&ndash;5 ganger mer rekkevidde enn tekst alene. La produktet tale for seg selv.</p>
+
+<h4>Innlegg 3: Den tekniske dybdedykken (uken etter)</h4>
+<p>&ldquo;Hvordan vi bygde LogPilot: 8 loggformat-parsere, 83 heuristikkregler, og AI som bare sparker inn etter at dataene er strukturert.&rdquo; Dette appellerer til det tekniske publikumet og etablerer troverdighet. Bra for deling i utviklercommunities.</p>
+
+<h4>Innlegg 4: Kundehistorie (uken etter)</h4>
+<p>&ldquo;[Kunde] hadde en produksjonshendelse forrige uke. Tar vanligvis 3 timer å etterforske. Med LogPilot: 4 minutter.&rdquo; Sosial bevis. Bare mulig hvis du samlet historier under beta.</p>
+
+<h3>LinkedIn-amplifikasjonsstrategi</h3>
+<table>
+  <thead>
+    <tr><th>Hvem poster</th><th>Hva</th><th>Hvorfor det fungerer</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Item Consulting-bedriftsside</strong></td>
+      <td>Offisiell kunngjøring + demovideo</td>
+      <td>Etablerer produktet som et Item Consulting-tilbud</td>
+    </tr>
+    <tr>
+      <td><strong>Eric (grunnlegger/bygger)</strong></td>
+      <td>Personlig historie: &ldquo;hvorfor jeg bygde dette&rdquo;</td>
+      <td>Personlige innlegg får 5&ndash;10 ganger mer rekkevidde enn bedriftssider. Folk følger folk.</td>
+    </tr>
+    <tr>
+      <td><strong>Teammedlemmer</strong></td>
+      <td>Del + personlig kommentar</td>
+      <td>Hver deling eksponerer for et nytt nettverk. 5 personer som deler = 5 ganger publikumet.</td>
+    </tr>
+    <tr>
+      <td><strong>Beta-brukere</strong></td>
+      <td>Be dem poste sin opplevelse</td>
+      <td>Tredjeparts validering er verdt 10 ganger din egen markedsføring. &ldquo;Vi prøvde LogPilot og...&rdquo;</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Fase 3: Bredere lansering (uke 7&ndash;10)</h3>
+
+<table>
+  <thead>
+    <tr><th>Kanal</th><th>Handling</th><th>Tidspunkt</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Hacker News</strong></td>
+      <td>&ldquo;Show HN: LogPilot &mdash; Last opp loggene dine, forstå hendelsen din&rdquo;. Inkluder live demo-lenke med eksempellogger.</td>
+      <td>Uke 7 (tirsdag eller onsdag, morgen US-tid)</td>
+    </tr>
+    <tr>
+      <td><strong>Reddit</strong></td>
+      <td>Innlegg i r/devops, r/sysadmin, r/java. Ikke reklame &mdash; &ldquo;Jeg bygde et verktøy som...&rdquo; med genuin engasjement.</td>
+      <td>Uke 7&ndash;8</td>
+    </tr>
+    <tr>
+      <td><strong>Enonic Marketplace</strong></td>
+      <td>Offisiell oppføring med ett-klikks oppsettguide.</td>
+      <td>Uke 8</td>
+    </tr>
+    <tr>
+      <td><strong>Dev.to / Medium</strong></td>
+      <td>Teknisk artikkel: &ldquo;Bygge en AI-logganalysator: arkitektur og lærdommer&rdquo;</td>
+      <td>Uke 8&ndash;9</td>
+    </tr>
+    <tr>
+      <td><strong>Enonic Connect / meetups</strong></td>
+      <td>Lynforedrag eller demo på neste community-arrangement.</td>
+      <td>Når tilgjengelig</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Fase 4: Løpende innhold (måned 3+)</h3>
+
+<table>
+  <thead>
+    <tr><th>Innholdstype</th><th>Frekvens</th><th>Formål</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>SEO-artikler</strong></td>
+      <td>2 per måned</td>
+      <td>Mål &ldquo;how to debug X&rdquo;-søk. Hver artikkel viser LogPilot løse problemet.</td>
+    </tr>
+    <tr>
+      <td><strong>Kundehistorier</strong></td>
+      <td>1 per måned</td>
+      <td>&ldquo;Slik reduserte [selskap] MTTR fra 3 timer til 5 minutter.&rdquo; Sosial bevis.</td>
+    </tr>
+    <tr>
+      <td><strong>LinkedIn-innlegg</strong></td>
+      <td>1&ndash;2 per uke</td>
+      <td>Miks av: produktoppdateringer, tips for hendelsesanalyse, bak-kulissene, kundesitater.</td>
+    </tr>
+    <tr>
+      <td><strong>Endringslogg / hva er nytt</strong></td>
+      <td>Med hver utgivelse</td>
+      <td>Viser fremdrift. &ldquo;LogPilot støtter nå Python-logger&rdquo; &mdash; hvert nytt format er en mini-lansering.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Den 30-dagers gratis prøveperioden</h3>
+
+<table>
+  <thead>
+    <tr><th>Designbeslutning</th><th>Anbefaling</th><th>Hvorfor</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Varighet</td>
+      <td><strong>30 dager</strong></td>
+      <td>Lang nok til at et team kan oppleve en ekte hendelse i løpet av prøveperioden. 14 dager er for kort &mdash; hvis ingen hendelse skjer, ser de aldri verdien.</td>
+    </tr>
+    <tr>
+      <td>Kredittkort kreves?</td>
+      <td><strong>Nei</strong></td>
+      <td>Maksimalt antall registreringer. Konverter til betalt etter at de har opplevd verdien, ikke før.</td>
+    </tr>
+    <tr>
+      <td>Hva er inkludert</td>
+      <td><strong>Full Team-plan</strong></td>
+      <td>Ikke lamme prøveperioden. La dem oppleve det ekte produktet. Ubegrenset analyse, AI, API-tilgang.</td>
+    </tr>
+    <tr>
+      <td>På dag 25</td>
+      <td>E-post: &ldquo;Prøveperioden din avsluttes om 5 dager. Her er hva teamet ditt har funnet så langt: [statistikk].&rdquo;</td>
+      <td>Vis verdien de allerede har fått. Gjør tapet håndgripelig.</td>
+    </tr>
+    <tr>
+      <td>Etter prøveperioden</td>
+      <td>Nedgrader til Gratis-nivå (ikke utestengt)</td>
+      <td>De beholder dataene sine og kan fortsatt bruke grunnleggende funksjoner. Reduserer frafallsrisiko og lar døren stå åpen.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Dobbel verdi: Produkt + merkevare</h3>
+
+<div class="callout callout-success">
+  <div class="callout-title">Alle LogPilot-lanseringshandlinger tjener to formål</div>
+  <p>
+    <strong>For LogPilot:</strong> registreringer, brukere, inntekt.<br>
+    <strong>For Item Consulting:</strong> demonstrerer AI-ingeniørkompetanse, tiltrekker konsulentoppdrag, posisjonerer teamet som innovatører.<br><br>
+    Selv kontakter som ikke blir LogPilot-kunder kan tenke: &ldquo;Disse menneskene kan tydelig AI og infrastruktur &mdash; vi bør snakke med dem om prosjektet vårt.&rdquo; Lanseringen er et markedsføringsarrangement for både produktet og konsulentfirmaet.
+  </p>
+</div>
+</section>
+
+<!-- 10. RISKS & FAILURE MODES -->
+<section id="risks">
+<h2><span class="num">10.</span> Risikoer &amp; feilmoduser</h2>
+
+<table>
+  <thead>
+    <tr><th>Risiko</th><th>Sannsynlighet</th><th>Konsekvens</th><th>Tiltak</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>&ldquo;Godt nok&rdquo; med ChatGPT</strong><br>Brukere limer logger inn i ChatGPT og får akseptable svar</td>
+      <td>Høy</td>
+      <td>Høy</td>
+      <td>LogPilot må være dramatisk bedre for flerfil-, kryssystem-hendelser. Enkeltfilanalyse gir ikke nok differensiering.</td>
+    </tr>
+    <tr>
+      <td><strong>For nisje</strong><br>WAS/Enonic er et lite marked</td>
+      <td>Middels</td>
+      <td>Middels</td>
+      <td>WAS/Enonic er inngangen, ikke taket. Format-plugin-systemet muliggjør ekspansjon til Java, K8s, Python, syslog.</td>
+    </tr>
+    <tr>
+      <td><strong>Enterprise-salgssyklus</strong><br>Enterprise-kunder bruker 6&ndash;12 måneder på å kjøpe</td>
+      <td>Høy</td>
+      <td>Middels</td>
+      <td>Self-service-utrulling fjerner innkjøpsfriksjonen. Kunden kjører det i sin egen infrastruktur, ingen data forlater nettverket.</td>
+    </tr>
+    <tr>
+      <td><strong>AI-kostnad spiser marginer</strong><br>Hvis LogPilot inkluderer AI-kall i prisen</td>
+      <td>Middels</td>
+      <td>Høy</td>
+      <td>BYO API-nøkkel-modell. Kunder tar med egne nøkler. LogPilot tilfører verdi gjennom struktur og kontekst, ikke ved å videreselge tokens.</td>
+    </tr>
+    <tr>
+      <td><strong>Datadog legger til denne funksjonen</strong><br>Datadog bygger AI hendelsesforklaring fra loggfiler</td>
+      <td>Middels</td>
+      <td>Høy</td>
+      <td>Datadogs fortrinn er sanntidsovervåking. Etterfaktum logganalyse for ikke-Datadog-kunder er et annet marked. Beveg deg raskt.</td>
+    </tr>
+    <tr>
+      <td><strong>Bygger for mye før PMF</strong><br>6 måneder på Rust-motor før noen vil ha produktet</td>
+      <td>Middels</td>
+      <td>Svært høy</td>
+      <td>Send pragmatisk stack først (Python, fungerer i dag). Valider etterspørsel med ekte kunder. Bygg drømmestacken bare etter inntekt.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-danger">
+  <div class="callout-title">Risiko nr. 1</div>
+  <p>Å bygge et vakkert produkt som ingen vet eksisterer. <strong>Distribusjon er vanskeligere enn utvikling.</strong> Sett av minst 30% av innsatsen til å få produktet foran folk.</p>
+</div>
+</section>
+
+<!-- 11. RECOMMENDED NEXT STEPS -->
+<section id="next-steps">
+<h2><span class="num">11.</span> Anbefalte neste steg</h2>
+
+<h3>Uke 1&ndash;2: Valider med ekte brukere</h3>
+<ul class="checklist">
+  <li>Ta LogPilot (nåværende versjon) til 3 Item Consulting-klienter</li>
+  <li>Kjør det på deres faktiske hendelseslogger, foran dem</li>
+  <li>Registrer: hva som imponerte dem, hva som forvirret dem, hva de ønsket at det kunne gjøre</li>
+  <li>Spør: &ldquo;Ville du betalt $49/måned for dette for teamet ditt?&rdquo;</li>
+</ul>
+
+<h3>Uke 3&ndash;4: Offentlig tilstedeværelse</h3>
+<ul class="checklist">
+  <li>Landingsside: logpilot.io &mdash; tydelig verdiforslag, &ldquo;prøv med eksempellogger&rdquo;-knapp</li>
+  <li>Demovideo: 90-sekunders skjermopptak &mdash; last opp &rarr; hendelsessammendrag &rarr; AI-forklaring</li>
+  <li>GitHub-repo: open source CLI, README med overbevisende eksempler</li>
+</ul>
+
+<h3>Måned 2: Første betalende kunder</h3>
+<ul class="checklist">
+  <li>Konverter 2&ndash;3 Item Consulting-klienter til betalte Team-planer</li>
+  <li>Post i Enonic-community, tilby utvidet beta</li>
+  <li>Start SEO-innhold (2 artikler/måned rettet mot &ldquo;how to debug X&rdquo;-søk)</li>
+</ul>
+
+<h3>Måned 3: Offentlig lansering</h3>
+<ul class="checklist">
+  <li>&ldquo;Show HN&rdquo;-innlegg med live demo</li>
+  <li>Enonic Marketplace-oppføring</li>
+  <li>Første case study: &ldquo;Slik reduserte [kunde] etterforskningstid for hendelser fra 3 timer til 5 minutter&rdquo;</li>
+</ul>
+
+<div class="callout callout-info">
+  <div class="callout-title">Plattformbygging kjører parallelt</div>
+  <p>React + FastAPI-plattformgjenbyggingen er et <strong>14-ukers prosjekt</strong> (se <a href="logpilot-project-plan.html">Prosjektplan</a>) som kjører parallelt med disse GTM-aktivitetene. Validering med eksisterende klienter (uke 1&ndash;2) bruker den nåværende Streamlit-prototypen. Innen måned 3 er den nye plattformen klar for offentlig beta. GTM-tidslinjen og byggingstidslinjen er justert &mdash; ikke sekvensielle.</p>
+</div>
+</section>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p><strong>LogPilot Go-To-Market-strategi</strong> &mdash; Item Consulting &mdash; Mars 2026</p>
+  <p>Generert med Claude Code</p>
+</div>
+
+</div>
+</body>
+</html>
