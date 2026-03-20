@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LogPilot Platform — Prosjektplan og PRD</title>
+<title>LogPilot Platform &mdash; Prosjektplan og PRD</title>
 <style>
   :root {
     --purple: #7C3AED;
@@ -287,7 +287,7 @@
 </div>
 
 <div class="vision">
-  Dette dokumentet bygger bro mellom <em>Dr&oslash;mmearchitekturen</em> (hvordan bygge det) og <em>Go-To-Market-strategien</em> (hvordan selge det). Det definerer n&oslash;yaktig hva V1 inkluderer, hva som ikke er med, og hvordan vi kommer fra den n&aring;v&aelig;rende Streamlit-prototypen til en leverbar plattform.
+  Dette dokumentet bygger bro mellom <em>Dr&oslash;mmearkitekturen</em> (hvordan bygge det) og <em>Go-To-Market-strategien</em> (hvordan selge det). Det definerer n&oslash;yaktig hva V1 inkluderer, hva det ikke inkluderer, og hvordan vi kommer fra den n&aring;v&aelig;rende Streamlit-prototypen til en leverbar plattform.
 </div>
 
 <!-- TOC -->
@@ -298,7 +298,7 @@
     <li><a href="#v1-scope">V1-omfang &mdash; Hva er med, hva er utenfor</a></li>
     <li><a href="#roadmap">Samlet veikart</a></li>
     <li><a href="#phases">Byggefaser og milep&aelig;ler</a></li>
-    <li><a href="#migration">Migreringsplan for kjernemotor</a></li>
+    <li><a href="#migration">Migrasjonsplan for kjernemotor</a></li>
     <li><a href="#schema">Databaseskjema (V1)</a></li>
     <li><a href="#api-spec">API-spesifikasjon (V1)</a></li>
     <li><a href="#ui">UI-struktur og visninger</a></li>
@@ -323,18 +323,18 @@
     <tr><td><code>logpilot/heuristics.py</code></td><td>Produksjonskvalitet</td><td>~760</td><td class="tag-in">Ja &mdash; direkte</td></tr>
     <tr><td><code>logpilot/event.py</code></td><td>Produksjonskvalitet</td><td>~70</td><td class="tag-in">Ja &mdash; direkte</td></tr>
     <tr><td><code>logpilot/discovery.py</code></td><td>Produksjonskvalitet</td><td>~240</td><td class="tag-in">Ja &mdash; direkte</td></tr>
-    <tr><td><code>logpilot/formats/</code></td><td>8 format-plugins</td><td>~2000</td><td class="tag-in">Ja &mdash; direkte</td></tr>
-    <tr><td><code>logpilot/ai.py</code></td><td>Fungerer, trenger async-refaktorering</td><td>~870</td><td class="tag-later">Hovedsakelig &mdash; mindre refaktorering</td></tr>
+    <tr><td><code>logpilot/formats/</code></td><td>8 formatplugins</td><td>~2000</td><td class="tag-in">Ja &mdash; direkte</td></tr>
+    <tr><td><code>logpilot/ai.py</code></td><td>Fungerer, trenger asynkron refaktorering</td><td>~870</td><td class="tag-later">For det meste &mdash; mindre refaktorering</td></tr>
     <tr><td><code>logpilot/reports/</code></td><td>4 renderere</td><td>~800</td><td class="tag-in">Ja &mdash; direkte</td></tr>
     <tr><td>Skills / YAML-heuristikker</td><td>83 regler + 17 korrelasjoner</td><td>&mdash;</td><td class="tag-in">Ja &mdash; direkte</td></tr>
-    <tr><td>Tester</td><td>1579 tester best&aring;tt</td><td>~5000</td><td class="tag-in">~80% gjenbrukbare</td></tr>
+    <tr><td>Tester</td><td>1579 tester best&aring;tt</td><td>~5000</td><td class="tag-in">~80 % gjenbrukbare</td></tr>
     <tr><td><code>app.py</code> + <code>app_*.py</code></td><td>Streamlit GUI</td><td>~3900</td><td class="tag-out">Nei &mdash; erstattes av React + FastAPI</td></tr>
   </tbody>
 </table>
 
 <div class="callout callout-success">
   <div class="callout-title">~5 800 linjer kjernemotor er direkte gjenbrukbare</div>
-  <p>Parsing, analyse, heuristikker, format-plugins og rapporter er Streamlit-frie og kan importeres direkte. Bare GUI-laget (~3 900 linjer) erstattes.</p>
+  <p>Parsing, analyse, heuristikker, formatplugins og rapporter er Streamlit-frie og kan importeres direkte. Kun GUI-laget (~3 900 linjer) erstattes.</p>
 </div>
 
 <h3>Hva vi har (dokumenter)</h3>
@@ -343,8 +343,8 @@
     <tr><th>Dokument</th><th>Dekker</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>Dr&oslash;mmearchitektur</strong></td><td>Teknologistabel, adapter-m&oslash;nster, arbeidsomr&aring;demodell, AI-pipeline, API-design, distribusjonsmoduser, RAG-strategi, kildekodeoppslag</td></tr>
-    <tr><td><strong>Go-To-Market-strategi</strong></td><td>Posisjonering, prissetting, kanaler, lanseringsplan, risikoer</td></tr>
+    <tr><td><strong>Dr&oslash;mmearkitekturen</strong></td><td>Teknologistabel, adapterm&oslash;nster, arbeidsomr&aring;demodell, AI-pipeline, API-design, distribusjonsmodi, RAG-strategi, kildekodeoppslag</td></tr>
+    <tr><td><strong>Go-To-Market-strategi</strong></td><td>Posisjonering, prising, kanaler, lanseringsplan, risiko</td></tr>
   </tbody>
 </table>
 
@@ -355,7 +355,7 @@
   </thead>
   <tbody>
     <tr><td>Hva er n&oslash;yaktig med i V1/MVP?</td><td><a href="#v1-scope">Seksjon 2: V1-omfang</a></td></tr>
-    <tr><td>Byggefaser og tidsplan</td><td><a href="#phases">Seksjon 3: Faser</a></td></tr>
+    <tr><td>Byggefaser og tidslinje</td><td><a href="#phases">Seksjon 3: Faser</a></td></tr>
     <tr><td>Hvordan migrere kjernemotoren</td><td><a href="#migration">Seksjon 4: Migrering</a></td></tr>
     <tr><td>Komplett databaseskjema</td><td><a href="#schema">Seksjon 5: Skjema</a></td></tr>
     <tr><td>API-endepunkter for V1</td><td><a href="#api-spec">Seksjon 6: API-spesifikasjon</a></td></tr>
@@ -372,10 +372,10 @@
 
 <div class="callout callout-warning">
   <div class="callout-title">V1-regelen</div>
-  <p>V1 m&aring; gj&oslash;re <strong>alt den n&aring;v&aelig;rende Streamlit-appen gj&oslash;r</strong>, men p&aring; den nye arkitekturen. I tillegg: arbeidsomr&aring;der, API og autentisering. Minus: ingenting den n&aring;v&aelig;rende appen ikke allerede gj&oslash;r. Ingen nye analysefunksjoner f&oslash;r plattformen er solid.</p>
+  <p>V1 m&aring; gj&oslash;re <strong>alt den n&aring;v&aelig;rende Streamlit-appen gj&oslash;r</strong>, men p&aring; den nye arkitekturen. Pluss: arbeidsomr&aring;der, API og autentisering. Minus: ingenting den n&aring;v&aelig;rende appen ikke allerede gj&oslash;r. Ingen nye analysefunksjoner f&oslash;r plattformen er solid.</p>
 </div>
 
-<h3>Inkludert (V1)</h3>
+<h3>Innenfor omfang (V1)</h3>
 <table>
   <thead>
     <tr><th>Funksjon</th><th>Akseptansekriterier</th></tr>
@@ -383,23 +383,23 @@
   <tbody>
     <tr>
       <td><strong>Filopplasting</strong></td>
-      <td>Last opp 1&ndash;20 loggfiler (ren tekst + .gz) via webgrensesnitt eller API. Dra-og-slipp. Maks 100 MB per fil, 500 MB per sesjon.</td>
+      <td>Last opp 1&ndash;20 loggfiler (ren tekst + .gz) via webgrensesnitt eller API. Dra-og-slipp. Maks 100 MB per fil, 500 MB per &oslash;kt.</td>
     </tr>
     <tr>
       <td><strong>Automatisk formatgjenkjenning</strong></td>
-      <td>Alle 11 format-plugins fungerer: WAS, JSON, nginx, Log4j, Python, syslog, Enonic XP, CRI-O, <strong>IBM DataPower</strong> (ny), <strong>Tomcat/Catalina</strong> (ny &mdash; java.util.logging-format), <strong>PostgreSQL</strong> (ny &mdash; identifiseres n&aring; feilaktig som Log4j). Samme gjenkjenningskvalitet som n&aring;v&aelig;rende app + 3 nye formater.</td>
+      <td>Alle 11 formatplugins fungerer: WAS, JSON, nginx, Log4j, Python, syslog, Enonic XP, CRI-O, <strong>IBM DataPower</strong> (ny), <strong>Tomcat/Catalina</strong> (ny &mdash; java.util.logging-format), <strong>PostgreSQL</strong> (ny &mdash; identifiseres for &oslash;yeblikket feil som Log4j). Samme gjenkjenningskvalitet som n&aring;v&aelig;rende app + 3 nye formater.</td>
     </tr>
     <tr>
       <td><strong>Parsing og klassifisering</strong></td>
-      <td>Hendelser parset med niv&aring;, kode, unntak, rot&aring;rsak, tagger, spor-ID-er. Hemmelighetsmaskering. Samme resultat som n&aring;v&aelig;rende <code>parse_file()</code>.</td>
+      <td>Hendelser parset med niv&aring;, kode, unntak, rot&aring;rsak, tagger, sporings-ID-er. Hemmelighetsmaskering. Samme utdata som n&aring;v&aelig;rende <code>parse_file()</code>.</td>
     </tr>
     <tr>
       <td><strong>Analyse</strong></td>
-      <td>Sammendrag, tidslinjehistogram, sannsynlige &aring;rsaker (83 heuristikker), korrelasjoner (17 regler), hendelsesgruppering (7 grupper), kaskadedeteksjon, bevisekstraksjon, utvalg av eksempler.</td>
+      <td>Oppsummering, tidslinjehistogram, sannsynlige &aring;rsaker (83 heuristikker), korrelasjoner (17 regler), hendelsesgruppering (7 grupper), kaskadedeteksjon, bevisuttrekking, utvelgelse av eksempler.</td>
     </tr>
     <tr>
       <td><strong>AI-forklaring</strong></td>
-      <td>Hendelse-AI-assistent med Claude, OpenAI, Gemini og lokal modellst&oslash;tte. Str&oslash;mmende svar. Medbring egen API-n&oslash;kkel. Beskyttelse mot prompt-injeksjon.</td>
+      <td>Hendelses-AI-assistent med Claude, OpenAI, Gemini og lokal modellst&oslash;tte. Str&oslash;mmende svar. Medbring egen API-n&oslash;kkel. Beskyttelse mot prompt-injeksjon.</td>
     </tr>
     <tr>
       <td><strong>Rapporter</strong></td>
@@ -407,15 +407,15 @@
     </tr>
     <tr>
       <td><strong>Organisasjoner og arbeidsomr&aring;der</strong></td>
-      <td>Org &rarr; arbeidsomr&aring;de &rarr; medlemmer-modell. Dataisolasjon per arbeidsomr&aring;de. Innstillingsarv (org &rarr; arbeidsomr&aring;de).</td>
+      <td>Organisasjon &rarr; arbeidsomr&aring;de &rarr; medlemsmodell. Dataisolering per arbeidsomr&aring;de. Innstillingsarv (organisasjon &rarr; arbeidsomr&aring;de).</td>
     </tr>
     <tr>
       <td><strong>Autentisering</strong></td>
-      <td>Tre moduser: NoAuth (laptop), lokalt passord, OIDC (Azure AD / Google). Automatisk opprettet &laquo;Personlig&raquo; arbeidsomr&aring;de i NoAuth-modus.</td>
+      <td>Tre moduser: NoAuth (b&aelig;rbar PC), lokalt passord, OIDC (Azure AD / Google). Automatisk opprettet &laquo;Personlig&raquo; arbeidsomr&aring;de i NoAuth-modus.</td>
     </tr>
     <tr>
       <td><strong>REST API</strong></td>
-      <td>Inntak, sesjoner, analyseresultater, AI-forklaring, rapporter. API-n&oslash;kler per arbeidsomr&aring;de med rettigheter. OpenAPI-dokumentasjon autogenerert.</td>
+      <td>Inntak, &oslash;kter, analyseresultater, AI-forklaring, rapporter. API-n&oslash;kler per arbeidsomr&aring;de med omfang. OpenAPI-dokumentasjon autogenerert.</td>
     </tr>
     <tr>
       <td><strong>Bakgrunnsjobber</strong></td>
@@ -423,11 +423,11 @@
     </tr>
     <tr>
       <td><strong>Adapterlag</strong></td>
-      <td>SQLite + filsystem (laptop) og Postgres + S3 (team/SaaS). Begge testet og fungerende.</td>
+      <td>SQLite + filsystem (b&aelig;rbar PC) og Postgres + S3 (team/SaaS). Begge testet og fungerende.</td>
     </tr>
     <tr>
       <td><strong>Docker-distribusjon</strong></td>
-      <td>Enkel-container (laptop) og Docker Compose (team) fungerer rett ut av boksen.</td>
+      <td>Enkeltcontainer (b&aelig;rbar PC) og Docker Compose (team) fungerer rett ut av boksen.</td>
     </tr>
   </tbody>
 </table>
@@ -438,22 +438,22 @@
     <tr><th>Funksjon</th><th>Hvorfor utsatt</th></tr>
   </thead>
   <tbody>
-    <tr><td>Rust parse-motor</td><td>Python-parseren er rask nok for V1-volumer. Rust n&aring;r kunder treffer filst&oslash;rrelsesbegrensninger.</td></tr>
-    <tr><td>ClickHouse hendelseslagring</td><td>Postgres JSONB + DuckDB h&aring;ndterer V1-skala. ClickHouse n&aring;r vi overskrider ~10M hendelser/arbeidsomr&aring;de.</td></tr>
+    <tr><td>Rust-parsemotor</td><td>Python-parseren er rask nok for V1-volumer. Rust n&aring;r kunder n&aring;r filst&oslash;rrelsesbegrensninger.</td></tr>
+    <tr><td>ClickHouse-hendelseslagring</td><td>Postgres JSONB + DuckDB h&aring;ndterer V1-skala. ClickHouse n&aring;r vi overskrider ~10M hendelser/arbeidsomr&aring;de.</td></tr>
     <tr><td>RAG (hendelseshistorikks&oslash;k)</td><td>Trenger akkumulerte AI-forklaringer &aring; indeksere. Lever V1 f&oslash;rst, legg til RAG n&aring;r arbeidsomr&aring;der har historikk.</td></tr>
     <tr><td>Kildekodeoppslag</td><td>Valgfri berikelse. Kjerneproduktet m&aring; fungere uten det.</td></tr>
     <tr><td>Webhooks (utg&aring;ende)</td><td>API-inntak er V1. Utg&aring;ende webhooks (Slack/PagerDuty-varsler) er V2.</td></tr>
-    <tr><td>Helm chart / Kubernetes</td><td>Docker Compose er nok for V1. Helm n&aring;r bedriftskunder trenger h&oslash;y tilgjengelighet.</td></tr>
-    <tr><td>Fakturering / betaling</td><td>F&oslash;rste kunder er manuelle. Stripe-integrasjon n&aring;r vi har 20+ betalende kunder.</td></tr>
-    <tr><td>Loggstr&oslash;mming (tail -f)</td><td>Annet produkt. V1 h&aring;ndterer opplastede filer.</td></tr>
+    <tr><td>Helm chart / Kubernetes</td><td>Docker Compose er nok for V1. Helm n&aring;r bedriftskunder trenger HA.</td></tr>
+    <tr><td>Fakturering / betaling</td><td>F&oslash;rste kunder h&aring;ndteres manuelt. Stripe-integrasjon n&aring;r vi har 20+ betalende kunder.</td></tr>
+    <tr><td>Loggstr&oslash;mming (tail -f)</td><td>Et annet produkt. V1 h&aring;ndterer opplastede filer.</td></tr>
     <tr><td>SCIM-provisjonering</td><td>Bedriftsfunksjon. OIDC er nok for V1.</td></tr>
-    <tr><td>Tilpasset heuristikkredigering i UI</td><td>YAML-filer + Git er greit for V1.</td></tr>
+    <tr><td>Tilpasset heuristikkredigering i UI</td><td>YAML-filer + Git er bra nok for V1.</td></tr>
   </tbody>
 </table>
 
 <div class="callout callout-insight">
   <div class="callout-title">V1 definisjon av ferdig</div>
-  <p>En bruker kan: opprette en konto (eller bruke lokalt uten en) &rarr; laste opp loggfiler &rarr; se hendelsesanalyse &rarr; f&aring; AI-forklaring &rarr; eksportere rapport &rarr; invitere teammedlemmer til et delt arbeidsomr&aring;de &rarr; sende logger via API. Alt dette fungerer p&aring; en laptop, en teamserver eller v&aring;r SaaS.</p>
+  <p>En bruker kan: opprette en konto (eller bruke lokalt uten en) &rarr; laste opp loggfiler &rarr; se hendelsesanalyse &rarr; f&aring; AI-forklaring &rarr; eksportere rapport &rarr; invitere teammedlemmer til et delt arbeidsomr&aring;de &rarr; sende logger via API. Alt dette fungerer p&aring; en b&aelig;rbar PC, en teamserver eller v&aring;r SaaS.</p>
 </div>
 </section>
 
@@ -516,12 +516,12 @@ V2 FEATURES                                                    ┌─Demand-driv
     <tr>
       <td><strong>Uke 2</strong></td>
       <td>F&oslash;rste kundevalidering</td>
-      <td>3 Item Consulting-kunder har testet LogPilot p&aring; sine logger. Tilbakemeldinger registrert. Minst 1 sier &laquo;Jeg ville betalt for dette.&raquo;</td>
+      <td>3 Item Consulting-kunder har testet LogPilot p&aring; sine logger. Tilbakemelding registrert. Minst 1 sier &laquo;Jeg ville betalt for dette.&raquo;</td>
     </tr>
     <tr>
       <td><strong>Uke 3</strong></td>
       <td>Kjernemotor migrert</td>
-      <td>~1280 eksisterende tester best&aring;tt i nytt repo. F&oslash;rste parse-endepunkt fungerer.</td>
+      <td>~1280 eksisterende tester best&aring;r i nytt repo. F&oslash;rste parse-endepunkt fungerer.</td>
     </tr>
     <tr>
       <td><strong>Uke 7</strong></td>
@@ -531,33 +531,33 @@ V2 FEATURES                                                    ┌─Demand-driv
     <tr>
       <td><strong>Uke 11</strong></td>
       <td>Teamklar</td>
-      <td>Arbeidsomr&aring;der, autentisering, API-n&oslash;kler, inntak-API &mdash; alt fungerer. Flerbrukertestet.</td>
+      <td>Arbeidsomr&aring;der, autentisering, API-n&oslash;kler, inntak-API fungerer. Flerbrukertestet.</td>
     </tr>
     <tr>
       <td><strong>Uke 14</strong></td>
       <td>V1 levert</td>
-      <td>Docker Compose fungerer. Landingsside live. 30-dagers pr&oslash;veperiode funksjonell. F&oslash;rste betabrukere invitert.</td>
+      <td>Docker Compose fungerer. Landingsside er live. 30-dagers pr&oslash;veversjon fungerer. F&oslash;rste betabrukere invitert.</td>
     </tr>
     <tr>
       <td><strong>Uke 16</strong></td>
       <td>Offentlig lansering</td>
-      <td>LinkedIn-innlegg publisert. Show HN publisert. Enonic Marketplace oppf&oslash;rt. 50+ registreringer.</td>
+      <td>LinkedIn-innlegg publisert. Show HN postet. Enonic Marketplace-oppf&oslash;ring. 50+ registreringer.</td>
     </tr>
     <tr>
       <td><strong>Uke 20</strong></td>
       <td>F&oslash;rste betalende kunder</td>
-      <td>5+ arbeidsomr&aring;der p&aring; betalt Team-plan. F&oslash;rste kasusstudium publisert.</td>
+      <td>5+ arbeidsomr&aring;der p&aring; betalt Team-plan. F&oslash;rste casestudie publisert.</td>
     </tr>
     <tr>
       <td><strong>Uke 26</strong></td>
       <td>V2-funksjoner leveres</td>
-      <td>RAG, delbare lenker og 2+ andre V2-funksjoner live. Basert p&aring; faktiske kundeforesp&oslash;rsler.</td>
+      <td>RAG, delbare lenker og 2+ ytterligere V2-funksjoner er live. Basert p&aring; faktiske kundeforesp&oslash;rsler.</td>
     </tr>
   </tbody>
 </table>
 
 <div class="callout callout-insight">
-  <div class="callout-title">Bygging og GTM er parallelle, ikke sekventielle</div>
+  <div class="callout-title">Bygging og GTM er parallelle, ikke sekvensielle</div>
   <p>Vi validerer ettersp&oslash;rsel med den eksisterende Streamlit-prototypen (uke 1&ndash;2) mens vi bygger den nye plattformen. Innen uke 14 er plattformen klar. Innen uke 16 lanserer vi offentlig. V2-funksjoner drives av faktiske kundetilbakemeldinger, ikke antakelser.</p>
 </div>
 </section>
@@ -596,17 +596,17 @@ Core engine       Report export     Background jobs  Landing page
     </tr>
     <tr>
       <td>FastAPI-skjelett</td>
-      <td>Prosjektstruktur, innstillinger (Pydantic), dependency injection, helse-endepunkt. CORS konfigurert for React-utviklingsserver.</td>
+      <td>Prosjektstruktur, innstillinger (Pydantic), avhengighetsinjeksjon, helseendepunkt. CORS konfigurert for React-utviklerserver.</td>
       <td><code>GET /health</code> returnerer 200</td>
     </tr>
     <tr>
       <td>React-skjelett</td>
-      <td>Vite + React + TypeScript + Tailwind + shadcn/ui. Router, layout-skall, m&oslash;rk modus.</td>
-      <td>App rendrer med navigasjon</td>
+      <td>Vite + React + TypeScript + Tailwind + shadcn/ui. Ruter, layoutskall, m&oslash;rk modus.</td>
+      <td>Appen rendres med navigasjon</td>
     </tr>
     <tr>
       <td>Database + adaptere</td>
-      <td>SQLite-adapter (standard) + Postgres-adapter. Alembic-migrasjoner. Organisasjon-, arbeidsomr&aring;de-, bruker-, sesjonstabeller.</td>
+      <td>SQLite-adapter (standard) + Postgres-adapter. Alembic-migrasjoner. Organisasjon-, arbeidsomr&aring;de-, bruker-, &oslash;kt-tabeller.</td>
       <td>Begge adaptere best&aring;r skjematester</td>
     </tr>
     <tr>
@@ -624,7 +624,7 @@ Core engine       Report export     Background jobs  Landing page
 
 <h3><span class="phase-badge phase-2">Fase 2</span> Kjernefunksjoner (uke 4&ndash;7)</h3>
 
-<p>M&aring;l: Funksjonsparitet med n&aring;v&aelig;rende Streamlit-app. Last opp filer, se fullstendig analyse, f&aring; AI-forklaring, eksporter rapporter.</p>
+<p>M&aring;l: Funksjonsparitet med n&aring;v&aelig;rende Streamlit-app. Last opp filer, se full analyse, f&aring; AI-forklaring, eksporter rapporter.</p>
 
 <table>
   <thead>
@@ -632,23 +632,23 @@ Core engine       Report export     Background jobs  Landing page
   </thead>
   <tbody>
     <tr>
-      <td>Filopplasting-UI</td>
-      <td>Dra-og-slipp-sone, flere filer, fremdriftsindikator, .gz-st&oslash;tte. Oppretter en sesjon.</td>
-      <td>Last opp 5 filer, se dem listet i sesjonen</td>
+      <td>Filopplastings-UI</td>
+      <td>Dra-og-slipp-sone, flere filer, fremdriftsindikator, .gz-st&oslash;tte. Oppretter en &oslash;kt.</td>
+      <td>Last opp 5 filer, se dem listet i &oslash;kten</td>
     </tr>
     <tr>
-      <td>Parse-pipeline</td>
-      <td>Automatisk formatgjenkjenning, parse alle filer i sesjonen, lagre hendelser. Synkront for sm&aring; filer (&lt; 50 MB).</td>
-      <td>Sesjonen viser parset hendelsestall + format per fil</td>
+      <td>Parsepipeline</td>
+      <td>Autogjenkjenn format, parse alle filer i &oslash;kten, lagre hendelser. Synkront for sm&aring; filer (&lt; 50 MB).</td>
+      <td>&Oslash;kt viser parset hendelsestall + format per fil</td>
     </tr>
     <tr>
       <td>Analysevisninger</td>
-      <td>Sammendragspanel, sannsynlige &aring;rsaker med hendelsesgruppering, bevisblokker, tidslinjehistogram, eksempelhendelser, kaskadevisualisering.</td>
-      <td>Alle seksjoner fra n&aring;v&aelig;rende app rendret i React</td>
+      <td>Oppsummeringspanel, sannsynlige &aring;rsaker med hendelsesgruppering, bevisblokker, tidslinjehistogram, eksempelhendelser, kaskadevisualisering.</td>
+      <td>Alle seksjoner fra n&aring;v&aelig;rende app gjengitt i React</td>
     </tr>
     <tr>
       <td>AI-integrasjon</td>
-      <td>Hendelse-AI-assistent. Leverand&oslash;rvalg (Claude/OpenAI/Gemini/lokal). Medbring egen API-n&oslash;kkel. Str&oslash;mmende svar. Maskeringsport.</td>
+      <td>Hendelses-AI-assistent. Leverand&oslash;rvalg (Claude/OpenAI/Gemini/lokal). Medbring egen API-n&oslash;kkel. Str&oslash;mmende svar. Maskeringsport.</td>
       <td>Sp&oslash;r AI om en hendelse, f&aring; str&oslash;mmende svar</td>
     </tr>
     <tr>
@@ -657,14 +657,14 @@ Core engine       Report export     Background jobs  Landing page
       <td>Alle 4 formater genereres korrekt</td>
     </tr>
     <tr>
-      <td>Sesjonsh&aring;ndtering</td>
-      <td>List sesjoner, gi nytt navn, slett. Sesjoner overlever sideoppdatering.</td>
-      <td>Sesjoner overlever nettleseroppdatering og utlogging/innlogging</td>
+      <td>&Oslash;kth&aring;ndtering</td>
+      <td>List &oslash;kter, gi nytt navn, slett. &Oslash;kt overlever sideinnlasting p&aring; nytt.</td>
+      <td>&Oslash;kter overlever nettleseroppdatering og utlogging/innlogging</td>
     </tr>
     <tr>
-      <td>Hendelsesutforsker</td>
+      <td>Hendelsesbrowser</td>
       <td>Virtualisert liste over alle hendelser. Filtrer etter niv&aring;, kode, tagg. S&oslash;k i hendelsestekst.</td>
-      <td>Utforsk 100K+ hendelser uten forsinkelse</td>
+      <td>Bla gjennom 100K+ hendelser uten forsinkelse</td>
     </tr>
   </tbody>
 </table>
@@ -680,50 +680,50 @@ Core engine       Report export     Background jobs  Landing page
   <tbody>
     <tr>
       <td>Autentiseringssystem</td>
-      <td>NoAuth (automatisk innlogging), lokalt passord, OIDC. Innlogging/utlogging-flyt. Sesjonstoken (JWT eller cookie).</td>
+      <td>NoAuth (autologin), lokalt passord, OIDC. Innlogging/utlogging-flyt. Sesjonstokens (JWT eller informasjonskapsel).</td>
       <td>Logg inn med Google/Azure AD, se egne arbeidsomr&aring;der</td>
     </tr>
     <tr>
       <td>Organisasjoner</td>
-      <td>Opprett org, administrer org-innstillinger (standard AI-n&oslash;kler, OIDC-konfigurasjon). Org-admin-rolle.</td>
-      <td>Org-admin kan opprette arbeidsomr&aring;der og invitere medlemmer</td>
+      <td>Opprett organisasjon, administrer organisasjonsinnstillinger (standard AI-n&oslash;kler, OIDC-konfigurasjon). Organisasjonsadmin-rolle.</td>
+      <td>Organisasjonsadmin kan opprette arbeidsomr&aring;der og invitere medlemmer</td>
     </tr>
     <tr>
       <td>Arbeidsomr&aring;der</td>
-      <td>Opprett arbeidsomr&aring;de innen org. Medlemmer + roller (admin/medlem/leser). Arbeidsomr&aring;deveksler i UI. Innstillingsarv.</td>
+      <td>Opprett arbeidsomr&aring;de innenfor organisasjon. Medlemmer + roller (admin/medlem/leser). Arbeidsomr&aring;deveksler i UI. Innstillingsarv.</td>
       <td>To arbeidsomr&aring;der med forskjellige medlemmer, isolerte data</td>
     </tr>
     <tr>
       <td>Radniv&aring;sikkerhet</td>
-      <td>Postgres RLS-policyer p&aring; alle arbeidsomr&aring;de-relaterte tabeller. Verifiser isolasjon med tester.</td>
-      <td>Bruker i arbeidsomr&aring;de A kan ikke sp&oslash;rre data fra arbeidsomr&aring;de B, selv med r&aring; SQL</td>
+      <td>Postgres RLS-policyer p&aring; alle arbeidsomr&aring;deomfangede tabeller. Verifiser isolering med tester.</td>
+      <td>Bruker i arbeidsomr&aring;de A kan ikke sp&oslash;rre arbeidsomr&aring;de B-data, selv med r&aring; SQL</td>
     </tr>
     <tr>
       <td>API-n&oslash;kler</td>
-      <td>Opprett/trekk tilbake API-n&oslash;kler per arbeidsomr&aring;de. Rettigheter: inntak, les, analyser, admin. N&oslash;kkelautentisering i API-mellomvare.</td>
-      <td>API-n&oslash;kkel med inntak-rettighet kan laste opp men ikke slette</td>
+      <td>Opprett/tilbakekall API-n&oslash;kler per arbeidsomr&aring;de. Omfang: inntak, les, analyser, admin. N&oslash;kkelautentisering i API-mellomvare.</td>
+      <td>API-n&oslash;kkel med inntaksomfang kan laste opp men ikke slette</td>
     </tr>
     <tr>
       <td>Inntak-API</td>
-      <td><code>POST /api/v1/ingest</code> &mdash; filopplasting, NDJSON, automatisk sesjon. Kildeetikett.</td>
+      <td><code>POST /api/v1/ingest</code> &mdash; filopplasting, NDJSON, auto-&oslash;kt. Kildeetikett.</td>
       <td><code>curl</code> med API-n&oslash;kkel laster opp en fil og utl&oslash;ser analyse</td>
     </tr>
     <tr>
       <td>Bakgrunnsjobber</td>
-      <td>InlineQueue (laptop) + RedisQueue (team). Parse + analyse-jobber. Statusendepunkt.</td>
+      <td>InlineQueue (b&aelig;rbar PC) + RedisQueue (team). Parse- og analysejobber. Statusendepunkt.</td>
       <td>Stor fil lastet opp, analyse kj&oslash;rer i bakgrunnen, UI viser fremdrift</td>
     </tr>
     <tr>
       <td>WebSocket-varsler</td>
       <td>Sanntidsoppdateringer: &laquo;analyse fullf&oslash;rt&raquo;, &laquo;AI-svar klart&raquo;.</td>
-      <td>UI oppdateres automatisk n&aring;r bakgrunnsjobb fullf&oslash;res</td>
+      <td>UI oppdateres automatisk n&aring;r bakgrunnsjobb er ferdig</td>
     </tr>
   </tbody>
 </table>
 
 <h3><span class="phase-badge phase-4">Fase 4</span> Polering og lansering (uke 12&ndash;14)</h3>
 
-<p>M&aring;l: Klar for offentlig beta. Smidig brukeropplevelse, dokumentasjon, distribusjon.</p>
+<p>M&aring;l: Klar for offentlig beta. Jevn brukeropplevelse, dokumentasjon, distribusjon.</p>
 
 <table>
   <thead>
@@ -732,18 +732,18 @@ Core engine       Report export     Background jobs  Landing page
   <tbody>
     <tr>
       <td>Pr&oslash;veperiodeflyt</td>
-      <td>Registrer deg &rarr; automatisk opprettelse av org + arbeidsomr&aring;de &rarr; 30 dagers gratis Team-plan &rarr; nedgrader til Gratis etter&aring;. Ikke noe kredittkort.</td>
+      <td>Registrer &rarr; auto-opprett org + arbeidsomr&aring;de &rarr; 30 dagers gratis Team-plan &rarr; nedgrader til Gratis etter. Ingen kredittkort.</td>
       <td>Ny bruker registrerer seg og analyserer logger innen 2 minutter</td>
     </tr>
     <tr>
-      <td>Innf&oslash;ring</td>
-      <td>Eksempelloggfiler tilgjengelig. &laquo;Pr&oslash;v med eksempeldata&raquo;-knapp. F&oslash;rstekj&oslash;ringsveiledning.</td>
+      <td>Onboarding</td>
+      <td>Eksempelloggfiler tilgjengelige. &laquo;Pr&oslash;v med eksempeldata&raquo;-knapp. F&oslash;rstegangsveiledning.</td>
       <td>Bruker uten loggfiler kan likevel oppleve verdi umiddelbart</td>
     </tr>
     <tr>
       <td>Ytelse</td>
-      <td>Profiler og optimaliser. M&aring;l: 100 MB fil parset p&aring; &lt; 30s. Analysevisning rendrer p&aring; &lt; 1s. Hendelsesutforsker h&aring;ndterer 500K hendelser.</td>
-      <td>Ytelsesm&aring;l oppn&aring;dd p&aring; standard maskinvare</td>
+      <td>Profiler og optimaliser. M&aring;l: 100 MB fil parset p&aring; &lt; 30s. Analysevisning gjengis p&aring; &lt; 1s. Hendelsesbrowser h&aring;ndterer 500K hendelser.</td>
+      <td>Ytelsesm&aring;l n&aring;dd p&aring; standard maskinvare</td>
     </tr>
     <tr>
       <td>Docker Compose</td>
@@ -751,51 +751,56 @@ Core engine       Report export     Background jobs  Landing page
       <td>Ny maskin: <code>docker compose up</code> &rarr; fungerende app p&aring; &lt; 60s</td>
     </tr>
     <tr>
+      <td>Hva er nytt-side</td>
+      <td>Endringsloggvisning i appen som viser nylige utgivelser, nye funksjoner og forbedringer. Autogenerert fra <code>CHANGELOG.md</code>. Synlig i sidepanel eller hjelpemeny. Ogs&aring; tilgjengelig p&aring; <code>/changelog</code>-URL.</td>
+      <td>Brukere kan se hva som er endret i hver versjon uten &aring; forlate appen</td>
+    </tr>
+    <tr>
       <td>Landingsside</td>
       <td>logpilot.io &mdash; verdiforslag, demovideo, &laquo;Pr&oslash;v gratis&raquo;-knapp, pristabell.</td>
-      <td>Side er live, registreringsflyt fungerer</td>
+      <td>Side live, registreringsflyt fungerer</td>
     </tr>
     <tr>
       <td>Dokumentasjon</td>
-      <td>Kom-i-gang-guide, API-referanse (autogenerert fra OpenAPI), distribusjonsguide (Docker, Docker Compose).</td>
-      <td>En ny bruker kan selvbetjenes fra registrering til API-integrasjon</td>
+      <td>Kom i gang-guide, API-referanse (autogenerert fra OpenAPI), distribusjonsguide (Docker, Docker Compose).</td>
+      <td>En ny bruker kan betjene seg selv fra registrering til API-integrasjon</td>
     </tr>
     <tr>
       <td>Demovideo</td>
       <td>90-sekunders skjermopptak: opplasting &rarr; analyse &rarr; AI-forklaring.</td>
-      <td>Video innebygd p&aring; landingssiden og klar for LinkedIn</td>
+      <td>Video innebygd p&aring; landingsside og klar for LinkedIn</td>
     </tr>
   </tbody>
 </table>
 </section>
 
-<!-- 5. MIGRERINGSPLAN -->
+<!-- 5. MIGRASJONSPLAN -->
 <section id="migration">
-<h2><span class="num">5.</span> Migreringsplan for kjernemotor</h2>
+<h2><span class="num">5.</span> Migrasjonsplan for kjernemotor</h2>
 
-<p>Kjernemotoren (<code>logpilot/</code>) flyttes til det nye repoet som <code>/core</code>. Dette er det viktigste steget &mdash; gj&oslash;r du det feil, mister vi de 5 800 linjene med testet, fungerende kode.</p>
+<p>Kjernemotoren (<code>logpilot/</code>) flyttes til det nye repoet som <code>/core</code>. Dette er det viktigste steget &mdash; gj&oslash;r det feil og vi mister 5 800 linjer med testet, fungerende kode.</p>
 
-<h3>Migreringsstrategi: Kopier, ikke skriv om</h3>
+<h3>Migrasjonsstrategi: Kopier, ikke skriv om</h3>
 
 <div class="callout callout-warning">
   <div class="callout-title">Regel</div>
-  <p>Kopier filer ordrett. Kj&oslash;r eksisterende tester. Refaktorer bare det som bryter. Ikke &laquo;forbedre&raquo; kode under migrering &mdash; det er slik feil introduseres og uker g&aring;r tapt.</p>
+  <p>Kopier filer ordrett. Kj&oslash;r eksisterende tester. Refaktorer kun det som g&aring;r i stykker. Ikke &laquo;forbedre&raquo; kode under migrering &mdash; det er slik feil introduseres og uker g&aring;r tapt.</p>
 </div>
 
 <h3>Filkartlegging</h3>
-<pre><code><span class="comment"># Old repo (ws-log-analyzer)</span>         <span class="comment"># New repo (logpilot-platform)</span>
+<pre><code><span class="comment"># Gammelt repo (ws-log-analyzer)</span>         <span class="comment"># Nytt repo (logpilot-platform)</span>
 logpilot/event.py              &rarr;    core/event.py
 logpilot/parser.py             &rarr;    core/parser.py
 logpilot/analysis.py           &rarr;    core/analysis.py
 logpilot/heuristics.py         &rarr;    core/heuristics.py
 logpilot/_heuristics_fallback.py &rarr;  core/_heuristics_fallback.py
 logpilot/discovery.py          &rarr;    core/discovery.py
-logpilot/formats/              &rarr;    core/formats/           <span class="comment"># entire directory</span>
-logpilot/reports/              &rarr;    core/reports/           <span class="comment"># entire directory</span>
-logpilot/ai.py                 &rarr;    core/ai.py              <span class="comment"># + async refactor</span>
-skills/                        &rarr;    core/skills/            <span class="comment"># YAML heuristic files</span>
+logpilot/formats/              &rarr;    core/formats/           <span class="comment"># hele katalogen</span>
+logpilot/reports/              &rarr;    core/reports/           <span class="comment"># hele katalogen</span>
+logpilot/ai.py                 &rarr;    core/ai.py              <span class="comment"># + asynkron refaktorering</span>
+skills/                        &rarr;    core/skills/            <span class="comment"># YAML-heuristikkfiler</span>
 data/heuristics.yaml           &rarr;    core/data/heuristics.yaml
-tests/                         &rarr;    tests/core/             <span class="comment"># core engine tests</span></code></pre>
+tests/                         &rarr;    tests/core/             <span class="comment"># kjernemotor-tester</span></code></pre>
 
 <h3>N&oslash;dvendige refaktoreringer (minimale)</h3>
 <table>
@@ -805,13 +810,13 @@ tests/                         &rarr;    tests/core/             <span class="co
   <tbody>
     <tr>
       <td><code>ai.py</code></td>
-      <td>Ekstraher prompt-byggere til rene funksjoner. Gj&oslash;r API-kall asynkrone. Fjern Streamlit-importer.</td>
-      <td>FastAPI er asynkront. Prompt-konstruksjon m&aring; v&aelig;re adskilt fra API-kalling slik at API-laget kontrollerer leverand&oslash;rkallet.</td>
+      <td>Trekk ut prompt-byggere til rene funksjoner. Gj&oslash;r API-kall asynkrone. Fjern Streamlit-importer.</td>
+      <td>FastAPI er asynkron. Promptkonstruksjon m&aring; v&aelig;re adskilt fra API-kalling slik at API-laget kontrollerer leverand&oslash;rkallet.</td>
     </tr>
     <tr>
       <td><code>parser.py</code></td>
-      <td>Fjern fil-cache-logikk (cache flyttes til lagringsadapter). Behold <code>parse_file()</code> og <code>parse_file_iter()</code>-signaturer.</td>
-      <td>Caching er n&aring; plattformens ansvar, ikke parserens.</td>
+      <td>Fjern fil-hurtigbufferlogikk (hurtigbuffer flyttes til lagringsadapter). Behold <code>parse_file()</code> og <code>parse_file_iter()</code>-signaturer.</td>
+      <td>Hurtigbufring er n&aring; plattformens ansvar, ikke parserens.</td>
     </tr>
     <tr>
       <td><code>event.py</code></td>
@@ -826,26 +831,26 @@ tests/                         &rarr;    tests/core/             <span class="co
   </tbody>
 </table>
 
-<h3>Migreringsverifisering</h3>
-<pre><code><span class="comment"># Step 1: Copy files</span>
+<h3>Migrasjonsverifisering</h3>
+<pre><code><span class="comment"># Steg 1: Kopier filer</span>
 cp -r logpilot/ new-repo/core/
 
-<span class="comment"># Step 2: Fix imports</span>
-<span class="comment"># sed or find-and-replace: "from logpilot." → "from core."</span>
+<span class="comment"># Steg 2: Fiks importer</span>
+<span class="comment"># sed eller finn-og-erstatt: "from logpilot." → "from core."</span>
 
-<span class="comment"># Step 3: Run existing tests</span>
+<span class="comment"># Steg 3: Kjør eksisterende tester</span>
 cd new-repo &amp;&amp; pytest tests/core/ -v
-<span class="comment"># Target: all 1579 tests pass (minus ~300 Streamlit e2e tests)</span>
-<span class="comment"># Expected: ~1280 core tests should pass immediately</span>
+<span class="comment"># Mål: alle 1579 tester består (minus ~300 Streamlit e2e-tester)</span>
+<span class="comment"># Forventet: ~1280 kjernetester bør bestå umiddelbart</span>
 
-<span class="comment"># Step 4: Only THEN start building FastAPI layer on top</span></code></pre>
+<span class="comment"># Steg 4: Først DA begynne å bygge FastAPI-lag på toppen</span></code></pre>
 
 <h3>Skills-migrering</h3>
 
-<p>Alle skill-filer fra det n&aring;v&aelig;rende prosjektet m&aring; kopieres til det nye repoet. Skills er den akkumulerte domenekunnskapen &mdash; &aring; miste dem betyr &aring; miste m&aring;neders arbeid. Originalene forblir i det gamle repoet (det fortsetter &aring; eksistere som referanse).</p>
+<p>Alle skill-filer fra det n&aring;v&aelig;rende prosjektet m&aring; kopieres til det nye repoet. Skills er den akkumulerte domenekunnskap &mdash; &aring; miste dem betyr &aring; miste m&aring;neders arbeid. Originalene blir i det gamle repoet (det fortsetter &aring; eksistere som referanse).</p>
 
 <h4>Domene-skills (19 filer) &rarr; kopier til <code>new-repo/skills/</code></h4>
-<pre><code><span class="comment"># These are log analysis domain knowledge — format-agnostic, platform-agnostic</span>
+<pre><code><span class="comment"># Dette er logganalyse-domenekunnskap — formatuavhengig, plattformuavhengig</span>
 skills/cross-system-analysis.md
 skills/deployment-analysis.md
 skills/enonic-xp-analysis.md
@@ -864,60 +869,64 @@ skills/servlet-errors.md
 skills/stacktrace-analysis.md
 skills/syslog-analysis.md
 skills/thread-correlation.md
-skills/websphere-startup.md</code></pre>
+skills/websphere-startup.md
+skills/datapower-analysis.md       <span class="comment"># NY: IBM DataPower Gateway</span>
+skills/database-errors.md          <span class="comment"># NY: Oracle/DB2/MSSQL/PG/MySQL-feilkoder</span>
+skills/tomcat-analysis.md          <span class="comment"># NY: Tomcat/Catalina (java.util.logging)</span>
+skills/postgresql-log-analysis.md  <span class="comment"># NY: PostgreSQL-serverlogger</span></code></pre>
 
-<h4>Implementerings-skills (9 eksisterende + 6 nye) &rarr; kopier til <code>new-repo/.claude/skills/</code></h4>
-<pre><code><span class="comment"># Existing — carry over (some need updates)</span>
-.claude/skills/claude-integration.md      <span class="comment"># AI prompt patterns — still relevant</span>
-.claude/skills/docker-deployment.md       <span class="comment"># Update for multi-service Compose</span>
-.claude/skills/documentation.md           <span class="comment"># Writing rules — still relevant</span>
-.claude/skills/log-format-plugins.md      <span class="comment"># Format plugin protocol — core engine</span>
-.claude/skills/python-packaging.md        <span class="comment"># Update for new repo structure</span>
-.claude/skills/rebranding-guide.md        <span class="comment"># Reference only</span>
-.claude/skills/streamlit-patterns.md      <span class="comment"># Keep as reference (old UI)</span>
-.claude/skills/testing.md                 <span class="comment"># Update for Vitest + Playwright + httpx</span>
-.claude/skills/ws-log-parsing.yaml        <span class="comment"># Parsing architecture — core engine</span>
+<h4>Implementasjons-skills (9 eksisterende + 6 nye) &rarr; kopier til <code>new-repo/.claude/skills/</code></h4>
+<pre><code><span class="comment"># Eksisterende — ta med (noen trenger oppdateringer)</span>
+.claude/skills/claude-integration.md      <span class="comment"># AI-promptmønstre — fortsatt relevant</span>
+.claude/skills/docker-deployment.md       <span class="comment"># Oppdater for flertjeneste-Compose</span>
+.claude/skills/documentation.md           <span class="comment"># Skriveregler — fortsatt relevant</span>
+.claude/skills/log-format-plugins.md      <span class="comment"># Formatplugin-protokoll — kjernemotor</span>
+.claude/skills/python-packaging.md        <span class="comment"># Oppdater for ny repostruktur</span>
+.claude/skills/rebranding-guide.md        <span class="comment"># Kun referanse</span>
+.claude/skills/streamlit-patterns.md      <span class="comment"># Behold som referanse (gammelt UI)</span>
+.claude/skills/testing.md                 <span class="comment"># Oppdater for Vitest + Playwright + httpx</span>
+.claude/skills/ws-log-parsing.yaml        <span class="comment"># Parsearkitektur — kjernemotor</span>
 
-<span class="comment"># New — created for the new platform</span>
-.claude/skills/react-frontend.md          <span class="comment"># React + TypeScript + Tailwind patterns</span>
-.claude/skills/fastapi-patterns.md        <span class="comment"># FastAPI + DI + middleware patterns</span>
-.claude/skills/database-adapters.md       <span class="comment"># SQLite/Postgres adapter pattern</span>
-.claude/skills/auth-implementation.md     <span class="comment"># NoAuth/Local/OIDC + API keys</span>
-.claude/skills/workspace-model.md         <span class="comment"># Org → Workspace → Member model</span>
-.claude/skills/observability.md           <span class="comment"># structlog, tracing, health, audit</span></code></pre>
+<span class="comment"># Nye — opprettet for den nye plattformen</span>
+.claude/skills/react-frontend.md          <span class="comment"># React + TypeScript + Tailwind-mønstre</span>
+.claude/skills/fastapi-patterns.md        <span class="comment"># FastAPI + DI + mellomvaremønstre</span>
+.claude/skills/database-adapters.md       <span class="comment"># SQLite/Postgres-adaptermønster</span>
+.claude/skills/auth-implementation.md     <span class="comment"># NoAuth/Local/OIDC + API-nøkler</span>
+.claude/skills/workspace-model.md         <span class="comment"># Org → Arbeidsområde → Medlem-modell</span>
+.claude/skills/observability.md           <span class="comment"># structlog, sporing, helse, revisjon</span></code></pre>
 
-<h4>Migreringsskript</h4>
-<pre><code><span class="comment"># Copy all skills to new repo</span>
+<h4>Migrasjonsscript</h4>
+<pre><code><span class="comment"># Kopier alle skills til nytt repo</span>
 cp -r skills/ new-repo/skills/
 cp -r .claude/skills/ new-repo/.claude/skills/
 
-<span class="comment"># Verify count</span>
-find new-repo/skills/ -name "*.md" | wc -l          <span class="comment"># expect: 19</span>
-find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># expect: 15 (9 old + 6 new)</span></code></pre>
+<span class="comment"># Verifiser antall</span>
+find new-repo/skills/ -name "*.md" | wc -l          <span class="comment"># forventet: 23 (19 originale + 4 nye)</span>
+find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># forventet: 15 (9 gamle + 6 nye)</span></code></pre>
 
 <div class="callout callout-warning">
   <div class="callout-title">Ikke mist skills under migrering</div>
-  <p>Skills representerer m&aring;neders akkumulert domenekunnskap (83 heuristikker, 8 format-plugins, sikkerhetsm&oslash;nstre, ytelsesanalyse). Migreringssjekklisten m&aring; inkludere en verifisering av antall skill-filer. Hvis antallet er feil, stopp og unders&oslash;k.</p>
+  <p>Skills representerer m&aring;neders akkumulert domenekunnskap (83 heuristikker, 8 formatplugins, sikkerhetsm&oslash;nstre, ytelsesanalyse). Migrasjonssjekklisten m&aring; inkludere en verifisering av skill-filantall. Hvis antallet er feil, stopp og unders&oslash;k.</p>
 </div>
 
 <h3>Forebygging av teknisk gjeld</h3>
 
 <div class="callout callout-danger">
   <div class="callout-title">Det nye repoet starter rent &mdash; ingen gjeld f&oslash;res videre</div>
-  <p>Hele poenget med &aring; bygge p&aring; nytt er &aring; unnslippe akkumulert teknisk gjeld. V&aelig;r n&aring;del&oslash;s med hva som tas med. Kopier <strong>logikken</strong>, ikke <strong>l&oslash;sningene</strong>.</p>
+  <p>Hele poenget med gjenoppbygging er &aring; slippe unna akkumulert teknisk gjeld. V&aelig;r n&aring;del&oslash;s med hva som tas med. Kopier <strong>logikken</strong>, ikke <strong>omveiene</strong>.</p>
 </div>
 
 <h4>Hva vi tar med (ren kode)</h4>
 <ul>
   <li><strong>Kjernemotor</strong> (<code>logpilot/</code>) &mdash; parser, analyse, heuristikker, formater, rapporter. Disse er godt testet og godt strukturert.</li>
   <li><strong>Skills og YAML-heuristikker</strong> &mdash; domenekunnskap, formatuavhengig.</li>
-  <li><strong>Testtilfeller</strong> &mdash; p&aring;standene og testdataene, ikke testinfrastrukturen.</li>
+  <li><strong>Testcaser</strong> &mdash; p&aring;standene og testdataene, ikke testinfrastrukturen.</li>
 </ul>
 
 <h4>Hva vi IKKE tar med</h4>
 <table>
   <thead>
-    <tr><th>Gjeldselement</th><th>Hvor det bor</th><th>Hva vi gj&oslash;r i stedet</th></tr>
+    <tr><th>Gjeldspost</th><th>Hvor det finnes</th><th>Hva vi gj&oslash;r i stedet</th></tr>
   </thead>
   <tbody>
     <tr>
@@ -928,12 +937,12 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     <tr>
       <td>Sesjonstilstand som database</td>
       <td><code>st.session_state</code> gjennom app_*.py</td>
-      <td>Ordentlig database (SQLite/Postgres) + API-tilstandsh&aring;ndtering (Tanstack Query).</td>
+      <td>Skikkelig database (SQLite/Postgres) + API-tilstandsbehandling (Tanstack Query).</td>
     </tr>
     <tr>
-      <td>Filbasert caching</td>
+      <td>Filbasert hurtigbufring</td>
       <td><code>ai_responses.json</code>, <code>cache/parsed_*.json.gz</code></td>
-      <td>Databasest&oslash;ttet caching. Ingen JSON-filer som persistens.</td>
+      <td>Databasest&oslash;ttet hurtigbufring. Ingen JSON-filer som persistens.</td>
     </tr>
     <tr>
       <td>Synkrone AI-kall</td>
@@ -942,47 +951,47 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     </tr>
     <tr>
       <td>Global muterbar tilstand</td>
-      <td>Modulniv&aring;-dicts, mutasjon p&aring; stedet av LogEvent-felt</td>
-      <td>Umuterbar dataflyt. Hendelser berikes i pipeline-steg, ikke muteres p&aring; stedet.</td>
+      <td>Modulniv&aring;-dikter, direkte mutasjon av LogEvent-felt</td>
+      <td>Uforanderlig dataflyt. Hendelser berikes i pipelinesteg, ikke muteres direkte.</td>
     </tr>
     <tr>
-      <td>Inkonsistent feltpopulering</td>
+      <td>Inkonsekvent feltutfylling</td>
       <td><code>ts_utc</code> satt av sortering, <code>sample_label</code> satt av pick_samples</td>
-      <td>Alle felt populeres under parsing/klassifisering. Ingen sen tildeling.</td>
+      <td>Alle felt utfylt under parsing/klassifisering. Ingen sen tilordning.</td>
     </tr>
     <tr>
       <td>Duplisert classify_event()</td>
-      <td>I b&aring;de <code>parser.py</code> og format-plugins</td>
-      <td>Enkelt klassifiseringssti: format-plugin klassifiserer, parser delegerer.</td>
+      <td>I b&aring;de <code>parser.py</code> og formatplugins</td>
+      <td>Enkel klassifiseringssti: formatplugin klassifiserer, parser delegerer.</td>
     </tr>
     <tr>
       <td>Utypede analyseresultater</td>
-      <td>Vanlige <code>dict</code>-returer fra analysefunksjoner</td>
+      <td>Vanlige <code>dict</code>-returverdier fra analysefunksjoner</td>
       <td>Typede Pydantic-modeller for alle analyseresultater.</td>
     </tr>
     <tr>
-      <td>Hardkodede cache-stier</td>
+      <td>Hardkodede hurtigbufferstier</td>
       <td><code>cache/</code>, <code>.api_keys.json</code>, <code>ai_responses.json</code></td>
       <td>All persistens gjennom adaptergrensesnitt. Ingen hardkodede filstier.</td>
     </tr>
     <tr>
       <td>Leverand&oslash;rspesifikk API-kallkode i UI</td>
-      <td><code>app_ai.py</code> blander UI-rendering med API-kall</td>
-      <td>Rent skille: API-lag kaller leverand&oslash;rer, frontend rendrer svar.</td>
+      <td><code>app_ai.py</code> blander UI-gjengivelse med API-kall</td>
+      <td>Ren separasjon: API-lag kaller leverand&oslash;rer, frontend gjengir svar.</td>
     </tr>
   </tbody>
 </table>
 
 <h4>Regler for det nye repoet</h4>
 <ul>
-  <li><strong>Ingen <code>print()</code>-setninger</strong> &mdash; bruk structlog for all utdata</li>
+  <li><strong>Ingen <code>print()</code>-setninger</strong> &mdash; bruk structlog for all utskrift</li>
   <li><strong>Ingen hardkodede filstier</strong> &mdash; all lagring gjennom adaptere</li>
   <li><strong>Ingen synkron I/O i API-ruter</strong> &mdash; asynkront overalt</li>
-  <li><strong>Ingen utypede returer</strong> &mdash; hver funksjon returnerer en typet modell eller primitiv</li>
-  <li><strong>Ingen global muterbar tilstand</strong> &mdash; dependency injection for alt</li>
+  <li><strong>Ingen utypede returverdier</strong> &mdash; hver funksjon returnerer en typet modell eller primitiv</li>
+  <li><strong>Ingen global muterbar tilstand</strong> &mdash; avhengighetsinjeksjon for alt</li>
   <li><strong>Ingen hemmeligheter i kode</strong> &mdash; all konfigurasjon via milj&oslash;variabler / innstillinger</li>
-  <li><strong>Tester fra dag &eacute;n</strong> &mdash; ingen funksjon merges uten testdekning</li>
-  <li><strong>Linting h&aring;ndheves i CI</strong> &mdash; Ruff (Python) + ESLint (TypeScript), ingen advarsler tillatt</li>
+  <li><strong>Tester fra dag &eacute;n</strong> &mdash; ingen funksjon sl&aring;s sammen uten testdekning</li>
+  <li><strong>Linting h&aring;ndhevet i CI</strong> &mdash; Ruff (Python) + ESLint (TypeScript), ingen advarsler tillatt</li>
 </ul>
 </section>
 
@@ -1007,9 +1016,9 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     id              uuid <span class="keyword">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
     email           text <span class="keyword">UNIQUE NOT NULL</span>,
     name            text,
-    password_hash   text,                  <span class="comment">-- null for OIDC users</span>
+    password_hash   text,                  <span class="comment">-- null for OIDC-brukere</span>
     auth_provider   text <span class="keyword">NOT NULL DEFAULT</span> <span class="string">'local'</span>,
-    auth_subject    text,                  <span class="comment">-- external IdP subject</span>
+    auth_subject    text,                  <span class="comment">-- ekstern IdP-subjekt</span>
     created_at      timestamptz <span class="keyword">NOT NULL DEFAULT</span> now()
 );
 
@@ -1052,7 +1061,7 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     workspace_id  uuid <span class="keyword">NOT NULL REFERENCES</span> workspaces <span class="keyword">ON DELETE CASCADE</span>,
     name          text <span class="keyword">NOT NULL</span>,
     key_hash      text <span class="keyword">NOT NULL</span>,
-    key_prefix    text <span class="keyword">NOT NULL</span>,           <span class="comment">-- "lp_live_a3f2" for display</span>
+    key_prefix    text <span class="keyword">NOT NULL</span>,           <span class="comment">-- "lp_live_a3f2" for visning</span>
     scopes        text[] <span class="keyword">NOT NULL</span>,
     expires_at    timestamptz,
     created_by    uuid <span class="keyword">REFERENCES</span> users,
@@ -1062,7 +1071,7 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
 <span class="keyword">CREATE INDEX</span> idx_api_keys_prefix <span class="keyword">ON</span> api_keys(key_prefix);
 
 <span class="comment">-- ========================================</span>
-<span class="comment">-- SESJONER OG OPPLASTINGER</span>
+<span class="comment">-- &Oslash;KTER OG OPPLASTINGER</span>
 <span class="comment">-- ========================================</span>
 
 <span class="keyword">CREATE TABLE</span> sessions (
@@ -1080,10 +1089,10 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     id          uuid <span class="keyword">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
     session_id  uuid <span class="keyword">NOT NULL REFERENCES</span> sessions <span class="keyword">ON DELETE CASCADE</span>,
     filename    text <span class="keyword">NOT NULL</span>,
-    storage_key text <span class="keyword">NOT NULL</span>,             <span class="comment">-- object store key</span>
+    storage_key text <span class="keyword">NOT NULL</span>,             <span class="comment">-- objektlagringsnøkkel</span>
     size_bytes  bigint <span class="keyword">NOT NULL</span>,
-    format      text,                       <span class="comment">-- detected format name</span>
-    event_count int,                        <span class="comment">-- populated after parsing</span>
+    format      text,                       <span class="comment">-- gjenkjent formatnavn</span>
+    event_count int,                        <span class="comment">-- fylles etter parsing</span>
     created_at  timestamptz <span class="keyword">NOT NULL DEFAULT</span> now()
 );
 
@@ -1094,11 +1103,11 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
 <span class="keyword">CREATE TABLE</span> analyses (
     id          uuid <span class="keyword">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
     session_id  uuid <span class="keyword">NOT NULL REFERENCES</span> sessions <span class="keyword">ON DELETE CASCADE</span>,
-    results     jsonb <span class="keyword">NOT NULL</span>,             <span class="comment">-- full precomputed analysis</span>
-    incidents   jsonb <span class="keyword">NOT NULL DEFAULT</span> <span class="string">'[]'</span>, <span class="comment">-- incident groups array</span>
-    summary     jsonb <span class="keyword">NOT NULL DEFAULT</span> <span class="string">'{}'</span>, <span class="comment">-- event counts, level breakdown</span>
+    results     jsonb <span class="keyword">NOT NULL</span>,             <span class="comment">-- full forhåndsberegnet analyse</span>
+    incidents   jsonb <span class="keyword">NOT NULL DEFAULT</span> <span class="string">'[]'</span>, <span class="comment">-- hendelsesgruppe-array</span>
+    summary     jsonb <span class="keyword">NOT NULL DEFAULT</span> <span class="string">'{}'</span>, <span class="comment">-- hendelsestall, nivåfordeling</span>
     created_at  timestamptz <span class="keyword">NOT NULL DEFAULT</span> now(),
-    <span class="keyword">UNIQUE</span>(session_id)                    <span class="comment">-- one analysis per session</span>
+    <span class="keyword">UNIQUE</span>(session_id)                    <span class="comment">-- én analyse per økt</span>
 );
 
 <span class="comment">-- ========================================</span>
@@ -1111,8 +1120,8 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     user_id     uuid <span class="keyword">NOT NULL REFERENCES</span> users,
     provider    text <span class="keyword">NOT NULL</span>,
     model       text <span class="keyword">NOT NULL</span>,
-    prompt_hash text <span class="keyword">NOT NULL</span>,              <span class="comment">-- for cache dedup</span>
-    user_prompt text <span class="keyword">NOT NULL</span>,              <span class="comment">-- redacted prompt sent to AI</span>
+    prompt_hash text <span class="keyword">NOT NULL</span>,              <span class="comment">-- for hurtigbuffer-deduplisering</span>
+    user_prompt text <span class="keyword">NOT NULL</span>,              <span class="comment">-- maskert prompt sendt til AI</span>
     response    text <span class="keyword">NOT NULL</span>,
     input_tokens  int,
     output_tokens int,
@@ -1147,12 +1156,12 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
 <span class="keyword">ALTER TABLE</span> ai_conversations <span class="keyword">ENABLE ROW LEVEL SECURITY</span>;
 <span class="keyword">ALTER TABLE</span> audit_log <span class="keyword">ENABLE ROW LEVEL SECURITY</span>;
 
-<span class="comment">-- Policy-eksempel (brukt p&aring; alle arbeidsomr&aring;de-relaterte tabeller)</span>
+<span class="comment">-- Policyeksempel (brukt på alle arbeidsområdeomfangede tabeller)</span>
 <span class="keyword">CREATE POLICY</span> workspace_isolation <span class="keyword">ON</span> sessions
     <span class="keyword">USING</span> (workspace_id = current_setting(<span class="string">'app.current_workspace_id'</span>)::uuid);</code></pre>
 
 <h3>SQLite-ekvivalent</h3>
-<p>SQLite-adapteren bruker samme tabellstruktur, men uten RLS (enbruker, ingen isolasjon n&oslash;dvendig), uten <code>gen_random_uuid()</code> (bruker Python-genererte UUID-er), og med <code>TEXT</code> i stedet for <code>uuid</code>-type. Adapteren oversetter mellom de to.</p>
+<p>SQLite-adapteren bruker samme tabellstruktur, men uten RLS (enbruker, ingen isolering n&oslash;dvendig), uten <code>gen_random_uuid()</code> (bruker Python-genererte UUID-er), og med <code>TEXT</code> i stedet for <code>uuid</code>-type. Adapteren oversetter mellom de to.</p>
 </section>
 
 <!-- 7. API-SPESIFIKASJON -->
@@ -1169,8 +1178,8 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
   <tbody>
     <tr><td><code>GET</code></td><td><code>/health</code></td><td>Helsesjekk</td></tr>
     <tr><td><code>POST</code></td><td><code>/api/v1/auth/login</code></td><td>Innlogging (lokal autentisering)</td></tr>
-    <tr><td><code>POST</code></td><td><code>/api/v1/auth/callback</code></td><td>OIDC-callback</td></tr>
-    <tr><td><code>GET</code></td><td><code>/api/v1/auth/me</code></td><td>Gjeldende brukerinfo</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/v1/auth/callback</code></td><td>OIDC-tilbakekall</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/v1/auth/me</code></td><td>N&aring;v&aelig;rende brukerinformasjon</td></tr>
   </tbody>
 </table>
 
@@ -1180,11 +1189,11 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     <tr><th>Metode</th><th>Sti</th><th>Form&aring;l</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>POST</code></td><td><code>/api/v1/sessions</code></td><td>Opprett analysesesjon</td></tr>
-    <tr><td><code>GET</code></td><td><code>/api/v1/sessions</code></td><td>List sesjoner i arbeidsomr&aring;de</td></tr>
-    <tr><td><code>GET</code></td><td><code>/api/v1/sessions/{id}</code></td><td>Sesjonsdetaljer + status</td></tr>
-    <tr><td><code>DELETE</code></td><td><code>/api/v1/sessions/{id}</code></td><td>Slett sesjon + alle data</td></tr>
-    <tr><td><code>POST</code></td><td><code>/api/v1/sessions/{id}/upload</code></td><td>Last opp loggfil(er) til sesjon</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/v1/sessions</code></td><td>Opprett analyse&oslash;kt</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/v1/sessions</code></td><td>List &oslash;kter i arbeidsomr&aring;de</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/v1/sessions/{id}</code></td><td>&Oslash;ktdetaljer + status</td></tr>
+    <tr><td><code>DELETE</code></td><td><code>/api/v1/sessions/{id}</code></td><td>Slett &oslash;kt + alle data</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/v1/sessions/{id}/upload</code></td><td>Last opp loggfil(er) til &oslash;kt</td></tr>
     <tr><td><code>POST</code></td><td><code>/api/v1/sessions/{id}/analyze</code></td><td>Utl&oslash;s analyse</td></tr>
     <tr><td><code>GET</code></td><td><code>/api/v1/sessions/{id}/results</code></td><td>Fullstendige analyseresultater</td></tr>
     <tr><td><code>GET</code></td><td><code>/api/v1/sessions/{id}/incidents</code></td><td>Hendelsesgrupper + bevis</td></tr>
@@ -1203,28 +1212,28 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
   <tbody>
     <tr><td><code>GET</code></td><td><code>/api/v1/orgs</code></td><td>List brukerens organisasjoner</td></tr>
     <tr><td><code>POST</code></td><td><code>/api/v1/orgs</code></td><td>Opprett organisasjon</td></tr>
-    <tr><td><code>GET/PUT</code></td><td><code>/api/v1/orgs/{slug}</code></td><td>Org-detaljer / oppdater innstillinger</td></tr>
-    <tr><td><code>GET/POST</code></td><td><code>/api/v1/orgs/{slug}/members</code></td><td>List / inviter org-medlemmer</td></tr>
-    <tr><td><code>GET</code></td><td><code>/api/v1/workspaces</code></td><td>List arbeidsomr&aring;der i gjeldende org</td></tr>
+    <tr><td><code>GET/PUT</code></td><td><code>/api/v1/orgs/{slug}</code></td><td>Organisasjonsdetaljer / oppdater innstillinger</td></tr>
+    <tr><td><code>GET/POST</code></td><td><code>/api/v1/orgs/{slug}/members</code></td><td>List / inviter organisasjonsmedlemmer</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/v1/workspaces</code></td><td>List arbeidsomr&aring;der i n&aring;v&aelig;rende organisasjon</td></tr>
     <tr><td><code>POST</code></td><td><code>/api/v1/workspaces</code></td><td>Opprett arbeidsomr&aring;de</td></tr>
     <tr><td><code>GET/PUT</code></td><td><code>/api/v1/workspaces/{slug}</code></td><td>Arbeidsomr&aring;dedetaljer / innstillinger</td></tr>
     <tr><td><code>GET/POST/DELETE</code></td><td><code>/api/v1/workspaces/{slug}/members</code></td><td>Administrer arbeidsomr&aring;demedlemmer</td></tr>
     <tr><td><code>GET/POST/DELETE</code></td><td><code>/api/v1/workspaces/{slug}/api-keys</code></td><td>Administrer API-n&oslash;kler</td></tr>
-    <tr><td><code>POST</code></td><td><code>/api/v1/ingest</code></td><td>Send logger via API (fil eller NDJSON)</td></tr>
-    <tr><td><code>GET</code></td><td><code>/api/v1/workspaces/{slug}/export</code></td><td>Eksporter all arbeidsomr&aring;dedata som JSON (GDPR rett til innsyn + migrering til/fra SaaS)</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/v1/ingest</code></td><td>Push logger via API (fil eller NDJSON)</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/v1/workspaces/{slug}/export</code></td><td>Eksporter alle arbeidsomr&aring;dedata som JSON (GDPR innsynsrett + migrering til/fra SaaS)</td></tr>
   </tbody>
 </table>
 
 <h3>Autentiseringsmodell</h3>
-<pre><code><span class="comment"># Every request is authenticated via one of:</span>
-<span class="comment"># 1. Session cookie (web app, after login)</span>
-<span class="comment"># 2. Bearer token: "Authorization: Bearer lp_live_..." (API key)</span>
-<span class="comment"># 3. NoAuth mode: auto-authenticated as local user</span>
+<pre><code><span class="comment"># Hver forespørsel autentiseres via en av:</span>
+<span class="comment"># 1. Øktinformasjonskapsel (webapp, etter innlogging)</span>
+<span class="comment"># 2. Bearer-token: "Authorization: Bearer lp_live_..." (API-nøkkel)</span>
+<span class="comment"># 3. NoAuth-modus: automatisk autentisert som lokal bruker</span>
 
-<span class="comment"># Workspace context is resolved from:</span>
-<span class="comment"># - URL path: /api/v1/workspaces/{slug}/sessions/...</span>
-<span class="comment"># - OR: API key (implicitly scoped to its workspace)</span>
-<span class="comment"># - OR: NoAuth mode (auto-scoped to "personal" workspace)</span></code></pre>
+<span class="comment"># Arbeidsområdekontekst løses fra:</span>
+<span class="comment"># - URL-sti: /api/v1/workspaces/{slug}/sessions/...</span>
+<span class="comment"># - ELLER: API-nøkkel (implisitt avgrenset til sitt arbeidsområde)</span>
+<span class="comment"># - ELLER: NoAuth-modus (automatisk avgrenset til "personlig" arbeidsområde)</span></code></pre>
 </section>
 
 <!-- 8. UI-STRUKTUR -->
@@ -1259,24 +1268,24 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
   </thead>
   <tbody>
     <tr>
-      <td><strong>Sesjonsliste</strong></td>
+      <td><strong>&Oslash;ktliste</strong></td>
       <td><code>/{org}/{ws}</code></td>
-      <td>Standardvisning. Liste over sesjoner med dato, navn, filtall, status. &laquo;+ Ny sesjon&raquo;-knapp med dra-og-slipp opplastingssone.</td>
+      <td>Standardvisning. Liste over &oslash;kter med dato, navn, filantall, status. &laquo;+ Ny &oslash;kt&raquo;-knapp med dra-og-slipp-opplastingssone.</td>
     </tr>
     <tr>
       <td><strong>Analyse</strong></td>
       <td><code>/{org}/{ws}/sessions/{id}</code></td>
-      <td>Hovedvisningen. Hendelsesoversiktsbanner &oslash;verst. Faner eller seksjoner: Sammendrag | Hendelser og &aring;rsaker | Tidslinje | Hendelser | AI-assistent | Eksport.</td>
+      <td>Hovedvisningen. Hendelsesoversiktsbanner &oslash;verst. Faner eller seksjoner: Oppsummering | Hendelser og &aring;rsaker | Tidslinje | Hendelser | AI-assistent | Eksport.</td>
     </tr>
     <tr>
       <td><strong>Hendelsesdetalj</strong></td>
       <td><code>/{org}/{ws}/sessions/{id}/incidents/{iid}</code></td>
-      <td>Dypdykk i &eacute;n hendelsesgruppe. Trigger/effektkjede, bevisblokk (IP-er, varigheter, vertsnavn), eksempelhendelser, AI-forklaring.</td>
+      <td>Dybdedykk i &eacute;n hendelsesgruppe. Utl&oslash;ser/effekt-kjede, bevisblokk (IP-er, varigheter, vertsnavn), eksempelhendelser, AI-forklaring.</td>
     </tr>
     <tr>
-      <td><strong>Hendelsesutforsker</strong></td>
+      <td><strong>Hendelsesbrowser</strong></td>
       <td><code>/{org}/{ws}/sessions/{id}/events</code></td>
-      <td>Virtualisert liste over alle hendelser. Filtre: niv&aring;, kode, tagg, tidsrom, kilde. Fullteksts&oslash;k. Klikk for &aring; utvide hendelsesdetaljer.</td>
+      <td>Virtualisert liste over alle hendelser. Filtre: niv&aring;, kode, tagg, tidsintervall, kilde. Friteksts&oslash;k. Klikk for &aring; utvide hendelsesdetaljer.</td>
     </tr>
     <tr>
       <td><strong>AI-assistent</strong></td>
@@ -1289,9 +1298,9 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
       <td>AI-leverand&oslash;rn&oslash;kler, arbeidsomr&aring;denavn, medlemsadministrasjon, API-n&oslash;kler, faresone (slett arbeidsomr&aring;de).</td>
     </tr>
     <tr>
-      <td><strong>Org-innstillinger</strong></td>
+      <td><strong>Organisasjonsinnstillinger</strong></td>
       <td><code>/{org}/settings</code></td>
-      <td>Org-navn, standardinnstillinger, OIDC-konfigurasjon, medlemsadministrasjon, arbeidsomr&aring;deliste. Kun org-admin.</td>
+      <td>Organisasjonsnavn, standardinnstillinger, OIDC-konfigurasjon, medlemsadministrasjon, arbeidsomr&aring;deliste. Kun organisasjonsadmin.</td>
     </tr>
     <tr>
       <td><strong>Innlogging</strong></td>
@@ -1301,7 +1310,7 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     <tr>
       <td><strong>Registrering</strong></td>
       <td><code>/signup</code></td>
-      <td>Opprett konto &rarr; automatisk opprettelse av org + arbeidsomr&aring;de &rarr; viderekobling til sesjonsliste. 30-dagers pr&oslash;veperiode starter.</td>
+      <td>Opprett konto &rarr; auto-opprett org + arbeidsomr&aring;de &rarr; omdiriger til &oslash;ktliste. 30-dagers pr&oslash;veperiode starter.</td>
     </tr>
   </tbody>
 </table>
@@ -1331,27 +1340,27 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
 <h3>Repostruktur</h3>
 <pre><code>logpilot-platform/
 &#9500;&#9472;&#9472; backend/
-&#9474;   &#9500;&#9472;&#9472; api/              <span class="comment"># FastAPI routes</span>
-&#9474;   &#9500;&#9472;&#9472; adapters/         <span class="comment"># Storage, DB, queue, cache, auth</span>
-&#9474;   &#9500;&#9472;&#9472; services/         <span class="comment"># Business logic (session mgmt, AI orchestration)</span>
-&#9474;   &#9500;&#9472;&#9472; workers/          <span class="comment"># Background job handlers</span>
-&#9474;   &#9500;&#9472;&#9472; settings.py       <span class="comment"># Pydantic settings</span>
-&#9474;   &#9492;&#9472;&#9472; main.py           <span class="comment"># FastAPI app factory</span>
-&#9500;&#9472;&#9472; core/                 <span class="comment"># Migrated engine (parser, analysis, heuristics, formats)</span>
+&#9474;   &#9500;&#9472;&#9472; api/              <span class="comment"># FastAPI-ruter</span>
+&#9474;   &#9500;&#9472;&#9472; adapters/         <span class="comment"># Lagring, DB, kø, hurtigbuffer, autentisering</span>
+&#9474;   &#9500;&#9472;&#9472; services/         <span class="comment"># Forretningslogikk (øktbehandling, AI-orkestrering)</span>
+&#9474;   &#9500;&#9472;&#9472; workers/          <span class="comment"># Bakgrunnsjobbhåndterere</span>
+&#9474;   &#9500;&#9472;&#9472; settings.py       <span class="comment"># Pydantic-innstillinger</span>
+&#9474;   &#9492;&#9472;&#9472; main.py           <span class="comment"># FastAPI app-fabrikk</span>
+&#9500;&#9472;&#9472; core/                 <span class="comment"># Migrert motor (parser, analyse, heuristikker, formater)</span>
 &#9500;&#9472;&#9472; frontend/
 &#9474;   &#9500;&#9472;&#9472; src/
-&#9474;   &#9474;   &#9500;&#9472;&#9472; components/   <span class="comment"># Shared UI components</span>
-&#9474;   &#9474;   &#9500;&#9472;&#9472; views/        <span class="comment"># Page-level views</span>
-&#9474;   &#9474;   &#9500;&#9472;&#9472; hooks/        <span class="comment"># API hooks (Tanstack Query)</span>
-&#9474;   &#9474;   &#9492;&#9472;&#9472; lib/          <span class="comment"># Utilities, types</span>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; components/   <span class="comment"># Delte UI-komponenter</span>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; views/        <span class="comment"># Sidenivåvisninger</span>
+&#9474;   &#9474;   &#9500;&#9472;&#9472; hooks/        <span class="comment"># API-hooks (Tanstack Query)</span>
+&#9474;   &#9474;   &#9492;&#9472;&#9472; lib/          <span class="comment"># Verktøy, typer</span>
 &#9474;   &#9500;&#9472;&#9472; package.json
 &#9474;   &#9492;&#9472;&#9472; vite.config.ts
 &#9500;&#9472;&#9472; tests/
-&#9474;   &#9500;&#9472;&#9472; core/             <span class="comment"># Migrated core engine tests</span>
-&#9474;   &#9500;&#9472;&#9472; api/              <span class="comment"># API integration tests</span>
-&#9474;   &#9500;&#9472;&#9472; adapters/         <span class="comment"># Adapter tests (SQLite + Postgres)</span>
-&#9474;   &#9492;&#9472;&#9472; e2e/              <span class="comment"># Playwright end-to-end</span>
-&#9500;&#9472;&#9472; migrations/           <span class="comment"># Alembic database migrations</span>
+&#9474;   &#9500;&#9472;&#9472; core/             <span class="comment"># Migrerte kjernemotor-tester</span>
+&#9474;   &#9500;&#9472;&#9472; api/              <span class="comment"># API-integrasjonstester</span>
+&#9474;   &#9500;&#9472;&#9472; adapters/         <span class="comment"># Adaptertester (SQLite + Postgres)</span>
+&#9474;   &#9492;&#9472;&#9472; e2e/              <span class="comment"># Playwright ende-til-ende</span>
+&#9500;&#9472;&#9472; migrations/           <span class="comment"># Alembic-databasemigrasjoner</span>
 &#9500;&#9472;&#9472; docker/
 &#9474;   &#9500;&#9472;&#9472; Dockerfile
 &#9474;   &#9492;&#9472;&#9472; docker-compose.yml
@@ -1370,9 +1379,9 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
     <tr><td><strong>Integrasjonstester</strong></td><td>pytest adaptere mot Postgres (Docker-tjeneste)</td><td>Hver push til main / PR</td></tr>
     <tr><td><strong>Frontend-tester</strong></td><td>Vitest (komponenttester)</td><td>Hver push</td></tr>
     <tr><td><strong>E2E-tester</strong></td><td>Playwright (full flyt: opplasting &rarr; analyse &rarr; eksport)</td><td>PR til main</td></tr>
-    <tr><td><strong>Bygg</strong></td><td>Docker image-bygg + push til register</td><td>Merge til main</td></tr>
-    <tr><td><strong>Deploy staging</strong></td><td>Deploy til staging-milj&oslash;</td><td>Merge til main</td></tr>
-    <tr><td><strong>Deploy produksjon</strong></td><td>Deploy til produksjon</td><td>Manuell utl&oslash;ser / tagg</td></tr>
+    <tr><td><strong>Bygg</strong></td><td>Docker-bildebygg + push til register</td><td>Merge til main</td></tr>
+    <tr><td><strong>Distribuer staging</strong></td><td>Distribuer til stagingmilj&oslash;</td><td>Merge til main</td></tr>
+    <tr><td><strong>Distribuer produksjon</strong></td><td>Distribuer til produksjon</td><td>Manuell utl&oslash;sning / tagg</td></tr>
   </tbody>
 </table>
 
@@ -1381,10 +1390,19 @@ find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># exp
 cd backend &amp;&amp; uvicorn main:app --reload --port 8000
 
 <span class="comment"># Frontend (terminal 2)</span>
-cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on :5173, proxies API to :8000</span>
+cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite-utviklerserver på :5173, proxyer API til :8000</span>
 
-<span class="comment"># Database: auto-created SQLite at ~/.logpilot/db.sqlite</span>
-<span class="comment"># No Docker, Redis, or Postgres needed for local dev</span></code></pre>
+<span class="comment"># Database: auto-opprettet SQLite på ~/.logpilot/db.sqlite</span>
+<span class="comment"># Ingen Docker, Redis eller Postgres nødvendig for lokal utvikling</span></code></pre>
+
+<h3>Versjonering og endringslogg</h3>
+<ul>
+  <li><strong>Semantisk versjonering</strong> fra dag &eacute;n: <code>v0.1.0</code> (fase 1), <code>v0.2.0</code> (fase 2), osv. Patch-versjoner for feilrettinger.</li>
+  <li><strong>CHANGELOG.md</strong> i repo-roten, oppdatert med hver PR. Format: <a href="https://keepachangelog.com">Keep a Changelog</a>.</li>
+  <li><strong>Versjon synlig overalt</strong>: UI-bunntekst, <code>GET /health</code>-respons, API-responsoverskrifter (<code>X-LogPilot-Version</code>), Docker-bildetagg.</li>
+  <li><strong>Hva er nytt-side</strong> i appen: autogjengitt fra CHANGELOG.md. Brukere ser nye funksjoner uten &aring; forlate appen. Fungerer ogs&aring; som offentlig endringslogg p&aring; <code>/changelog</code>.</li>
+  <li><strong>Git-tagger</strong>: hver utgivelse tagget (<code>v0.1.0</code>, <code>v0.2.0</code>). CI bygger Docker-bilde med versjonstagg.</li>
+</ul>
 </section>
 
 <!-- 10. TESTSTRATEGI -->
@@ -1399,8 +1417,8 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
     <tr>
       <td><strong>Kjernemotor</strong></td>
       <td>pytest</td>
-      <td>Parser, heuristikker, analyse, format-plugins. Migrert fra gjeldende testsuite.</td>
-      <td>~1280 tester, 100% best&aring;tt ved migrering</td>
+      <td>Parser, heuristikker, analyse, formatplugins. Migrert fra n&aring;v&aelig;rende testsuite.</td>
+      <td>~1280 tester, 100 % best&aring;tt ved migrering</td>
     </tr>
     <tr>
       <td><strong>Adaptere</strong></td>
@@ -1411,26 +1429,26 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
     <tr>
       <td><strong>API</strong></td>
       <td>pytest + httpx</td>
-      <td>Hvert endepunkt: vellykkede tilfeller, autentisering avvist, arbeidsomr&aring;deisolasjon, valideringsfeil.</td>
+      <td>Hvert endepunkt: vellykket sti, autentisering avvist, arbeidsomr&aring;deisolering, valideringsfeil.</td>
       <td>Hvert endepunkt dekket</td>
     </tr>
     <tr>
       <td><strong>Frontend</strong></td>
       <td>Vitest + Testing Library</td>
-      <td>Komponentrendering, brukerinteraksjoner, API-hook-oppf&oslash;rsel (mocket).</td>
-      <td>Viktige visninger og interaksjoner</td>
+      <td>Komponentgjengivelse, brukerinteraksjoner, API-hook-oppf&oslash;rsel (mocket).</td>
+      <td>N&oslash;kkelvisninger og interaksjoner</td>
     </tr>
     <tr>
       <td><strong>E2E</strong></td>
       <td>Playwright</td>
-      <td>Fulle brukerflyter: registrering &rarr; opplasting &rarr; analyse &rarr; AI &rarr; eksport. Flerarbeidsomr&aring;deisolasjon.</td>
+      <td>Fulle brukerflyter: registrering &rarr; opplasting &rarr; analyse &rarr; AI &rarr; eksport. Flerarbeidsomr&aring;de-isolering.</td>
       <td>5&ndash;10 kritiske stier</td>
     </tr>
     <tr>
       <td><strong>Sikkerhet</strong></td>
       <td>pytest</td>
-      <td>RLS-isolasjonstester: bruker A sp&oslash;rr, bare arbeidsomr&aring;de A-data returnert. API-n&oslash;kkel rettighetsh&aring;ndhevelse. Maskeringsport aldri forbig&aring;tt.</td>
-      <td>Hver isolasjonsgrense testet</td>
+      <td>RLS-isoleringstester: bruker A sp&oslash;rrer, kun arbeidsomr&aring;de A-data returneres. API-n&oslash;kkelomfangsh&aring;ndhevelse. Maskeringsport aldri forbig&aring;tt.</td>
+      <td>Hver isoleringsgrense testet</td>
     </tr>
   </tbody>
 </table>
@@ -1445,24 +1463,24 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
   </thead>
   <tbody>
     <tr>
-      <td><strong><a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/backend-report">Backend Report</a></strong></td>
+      <td><strong><a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/backend-report">Backend-rapport</a></strong></td>
       <td>Slutten av fase 2, slutten av fase 4</td>
       <td>Arkitektur, kodekvalitet, sikkerhet, testing, datalag, observerbarhet, avhengigheter. Karakter A&ndash;F med bevis.</td>
     </tr>
     <tr>
-      <td><strong><a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/frontend-report">Frontend Report</a></strong></td>
+      <td><strong><a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/frontend-report">Frontend-rapport</a></strong></td>
       <td>Slutten av fase 2, slutten av fase 4</td>
-      <td>React-m&oslash;nstre, tilgjengelighet, ytelse, komponentstruktur, tilstandsh&aring;ndtering. Karakter A&ndash;F.</td>
+      <td>React-m&oslash;nstre, tilgjengelighet, ytelse, komponentstruktur, tilstandsbehandling. Karakter A&ndash;F.</td>
     </tr>
     <tr>
       <td><strong><a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/prompt-eng">Prompt Engineering</a></strong></td>
       <td>Fase 2 (AI-integrasjon)</td>
-      <td>75-kriterierubrikk for evaluering og forbedring av AI-prompter. Kj&oslash;res p&aring; hendelses-/forklaringsprompter.</td>
+      <td>75-kriteriers rubrikk for evaluering og forbedring av AI-prompter. Kj&oslash;res p&aring; hendelses/forklarings-prompter.</td>
     </tr>
     <tr>
       <td><strong><a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/expert-lenses">Expert Lenses</a></strong></td>
-      <td>F&oslash;r st&oslash;rre arkitekturbeslutninger</td>
-      <td>Flerperspektiv spenningsanalyse: teknologi vs design vs produkt vs UX. Avdekker avveininger og blinde flekker.</td>
+      <td>F&oslash;r store arkitekturbeslutninger</td>
+      <td>Flerperspektiv spenningsanalyse: teknologi vs. design vs. produkt vs. UX. Avdekker avveininger og blindsoner.</td>
     </tr>
   </tbody>
 </table>
@@ -1472,8 +1490,8 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
 <p><a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/enonic-xp">Enonic XP skill-samlingen</a> (14 YAML-filer) dekker Enonic XP-utvikling: API-er, kontrollere, skjemaer, lagring, Guillotine, distribusjon, Content Studio, Next.js-adapter. Disse komplementerer LogPilots eksisterende <code>skills/enonic-xp-analysis.md</code> (som dekker logganalyse) og er verdifulle som:</p>
 
 <ul>
-  <li><strong>V2 RAG-kilde:</strong> N&aring;r Enonic-kunder kobler til sin kodebase, hjelper disse skills AI-en med &aring; forst&aring; Enonic XP-kodem&oslash;nstre.</li>
-  <li><strong>Integrasjonskontekst:</strong> Ved bygging av Enonic-integrasjonseksempelet (API og integrasjoner), gir disse skills informasjon om hvordan Enonic-apper er strukturert.</li>
+  <li><strong>V2 RAG-kilde:</strong> N&aring;r Enonic-kunder kobler til kodebasen sin, hjelper disse skills AI-en med &aring; forst&aring; Enonic XP-kodem&oslash;nstre.</li>
+  <li><strong>Integrasjonskontekst:</strong> N&aring;r man bygger Enonic-integrasjonseksempelet (API og integrasjoner), informerer disse skills om hvordan Enonic-apper er strukturert.</li>
 </ul>
 </section>
 
@@ -1487,11 +1505,12 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
   <tbody>
     <tr><td>Nytt repo med CI-pipeline</td><td>GitHub Actions gr&oslash;nn ved push</td></tr>
     <tr><td>FastAPI-skjelett med innstillinger + DI</td><td><code>GET /health</code> returnerer 200</td></tr>
-    <tr><td>React-skjelett med ruting</td><td>App rendrer, navigasjon fungerer</td></tr>
+    <tr><td>React-skjelett med ruting</td><td>Appen rendres, navigasjon fungerer</td></tr>
     <tr><td>Databaseskjema + SQLite/Postgres-adaptere</td><td>Alle adaptertester best&aring;r p&aring; begge backends</td></tr>
-    <tr><td>Kjernemotor migrert</td><td>~1280 eksisterende tester best&aring;tt</td></tr>
+    <tr><td>Kjernemotor migrert</td><td>~1280 eksisterende tester best&aring;r</td></tr>
     <tr><td>Lagringsadapter (lokal + S3)</td><td>Opplasting og henting av fil fungerer</td></tr>
     <tr><td>F&oslash;rste parse-endepunkt</td><td><code>POST /api/v1/sessions/{id}/upload</code> + <code>/analyze</code> returnerer hendelser</td></tr>
+    <tr><td>Semantisk versjonering + endringslogg</td><td><code>v0.1.0</code> tagget fra dag &eacute;n. <code>CHANGELOG.md</code> startet. Hver PR oppdaterer endringslogg. Versjon synlig i UI-bunntekst + API-respons + <code>GET /health</code>.</td></tr>
   </tbody>
 </table>
 
@@ -1499,15 +1518,15 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
 <table>
   <thead><tr><th>Leveranse</th><th>Verifisering</th></tr></thead>
   <tbody>
-    <tr><td>Filopplasting-UI (dra-og-slipp, flere filer)</td><td>Last opp 5 filer, alle vises i sesjonen</td></tr>
-    <tr><td>Full analysepipeline via API</td><td>Opplasting &rarr; parse &rarr; analyse &rarr; resultater, alt i &eacute;n sesjon</td></tr>
-    <tr><td>Analysevisning i React</td><td>Sammendrag, hendelser, tidslinje, hendelser, eksport &mdash; alt rendres</td></tr>
+    <tr><td>Filopplastings-UI (dra-og-slipp, flere filer)</td><td>Last opp 5 filer, alle vises i &oslash;kten</td></tr>
+    <tr><td>Full analysepipeline via API</td><td>Opplasting &rarr; parse &rarr; analyse &rarr; resultater, alt i &eacute;n &oslash;kt</td></tr>
+    <tr><td>Analysevisning i React</td><td>Oppsummering, hendelser, tidslinje, hendelser, eksport &mdash; alt rendres</td></tr>
     <tr><td>AI-assistent (str&oslash;mmende)</td><td>Velg leverand&oslash;r, still sp&oslash;rsm&aring;l, se str&oslash;mmende svar</td></tr>
     <tr><td>Rapporteksport (4 formater)</td><td>Last ned PDF, HTML, JSON, Markdown fra UI</td></tr>
-    <tr><td>Hendelsesutforsker (virtualisert)</td><td>100K+ hendelser, filtrer etter niv&aring;/kode/tagg, ingen forsinkelse</td></tr>
-    <tr><td>Backend-kvalitetsrevisjon</td><td>Kj&oslash;r <a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/backend-report">Backend Report</a>-skill p&aring; kodebasen. Adresser alle Kritiske/H&oslash;ye funn.</td></tr>
-    <tr><td>Frontend-kvalitetsrevisjon</td><td>Kj&oslash;r <a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/frontend-report">Frontend Report</a>-skill p&aring; React-appen. Adresser alle Kritiske/H&oslash;ye funn.</td></tr>
-    <tr><td>AI-prompt kvalitetsgjennomgang</td><td>Kj&oslash;r <a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/prompt-eng">Prompt Engineering</a>-skill p&aring; hendelses-/forklaringsprompter. Score &ge; 70/100.</td></tr>
+    <tr><td>Hendelsesbrowser (virtualisert)</td><td>100K+ hendelser, filtrer etter niv&aring;/kode/tagg, ingen forsinkelse</td></tr>
+    <tr><td>Backend-kvalitetsrevisjon</td><td>Kj&oslash;r <a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/backend-report">Backend-rapport</a>-skill p&aring; kodebasen. H&aring;ndter alle kritiske/h&oslash;ye funn.</td></tr>
+    <tr><td>Frontend-kvalitetsrevisjon</td><td>Kj&oslash;r <a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/frontend-report">Frontend-rapport</a>-skill p&aring; React-appen. H&aring;ndter alle kritiske/h&oslash;ye funn.</td></tr>
+    <tr><td>AI-promptkvalitetsgjennomgang</td><td>Kj&oslash;r <a href="https://github.com/ItemConsulting/item-ai-skills/tree/main/prompt-eng">Prompt Engineering</a>-skill p&aring; hendelses/forklarings-prompter. Score &ge; 70/100.</td></tr>
   </tbody>
 </table>
 
@@ -1516,11 +1535,11 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
   <thead><tr><th>Leveranse</th><th>Verifisering</th></tr></thead>
   <tbody>
     <tr><td>Autentisering (NoAuth + lokal + OIDC)</td><td>Logg inn med Google, se arbeidsomr&aring;der</td></tr>
-    <tr><td>Org + arbeidsomr&aring;demodell</td><td>Opprett org, opprett 2 arbeidsomr&aring;der, inviter medlemmer med forskjellige roller</td></tr>
-    <tr><td>Dataisolasjon</td><td>Bruker i arbeidsomr&aring;de A kan ikke se arbeidsomr&aring;de B-data (RLS-test)</td></tr>
-    <tr><td>API-n&oslash;kler med rettigheter</td><td>API-n&oslash;kkel med inntak-rettighet kan laste opp men ikke slette</td></tr>
-    <tr><td>Inntak-API</td><td><code>curl</code> sender en loggfil, utl&oslash;ser analyse, resultater tilgjengelig</td></tr>
-    <tr><td>Bakgrunnsjobber</td><td>100 MB fil prosesseres i bakgrunnen, UI oppdateres ved fullf&oslash;ring</td></tr>
+    <tr><td>Org + arbeidsomr&aring;demodell</td><td>Opprett org, opprett 2 arbeidsomr&aring;der, inviter medlemmer med ulike roller</td></tr>
+    <tr><td>Dataisolering</td><td>Bruker i arbeidsomr&aring;de A kan ikke se arbeidsomr&aring;de B-data (RLS-test)</td></tr>
+    <tr><td>API-n&oslash;kler med omfang</td><td>API-n&oslash;kkel med inntaksomfang kan laste opp men ikke slette</td></tr>
+    <tr><td>Inntak-API</td><td><code>curl</code> pusher en loggfil, utl&oslash;ser analyse, resultater tilgjengelige</td></tr>
+    <tr><td>Bakgrunnsjobber</td><td>100 MB fil behandles i bakgrunnen, UI oppdateres ved fullf&oslash;ring</td></tr>
   </tbody>
 </table>
 
@@ -1528,22 +1547,22 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
 <table>
   <thead><tr><th>Leveranse</th><th>Verifisering</th></tr></thead>
   <tbody>
-    <tr><td>Pr&oslash;veperiodeflyt (30 dager, ikke noe kredittkort)</td><td>Ny bruker: registrering &rarr; analyserer logger p&aring; &lt; 2 minutter</td></tr>
+    <tr><td>Pr&oslash;veperiodeflyt (30 dager, ingen kredittkort)</td><td>Ny bruker: registrering &rarr; analyserer logger p&aring; &lt; 2 minutter</td></tr>
     <tr><td>Docker Compose-distribusjon</td><td>Ny maskin: <code>docker compose up</code> &rarr; fungerende app p&aring; &lt; 60s</td></tr>
     <tr><td>Landingsside (logpilot.io)</td><td>Side live, registreringsflyt fungerer, demovideo innebygd</td></tr>
-    <tr><td>Dokumentasjon</td><td>Kom-i-gang, API-referanse, distribusjonsguide</td></tr>
-    <tr><td>Ytelsesm&aring;l oppn&aring;dd</td><td>100 MB fil &lt; 30s, analysevisning &lt; 1s, 500K hendelser navigerbare</td></tr>
+    <tr><td>Dokumentasjon</td><td>Kom i gang, API-referanse, distribusjonsguide</td></tr>
+    <tr><td>Ytelsesm&aring;l n&aring;dd</td><td>100 MB fil &lt; 30s, analysevisning &lt; 1s, 500K hendelser kan blas gjennom</td></tr>
     <tr><td>E2E-testsuite gr&oslash;nn</td><td>Alle kritiske stier best&aring;r i CI</td></tr>
   </tbody>
 </table>
 
 <div class="callout callout-success">
   <div class="callout-title">Definisjon av &laquo;V1 levert&raquo;</div>
-  <p>Alle fase 1&ndash;4 leveranser verifisert. Docker Compose fungerer. Landingsside er live. F&oslash;rste betabrukere invitert. GTM fase 1 (stille beta) begynner.</p>
+  <p>Alle fase 1&ndash;4-leveranser verifisert. Docker Compose fungerer. Landingssiden er live. F&oslash;rste betabrukere invitert. GTM fase 1 (stille beta) starter.</p>
 </div>
 
 <h3>V2-veikart (etter V1-lansering)</h3>
-<p>Disse funksjonene er allerede referert i <a href="logpilot-go-to-market.html#pricing">pristabellen</a> (Team- og Enterprise-niv&aring;ene) og <a href="logpilot-dream-architecture.html">Arkitekturdokumentet</a>. De bygges etter V1-lansering, drevet av kundeettersp&oslash;rsel.</p>
+<p>Disse funksjonene er allerede referert i <a href="logpilot-go-to-market.html#pricing">pristabellen</a> (Team- og Enterprise-niv&aring;) og <a href="logpilot-dream-architecture.html">Arkitekturdokumentet</a>. De bygges etter V1-lansering, drevet av kundeettersp&oslash;rsel.</p>
 
 <table>
   <thead>
@@ -1554,28 +1573,28 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
       <td><strong>RAG: hendelseshistorikks&oslash;k</strong></td>
       <td>~4 uker</td>
       <td>Arbeidsomr&aring;der har 20+ AI-forklaringer &aring; indeksere</td>
-      <td><a href="logpilot-dream-architecture.html#ai">Arkitektur &sect;6: Kunnskapsuthenting</a></td>
+      <td><a href="logpilot-dream-architecture.html#ai">Arkitektur &sect;6: Kunnskapsinnhenting</a></td>
     </tr>
     <tr>
       <td><strong>Kildekodeoppslag</strong></td>
       <td>~4 uker</td>
-      <td>Kunde ber om Git-repointegrasjon</td>
+      <td>Kunde ber om Git-repo-integrasjon</td>
       <td><a href="logpilot-dream-architecture.html#codebase-intelligence">Arkitektur &sect;10: Kildekodeoppslag</a></td>
     </tr>
     <tr>
-      <td><strong>Rust parse-motor</strong></td>
+      <td><strong>Rust-parsemotor</strong></td>
       <td>~6 uker</td>
-      <td>Kunder treffer filst&oslash;rrelsesbegrensninger (&gt; 500 MB)</td>
+      <td>Kunder n&aring;r filst&oslash;rrelsesbegrensninger (&gt; 500 MB)</td>
       <td><a href="logpilot-dream-architecture.html#stack">Arkitektur &sect;2: Analysemotor</a></td>
     </tr>
     <tr>
       <td><strong>DuckDB + Parquet (lokal analyse)</strong></td>
       <td>~2 uker</td>
       <td>Lokale brukere trenger kolonnesp&oslash;rringer p&aring; store hendelsessett</td>
-      <td><a href="logpilot-dream-architecture.html#data">Arkitektur &sect;8: Dataprosessering</a></td>
+      <td><a href="logpilot-dream-architecture.html#data">Arkitektur &sect;8: Databehandling</a></td>
     </tr>
     <tr>
-      <td><strong>ClickHouse (SaaS hendelseslagring)</strong></td>
+      <td><strong>ClickHouse (SaaS-hendelseslagring)</strong></td>
       <td>~3 uker</td>
       <td>SaaS overskrider ~10M hendelser/arbeidsomr&aring;de med Postgres</td>
       <td><a href="logpilot-dream-architecture.html#stack">Arkitektur &sect;2: Hendelseslagring</a></td>
@@ -1589,19 +1608,19 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
     <tr>
       <td><strong>Kubernetes Helm chart</strong></td>
       <td>~2 uker</td>
-      <td>Bedriftskunde trenger h&oslash;y tilgjengelighets-distribusjon</td>
+      <td>Bedriftskunde trenger HA-distribusjon</td>
       <td><a href="logpilot-dream-architecture.html#packaging">Arkitektur &sect;11: Pakking</a></td>
     </tr>
     <tr>
       <td><strong>Stripe-fakturering</strong></td>
       <td>~2 uker</td>
-      <td>&gt; 20 betalende kunder (manuell fakturering blir byrde)</td>
-      <td><a href="logpilot-go-to-market.html#pricing">GTM: Overgangsplan for fakturering</a></td>
+      <td>&gt; 20 betalende kunder (manuell fakturering blir en byrde)</td>
+      <td><a href="logpilot-go-to-market.html#pricing">GTM: Faktureringsovergangsplan</a></td>
     </tr>
     <tr>
       <td><strong>Dataportabilitet (import)</strong></td>
       <td>~2 uker</td>
-      <td>Kunde &oslash;nsker &aring; migrere selvdriftet &rarr; SaaS eller SaaS &rarr; selvdriftet</td>
+      <td>Kunde &oslash;nsker &aring; migrere selvhostet &rarr; SaaS eller SaaS &rarr; selvhostet</td>
       <td>&mdash;</td>
     </tr>
     <tr>
@@ -1613,13 +1632,13 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
     <tr>
       <td><strong>Hendelsessammenligningsvisning</strong></td>
       <td>~3 uker</td>
-      <td>Gjentakende hendelser &mdash; &laquo;hva er annerledes fra sist?&raquo;</td>
+      <td>Gjentakende hendelser &mdash; &laquo;hva er annerledes fra forrige gang?&raquo;</td>
       <td>&mdash;</td>
     </tr>
     <tr>
       <td><strong>Brukertilbakemeldingsl&oslash;kke</strong></td>
       <td>~2 uker</td>
-      <td>&laquo;Dette var den virkelige &aring;rsaken&raquo; / &laquo;Dette var st&oslash;y&raquo; &mdash; forbedrer heuristikkn&oslash;yaktighet per arbeidsomr&aring;de</td>
+      <td>&laquo;Dette var den egentlige &aring;rsaken&raquo; / &laquo;Dette var st&oslash;y&raquo; &mdash; forbedrer heuristikkn&oslash;yaktighet per arbeidsomr&aring;de</td>
       <td>&mdash;</td>
     </tr>
     <tr>
@@ -1629,27 +1648,27 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
       <td>&mdash;</td>
     </tr>
     <tr>
-      <td><strong>Ticket-integrasjon (GitHub Issues/Jira/Linear)</strong></td>
+      <td><strong>Billettintegrasjon (GitHub Issues/Jira/Linear)</strong></td>
       <td>~2 uker</td>
-      <td>Opprett saker/tickets fra hendelser med full kontekst forh&aring;ndsutfylt. GitHub Issues via REST API, Jira/Linear via deres API-er. Ogs&aring;: GitHub kodes&oslash;k for kildekodeoppslag uten full kloning.</td>
+      <td>Opprett saker/billetter fra hendelser med full kontekst forh&aring;ndsutfylt. GitHub Issues via REST API, Jira/Linear via deres API-er. Ogs&aring;: GitHub-kodes&oslash;k for kildekodeoppslag uten full kloning.</td>
       <td>&mdash;</td>
     </tr>
     <tr>
       <td><strong>Mobilvennlig hendelsesvisning</strong></td>
       <td>~2 uker</td>
-      <td>Beredskapsingeni&oslash;rer sjekker telefonen f&oslash;rst. Skrivebeskyttet visning av hendelsesoversikt + AI-forklaring.</td>
+      <td>Vakthavende ingeni&oslash;rer sjekker telefonen f&oslash;rst. Skrivebeskyttet visning av hendelsesoversikt + AI-forklaring.</td>
       <td>&mdash;</td>
     </tr>
     <tr>
-      <td><strong>Databasefeil-heuristikker</strong></td>
+      <td><strong>Database-feilheuristikker</strong></td>
       <td>~2 uker</td>
       <td>~50 nye heuristikker for Oracle (ORA-), DB2 (SQLCODE), MSSQL (Msg), PostgreSQL (SQLSTATE), MySQL-feilkoder i Java-stacktraces. Skill: <code>skills/database-errors.md</code></td>
       <td>&mdash;</td>
     </tr>
     <tr>
-      <td><strong>Flere format-plugins</strong></td>
+      <td><strong>Ytterligere formatplugins</strong></td>
       <td>~1 uke hver</td>
-      <td>Apache httpd (lav innsats, ligner nginx), Tomcat/Catalina (test om Log4j h&aring;ndterer det), PostgreSQL-logger (relevant for v&aring;r egen SaaS). Andre p&aring; kundeetterspørsel: DataPower, IIS, CloudWatch.</td>
+      <td>Apache httpd (lav innsats, ligner p&aring; nginx), Tomcat/Catalina (test om Log4j h&aring;ndterer det), PostgreSQL-logger (relevant for v&aring;r egen SaaS). Andre etter kundeettersp&oslash;rsel: DataPower, IIS, CloudWatch.</td>
       <td>&mdash;</td>
     </tr>
   </tbody>
@@ -1660,59 +1679,59 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
 <h4>Observerbarhet: LogPilot m&aring; logge seg selv</h4>
 
 <div class="callout callout-warning">
-  <div class="callout-title">Et logganalyseverkt&oslash;y med d&aring;rlig logging er en troverdighetskrise</div>
+  <div class="callout-title">Et logganalyseverkt&oslash;y med d&aring;rlig logging er en troverdighetskatastrofe</div>
   <p>Hvis vi kj&oslash;rer LogPilot som SaaS og ikke kan feils&oslash;ke v&aring;re egne produksjonsproblemer, har vi et tillitsproblem. Strukturert logging, foresp&oslash;rselssporing og feilsporing m&aring; bygges inn fra dag &eacute;n &mdash; ikke boltes p&aring; senere.</p>
 </div>
 
 <table>
   <thead>
-    <tr><th>Omr&aring;de</th><th>Implementering</th><th>Fase</th></tr>
+    <tr><th>Hensyn</th><th>Implementasjon</th><th>Fase</th></tr>
   </thead>
   <tbody>
     <tr>
       <td><strong>Strukturerte applikasjonslogger</strong></td>
-      <td>JSON-formaterte logger via Python <code>structlog</code>. Hver loggoppf&oslash;ring inkluderer: tidsstempel, niv&aring;, request_id, workspace_id, user_id, handling, varighet_ms. Ingen print-setninger.</td>
+      <td>JSON-formaterte logger via Python <code>structlog</code>. Hver loggoppf&oslash;ring inkluderer: tidsstempel, niv&aring;, foresp&oslash;rsels-ID, arbeidsomr&aring;de-ID, bruker-ID, handling, varighet_ms. Ingen print-setninger.</td>
       <td>Fase 1</td>
     </tr>
     <tr>
       <td><strong>Foresp&oslash;rselssporing</strong></td>
-      <td>Unik <code>request_id</code> generert per API-foresp&oslash;rsel (mellomvare). Propagert til alle tjenestekall, bakgrunnsjobber og AI-leverand&oslash;rkall. Returnert i svarhoder (<code>X-Request-Id</code>).</td>
+      <td>Unik <code>request_id</code> generert per API-foresp&oslash;rsel (mellomvare). Propagert til alle tjenestekall, bakgrunnsjobber og AI-leverand&oslash;rkall. Returnert i responsoverskrifter (<code>X-Request-Id</code>).</td>
       <td>Fase 1</td>
     </tr>
     <tr>
       <td><strong>Feilsporing</strong></td>
-      <td>Uh&aring;ndterte unntak fanget med full kontekst (request_id, workspace_id, user_id, stacktrace). I SaaS: sendt til Sentry eller lignende. Selvbetjening: logget til strukturert logg.</td>
+      <td>Uh&aring;ndterte unntak fanget med full kontekst (foresp&oslash;rsels-ID, arbeidsomr&aring;de-ID, bruker-ID, stacktrace). I SaaS: sendt til Sentry eller lignende. Selvbetjening: logget til strukturert logg.</td>
       <td>Fase 2</td>
     </tr>
     <tr>
       <td><strong>Ytelsesm&aring;linger</strong></td>
-      <td>N&oslash;kkeltidtakinger logget per foresp&oslash;rsel: parse_duration_ms, analysis_duration_ms, ai_call_duration_ms. Trege foresp&oslash;rsler (&gt; 5s) logget p&aring; WARN-niv&aring;.</td>
+      <td>N&oslash;kkeltider logget per foresp&oslash;rsel: parse_varighet_ms, analyse_varighet_ms, ai_kall_varighet_ms. Trege foresp&oslash;rsler (&gt; 5s) logget p&aring; WARN-niv&aring;.</td>
       <td>Fase 2</td>
     </tr>
     <tr>
-      <td><strong>Helse og beredskap</strong></td>
-      <td><code>GET /health</code> (lever prosessen), <code>GET /ready</code> (er DB + Redis tilkoblet). Brukes av Docker helsesjekker og Kubernetes-prober.</td>
+      <td><strong>Helse og klarhet</strong></td>
+      <td><code>GET /health</code> (lever prosessen), <code>GET /ready</code> (er DB + Redis tilkoblet). Brukes av Docker-helsesjekker og Kubernetes-prober.</td>
       <td>Fase 1</td>
     </tr>
     <tr>
       <td><strong>Revisjonsspor</strong></td>
-      <td>Allerede i databaseskjemaet: <code>audit_log</code>-tabell. Hver vesentlig handling (opprett sesjon, AI-kall, eksport, inviter medlem) registreres med arbeidsomr&aring;de, bruker, tidsstempel.</td>
+      <td>Allerede i DB-skjema: <code>audit_log</code>-tabell. Hver signifikant handling (opprett &oslash;kt, AI-kall, eksport, inviter medlem) registreres med arbeidsomr&aring;de, bruker, tidsstempel.</td>
       <td>Fase 3</td>
     </tr>
     <tr>
-      <td><strong>AI-kallogging</strong></td>
-      <td>Hvert AI-leverand&oslash;rkall logget: leverand&oslash;r, modell, inn/ut-tokens, kostnad, varighet, suksess/feil. For feils&oslash;king og kostnadsoverv&aring;king. Allerede i <code>ai_conversations</code>-tabell.</td>
+      <td><strong>AI-kalllogging</strong></td>
+      <td>Hvert AI-leverand&oslash;rkall logget: leverand&oslash;r, modell, inngangs-/utgangstokens, kostnad, varighet, suksess/feil. For feils&oslash;king og kostnadsoverv&aring;king. Allerede i <code>ai_conversations</code>-tabellen.</td>
       <td>Fase 2</td>
     </tr>
     <tr>
       <td><strong>Bakgrunnsjobblogging</strong></td>
-      <td>Jobbstart, fremdrift, fullf&oslash;ring, feil logget med job_id, session_id, varighet. Feilede jobber logget p&aring; ERROR med full kontekst for feils&oslash;king.</td>
+      <td>Jobbstart, fremdrift, fullf&oslash;ring, feil logget med jobb-ID, &oslash;kt-ID, varighet. Mislykkede jobber logget p&aring; ERROR med full kontekst for feils&oslash;king.</td>
       <td>Fase 3</td>
     </tr>
   </tbody>
 </table>
 
-<pre><code><span class="comment"># Example: what a structured log line looks like</span>
+<pre><code><span class="comment"># Eksempel: slik ser en strukturert logglinje ut</span>
 {
   <span class="string">"timestamp"</span>: <span class="string">"2026-03-20T14:15:42.123Z"</span>,
   <span class="string">"level"</span>: <span class="string">"info"</span>,
@@ -1729,7 +1748,7 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
 
 <div class="callout callout-success">
   <div class="callout-title">Spis din egen hundemat</div>
-  <p>LogPilots egne logger b&oslash;r kunne parses av LogPilot. Hvis vi ikke kan analysere v&aring;re egne produksjonshendelser med v&aring;rt eget verkt&oslash;y, har vi mer arbeid &aring; gj&oslash;re. Dette er b&aring;de et kvalitetssignal og en kraftfull demo: &laquo;Her er LogPilot som analyserer sine egne logger.&raquo;</p>
+  <p>LogPilots egne logger b&oslash;r kunne parses av LogPilot. Hvis vi ikke kan analysere v&aring;re egne produksjonshendelser med v&aring;rt eget verkt&oslash;y, har vi arbeid &aring; gj&oslash;re. Dette er b&aring;de et kvalitetssignal og en kraftig demo: &laquo;Her er LogPilot som analyserer sine egne logger.&raquo;</p>
 </div>
 
 <h3>Produktdesignprinsipper</h3>
@@ -1740,16 +1759,16 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
   </thead>
   <tbody>
     <tr>
-      <td><strong>Kaskadevisualisering er killer-funksjonen</strong></td>
-      <td>&laquo;System A feilet kl. 10:15, noe som for&aring;rsaket 47 feil i System B kl. 10:16&ndash;10:18, som f&oslash;rte til tidsavbrudd i System C kl. 10:19.&raquo; Intet annet verkt&oslash;y viser dette. ChatGPT kan ikke gj&oslash;re det. Gj&oslash;r det til midtpunktet i demoen og analysevisningen.</td>
+      <td><strong>Kaskadevisualisering er n&oslash;kkelfunksjonen</strong></td>
+      <td>&laquo;System A feilet kl. 10:15, som for&aring;rsaket 47 feil i System B kl. 10:16&ndash;10:18, som f&oslash;rte til tidsavbrudd i System C kl. 10:19.&raquo; Ingen andre verkt&oslash;y viser dette. ChatGPT kan ikke gj&oslash;re det. Gj&oslash;r det til sentrum av demoen og analysevisningen.</td>
     </tr>
     <tr>
       <td><strong>Hendelsesrapporten er et artefakt</strong></td>
-      <td>Hver analyse b&oslash;r produsere en profesjonell, delbar rapport. &laquo;Hendelsesrapport &mdash; 20. mars 2026 &mdash; Databasetilkoblingskaskade.&raquo; Merkevareprofil, komplett, klar for post-mortem eller ledelsen. Dette artefaktet sprer kjennskap til verkt&oslash;yet.</td>
+      <td>Hver analyse b&oslash;r produsere en profesjonell, delbar rapport. &laquo;Hendelsesrapport &mdash; 20. mars 2026 &mdash; Databasetilkoblingskaskade.&raquo; Merkevaretilpasset, komplett, klar for post-mortem eller ledelse. Dette artefaktet sprer bevissthet om verkt&oslash;yet.</td>
     </tr>
     <tr>
       <td><strong>Tom tilstand er f&oslash;rsteinntrykket</strong></td>
-      <td>F&oslash;r noen logger er lastet opp: vis en eksempelanalyse (ett klikk for &aring; utforske), ikke en tom side med en opplastingsknapp. &laquo;Hva slags logger har du?&raquo; &rarr; velg format &rarr; se hva LogPilot finner i den typen.</td>
+      <td>F&oslash;r noen logger er lastet opp: vis en eksempelanalyse (&eacute;tt klikk for &aring; utforske), ikke en tom side med en opplastingsknapp. &laquo;Hva slags logger har du?&raquo; &rarr; velg format &rarr; se hva LogPilot finner i den typen.</td>
     </tr>
     <tr>
       <td><strong>Feil er muligheter</strong></td>
@@ -1761,7 +1780,7 @@ cd frontend &amp;&amp; npm run dev    <span class="comment"># Vite dev server on
     </tr>
     <tr>
       <td><strong>Bruk ekte hendelser i hver demo</strong></td>
-      <td>Aldri demo med syntetiske logger. Ta anonymiserte hendelser fra ekte konsulentarbeid. Autentisitet er synlig &mdash; og hvis demoen ikke imponerer med ekte data, er det et produktproblem, ikke et demoproblem.</td>
+      <td>Demoer aldri med syntetiske logger. Ta anonymiserte hendelser fra ekte konsulentarbeid. Autentisitet er synlig &mdash; og hvis demoen ikke imponerer med ekte data, er det et produktproblem, ikke et demoproblem.</td>
     </tr>
   </tbody>
 </table>

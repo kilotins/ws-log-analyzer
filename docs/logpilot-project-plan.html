@@ -893,7 +893,8 @@ skills/postgresql-log-analysis.md  <span class="comment"># NEW: PostgreSQL serve
 .claude/skills/database-adapters.md       <span class="comment"># SQLite/Postgres adapter pattern</span>
 .claude/skills/auth-implementation.md     <span class="comment"># NoAuth/Local/OIDC + API keys</span>
 .claude/skills/workspace-model.md         <span class="comment"># Org → Workspace → Member model</span>
-.claude/skills/observability.md           <span class="comment"># structlog, tracing, health, audit</span></code></pre>
+.claude/skills/observability.md           <span class="comment"># structlog, tracing, health, audit</span>
+.claude/skills/writing-norwegian.md      <span class="comment"># NEW: Norwegian translation conventions, term glossary</span></code></pre>
 
 <h4>Migration Script</h4>
 <pre><code><span class="comment"># Copy all skills to new repo</span>
@@ -902,7 +903,7 @@ cp -r .claude/skills/ new-repo/.claude/skills/
 
 <span class="comment"># Verify count</span>
 find new-repo/skills/ -name "*.md" | wc -l          <span class="comment"># expect: 23 (19 original + 4 new)</span>
-find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># expect: 15 (9 old + 6 new)</span></code></pre>
+find new-repo/.claude/skills/ -type f | wc -l        <span class="comment"># expect: 16 (9 old + 7 new)</span></code></pre>
 
 <div class="callout callout-warning">
   <div class="callout-title">Do not lose skills during migration</div>

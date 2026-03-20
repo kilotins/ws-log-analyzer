@@ -302,8 +302,8 @@
 </div>
 
 <div class="vision">
-  Kjerneverdien: <em>Gjør råe logger om til en tydelig forklaring på hva som er ødelagt og hvorfor.</em><br>
-  Ikke en loggviser. Ikke et overvåkingsverktøy. En plattform for hendelsesanalyse.
+  Kjerneverdien: <em>Gjør rå logger om til en klar forklaring på hva som er ødelagt og hvorfor.</em><br>
+  Ikke en loggviser. Ikke et overvåkningsverktøy. En plattform for hendelsesintellligens.
 </div>
 
 <!-- TABLE OF CONTENTS -->
@@ -311,19 +311,19 @@
   <h2>Innhold</h2>
   <ol>
     <li><a href="#architecture">Overordnet arkitektur</a></li>
-    <li><a href="#stack">Valg av teknologi</a></li>
-    <li><a href="#deployment">To driftsmodi</a></li>
-    <li><a href="#one-codebase">Én kodebase &mdash; adaptermsønster</a></li>
-    <li><a href="#workspaces">Arbeidsområder og autentisering</a></li>
+    <li><a href="#stack">Valg av teknologistack</a></li>
+    <li><a href="#deployment">To driftsmodeller</a></li>
+    <li><a href="#one-codebase">Én kodebase &mdash; Adapter-mønster</a></li>
+    <li><a href="#workspaces">Arbeidsområder &amp; autentisering</a></li>
     <li><a href="#ai">AI-integrasjonslag</a></li>
-    <li><a href="#privacy">Personvern og dataplassering</a></li>
+    <li><a href="#privacy">Personvern &amp; dataplassering</a></li>
     <li><a href="#data">Strategi for databehandling</a></li>
-    <li><a href="#integrations">API og integrasjoner</a></li>
-    <li><a href="#codebase-intelligence">Fremtid: kildekodeoppslag</a></li>
-    <li><a href="#packaging">Pakking og distribusjon</a></li>
+    <li><a href="#integrations">API &amp; integrasjoner</a></li>
+    <li><a href="#codebase-intelligence">Fremtid: Kildekodeoppslag</a></li>
+    <li><a href="#packaging">Pakking &amp; distribusjon</a></li>
     <li><a href="#costs">Kostnadsanalyse</a></li>
     <li><a href="#tradeoffs">Avveininger</a></li>
-    <li><a href="#comparison">Drøm vs. pragmatisk stack</a></li>
+    <li><a href="#comparison">Dream- vs. pragmatisk stack</a></li>
   </ol>
 </div>
 
@@ -373,20 +373,20 @@
 
 <h3>Dataflyt</h3>
 <ol>
-  <li><strong>Innlasting</strong> &mdash; Last opp via web, CLI, eller API &rarr; lagre rålogg i objektlageret</li>
-  <li><strong>Parsing</strong> &mdash; Rust-motor, strømmende: råbytes &rarr; strukturert LogEvent-strøm</li>
-  <li><strong>Klassifisering</strong> &mdash; Berik hver hendelse med nivå, kode, unntak, signal-tagger</li>
+  <li><strong>Inntak</strong> &mdash; Last opp via web, CLI, eller API &rarr; lagre rålogg i Object Store</li>
+  <li><strong>Parsing</strong> &mdash; Rust-motor, strømmende: rå bytes &rarr; strukturert LogEvent-strøm</li>
+  <li><strong>Klassifisering</strong> &mdash; Berik hver hendelse med nivå, kode, unntak, signaltagger</li>
   <li><strong>Lagring</strong> &mdash; Skriv strukturerte hendelser til Parquet / ClickHouse</li>
-  <li><strong>Analyse</strong> &mdash; Heuristikk, kaskader, hendelser, bevisutvinning</li>
+  <li><strong>Analyse</strong> &mdash; Heuristikk, kaskader, hendelser, evidensutvinning</li>
   <li><strong>Varsling</strong> &mdash; WebSocket-push: &ldquo;analyse klar&rdquo;</li>
-  <li><strong>AI-forklaring</strong> &mdash; Brukerstartet: redaksjonsport &rarr; tilbyder &rarr; strømmet svar</li>
+  <li><strong>AI-forklaring</strong> &mdash; Brukerinitialisert: redigeringsport &rarr; leverandør &rarr; strømsvar</li>
   <li><strong>Rapport</strong> &mdash; Generer PDF/HTML/JSON/Markdown-artefakter</li>
 </ol>
 </section>
 
 <!-- 2. TECH STACK CHOICES -->
 <section id="stack">
-<h2><span class="num">2.</span> Valg av teknologi</h2>
+<h2><span class="num">2.</span> Valg av teknologistack</h2>
 
 <table>
   <thead>
@@ -397,43 +397,43 @@
       <td><strong>Frontend</strong></td>
       <td>React + TypeScript + Tailwind + shadcn/ui</td>
       <td><strong>V1</strong></td>
-      <td>LogPilot trenger ekte interaktivitet: utvidbare hendelsestre, tidslinjeskrubbing, direkteoppdateringer, dra-og-slipp. React har det største økosystemet.</td>
+      <td>LogPilot trenger ekte interaktivitet: utvidbare hendelsestre, tidslinjeskrolling, direkteoppdateringer, drag-and-drop. React har det største økosystemet.</td>
     </tr>
     <tr>
-      <td><strong>Tilstandsbehandling</strong></td>
+      <td><strong>Tilstandshåndtering</strong></td>
       <td>Tanstack Query</td>
       <td><strong>V1</strong></td>
-      <td>Servertilstand med hurtigbufring, optimistiske oppdateringer, WebSocket-invalidering.</td>
+      <td>Servertilstand med hurtigbuffer, optimistiske oppdateringer, WebSocket-ugyldiggjøring.</td>
     </tr>
     <tr>
-      <td><strong>Diagrammer</strong></td>
-      <td>Recharts eller Plotly.js</td>
+      <td><strong>Diagram</strong></td>
+      <td>Recharts or Plotly.js</td>
       <td><strong>V1</strong></td>
-      <td>Tidslinje-histogrammer, kaskadelivsualisering.</td>
+      <td>Tidslinjediagrammer, kaskadevisualiseringer.</td>
     </tr>
     <tr>
       <td><strong>Store lister</strong></td>
       <td>react-virtuoso</td>
       <td><strong>V1</strong></td>
-      <td>Rendrer 1M+ hendelser uten DOM-eksplosjon.</td>
+      <td>Viser 1M+ hendelser uten DOM-eksplosjon.</td>
     </tr>
     <tr>
-      <td><strong>Loggviser</strong></td>
+      <td><strong>Loggvisning</strong></td>
       <td>Monaco Editor</td>
       <td><strong>V1</strong></td>
-      <td>Syntaksutheving, søk, kjent (VS Code-motor).</td>
+      <td>Syntaksutheving, søk, kjent motor (VS Code).</td>
     </tr>
     <tr>
       <td><strong>Backend / API</strong></td>
       <td>Python + FastAPI</td>
       <td><strong>V1</strong></td>
-      <td>Domenekompetansen er i Python. FastAPI gir asynkron I/O, OpenAPI-dokumentasjon, Pydantic-modeller, avhengighetsinjeksjon.</td>
+      <td>Domeneekspertisen er i Python. FastAPI gir asynkron I/O, OpenAPI-dokumentasjon, Pydantic-modeller, avhengighetsinjeksjon.</td>
     </tr>
     <tr>
       <td><strong>Analysemotor</strong></td>
       <td>Python (V1) &rarr; Rust via PyO3 (V2)</td>
       <td><strong>V1: Python<br>V2: Rust</strong></td>
-      <td>V1: eksisterende Python-parser med ProcessPoolExecutor. V2: Rust-omskriving når kunder når GB-skala filgrenser. PyO3-bro betyr samme API.</td>
+      <td>V1: eksisterende Python-parser med ProcessPoolExecutor. V2: Rust-omskriving når kunder treffer GB-skala filbegrensninger. PyO3-bro betyr samme API.</td>
     </tr>
     <tr>
       <td><strong>Bakgrunnsjobber</strong></td>
@@ -449,9 +449,9 @@
     </tr>
     <tr>
       <td><strong>Hendelseslagring</strong></td>
-      <td>Postgres JSONB (V1) &rarr; ClickHouse (skala)</td>
-      <td><strong>V1: Postgres<br>Skala: ClickHouse</strong></td>
-      <td>Postgres JSONB håndterer opptil ~10M hendelser per arbeidsområde. ClickHouse når spørringsytelsen krever det.</td>
+      <td>Postgres JSONB (V1) &rarr; ClickHouse (skalering)</td>
+      <td><strong>V1: Postgres<br>Skalering: ClickHouse</strong></td>
+      <td>Postgres JSONB håndterer opp til ~10M hendelser/arbeidsområde. ClickHouse når spørringsytelsen krever det.</td>
     </tr>
     <tr>
       <td><strong>Hendelsesanalyse (lokal)</strong></td>
@@ -463,13 +463,13 @@
       <td><strong>Objektlager</strong></td>
       <td>Filsystem (lokal) / S3-kompatibel (team/SaaS)</td>
       <td><strong>V1: begge</strong></td>
-      <td>Filsystem for laptop. S3-adapter klar for teamutrullinger.</td>
+      <td>Filsystem for laptop. S3-adapter klar for teamdistribusjoner.</td>
     </tr>
     <tr>
       <td><strong>Hurtigbuffer / sanntid</strong></td>
-      <td>I minnet (lokal) / Redis (team/SaaS)</td>
+      <td>In-memory (lokal) / Redis (team/SaaS)</td>
       <td><strong>V1: begge</strong></td>
-      <td>Dict-hurtigbuffer for laptop. Redis for team/SaaS (kø + pub/sub + cache).</td>
+      <td>Dict-hurtigbuffer for laptop. Redis for team/SaaS (kø + pub/sub + hurtigbuffer).</td>
     </tr>
     <tr>
       <td><strong>RAG / vektorsøk</strong></td>
@@ -479,39 +479,39 @@
     </tr>
     <tr>
       <td><strong>Kildekodeoppslag</strong></td>
-      <td>Git-kobling + symbolindekserer</td>
+      <td>Git connector + symbolindekserer</td>
       <td><strong>V2+</strong></td>
       <td>Valgfri berikelse. Kjerneprodukt må fungere uten det.</td>
     </tr>
     <tr>
       <td><strong>Kubernetes / Helm</strong></td>
-      <td>Helm-chart</td>
-      <td><strong>Skala</strong></td>
+      <td>Helm chart</td>
+      <td><strong>Skalering</strong></td>
       <td>Docker Compose er nok for V1. Helm når bedriftskunder trenger HA.</td>
     </tr>
   </tbody>
 </table>
 
 <div class="callout callout-insight">
-  <div class="callout-title">Fasebetegnelser</div>
-  <p><strong>V1</strong> = bygges fra dag én. <strong>V2</strong> = legges til etter de første betalende kundene. <strong>Skala</strong> = legges til når spesifikke skalingskrav krever det. Arkitekturen støtter alle komponenter, men de bygges i rekkefølge etter kundeverdi.</p>
+  <div class="callout-title">Faselegend</div>
+  <p><strong>V1</strong> = bygges fra dag én. <strong>V2</strong> = legges til etter første betalende kunder. <strong>Skalering</strong> = legges til når spesifikke skalerkrav gjør det nødvendig. Arkitekturen støtter alle komponenter, men de bygges i rekkefølge etter kundeverdi.</p>
 </div>
 
 <div class="callout callout-info">
-  <div class="callout-title">Viktig innsikt</div>
-  <p>API-laget er I/O-begrenset (database, AI-kall, filhåndtering) &mdash; Python fungerer fint. Det CPU-intensive arbeidet (parsing, klassifisering) starter i Python (V1) og oppgraderes til Rust (V2) når ytelseskravene krever det. Denne delingen betyr at vi leverer raskt og optimaliserer senere.</p>
+  <div class="callout-title">Nøkkelinnsikt</div>
+  <p>API-laget er I/O-bundet (database, AI-kall, filhåndtering) &mdash; Python holder. CPU-bundet arbeid (parsing, klassifisering) starter i Python (V1) og flyttes til Rust (V2) når ytelsen krever det. Dette skillet betyr at vi sender raskt og optimaliserer senere.</p>
 </div>
 </section>
 
 <!-- 3. DEPLOYMENT MODES -->
 <section id="deployment">
-<h2><span class="num">3.</span> To driftsmodi</h2>
+<h2><span class="num">3.</span> To driftsmodeller</h2>
 
-<p>Ikke tre modi. Ikke &ldquo;lokal vs selvdriftet vs SaaS&rdquo;. <strong>To modi:</strong></p>
+<p>Ikke tre modeller. Ikke &ldquo;lokal vs selvdriftet vs SaaS&rdquo;. <strong>To modeller:</strong></p>
 
 <div class="callout callout-insight">
-  <div class="callout-title">Viktig forenkling</div>
-  <p>Lokal og selvdriftet er det samme produktet. En utvikler på en laptop og et bedriftsteam i skyen sin kjører nøyaktig det samme image &mdash; bare konfigurasjonen er forskjellig. Vi kaller dette <strong>Selvbetjening</strong>.</p>
+  <div class="callout-title">Nøkkelforenkling</div>
+  <p>Lokal og selvdriftet er det samme produktet. En utvikler på en laptop og et bedriftsteam i sin sky kjører nøyaktig samme image &mdash; bare konfigurasjonen er forskjellig. Vi kaller dette <strong>Selvbetjening</strong>.</p>
 </div>
 
 <table>
@@ -521,7 +521,7 @@
   <tbody>
     <tr><td><strong>Hvem drifter</strong></td><td>Kunden (laptop, server eller sky)</td><td>Vi drifter</td></tr>
     <tr><td><strong>Fakturering</strong></td><td>Nei</td><td>Ja</td></tr>
-    <tr><td><strong>Vår overvåking/drift</strong></td><td>Nei</td><td>Ja</td></tr>
+    <tr><td><strong>Vår overvåkning/drift</strong></td><td>Nei</td><td>Ja</td></tr>
     <tr><td><strong>Klargjøring</strong></td><td>Kunden gjør det</td><td>Vi automatiserer det</td></tr>
     <tr><td><strong>Arbeidsområder</strong></td><td>Ja &mdash; samme modell</td><td>Ja &mdash; samme modell</td></tr>
     <tr><td><strong>Dataisolasjon</strong></td><td>Ja &mdash; per arbeidsområde</td><td>Ja &mdash; per arbeidsområde</td></tr>
@@ -530,13 +530,13 @@
 </table>
 
 <h3>Driftsspekteret</h3>
-<p>Selvbetjening dekker hele spekteret fra én utvikler på en laptop til et stort bedriftsteam. Det er det samme Docker-imaget &mdash; konfigurasjon skalerer det opp:</p>
+<p>Selvbetjening dekker hele spekteret fra én enkelt utvikler på en laptop til et stort bedriftsteam. Det er samme Docker-image &mdash; konfigurasjon skalerer det opp:</p>
 
 <div class="diagram">
-Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
+Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundesky  &rarr;  Vår SaaS
       &boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh; Selvbetjening &boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;          |
-                    (samme image)                        SaaS |
-                                                   (+ fakturering, vår drift)</div>
+                    (same image)                        SaaS |
+                                                   (+ billing, our ops)</div>
 
 <table>
   <thead>
@@ -544,12 +544,12 @@ Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
   </thead>
   <tbody>
     <tr>
-      <td><strong>Laptop</strong> (nullkonfig)</td>
+      <td><strong>Laptop</strong> (nullkonfigurasjon)</td>
       <td>SQLite</td>
       <td>SQLite</td>
       <td>Filsystem</td>
       <td>Inline</td>
-      <td>Ingen &rarr; automatisk &ldquo;Personlig&rdquo; arbeidsområde</td>
+      <td>Ingen &rarr; auto &ldquo;Personlig&rdquo; arbeidsområde</td>
     </tr>
     <tr>
       <td><strong>Teamserver</strong></td>
@@ -560,12 +560,12 @@ Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
       <td>OIDC &rarr; arbeidsområder for dev, devops, secops</td>
     </tr>
     <tr>
-      <td><strong>Kundenes sky</strong></td>
+      <td><strong>Kundesky</strong></td>
       <td>Postgres</td>
       <td>ClickHouse eller Postgres</td>
       <td>S3 / Azure Blob / GCS</td>
       <td>Redis</td>
-      <td>OIDC (deres Azure AD / Okta)</td>
+      <td>OIDC (kundens Azure AD / Okta)</td>
     </tr>
     <tr>
       <td><strong>SaaS</strong> (vi drifter)</td>
@@ -578,7 +578,7 @@ Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
   </tbody>
 </table>
 
-<pre><code><span class="comment"># settings.py &mdash; smart defaults, no "mode" needed</span>
+<pre><code><span class="comment"># settings.py &mdash; smarte standardverdier, ingen "modus" nødvendig</span>
 <span class="keyword">class</span> <span class="type">Settings</span>(BaseSettings):
     database_url: str = <span class="string">"sqlite:///~/.logpilot/db.sqlite"</span>
     storage_backend: Literal[<span class="string">"filesystem"</span>, <span class="string">"s3"</span>] = <span class="string">"filesystem"</span>
@@ -586,39 +586,39 @@ Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
     queue_backend: Literal[<span class="string">"inline"</span>, <span class="string">"redis"</span>] = <span class="string">"inline"</span>
     cache_backend: Literal[<span class="string">"memory"</span>, <span class="string">"redis"</span>] = <span class="string">"memory"</span>
     auth_backend: Literal[<span class="string">"none"</span>, <span class="string">"local"</span>, <span class="string">"oidc"</span>] = <span class="string">"none"</span>
-    billing_enabled: bool = False  <span class="comment"># only True in SaaS</span>
+    billing_enabled: bool = False  <span class="comment"># kun True i SaaS</span>
 
     <span class="keyword">class</span> <span class="type">Config</span>:
         env_prefix = <span class="string">"LOGPILOT_"</span>
 
-<span class="comment"># Zero env vars = laptop mode (SQLite, filesystem, no auth)
-# Set DATABASE_URL + AUTH = team/enterprise mode
-# Set BILLING_ENABLED = SaaS mode
-# Same image. Same code. Configuration is the only difference.</span></code></pre>
+<span class="comment"># Null env-variabler = laptop-modus (SQLite, filsystem, ingen autentisering)
+# Sett DATABASE_URL + AUTH = team/bedrift-modus
+# Sett BILLING_ENABLED = SaaS-modus
+# Samme image. Samme kode. Konfigurasjon er den eneste forskjellen.</span></code></pre>
 </section>
 
 <!-- 4. ONE CODEBASE -->
 <section id="one-codebase">
-<h2><span class="num">4.</span> Én kodebase &mdash; adaptermønster</h2>
+<h2><span class="num">4.</span> Én kodebase &mdash; Adapter-mønster</h2>
 
-<p>Ethvert infrastrukturanliggende har et Python Protocol med nøyaktig to implementasjoner: én enkel (lokal), én produksjon (SaaS). Funksjonskoden berører aldri infrastruktur direkte.</p>
+<p>Alle infrastrukturanliggender har et Python Protocol med nøyaktig to implementasjoner: én enkel (lokal), én produksjon (SaaS). Funksjonskode berører aldri infrastruktur direkte.</p>
 
 <h3>Prosjektstruktur</h3>
 <pre><code>logpilot/
-&#9500;&#9472;&#9472; core/           <span class="comment"># Parsing, heuristics, analysis &mdash; 100% shared</span>
-&#9500;&#9472;&#9472; api/            <span class="comment"># FastAPI routes &mdash; 100% shared</span>
-&#9500;&#9472;&#9472; adapters/       <span class="comment"># Infrastructure abstractions</span>
+&#9500;&#9472;&#9472; core/           <span class="comment"># Parsing, heuristikk, analyse &mdash; 100% delt</span>
+&#9500;&#9472;&#9472; api/            <span class="comment"># FastAPI-ruter &mdash; 100% delt</span>
+&#9500;&#9472;&#9472; adapters/       <span class="comment"># Infrastrukturabstraksjoner</span>
 &#9474;   &#9500;&#9472;&#9472; storage/    <span class="comment">#   S3Store, LocalStore</span>
 &#9474;   &#9500;&#9472;&#9472; database/   <span class="comment">#   PostgresDB, SQLiteDB</span>
 &#9474;   &#9500;&#9472;&#9472; events/     <span class="comment">#   ClickHouseEvents, DuckDBEvents</span>
 &#9474;   &#9500;&#9472;&#9472; queue/      <span class="comment">#   RedisQueue, InlineQueue</span>
 &#9474;   &#9500;&#9472;&#9472; cache/      <span class="comment">#   RedisCache, MemoryCache</span>
 &#9474;   &#9492;&#9472;&#9472; auth/       <span class="comment">#   OIDCAuth, LocalAuth, NoAuth</span>
-&#9500;&#9472;&#9472; ai/             <span class="comment"># Redaction, providers, prompts &mdash; 100% shared</span>
-&#9500;&#9472;&#9472; workers/        <span class="comment"># Background jobs &mdash; 100% shared</span>
-&#9492;&#9472;&#9472; frontend/       <span class="comment"># React app &mdash; 100% shared</span></code></pre>
+&#9500;&#9472;&#9472; ai/             <span class="comment"># Redigering, leverandører, prompts &mdash; 100% delt</span>
+&#9500;&#9472;&#9472; workers/        <span class="comment"># Bakgrunnsjobber &mdash; 100% delt</span>
+&#9492;&#9472;&#9472; frontend/       <span class="comment"># React-app &mdash; 100% delt</span></code></pre>
 
-<h3>Adaptorgrensesnitt</h3>
+<h3>Adaptergrensesnitt</h3>
 <pre><code><span class="comment"># adapters/storage/base.py</span>
 <span class="keyword">class</span> <span class="type">ObjectStore</span>(Protocol):
     <span class="keyword">async def</span> put(self, key: str, data: bytes) -> None: ...
@@ -633,7 +633,7 @@ Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
     <span class="keyword">async def</span> get_status(self, job_id: str) -> JobStatus: ...</code></pre>
 
 <h3>Avhengighetsinjeksjon i ruter</h3>
-<pre><code><span class="comment"># Routes use only the interface &mdash; never know which backend</span>
+<pre><code><span class="comment"># Ruter bruker kun grensesnittet &mdash; vet aldri hvilken backend som brukes</span>
 @router.post(<span class="string">"/sessions/{session_id}/upload"</span>)
 <span class="keyword">async def</span> upload_log(
     file: UploadFile,
@@ -644,7 +644,7 @@ Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
     <span class="keyword">await</span> storage.put(key, <span class="keyword">await</span> file.read())
     <span class="keyword">await</span> db.create_upload(session_id, key, file.filename)</code></pre>
 
-<h3>Omfang av adapterkode</h3>
+<h3>Adapterkodevolum</h3>
 <table>
   <thead>
     <tr><th>Grensesnitt</th><th>Lokal impl.</th><th>SaaS impl.</th></tr>
@@ -660,12 +660,12 @@ Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
 </table>
 
 <div class="callout callout-success">
-  <div class="callout-title">Total adapterkode: ~850 linjer</div>
-  <p>Resten av kodebasen (titusenvis av linjer) er 100 % delt. Legge til en funksjon, fikse en feil, eller oppdatere heuristikk &mdash; du endrer det én gang, og det fungerer overalt.</p>
+  <div class="callout-title">Totalt adapterkode: ~850 linjer</div>
+  <p>Resten av kodebasen (titusenvis av linjer) er 100% delt. Legg til en funksjon, fiks en feil eller oppdater heuristikk &mdash; du endrer det én gang, det virker overalt.</p>
 </div>
 
 <h3>Teststrategi</h3>
-<pre><code><span class="comment"># Same test suite runs against both implementations</span>
+<pre><code><span class="comment"># Samme testpakke kjøres mot begge implementasjoner</span>
 @pytest.fixture(params=[<span class="string">"sqlite"</span>, <span class="string">"postgres"</span>])
 <span class="keyword">def</span> database(request):
     <span class="keyword">if</span> request.param == <span class="string">"sqlite"</span>:
@@ -678,16 +678,16 @@ Laptop (1 person)  &rarr;  Teamserver  &rarr;  Kundenes sky  &rarr;  Vår SaaS
     <span class="keyword">assert</span> result == sample_result</code></pre>
 
 <h3>Utvikleropplevelse</h3>
-<pre><code><span class="comment"># Development (local, zero config)</span>
+<pre><code><span class="comment"># Utvikling (lokal, nullkonfigurasjon)</span>
 logpilot serve
-<span class="comment"># &rarr; SQLite + filesystem + inline queue + no auth</span>
-<span class="comment"># &rarr; Open http://localhost:8080</span>
+<span class="comment"># &rarr; SQLite + filsystem + inline kø + ingen autentisering</span>
+<span class="comment"># &rarr; Åpne http://localhost:8080</span>
 
-<span class="comment"># Staging (Docker Compose, one file)</span>
+<span class="comment"># Staging (Docker Compose, én fil)</span>
 docker compose up
 <span class="comment"># &rarr; Postgres + Redis + MinIO + OIDC test IdP</span>
 
-<span class="comment"># Production (same code, different config)</span>
+<span class="comment"># Produksjon (samme kode, annen konfigurasjon)</span>
 helm install logpilot ./chart \
   --set database.url=postgres://... \
   --set storage.bucket=logpilot-prod \
@@ -696,10 +696,10 @@ helm install logpilot ./chart \
 
 <!-- 5. WORKSPACES & AUTH -->
 <section id="workspaces">
-<h2><span class="num">5.</span> Organisasjoner, arbeidsområder og autentisering</h2>
+<h2><span class="num">5.</span> Organisasjoner, arbeidsområder &amp; autentisering</h2>
 
 <div class="callout callout-insight">
-  <div class="callout-title">Tre-lagsmodell</div>
+  <div class="callout-title">Trelags modell</div>
   <p><strong>Organisasjon</strong> (kunden) &rarr; <strong>Arbeidsområder</strong> (dataisolasjon) &rarr; <strong>Medlemmer</strong> (brukere med roller). På en laptop opprettes alle tre lagene automatisk og er usynlige. I SaaS/bedrift låser de opp teamstruktur, fakturering og administrasjon på tvers av arbeidsområder.</p>
 </div>
 
@@ -717,45 +717,45 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
     &#9492;&#9472;&#9472; Johan (member)</div>
 
 <ul>
-  <li><strong>Organisasjon</strong> &mdash; den betalende kunden (Acme Corp, Contoso, osv.). Eier fakturering, OIDC/IdP-konfigurasjon og administrasjon på organisasjonsnivå. I SaaS: én org per kunde. Selvdriftet: typisk én org per installasjon.</li>
-  <li><strong>Arbeidsområde</strong> &mdash; grensen for dataisolasjon. Hvert arbeidsområde har sine egne loggøkter, analyseresultater, AI-historikk og innstillinger. Data lekker aldri mellom arbeidsområder &mdash; håndhevet av databasen (RLS), ikke bare applikasjonskode.</li>
-  <li><strong>Medlem</strong> &mdash; en bruker + rolle i et arbeidsområde. En bruker kan være medlem i flere arbeidsområder med forskjellige roller (admin i DevOps, visningsgast i SecOps).</li>
+  <li><strong>Organisasjon</strong> &mdash; den betalende kunden (Acme Corp, Contoso osv.). Eier fakturering, OIDC/IdP-konfigurasjon og administrasjon på organisasjonsnivå. I SaaS: én org per kunde. Selvdriftet: typisk én org per installasjon.</li>
+  <li><strong>Arbeidsområde</strong> &mdash; dataisolasjonsgrensen. Hvert arbeidsområde har egne loggøkter, analyseresultater, AI-historikk og innstillinger. Data lekker aldri mellom arbeidsområder &mdash; håndhevet av databasen (RLS), ikke bare applikasjonskode.</li>
+  <li><strong>Medlem</strong> &mdash; en bruker + rolle i et arbeidsområde. En bruker kan være medlem av flere arbeidsområder med forskjellige roller (admin i DevOps, viewer i SecOps).</li>
 </ul>
 
 <h3>Datamodell (konseptuell)</h3>
-<p><em>Dette er skjemaet på designnivå som viser tre-lagshierarkiet. For fullstendig produksjons-DDL med alle tabeller, indekser og RLS-policyer, se <a href="logpilot-project-plan.html#schema">Prosjektplan &mdash; Databaseskjema</a>.</em></p>
-<pre><code><span class="comment">-- Layer 1: Organization (the customer)</span>
+<p><em>Dette er skjemaet på designnivå som viser trelags hierarkiet. For den fullstendige produksjons-DDL med alle tabeller, indekser og RLS-policyer, se <a href="logpilot-project-plan.html#schema">Prosjektplanen &mdash; Databaseskjema</a>.</em></p>
+<pre><code><span class="comment">-- Lag 1: Organisasjon (kunden)</span>
 <span class="keyword">CREATE TABLE</span> organizations (
     id          uuid <span class="keyword">PRIMARY KEY</span>,
     name        text <span class="keyword">NOT NULL</span>,
     slug        text <span class="keyword">UNIQUE NOT NULL</span>,    <span class="comment">-- URL: app.logpilot.io/klp/...</span>
-    plan        text <span class="keyword">DEFAULT</span> <span class="string">'free'</span>,     <span class="comment">-- free | pro | enterprise (SaaS billing)</span>
-    settings    jsonb <span class="keyword">DEFAULT</span> <span class="string">'{}'</span>,     <span class="comment">-- OIDC config, default AI keys, retention</span>
+    plan        text <span class="keyword">DEFAULT</span> <span class="string">'free'</span>,     <span class="comment">-- free | pro | enterprise (SaaS-fakturering)</span>
+    settings    jsonb <span class="keyword">DEFAULT</span> <span class="string">'{}'</span>,     <span class="comment">-- OIDC-konfig, standard AI-nøkler, oppbevaring</span>
     created_at  timestamptz <span class="keyword">DEFAULT NOW</span>()
 );
 
-<span class="comment">-- Layer 2: Workspaces (data isolation)</span>
+<span class="comment">-- Lag 2: Arbeidsområder (dataisolasjon)</span>
 <span class="keyword">CREATE TABLE</span> workspaces (
     id          uuid <span class="keyword">PRIMARY KEY</span>,
     org_id      uuid <span class="keyword">REFERENCES</span> organizations <span class="keyword">NOT NULL</span>,
     name        text <span class="keyword">NOT NULL</span>,
     slug        text <span class="keyword">NOT NULL</span>,            <span class="comment">-- URL: app.logpilot.io/klp/devops/...</span>
-    settings    jsonb <span class="keyword">DEFAULT</span> <span class="string">'{}'</span>,     <span class="comment">-- overrides org defaults (AI keys, limits)</span>
+    settings    jsonb <span class="keyword">DEFAULT</span> <span class="string">'{}'</span>,     <span class="comment">-- overstyrer org-standarder (AI-nøkler, grenser)</span>
     created_at  timestamptz <span class="keyword">DEFAULT NOW</span>(),
     <span class="keyword">UNIQUE</span>(org_id, slug)
 );
 
-<span class="comment">-- Users (global, can belong to multiple orgs/workspaces)</span>
+<span class="comment">-- Brukere (globale, kan tilhøre flere orgs/arbeidsområder)</span>
 <span class="keyword">CREATE TABLE</span> users (
     id              uuid <span class="keyword">PRIMARY KEY</span>,
     email           text <span class="keyword">UNIQUE NOT NULL</span>,
     name            text,
     auth_provider   text,               <span class="comment">-- "google", "azure_ad", "local", "none"</span>
-    auth_subject    text,               <span class="comment">-- external IdP subject ID</span>
+    auth_subject    text,               <span class="comment">-- ekstern IdP-subjekt-ID</span>
     created_at      timestamptz <span class="keyword">DEFAULT NOW</span>()
 );
 
-<span class="comment">-- Org membership (org-level role: org-admin can manage all workspaces)</span>
+<span class="comment">-- Org-medlemskap (rolle på org-nivå: org-admin kan administrere alle arbeidsområder)</span>
 <span class="keyword">CREATE TABLE</span> org_memberships (
     org_id       uuid <span class="keyword">REFERENCES</span> organizations,
     user_id      uuid <span class="keyword">REFERENCES</span> users,
@@ -763,7 +763,7 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
     <span class="keyword">PRIMARY KEY</span> (org_id, user_id)
 );
 
-<span class="comment">-- Layer 3: Workspace membership (per-workspace role)</span>
+<span class="comment">-- Lag 3: Arbeidsområdemedlemskap (per-arbeidsområde-rolle)</span>
 <span class="keyword">CREATE TABLE</span> workspace_memberships (
     workspace_id uuid <span class="keyword">REFERENCES</span> workspaces,
     user_id      uuid <span class="keyword">REFERENCES</span> users,
@@ -771,7 +771,7 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
     <span class="keyword">PRIMARY KEY</span> (workspace_id, user_id)
 );
 
-<span class="comment">-- All data is scoped to a workspace</span>
+<span class="comment">-- Alle data er begrenset til et arbeidsområde</span>
 <span class="keyword">CREATE TABLE</span> sessions (
     id            uuid <span class="keyword">PRIMARY KEY</span>,
     workspace_id  uuid <span class="keyword">REFERENCES</span> workspaces <span class="keyword">NOT NULL</span>,
@@ -788,14 +788,14 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
   <tbody>
     <tr>
       <td><strong>Laptop</strong></td>
-      <td>Auto (&ldquo;Local&rdquo;)</td>
-      <td>Auto (&ldquo;Personal&rdquo;)</td>
+      <td>Auto (&ldquo;Lokal&rdquo;)</td>
+      <td>Auto (&ldquo;Personlig&rdquo;)</td>
       <td>Ingen</td>
       <td>Appen starter, brukeren er allerede inne. Ingen innlogging, ingen oppsett. Null friksjon.</td>
     </tr>
     <tr>
       <td><strong>Lite team</strong></td>
-      <td>1 (&ldquo;Our Team&rdquo;)</td>
+      <td>1 (&ldquo;Vårt team&rdquo;)</td>
       <td>1&ndash;3</td>
       <td>Lokale passord eller OIDC</td>
       <td>Admin oppretter arbeidsområder, inviterer medlemmer.</td>
@@ -805,25 +805,25 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
       <td>1 (&ldquo;Acme Corp&rdquo;)</td>
       <td>Mange (dev, devops, secops, QA)</td>
       <td>OIDC (Azure AD)</td>
-      <td>SSO-innlogging. Org-admin administrerer arbeidsområder og medlemmer. Erik ser DevOps og SecOps i sidefeltet sitt.</td>
+      <td>SSO-innlogging. Org-admin administrerer arbeidsområder + medlemmer. Erik ser DevOps + SecOps i sin sidemeny.</td>
     </tr>
     <tr>
       <td><strong>SaaS</strong></td>
       <td>1 per kunde</td>
       <td>Mange per org</td>
       <td>OIDC</td>
-      <td>Registrer deg &rarr; org + første arbeidsområde opprettes automatisk &rarr; inviter teamet &rarr; opprett flere arbeidsområder.</td>
+      <td>Registrer &rarr; org + første arbeidsområde opprettes automatisk &rarr; inviter team &rarr; opprett flere arbeidsområder.</td>
     </tr>
   </tbody>
 </table>
 
-<h3>Laptop: usynlig stillasbygging</h3>
-<p>På en laptop eksisterer tre-lagsmodellen fortsatt i databasen &mdash; men brukeren ser den aldri. Alt opprettes automatisk ved første oppstart:</p>
+<h3>Laptop: Usynlig stillasbygging</h3>
+<p>På en laptop eksisterer trelags-modellen fremdeles i databasen &mdash; men brukeren ser den aldri. Alt opprettes automatisk ved første oppstart:</p>
 
-<pre><code><span class="comment"># First-start logic &mdash; laptop mode needs zero user interaction</span>
+<pre><code><span class="comment"># Første-oppstart-logikk &mdash; laptop-modus krever null brukerinteraksjon</span>
 <span class="keyword">async def</span> ensure_local_setup(db: <span class="type">Database</span>):
-    <span class="string">"""Called at startup when auth_backend == 'none'.
-    Auto-creates org + workspace + user. User goes straight to work."""</span>
+    <span class="string">"""Kalles ved oppstart når auth_backend == 'none'.
+    Oppretter automatisk org + arbeidsområde + bruker. Brukeren går rett til arbeid."""</span>
     <span class="keyword">if await</span> db.has_any_org():
         <span class="keyword">return</span>
     org = <span class="keyword">await</span> db.create_org(name=<span class="string">"Local"</span>, slug=<span class="string">"local"</span>)
@@ -831,35 +831,35 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
     user = <span class="keyword">await</span> db.create_user(email=<span class="string">"local@logpilot"</span>, name=<span class="string">"Local User"</span>)
     <span class="keyword">await</span> db.add_org_member(org.id, user.id, role=<span class="string">"org_admin"</span>)
     <span class="keyword">await</span> db.add_ws_member(ws.id, user.id, role=<span class="string">"admin"</span>)
-    <span class="comment"># User opens the app &rarr; already logged in &rarr; already in "Personal" workspace
-    # No login screen, no org picker, no workspace selector. Just the app.</span></code></pre>
+    <span class="comment"># Bruker åpner appen &rarr; allerede innlogget &rarr; allerede i "Personlig" arbeidsområde
+    # Ingen innloggingsskjerm, ingen org-velger, ingen arbeidsområdevalg. Bare appen.</span></code></pre>
 
 <div class="callout callout-info">
   <div class="callout-title">Dagen du vokser</div>
-  <p>Når en laptopbruker senere kobler seg til en teamserver eller oppgraderer til SaaS, er strukturen allerede på plass. Aktiver autentisering, opprett flere arbeidsområder, inviter teammedlemmer. Ingen migrering, ingen skjemaendring &mdash; bare konfigurasjon.</p>
+  <p>Når en laptop-bruker senere kobler seg til en teamserver eller oppgraderer til SaaS, er strukturen allerede på plass. Aktiver autentisering, opprett flere arbeidsområder, inviter lagkamerater. Ingen migrering, ingen skjemaendring &mdash; bare konfigurasjon.</p>
 </div>
 
-<h3>Arv av innstillinger</h3>
-<p>Innstillinger kaskaderer: <strong>organisasjon &rarr; arbeidsområde</strong>. Arbeidsområdeinnstillinger overstyrer org-standarder. Dette betyr at en org-admin kan angi en standard AI-nøkkel for hele organisasjonen, men SecOps-arbeidsområdet kan overstyre den med sin egen nøkkel.</p>
+<h3>Innstillingsarv</h3>
+<p>Innstillinger kaskaderer: <strong>organisasjon &rarr; arbeidsområde</strong>. Arbeidsområdeinnstillinger overstyrer org-standarder. Dette betyr at en org-admin kan sette en standard AI-nøkkel for hele organisasjonen, men SecOps-arbeidsområdet kan overstyre det med sin egen nøkkel.</p>
 
-<pre><code><span class="comment"># Resolve effective settings for a workspace</span>
+<pre><code><span class="comment"># Løs effektive innstillinger for et arbeidsområde</span>
 <span class="keyword">def</span> resolve_settings(org: Organization, ws: Workspace) -> EffectiveSettings:
-    base = org.settings.copy()         <span class="comment"># org defaults</span>
-    base.update(ws.settings)           <span class="comment"># workspace overrides</span>
+    base = org.settings.copy()         <span class="comment"># org-standarder</span>
+    base.update(ws.settings)           <span class="comment"># arbeidsområde overstyrer</span>
     <span class="keyword">return</span> EffectiveSettings(**base)
 
-<span class="comment"># Example:
+<span class="comment"># Eksempel:
 # org.settings  = {"ai_provider": "claude", "ai_key": "sk-org-..."}
-# ws.settings   = {"ai_key": "sk-secops-..."}   &larr; SecOps uses own key
+# ws.settings   = {"ai_key": "sk-secops-..."}   &larr; SecOps bruker egen nøkkel
 # effective     = {"ai_provider": "claude", "ai_key": "sk-secops-..."}</span></code></pre>
 
-<h3>Radnivåsikkerhet (forsvar i dybden)</h3>
-<pre><code><span class="comment">-- Even application bugs can't leak data across workspaces</span>
+<h3>Radsikkerhet (forsvar i dybden)</h3>
+<pre><code><span class="comment">-- Selv applikasjonsfeil kan ikke lekke data mellom arbeidsområder</span>
 <span class="keyword">CREATE POLICY</span> workspace_isolation <span class="keyword">ON</span> sessions
     <span class="keyword">USING</span> (workspace_id = current_setting(<span class="string">'app.current_workspace_id'</span>)::uuid);
 
-<span class="comment">-- Applied to ALL workspace-scoped tables: sessions, events, analyses, ai_audit_log
--- Org-admins see workspaces they manage, but still go through RLS per workspace</span></code></pre>
+<span class="comment">-- Gjelder ALLE arbeidsområde-scoped tabeller: sessions, events, analyses, ai_audit_log
+-- Org-admins ser arbeidsområder de administrerer, men går fremdeles gjennom RLS per arbeidsområde</span></code></pre>
 
 <h3>Autentiseringsabstraksjon</h3>
 <pre><code><span class="keyword">class</span> <span class="type">AuthProvider</span>(Protocol):
@@ -867,27 +867,27 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
     <span class="keyword">async def</span> get_login_url(self, redirect: str) -> str: ...
     <span class="keyword">async def</span> handle_callback(self, request: Request) -> AuthUser: ...
 
-<span class="keyword">class</span> <span class="type">OIDCProvider</span>:     ...  <span class="comment"># Azure AD, Google, Okta (config from org.settings)</span>
-<span class="keyword">class</span> <span class="type">LocalAuthProvider</span>: ...  <span class="comment"># email + password (bcrypt)</span>
-<span class="keyword">class</span> <span class="type">NoAuthProvider</span>:    ...  <span class="comment"># auto-returns local user, skips login entirely</span>
+<span class="keyword">class</span> <span class="type">OIDCProvider</span>:     ...  <span class="comment"># Azure AD, Google, Okta (konfig fra org.settings)</span>
+<span class="keyword">class</span> <span class="type">LocalAuthProvider</span>: ...  <span class="comment"># e-post + passord (bcrypt)</span>
+<span class="keyword">class</span> <span class="type">NoAuthProvider</span>:    ...  <span class="comment"># returnerer automatisk lokal bruker, hopper over innlogging</span>
 
-<span class="comment"># FastAPI dependency chain</span>
+<span class="comment"># FastAPI-avhengighetskjede</span>
 <span class="keyword">async def</span> get_workspace_context(
     user: <span class="type">AuthUser</span> = Depends(get_current_user),
     org_slug: str = Path(...),
     workspace_slug: str = Path(...),
 ) -> <span class="type">WorkspaceContext</span>:
-    <span class="comment"># 1. Resolve org from slug
-    # 2. Verify user is org member
-    # 3. Resolve workspace from org + slug
-    # 4. Verify user is workspace member (or org_admin)
-    # 5. Set RLS context
-    # 6. Return WorkspaceContext with resolved settings</span>
+    <span class="comment"># 1. Løs org fra slug
+    # 2. Verifiser at bruker er org-medlem
+    # 3. Løs arbeidsområde fra org + slug
+    # 4. Verifiser at bruker er arbeidsområdemedlem (eller org_admin)
+    # 5. Sett RLS-kontekst
+    # 6. Returner WorkspaceContext med løste innstillinger</span>
     ...</code></pre>
 
 <div class="callout callout-success">
   <div class="callout-title">Én modell, alle scenarioer</div>
-  <p>Laptopbruker: usynlig stillas, null friksjon, rett til arbeid. Bedriftsteam: org-admin administrerer arbeidsområder, medlemmer tilhører flere team med forskjellige roller, data er fullt isolert. SaaS: samme modell med fakturering på org-laget. Ingen funksjonsavvik, ingen spesialtilfeller.</p>
+  <p>Laptop-bruker: usynlig stillasbygging, null friksjon, rett til arbeid. Bedriftsteam: org-admin administrerer arbeidsområder, medlemmer tilhører flere team med forskjellige roller, data er fullstendig isolert. SaaS: samme modell med fakturering på org-laget. Ingen funksjonsavvik, ingen spesialtilfeller.</p>
 </div>
 </section>
 
@@ -908,16 +908,273 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
 &#9474;  Cost Tracker  |  Audit Logger  |  Response Cache    &#9474;
 &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</div>
 
-<h3>Typet redaksjonsport (kan ikke omgås)</h3>
+<h3>Typet redigeringsport (ikke-omgåelig)</h3>
 
 <div class="callout callout-warning">
   <div class="callout-title">Kritisk sikkerhetsdesign</div>
-  <p>AI-tilbydere aksepterer bare <code>RedactedText</code>, en innpakningstype som kun kan opprettes av <code>RedactionGate</code>. Det er arkitektonisk umulig å sende uredigerte data til en ekstern AI-tilbyder.</p>
+  <p>AI-leverandører aksepterer kun <code>RedactedText</code>, en wrapper-type som kun kan opprettes av <code>RedactionGate</code>. Det er arkitektonisk umulig å sende uredigert data til en ekstern AI-leverandør.</p>
 </div>
 
 <pre><code><span class="keyword">class</span> <span class="type">RedactedText</span>:
     <span class="string">"""Newtype wrapper. Cannot be constructed except by RedactionGate."""</span>
-    _value: str  <span class="comment"># private</span></code></pre>    _value: str  <span class="comment"># private</span>
+    _value: str  <span class="comment"># private</span>
+
+    <span class="keyword">def</span> __init__(self):
+        <span class="keyword">raise</span> TypeError(<span class="string">"Use RedactionGate.redact()"</span>)
+
+<span class="keyword">class</span> <span class="type">RedactionGate</span>:
+    <span class="keyword">def</span> redact(self, text: str, ws_config: WorkspaceConfig) -> <span class="type">RedactedText</span>:
+        <span class="comment"># 1. Standard: tokens, passord, API-nøkler, e-poster, IP-er</span>
+        <span class="comment"># 2. Arbeidsområde-spesifikke mønstre (egendefinert regex fra innstillinger)</span>
+        <span class="comment"># 3. Valgfri fjerning av navngitte entiteter</span>
+        ...
+
+<span class="keyword">class</span> <span class="type">AIProvider</span>(Protocol):
+    <span class="keyword">async def</span> complete(
+        self,
+        system: <span class="type">RedactedText</span>,   <span class="comment"># &larr; kan ikke sende rå str</span>
+        user: <span class="type">RedactedText</span>,     <span class="comment"># &larr; kan ikke sende rå str</span>
+        model: str,
+        stream: bool = True,
+    ) -> AsyncIterator[str]: ...</code></pre>
+
+<h3>Kontekstbygger</h3>
+<p>AI ser aldri rå logglinjer. Den mottar strukturerte analyseresultater:</p>
+<pre><code><span class="keyword">class</span> <span class="type">IncidentContext</span>:
+    incident: IncidentGroup
+    evidence: EvidenceBlock
+    timeline_summary: str
+    affected_systems: list[str]
+    cascade_chain: list[CascadeStep]
+    similar_past_incidents: list[IncidentFingerprint]</code></pre>
+
+<h3>Revisjonslogg</h3>
+<pre><code><span class="comment">-- Hvert AI-kall logges</span>
+<span class="keyword">CREATE TABLE</span> ai_audit_log (
+    id                  uuid <span class="keyword">PRIMARY KEY</span>,
+    workspace_id        uuid <span class="keyword">REFERENCES</span> workspaces,
+    user_id             uuid <span class="keyword">REFERENCES</span> users,
+    session_id          uuid,
+    provider            text,          <span class="comment">-- "claude", "openai", "gemini"</span>
+    model               text,
+    input_tokens        int,
+    output_tokens       int,
+    cost_usd            decimal,
+    redacted_prompt_hash text,         <span class="comment">-- for feilsøking uten å lagre PII</span>
+    response_summary    text,          <span class="comment">-- første 200 tegn</span>
+    created_at          timestamptz
+);</code></pre>
+
+<h3>Kunnskapsinnhenting (RAG)</h3>
+
+<div class="callout callout-insight">
+  <div class="callout-title">Ikke generisk RAG</div>
+  <p>RAG i LogPilot handler ikke om å søke på internett eller generell dokumentasjon. Det handler om å la AI referere <strong>kundens egen historikk og driftskunnskaper</strong> &mdash; tidligere hendelser, kjørebøker og interne prosedyrer. Systemet blir smartere jo mer det brukes.</p>
+</div>
+
+<p>Tre kunnskapskilder, alle valgfrie per arbeidsområde:</p>
+
+<table>
+  <thead>
+    <tr><th>Kilde</th><th>Hva indekseres</th><th>Verdi</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Tidligere hendelser</strong></td>
+      <td>Hendelsesfingeravtrykk, AI-forklaringer og løsninger fra samme arbeidsområde</td>
+      <td>&ldquo;Dette samsvarer med en hendelse fra 12. nov &mdash; rotårsaken var DNS-failover etter et leverandøravbrudd.&rdquo;</td>
+    </tr>
+    <tr>
+      <td><strong>Kjørebøker / dokumentasjon</strong></td>
+      <td>Confluence-sider, wikier, markdown-filer &mdash; driftsprosedyrer indeksert per arbeidsområde</td>
+      <td>&ldquo;Kjøreboken din sier: start nodeagent på nytt først når CWWKZ0002E oppstår.&rdquo;</td>
+    </tr>
+    <tr>
+      <td><strong>Kildekode</strong></td>
+      <td>Vektorembeddings av funksjoner og klasser (utvider kildekodeoppslag fra <a href="#codebase-intelligence">seksjon 9</a>)</td>
+      <td>&ldquo;Relatert kode i ConnectionPool.java &mdash; retry-logikken ble endret for 3 dager siden.&rdquo;</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>RAG-kontekst settes sammen <em>etter</em> heuristikk og <em>før</em> redigeringsporten &mdash; den beriker AI-prompten, den erstatter ikke den strukturerte analysen:</p>
+
+<div class="diagram">
+Incident detected
+  &rarr; Heuristics + Evidence              (always)
+  &rarr; Source code lookup                  (if repo connected)
+  &rarr; RAG: similar past incidents         (if history exists)
+  &rarr; RAG: relevant runbook sections      (if indexed)
+  &rarr; All assembled &rarr; RedactionGate &rarr; AI &rarr; Explanation</div>
+
+<h4>Vektorindeksstrategi</h4>
+<ul>
+  <li><strong>Lagring:</strong> <code>pgvector</code>-utvidelse i Postgres &mdash; ingen ny database, samme adaptermønster. Selvbetjening bruker SQLite med en lettvekts vektorutvidelse.</li>
+  <li><strong>Embedding-modell:</strong> Konfigurerbar per arbeidsområde. Sky: OpenAI <code>text-embedding-3-small</code> eller tilsvarende. Selvbetjening: lokal modell (f.eks. <code>all-MiniLM-L6-v2</code> via sentence-transformers, ~80 MB, kjører på CPU).</li>
+  <li><strong>Inkrementell indeksering:</strong> Hver AI-forklaring LogPilot produserer embeddes automatisk og indekseres. Tidligere hendelser blir søkbar kunnskap uten manuell innsats.</li>
+  <li><strong>Søk:</strong> Cosinus-likhet på hendelsesfingeravtrykk + tekstembedding. Topp 3 mest like resultater inkluderes i promptkonteksten.</li>
+</ul>
+
+<div class="callout callout-success">
+  <div class="callout-title">Sammensatt læring</div>
+  <p>Hver hendelse LogPilot forklarer blir kunnskap for neste hendelse. Etter 6 måneders bruk analyserer ikke AI bare logger &mdash; den trekker på arbeidsområdets hele hendelseshistorikk. &ldquo;Vi har sett dette mønsteret 4 ganger tidligere. Hver gang var løsningen X. Siste forekomst var for 3 uker siden.&rdquo;</p>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">Byggeprioritet: V2</div>
+  <p>RAG krever gode AI-forklaringer først &mdash; de er innholdet som indekseres. Send kjernen av AI-pipelinen i V1, legg deretter til RAG-henting i V2 når arbeidsområder har akkumulert hendelseshistorikk verdt å søke i.</p>
+</div>
+</section>
+
+<!-- 7. PRIVACY & DATA RESIDENCY -->
+<section id="privacy">
+<h2><span class="num">7.</span> Personvern &amp; dataplassering</h2>
+
+<div class="callout callout-warning">
+  <div class="callout-title">Dette er ikke en funksjon &mdash; det er en kjernegaranti</div>
+  <p>Sensitive data må aldri forlate systemet uredigert. Kundedata må aldri tvinges utenfor deres valgte region. Dette er ikke konfigurerbare alternativer &mdash; det er arkitektoniske garantier håndhevet av typesystemet og distribusjonsmodellen.</p>
+</div>
+
+<h3>Prinsipp 1: Ingen rå data til ekstern AI</h3>
+
+<p><code>RedactedText</code>-newtype (beskrevet i <a href="#ai">seksjon 6</a>) håndhever dette på kodenivå. Men prinsippet strekker seg utover AI:</p>
+
+<table>
+  <thead>
+    <tr><th>Dataflyt</th><th>Hva skjer</th><th>Håndheving</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Logg-hendelser &rarr; AI-leverandør</td>
+      <td>Redigert før sending. Tokens, passord, API-nøkler, e-poster, IP-er fjernet. Egendefinerte arbeidsområdemønstre anvendt.</td>
+      <td>Typesystem: AI-leverandører aksepterer kun <code>RedactedText</code></td>
+    </tr>
+    <tr>
+      <td>Logg-hendelser &rarr; rapporter</td>
+      <td>Redigert ved parse-tidspunkt. Rapporter inneholder kun redigert tekst.</td>
+      <td><code>redact()</code> kjøres under parsing, før hendelser går inn i systemet</td>
+    </tr>
+    <tr>
+      <td>Logg-hendelser &rarr; database</td>
+      <td>Lagret etter redigering. Rålogginnhold er kun i objektlager.</td>
+      <td>Parse-pipeline: redigering er steg 2, før lagring</td>
+    </tr>
+    <tr>
+      <td>AI-prompts &rarr; revisjonslogg</td>
+      <td>Prompt-hash lagres, ikke prompttekst. For feilsøking uten å lagre PII.</td>
+      <td>Revisjonstabellskjema: <code>redacted_prompt_hash</code>, ikke <code>prompt_text</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Hva redigeres</h3>
+<table>
+  <thead>
+    <tr><th>Kategori</th><th>Eksempler</th><th>Metode</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Autentiseringstokens</td><td>Bearer-tokens, JWT, sesjons-cookies, API-nøkler</td><td>Mønsterbytte: <code>[REDACTED_TOKEN]</code></td></tr>
+    <tr><td>Passord</td><td>Passordfelt i URL-er, konfigurasjonslinjer, loggmeldinger</td><td>Mønsterbytte: <code>[REDACTED_PASSWORD]</code></td></tr>
+    <tr><td>Personlige identifikatorer</td><td>E-postadresser, telefonnumre, nasjonale ID-er (SSN, f&oslash;dselsnummer)</td><td>Mønsterbytte: <code>[REDACTED_EMAIL]</code>, <code>[REDACTED_ID]</code></td></tr>
+    <tr><td>Nettverksidentifikatorer</td><td>IP-adresser (valgfritt, konfigurerbar per arbeidsområde)</td><td>Konfigurerbar: rediger, anonymiser (hash), eller behold</td></tr>
+    <tr><td>Egendefinerte mønstre</td><td>Arbeidsområde-spesifikk regex (f.eks. kundekontonumre, interne ID-er)</td><td>Admin-definerte mønstre i arbeidsområdeinnstillinger</td></tr>
+  </tbody>
+</table>
+
+<h3>Prinsipp 2: Data blir der kunden velger</h3>
+
+<table>
+  <thead>
+    <tr><th>Distribusjon</th><th>Hvor data lagres</th><th>Hva forlater systemet</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Laptop (selvbetjening)</strong></td>
+      <td>Kun lokal disk (~/.logpilot/)</td>
+      <td>Ingenting &mdash; med mindre bruker eksplisitt aktiverer ekstern AI. Da: kun redigerte prompts til valgt leverandør.</td>
+    </tr>
+    <tr>
+      <td><strong>Teamserver (selvbetjening)</strong></td>
+      <td>Kundens egen Postgres + filsystem/S3</td>
+      <td>Kun redigerte AI-prompts, kun hvis ekstern AI er aktivert.</td>
+    </tr>
+    <tr>
+      <td><strong>Kundesky (selvbetjening)</strong></td>
+      <td>Kundens egen skykonto (EU, Norge, hvor som helst)</td>
+      <td>Kun redigerte AI-prompts. Kunden kontrollerer hvilken AI-leverandør og region.</td>
+    </tr>
+    <tr>
+      <td><strong>SaaS (vi drifter)</strong></td>
+      <td>Vår infrastruktur &mdash; EU-region (Norge/EU-datasenter)</td>
+      <td>Kun redigerte AI-prompts til kundens valgte AI-leverandør.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>SaaS-dataplassering</h3>
+<ul>
+  <li><strong>Standard SaaS-region: EU</strong> (Norge eller EU-datasenter). Ikke USA. Dette er et bevisst markedsposisjonsvalg for nordiske/europeiske kunder.</li>
+  <li><strong>Alle kundedata</strong> (logger, hendelser, analyseresultater, AI-samtaler) forblir i valgt region.</li>
+  <li><strong>AI-leverandører er konfigurerbare per arbeidsområde.</strong> Kunden kan velge EU-baserte AI-endepunkter, eller deaktivere ekstern AI helt og kun bruke lokale modeller.</li>
+  <li><strong>Ingen telemetri eller bruksdata forlater regionen</strong> uten eksplisitt opt-in.</li>
+</ul>
+
+<h3>Deaktiver ekstern AI helt</h3>
+<p>For kunder som ikke kan sende data til eksterne leverandører (stat, forsvar, finans):</p>
+
+<pre><code><span class="comment"># Arbeidsområdeinnstilling: deaktiver all ekstern AI</span>
+{
+  <span class="string">"ai_provider"</span>: <span class="string">"local_only"</span>,    <span class="comment">// kun Ollama / vLLM / lokale modeller</span>
+  <span class="string">"ai_external_enabled"</span>: false  <span class="comment">// hard blokk: ingen API-kall til Claude/OpenAI/Gemini</span>
+}
+<span class="comment">// Med denne innstillingen kjøres RedactionGate fremdeles (forsvar i dybden),</span>
+<span class="comment">// men ingen data når noe eksternt endepunkt uavhengig.</span></code></pre>
+
+<h3>GDPR-etterlevelse</h3>
+<table>
+  <thead>
+    <tr><th>GDPR-rettighet</th><th>Hvordan LogPilot støtter det</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Rett til sletting</strong></td><td>Slett arbeidsområde &rarr; kaskadesletting av alle økter, hendelser, analyser, AI-samtaler, revisjonsloggoppføringer. Objektlagerfiler slettes. Verifisert ved test.</td></tr>
+    <tr><td><strong>Rett til innsyn</strong></td><td>Eksporter alle arbeidsområdedata som JSON via API: <code>GET /api/v1/workspaces/{slug}/export</code></td></tr>
+    <tr><td><strong>Dataminimering</strong></td><td>Redigering ved parse-tidspunkt. Kun strukturerte hendelser lagres, ikke rålogginnhold (rådata forblir i objektlager med konfigurerbar TTL).</td></tr>
+    <tr><td><strong>Formålsbegrensning</strong></td><td>Revisjonslogg sporer hvert AI-kall og datatilgang. Hvem som aksesserte hva, når, og hvorfor.</td></tr>
+    <tr><td><strong>Databehandleravtale</strong></td><td>SaaS-kunder signerer DPA. Selvbetjeningskunder kontrollerer sine egne data fullstendig.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout callout-success">
+  <div class="callout-title">Selvbetjeningsfordelen</div>
+  <p>For de mest personvernbevisste kundene er selvbetjeningsdistribusjon svaret: dataene deres berører aldri vår infrastruktur. De kjører LogPilot i sin egen sky, bruker lokale AI-modeller, og vi har null tilgang. Dette er en ekte konkurransefordel over SaaS-bare konkurrenter.</p>
+</div>
+</section>
+
+<!-- 8. DATA PROCESSING STRATEGY -->
+<section id="data">
+<h2><span class="num">8.</span> Strategi for databehandling</h2>
+
+<h3>Problemet</h3>
+<p>En 10 GB loggfil inneholder ~50M linjer, ~10M hendelser. Å laste alt inn i en Python-liste = OOM.</p>
+
+<h3>Løsning: Strømmende pipeline med materialiserte sjekkpunkter</h3>
+
+<table>
+  <thead>
+    <tr><th>Steg</th><th>Motor</th><th>Inndata</th><th>Utdata</th><th>Minne</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1. Parse</strong></td>
+      <td>Rust, strømmende</td>
+      <td>Råfil (mmap)</td>
+      <td>Hendelser i 100K-rads Parquet-batches</td>
+      <td>~Konstant</td>
+    </tr>
+    <tr>
+      <td><strong>2. Klassifiser</strong></td>
+      <td>Rust, batch parallell</td>
+      <td>Parquet-batches</td>    _value: str  <span class="comment"># private</span>
 
     <span class="keyword">def</span> __init__(self):
         <span class="keyword">raise</span> TypeError(<span class="string">"Use RedactionGate.redact()"</span>)
@@ -965,11 +1222,11 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
     created_at          timestamptz
 );</code></pre>
 
-<h3>Kunnskapsinnhenting (RAG)</h3>
+<h3>Kunnskapsuthenting (RAG)</h3>
 
 <div class="callout callout-insight">
   <div class="callout-title">Ikke generisk RAG</div>
-  <p>RAG i LogPilot handler ikke om å søke på internett eller i generell dokumentasjon. Det handler om å la AI referere til <strong>kundens egen historikk og driftskunnskaper</strong> &mdash; tidligere hendelser, runbooks og interne prosedyrer. Systemet blir smartere jo mer det brukes.</p>
+  <p>RAG i LogPilot handler ikke om å søke på internett eller i generell dokumentasjon. Det handler om å la AI referere til <strong>kundens egen historikk og driftskunnskaper</strong> &mdash; tidligere hendelser, driftsrutiner og interne prosedyrer. Systemet blir smartere jo mer det brukes.</p>
 </div>
 
 <p>Tre kunnskapskilder, alle valgfrie per workspace:</p>
@@ -982,12 +1239,12 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
     <tr>
       <td><strong>Tidligere hendelser</strong></td>
       <td>Hendelsesfingeravtrykk, AI-forklaringer og løsninger fra samme workspace</td>
-      <td>&ldquo;Dette samsvarer med en hendelse fra 12. nov &mdash; rotårsaken var DNS-failover etter et leverandørutfall.&rdquo;</td>
+      <td>&ldquo;Dette stemmer overens med en hendelse fra 12. nov &mdash; rotårsaken var DNS-failover etter et leverandørutfall.&rdquo;</td>
     </tr>
     <tr>
-      <td><strong>Runbooks / dokumentasjon</strong></td>
+      <td><strong>Driftsrutiner / dokumentasjon</strong></td>
       <td>Confluence-sider, wikier, markdown-filer &mdash; driftsprosedyrer indeksert per workspace</td>
-      <td>&ldquo;Runbooken din sier: start nodeagent på nytt først når CWWKZ0002E inntreffer.&rdquo;</td>
+      <td>&ldquo;Driftsrutinen sier: start nodeagent på nytt først når CWWKZ0002E oppstår.&rdquo;</td>
     </tr>
     <tr>
       <td><strong>Kildekode</strong></td>
@@ -997,7 +1254,7 @@ Organization: Acme Corp                    (billing, IdP config, org-admin)
   </tbody>
 </table>
 
-<p>RAG-kontekst settes sammen <em>etter</em> heuristikk og <em>før</em> redigeringsporten &mdash; den beriker AI-prompten, den erstatter ikke den strukturerte analysen:</p>
+<p>RAG-kontekst settes sammen <em>etter</em> heuristikk og <em>før</em> redaksjonsportalen &mdash; den beriker AI-prompten, den erstatter ikke den strukturerte analysen:</p>
 
 <div class="diagram">
 Incident detected
@@ -1007,62 +1264,62 @@ Incident detected
   &rarr; RAG: relevant runbook sections      (if indexed)
   &rarr; All assembled &rarr; RedactionGate &rarr; AI &rarr; Explanation</div>
 
-<h4>Vektorindeksstrategi</h4>
+<h4>Vektorindeks-strategi</h4>
 <ul>
-  <li><strong>Lagring:</strong> <code>pgvector</code>-utvidelse i Postgres &mdash; ingen ny database, samme adaptermønster. Selvbetjening bruker SQLite med en lettvekts vektorutvidelse.</li>
-  <li><strong>Embeddingmodell:</strong> Konfigurerbar per workspace. Sky: OpenAI <code>text-embedding-3-small</code> eller tilsvarende. Selvbetjening: lokal modell (f.eks. <code>all-MiniLM-L6-v2</code> via sentence-transformers, ~80 MB, kjører på CPU).</li>
-  <li><strong>Inkrementell indeksering:</strong> Hver AI-forklaring LogPilot produserer blir automatisk embeddet og indeksert. Tidligere hendelser blir søkbar kunnskap uten noe manuelt arbeid.</li>
+  <li><strong>Lagring:</strong> <code>pgvector</code>-utvidelse i Postgres &mdash; ingen ny database, samme adaptermønster. Self-service bruker SQLite med en lettvekts vektorutvidelse.</li>
+  <li><strong>Embeddingmodell:</strong> Konfigurerbar per workspace. Sky: OpenAI <code>text-embedding-3-small</code> eller tilsvarende. Self-service: lokal modell (f.eks. <code>all-MiniLM-L6-v2</code> via sentence-transformers, ~80 MB, kjører på CPU).</li>
+  <li><strong>Inkrementell indeksering:</strong> Hver AI-forklaring LogPilot produserer, embeddes og indekseres automatisk. Tidligere hendelser blir søkbar kunnskap uten manuelt arbeid.</li>
   <li><strong>Søk:</strong> Cosinuslikhet på hendelsesfingeravtrykk + tekstembedding. De 3 mest lignende resultatene inkluderes i promptkonteksten.</li>
 </ul>
 
 <div class="callout callout-success">
   <div class="callout-title">Sammensatt læring</div>
-  <p>Hver hendelse LogPilot forklarer blir kunnskap for neste hendelse. Etter 6 måneders bruk analyserer ikke AI bare logger &mdash; den trekker på workspacets hele hendelseshistorikk. &ldquo;Vi har sett dette mønsteret 4 ganger tidligere. Hver gang var løsningen X. Siste forekomst var for 3 uker siden.&rdquo;</p>
+  <p>Hver hendelse LogPilot forklarer, blir kunnskap for neste hendelse. Etter 6 måneders bruk analyserer ikke AI bare logger &mdash; den trekker på workspacets hele hendelseshistorikk. &ldquo;Vi har sett dette mønsteret 4 ganger tidligere. Hver gang var løsningen X. Siste gang var for 3 uker siden.&rdquo;</p>
 </div>
 
 <div class="callout callout-info">
   <div class="callout-title">Byggeprioritet: V2</div>
-  <p>RAG krever at gode AI-forklaringer finnes først &mdash; de er innholdet som indekseres. Lever kjerne-AI-pipelinen i V1, legg deretter til RAG-innhenting i V2 når workspaces har akkumulert hendelseshistorikk det er verdt å søke i.</p>
+  <p>RAG krever at det allerede finnes gode AI-forklaringer &mdash; de er innholdet som indekseres. Lever kjernen av AI-pipelinen i V1, og legg til RAG-uthenting i V2 når workspaces har samlet opp hendelseshistorikk verdt å søke i.</p>
 </div>
 </section>
 
 <!-- 7. PRIVACY & DATA RESIDENCY -->
 <section id="privacy">
-<h2><span class="num">7.</span> Personvern &amp; Dataplassering</h2>
+<h2><span class="num">7.</span> Personvern &amp; Datalagring</h2>
 
 <div class="callout callout-warning">
-  <div class="callout-title">Dette er ikke en funksjon &mdash; det er en kjerneforutsetning</div>
-  <p>Sensitive data må aldri forlate systemet uredaksivert. Kundedata må aldri tvinges utenfor deres valgte region. Dette er ikke konfigurerbare valg &mdash; det er arkitekturelle garantier håndhevet av typesystemet og distribusjonsmodellen.</p>
+  <div class="callout-title">Dette er ikke en funksjon &mdash; det er et kjerneprinsipp</div>
+  <p>Sensitiv data må aldri forlate systemet uten redaksjon. Kundedata må aldri tvinges utenfor den valgte regionen. Dette er ikke konfigurerbare valg &mdash; det er arkitektoniske garantier håndhevet av typesystemet og distribusjonsmodellen.</p>
 </div>
 
-<h3>Prinsipp 1: Ingen rå data til ekstern AI</h3>
+<h3>Prinsipp 1: Ingen rådata til ekstern AI</h3>
 
-<p><code>RedactedText</code>-nytypen (beskrevet i <a href="#ai">seksjon 6</a>) håndhever dette på kodenivå. Men prinsippet strekker seg lenger enn AI:</p>
+<p>Nytypen <code>RedactedText</code> (beskrevet i <a href="#ai">seksjon 6</a>) håndhever dette på kodenivå. Men prinsippet strekker seg lenger enn AI:</p>
 
 <table>
   <thead>
-    <tr><th>Dataflyt</th><th>Hva som skjer</th><th>Håndhevelse</th></tr>
+    <tr><th>Dataflyt</th><th>Hva skjer</th><th>Håndhevelse</th></tr>
   </thead>
   <tbody>
     <tr>
-      <td>Logg-hendelser &rarr; AI-leverandør</td>
-      <td>Redigert før sending. Tokens, passord, API-nøkler, e-postadresser, IP-er fjernes. Egendefinerte workspace-mønstre anvendes.</td>
+      <td>Logghendelser &rarr; AI-leverandør</td>
+      <td>Redigert før sending. Tokens, passord, API-nøkler, e-poster, IP-adresser fjernes. Tilpassede workspace-mønstre brukes.</td>
       <td>Typesystem: AI-leverandører aksepterer kun <code>RedactedText</code></td>
     </tr>
     <tr>
-      <td>Logg-hendelser &rarr; rapporter</td>
-      <td>Redigert ved parsingstid. Rapporter inneholder kun redigert tekst.</td>
+      <td>Logghendelser &rarr; rapporter</td>
+      <td>Redigert ved parsing. Rapporter inneholder kun redigert tekst.</td>
       <td><code>redact()</code> kjøres under parsing, før hendelser går inn i systemet</td>
     </tr>
     <tr>
-      <td>Logg-hendelser &rarr; database</td>
-      <td>Lagret etter redigering. Rå logginnhold er kun i objektlager.</td>
-      <td>Parse-pipeline: redigering er steg 2, før lagring</td>
+      <td>Logghendelser &rarr; database</td>
+      <td>Lagret etter redaksjon. Rålogginnhold er kun i objektlageret.</td>
+      <td>Parse-pipeline: redaksjon er steg 2, før lagring</td>
     </tr>
     <tr>
       <td>AI-prompter &rarr; revisjonslogg</td>
-      <td>Prompt-hash lagres, ikke promptteksten. For feilsøking uten å lagre personopplysninger.</td>
-      <td>Revisjonstabell-skjema: <code>redacted_prompt_hash</code>, ikke <code>prompt_text</code></td>
+      <td>Prompt-hash lagres, ikke prompttekst. For feilsøking uten å lagre PII.</td>
+      <td>Revisjonstabellskjema: <code>redacted_prompt_hash</code>, ikke <code>prompt_text</code></td>
     </tr>
   </tbody>
 </table>
@@ -1073,11 +1330,11 @@ Incident detected
     <tr><th>Kategori</th><th>Eksempler</th><th>Metode</th></tr>
   </thead>
   <tbody>
-    <tr><td>Autentiseringstokens</td><td>Bearer-tokens, JWT, sesjonskapsler, API-nøkler</td><td>Mønstererstatning: <code>[REDACTED_TOKEN]</code></td></tr>
-    <tr><td>Passord</td><td>Passordfelt i URL-er, konfigurasjonslinjer, loggmeldinger</td><td>Mønstererstatning: <code>[REDACTED_PASSWORD]</code></td></tr>
-    <tr><td>Personidentifikatorer</td><td>E-postadresser, telefonnumre, nasjonale ID-er (SSN, f&oslash;dselsnummer)</td><td>Mønstererstatning: <code>[REDACTED_EMAIL]</code>, <code>[REDACTED_ID]</code></td></tr>
-    <tr><td>Nettverksidentifikatorer</td><td>IP-adresser (valgfritt, konfigurerbart per workspace)</td><td>Konfigurerbart: rediger, anonymiser (hash) eller behold</td></tr>
-    <tr><td>Egendefinerte mønstre</td><td>Workspace-spesifikk regex (f.eks. kundekontonumre, interne ID-er)</td><td>Admindefinerbare mønstre i workspace-innstillinger</td></tr>
+    <tr><td>Autentiseringstokens</td><td>Bearer-tokens, JWT, sesjonsinfokapsler, API-nøkler</td><td>Mønsterutskifting: <code>[REDACTED_TOKEN]</code></td></tr>
+    <tr><td>Passord</td><td>Passordfelt i URL-er, konfigurasjonsfiler, loggmeldinger</td><td>Mønsterutskifting: <code>[REDACTED_PASSWORD]</code></td></tr>
+    <tr><td>Personidentifikatorer</td><td>E-postadresser, telefonnummer, nasjonale ID-er (SSN, fødselsnummer)</td><td>Mønsterutskifting: <code>[REDACTED_EMAIL]</code>, <code>[REDACTED_ID]</code></td></tr>
+    <tr><td>Nettverksidentifikatorer</td><td>IP-adresser (valgfritt, konfigurerbart per workspace)</td><td>Konfigurerbart: redigér, anonymiser (hash), eller behold</td></tr>
+    <tr><td>Tilpassede mønstre</td><td>Workspace-spesifikk regex (f.eks. kundekontonummer, interne ID-er)</td><td>Admin-definerte mønstre i workspace-innstillinger</td></tr>
   </tbody>
 </table>
 
@@ -1085,42 +1342,42 @@ Incident detected
 
 <table>
   <thead>
-    <tr><th>Distribusjon</th><th>Hvor data befinner seg</th><th>Hva som forlater systemet</th></tr>
+    <tr><th>Distribusjon</th><th>Hvor data lagres</th><th>Hva forlater systemet</th></tr>
   </thead>
   <tbody>
     <tr>
-      <td><strong>Bærbar PC (selvbetjening)</strong></td>
+      <td><strong>Bærbar PC (self-service)</strong></td>
       <td>Kun lokal disk (~/.logpilot/)</td>
       <td>Ingenting &mdash; med mindre brukeren eksplisitt aktiverer ekstern AI. Da: kun redigerte prompter til valgt leverandør.</td>
     </tr>
     <tr>
-      <td><strong>Teamserver (selvbetjening)</strong></td>
+      <td><strong>Teamserver (self-service)</strong></td>
       <td>Kundens egen Postgres + filsystem/S3</td>
-      <td>Kun redigerte AI-prompter, bare hvis ekstern AI er aktivert.</td>
+      <td>Kun redigerte AI-prompter, og kun hvis ekstern AI er aktivert.</td>
     </tr>
     <tr>
-      <td><strong>Kundens sky (selvbetjening)</strong></td>
-      <td>Kundens egen skykonto (EU, Norge, hvor som helst)</td>
+      <td><strong>Kundeskyløsning (self-service)</strong></td>
+      <td>Kundens egen skykonto (EU, Norge, valgfritt)</td>
       <td>Kun redigerte AI-prompter. Kunden kontrollerer hvilken AI-leverandør og region.</td>
     </tr>
     <tr>
-      <td><strong>SaaS (vi hoster)</strong></td>
-      <td>Vår infrastruktur &mdash; EU-region (norsk/EU-datasenter)</td>
+      <td><strong>SaaS (vi drifter)</strong></td>
+      <td>Vår infrastruktur &mdash; EU-region (norsk/europeisk datasenter)</td>
       <td>Kun redigerte AI-prompter til kundens valgte AI-leverandør.</td>
     </tr>
   </tbody>
 </table>
 
-<h3>SaaS-dataplassering</h3>
+<h3>SaaS-datalagring</h3>
 <ul>
-  <li><strong>Standard SaaS-region: EU</strong> (norsk eller EU-datasenter). Ikke USA. Dette er et bevisst markedsposisjonsvalg for nordiske/europeiske kunder.</li>
-  <li><strong>Alle kundedata</strong> (logger, hendelser, analyseresultater, AI-samtaler) forblir i valgt region.</li>
-  <li><strong>AI-leverandører er konfigurerbare per workspace.</strong> Kunden kan velge EU-hostede AI-endepunkter, eller deaktivere ekstern AI helt og bruke kun lokale modeller.</li>
+  <li><strong>Standard SaaS-region: EU</strong> (norsk eller europeisk datasenter). Ikke USA. Dette er et bevisst markedsposisjoneringsvalg for nordiske/europeiske kunder.</li>
+  <li><strong>All kundedata</strong> (logger, hendelser, analyseresultater, AI-samtaler) forblir i valgt region.</li>
+  <li><strong>AI-leverandører er konfigurerbare per workspace.</strong> Kunden kan velge EU-baserte AI-endepunkter, eller deaktivere ekstern AI helt og bruke kun lokale modeller.</li>
   <li><strong>Ingen telemetri eller bruksdata forlater regionen</strong> uten eksplisitt samtykke.</li>
 </ul>
 
 <h3>Deaktiver ekstern AI helt</h3>
-<p>For kunder som ikke kan sende noen data til eksterne leverandører (offentlig sektor, forsvar, finans):</p>
+<p>For kunder som ikke kan sende data til eksterne leverandører (stat, forsvar, finans):</p>
 
 <pre><code><span class="comment"># Workspace setting: disable all external AI</span>
 {
@@ -1133,63 +1390,63 @@ Incident detected
 <h3>GDPR-samsvar</h3>
 <table>
   <thead>
-    <tr><th>GDPR-rettighet</th><th>Hvordan LogPilot støtter den</th></tr>
+    <tr><th>GDPR-rettighet</th><th>Slik støtter LogPilot det</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>Rett til sletting</strong></td><td>Slett workspace &rarr; kaskadesletting av alle sesjoner, hendelser, analyser, AI-samtaler, revisjonsloggoppføringer. Objektlagerfiler slettes. Verifisert med test.</td></tr>
-    <tr><td><strong>Rett til innsyn</strong></td><td>Eksporter alle workspace-data som JSON via API: <code>GET /api/v1/workspaces/{slug}/export</code></td></tr>
-    <tr><td><strong>Dataminimering</strong></td><td>Redigering ved parsingstid. Kun strukturerte hendelser lagres, ikke rått logginnhold (rådata forblir i objektlager med konfigurerbar TTL).</td></tr>
-    <tr><td><strong>Formålsbegrensning</strong></td><td>Revisjonslogg sporer hvert AI-kall og datatilgang. Hvem som åpnet hva, når og hvorfor.</td></tr>
-    <tr><td><strong>Databehandleravtale</strong></td><td>SaaS-kunder signerer DPA. Selvbetjeningskunder kontrollerer sine egne data fullt ut.</td></tr>
+    <tr><td><strong>Rett til sletting</strong></td><td>Slett workspace &rarr; kaskadesletting av alle sesjoner, hendelser, analyser, AI-samtaler, revisjonsloggoppføringer. Filer i objektlageret slettes. Verifisert med test.</td></tr>
+    <tr><td><strong>Rett til innsyn</strong></td><td>Eksporter all workspace-data som JSON via API: <code>GET /api/v1/workspaces/{slug}/export</code></td></tr>
+    <tr><td><strong>Dataminimering</strong></td><td>Redaksjon ved parsing. Kun strukturerte hendelser lagres, ikke rålogginnhold (rå data forblir i objektlageret med konfigurerbar TTL).</td></tr>
+    <tr><td><strong>Formålsbegrensning</strong></td><td>Revisjonsloggen sporer hvert AI-kall og dataaksess. Hvem som aksesserte hva, når og hvorfor.</td></tr>
+    <tr><td><strong>Databehandleravtale</strong></td><td>SaaS-kunder signerer DPA. Self-service-kunder kontrollerer sine egne data fullt ut.</td></tr>
   </tbody>
 </table>
 
 <div class="callout callout-success">
-  <div class="callout-title">Selvbetjeningsfordelen</div>
-  <p>For de mest personvernbevisste kundene er selvbetjeningsdistribusjon svaret: dataene deres berører aldri vår infrastruktur. De kjører LogPilot i sin egen sky, bruker lokale AI-modeller, og vi har null tilgang. Dette er en reell konkurransefordel over SaaS-kun-konkurrenter.</p>
+  <div class="callout-title">Fordelen med self-service</div>
+  <p>For de mest personvernbevisste kundene er self-service-distribusjon svaret: dataene deres berører aldri vår infrastruktur. De kjører LogPilot i sin egen sky, bruker lokale AI-modeller, og vi har null tilgang. Dette er en reell konkurransefordel over SaaS-eksklusive konkurrenter.</p>
 </div>
 </section>
 
 <!-- 8. DATA PROCESSING STRATEGY -->
 <section id="data">
-<h2><span class="num">8.</span> Databehandlingsstrategi</h2>
+<h2><span class="num">8.</span> Dataprosesseringsstrategi</h2>
 
 <h3>Problemet</h3>
-<p>En 10 GB loggfil inneholder ~50 millioner linjer, ~10 millioner hendelser. Å laste alt inn i en Python-liste = OOM.</p>
+<p>En 10 GB loggfil inneholder ~50M linjer, ~10M hendelser. Å laste alt inn i en Python-liste = OOM.</p>
 
-<h3>Løsning: Strømmende pipeline med materialiserte kontrollpunkter</h3>
+<h3>Løsning: Strømmende pipeline med materialiserte sjekkpunkter</h3>
 
 <table>
   <thead>
-    <tr><th>Steg</th><th>Motor</th><th>Input</th><th>Output</th><th>Minne</th></tr>
+    <tr><th>Steg</th><th>Motor</th><th>Inn</th><th>Ut</th><th>Minne</th></tr>
   </thead>
   <tbody>
     <tr>
       <td><strong>1. Parse</strong></td>
       <td>Rust, strømmende</td>
       <td>Råfil (mmap)</td>
-      <td>Hendelser i 100K-raders Parquet-batches</td>
+      <td>Hendelser i 100K-raders Parquet-pakker</td>
       <td>~Konstant</td>
     </tr>
     <tr>
       <td><strong>2. Klassifiser</strong></td>
-      <td>Rust, batch-parallell</td>
-      <td>Parquet-batches</td>
-      <td>Beriket Parquet (tillagte kolonner)</td>
-      <td>~Batchstørrelse</td>
+      <td>Rust, parallell batch</td>
+      <td>Parquet-pakker</td>
+      <td>Beriket Parquet (ekstra kolonner)</td>
+      <td>~Pakkestørrelse</td>
     </tr>
     <tr>
       <td><strong>3. Indekser</strong></td>
       <td>Rust</td>
       <td>Beriket Parquet</td>
       <td>Tidsserieindeks + invertert indeks</td>
-      <td>Liten (passer i RAM)</td>
+      <td>Liten (får plass i RAM)</td>
     </tr>
     <tr>
       <td><strong>4. Analyser</strong></td>
       <td>Python</td>
       <td>Indeksartefakter (ikke råhendelser!)</td>
-      <td>Heuristiske treff, hendelser</td>
+      <td>Heuristikk-treff, hendelser</td>
       <td>Liten</td>
     </tr>
     <tr>
@@ -1204,15 +1461,15 @@ Incident detected
 
 <div class="callout callout-insight">
   <div class="callout-title">Nøkkelinnsikt</div>
-  <p>Etter steg 3 arbeider de fleste operasjoner på <strong>indekser og aggregater</strong>, ikke råhendelser. Heuristikkmotoren trenger &ldquo;hvor mange hendelser matcher mønster X?&rdquo; og &ldquo;gi meg 5 eksempler&rdquo; (et målrettet Parquet-søk) &mdash; ikke 10 millioner hendelser i minnet.</p>
+  <p>Etter steg 3 arbeider de fleste operasjoner på <strong>indekser og aggregater</strong>, ikke råhendelser. Heuristikkmotoren trenger &ldquo;hvor mange hendelser samsvarer med mønster X?&rdquo; og &ldquo;gi meg 5 eksempler&rdquo; (et målrettet Parquet-søk) &mdash; ikke 10M hendelser i minnet.</p>
 </div>
 
 <h3>Hvorfor Parquet som mellomformat</h3>
 <ul>
-  <li><strong>Kolonnebasert:</strong> Å lese kun <code>ts_utc + level</code> for et histogram laster ikke <code>text</code> (90 % av dataene)</li>
+  <li><strong>Kolumnebasert:</strong> Å lese kun <code>ts_utc + level</code> for et histogram laster ikke inn <code>text</code> (90 % av dataene)</li>
   <li><strong>Komprimert:</strong> Repetitiv loggtekst komprimeres 10&ndash;20x med ZSTD</li>
-  <li><strong>Minneavbildbar:</strong> DuckDB spør Parquet uten full innlasting</li>
-  <li><strong>Portabelt:</strong> Samme format for lokal (DuckDB) og SaaS (ClickHouse tar inn Parquet)</li>
+  <li><strong>Minnekartleggbar:</strong> DuckDB spørringer mot Parquet uten full innlasting</li>
+  <li><strong>Portabelt:</strong> Samme format for lokalt (DuckDB) og SaaS (ClickHouse importerer Parquet)</li>
 </ul>
 
 <h3>Bufringsstrategi</h3>
@@ -1225,7 +1482,7 @@ Incident detected
     <tr><td>Analyseresultater</td><td>Postgres JSONB</td><td>Sesjonslevetid</td></tr>
     <tr><td>Tidsserieindeks</td><td>Objektlager</td><td>Samme som Parquet</td></tr>
     <tr><td>AI-svar</td><td>Postgres</td><td>Ubegrenset (revisjon)</td></tr>
-    <tr><td>Heuristisk treff-cache</td><td>Redis</td><td>1 time</td></tr>
+    <tr><td>Heuristikk-treff-buffer</td><td>Redis</td><td>1 time</td></tr>
   </tbody>
 </table>
 </section>
@@ -1236,7 +1493,7 @@ Incident detected
 
 <div class="callout callout-insight">
   <div class="callout-title">Kjerneprinsipp</div>
-  <p>Alt nettappen kan gjøre, kan API-et gjøre. React-frontenden er bare én klient &mdash; Enonic XP, Kubernetes, CI/CD-pipelines og egendefinerte skript er andre. LogPilot er en <strong>API-first</strong>-plattform.</p>
+  <p>Alt nettappen kan gjøre, kan API-et gjøre. React-frontenden er bare én klient &mdash; Enonic XP, Kubernetes, CI/CD-pipelines og egne skript er andre. LogPilot er en <strong>API-first</strong>-plattform.</p>
 </div>
 
 <h3>API-arkitektur</h3>
@@ -1258,14 +1515,14 @@ React app  &rarr; fetch      &rarr;  any endpoint  &#9474; &rarr; Webhooks out  
   </thead>
   <tbody>
     <tr>
-      <td><strong>Inntak</strong></td>
+      <td><strong>Innhenting</strong></td>
       <td><code>POST /api/v1/ingest</code><br><code>POST /api/v1/ingest/stream</code></td>
-      <td>Send loggdata (filopplasting, strømmende, eller JSON-linjer). Returnerer sesjons-ID for sporing.</td>
+      <td>Send loggdata (filopplasting, strømming eller JSON lines). Returnerer sesjons-ID for sporing.</td>
     </tr>
     <tr>
       <td><strong>Sesjoner</strong></td>
       <td><code>GET/POST/DELETE /api/v1/sessions</code></td>
-      <td>List opp, opprett, slett analysesesjoner innenfor et workspace.</td>
+      <td>List, opprett, slett analysesesjoner i et workspace.</td>
     </tr>
     <tr>
       <td><strong>Analyse</strong></td>
@@ -1275,12 +1532,12 @@ React app  &rarr; fetch      &rarr;  any endpoint  &#9474; &rarr; Webhooks out  
     <tr>
       <td><strong>Hendelser</strong></td>
       <td><code>GET /api/v1/sessions/{id}/incidents</code></td>
-      <td>Strukturerte hendelsesdata: grupper, årsaker, bevis, kaskadekjeder.</td>
+      <td>Strukturert hendelsesdata: grupper, årsaker, bevis, kaskadekjeder.</td>
     </tr>
     <tr>
       <td><strong>AI</strong></td>
       <td><code>POST /api/v1/sessions/{id}/explain</code><br><code>GET /api/v1/sessions/{id}/explanations</code></td>
-      <td>Utløs AI-forklaring, hent AI-svar. Strømmende via SSE.</td>
+      <td>Utløs AI-forklaring, hent AI-svar. Strømming via SSE.</td>
     </tr>
     <tr>
       <td><strong>Rapporter</strong></td>
@@ -1288,9 +1545,9 @@ React app  &rarr; fetch      &rarr;  any endpoint  &#9474; &rarr; Webhooks out  
       <td>Generer og last ned rapporter (PDF, HTML, JSON, Markdown).</td>
     </tr>
     <tr>
-      <td><strong>Hendelsesdata</strong></td>
+      <td><strong>Hendelseslogg</strong></td>
       <td><code>GET /api/v1/sessions/{id}/events</code></td>
-      <td>Søk i parsede hendelser med filtre (nivå, kode, tidsrom, tagger). Paginert.</td>
+      <td>Spørr parsede hendelser med filtre (level, code, tidsrom, tags). Paginert.</td>
     </tr>
     <tr>
       <td><strong>Webhooks</strong></td>
@@ -1300,13 +1557,13 @@ React app  &rarr; fetch      &rarr;  any endpoint  &#9474; &rarr; Webhooks out  
     <tr>
       <td><strong>Workspace</strong></td>
       <td><code>GET/POST /api/v1/workspaces</code><br><code>POST /api/v1/workspaces/{id}/api-keys</code></td>
-      <td>Administrer workspaces og API-nøkler (kun organisasjonsadmin).</td>
+      <td>Administrer workspaces og API-nøkler (kun org-admin).</td>
     </tr>
   </tbody>
 </table>
 
 <h3>API-nøkler (per workspace)</h3>
-<p>Hvert workspace kan ha flere API-nøkler med ulike omfang. En Enonic-integrasjon kan ha <code>ingest</code> + <code>read</code>-omfang, mens et rapporteringsdashbord kun har <code>read</code>.</p>
+<p>Hvert workspace kan ha flere API-nøkler med ulike tilganger. En Enonic-integrasjon kan ha <code>ingest</code> + <code>read</code>-tilgang, mens et rapporteringsdashboard kun har <code>read</code>.</p>
 
 <pre><code><span class="comment">-- API keys are scoped to a workspace, not a user</span>
 <span class="keyword">CREATE TABLE</span> api_keys (
@@ -1332,8 +1589,8 @@ React app  &rarr; fetch      &rarr;  any endpoint  &#9474; &rarr; Webhooks out  
     <span class="comment"># 2. Fall back to session cookie (web app)</span>
     <span class="keyword">return await</span> auth_provider.authenticate(request)</code></pre>
 
-<h3>Inntaks-API (send logger til LogPilot)</h3>
-<p>Inntaksendepunktet er måten eksterne systemer sender logger til LogPilot uten manuell filopplasting.</p>
+<h3>Ingest API (send logger til LogPilot)</h3>
+<p>Ingest-endepunktet er hvordan eksterne systemer sender logger til LogPilot uten manuell filopplasting.</p>
 
 <pre><code><span class="comment"># Simple: upload a log file</span>
 curl -X POST https://logpilot.io/api/v1/ingest \
@@ -1370,11 +1627,11 @@ curl -X POST https://logpilot.io/api/v1/webhooks \
 
 <table>
   <thead>
-    <tr><th>Hendelse</th><th>Utløses når</th><th>Nyttelast inneholder</th></tr>
+    <tr><th>Hendelse</th><th>Utløses når</th><th>Nyttelast inkluderer</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>ingest.complete</code></td><td>Loggfil parsert og lagret</td><td>Sesjons-ID, antall filer, antall hendelser</td></tr>
-    <tr><td><code>analysis.complete</code></td><td>Heuristikk og hendelsesdeteksjon fullført</td><td>Sesjons-ID, antall hendelser, høyeste alvorlighetsgrad</td></tr>
+    <tr><td><code>ingest.complete</code></td><td>Loggfil parsert og lagret</td><td>Sesjons-ID, filantall, hendelsesantall</td></tr>
+    <tr><td><code>analysis.complete</code></td><td>Heuristikk og hendelsesdeteksjon fullført</td><td>Sesjons-ID, hendelsesantall, høyeste alvorlighetsgrad</td></tr>
     <tr><td><code>incident.detected</code></td><td>Ny hendelsesgruppe identifisert</td><td>Hendelsessammendrag, berørte systemer, bevis</td></tr>
     <tr><td><code>explanation.ready</code></td><td>AI-forklaring generert</td><td>Sesjons-ID, sammendragsutdrag</td></tr>
   </tbody>
@@ -1396,7 +1653,7 @@ curl -X POST https://logpilot.io/api/v1/webhooks \
 }</code></pre>
 
 <h3>Integrasjonseksempel: Enonic XP</h3>
-<p>En typisk Enonic XP-integrasjon bruker to kontaktpunkter:</p>
+<p>En typisk Enonic XP-integrasjon bruker to berøringspunkter:</p>
 
 <div class="diagram">
 Enonic XP server
@@ -1406,9 +1663,9 @@ Enonic XP server
   &#9492;&#9472; (cluster logs) &rarr;  Filebeat / cron job  &rarr;  POST /api/v1/ingest  &rarr;  LogPilot
                                                                         &#9474;
 LogPilot                                                                &#9474;
-  &#9500;&#9472; Auto-detects format (Enonic plugin)                              &#9474;
-  &#9500;&#9472; Parses, classifies, runs heuristics                             &#9474;
-  &#9500;&#9472; Detects incident: "Repository blob store corruption"             &#9474;
+  &#9500;&#9472; Detekterer format automatisk (Enonic-plugin)                     &#9474;
+  &#9500;&#9472; Parser, klassifiserer, kjører heuristikk                        &#9474;
+  &#9500;&#9472; Oppdager hendelse: "Repository blob store corruption"            &#9474;
   &#9492;&#9472; Webhook &rarr; Slack #enonic-alerts: "Critical incident detected"  &#9496;</div>
 
 <pre><code><span class="comment"># enonic-logpilot.sh &mdash; cron job example (runs every 5 min)</span>
@@ -1427,7 +1684,7 @@ find /opt/enonic/home/logs -name <span class="string">"*.log"</span> -newer /tmp
 touch /tmp/.logpilot-last-run</code></pre>
 
 <h3>SDK-er (fremtidig)</h3>
-<p>Siden API-et er OpenAPI-dokumentert (FastAPI genererer dette automatisk), kan klient-SDK-er auto-genereres eller skrives for hånd:</p>
+<p>Siden API-et er dokumentert med OpenAPI (FastAPI genererer dette automatisk), kan klient-SDK-er autogenereres eller skrives for hånd:</p>
 
 <table>
   <thead>
@@ -1435,9 +1692,9 @@ touch /tmp/.logpilot-last-run</code></pre>
   </thead>
   <tbody>
     <tr><td><code>logpilot-python</code></td><td>Skript, CI/CD-pipelines, Jupyter notebooks</td><td>V1 &mdash; håndskrevet, tynn innpakning</td></tr>
-    <tr><td><code>logpilot-js</code></td><td>Node.js-integrasjoner, egendefinerte dashbord</td><td>V1 &mdash; auto-generert fra OpenAPI</td></tr>
-    <tr><td><code>logpilot-cli</code></td><td>Terminalkraftige brukere, skallskript</td><td>V1 &mdash; finnes allerede (CLI-en)</td></tr>
-    <tr><td><code>logpilot-java</code></td><td>Enonic XP-plugin, Spring Boot-apper</td><td>V2 &mdash; når bedriftsetterspørsel finnes</td></tr>
+    <tr><td><code>logpilot-js</code></td><td>Node.js-integrasjoner, egendefinerte dashboards</td><td>V1 &mdash; autogenerert fra OpenAPI</td></tr>
+    <tr><td><code>logpilot-cli</code></td><td>Avanserte terminalbrukere, shell-skript</td><td>V1 &mdash; finnes allerede (CLI-en)</td></tr>
+    <tr><td><code>logpilot-java</code></td><td>Enonic XP-plugin, Spring Boot-apper</td><td>V2 &mdash; når det er etterspørsel fra enterprise</td></tr>
   </tbody>
 </table>
 
@@ -1467,8 +1724,8 @@ explanation = session.explain(prompt=<span class="string">"What caused the blob 
 print(explanation.text)</code></pre>
 
 <div class="callout callout-success">
-  <div class="callout-title">API-first = integrasjonsklar</div>
-  <p>Alle funksjoner i LogPilot er tilgjengelige via API fra dag én. Nettappen er én forbruker av det samme API-et. Kunder integrerer med sine eksisterende verktøy &mdash; Enonic, Kubernetes, CI/CD, Slack, PagerDuty &mdash; uten å vente på at vi bygger dedikerte plugins.</p>
+  <div class="callout-title">API-first = integrasjonsklart</div>
+  <p>Alle funksjoner i LogPilot er tilgjengelige via API fra første dag. Nettappen er én konsument av samme API. Kunder integrerer med sine eksisterende verktøy &mdash; Enonic, Kubernetes, CI/CD, Slack, PagerDuty &mdash; uten å vente på at vi bygger dedikerte plugins.</p>
 </div>
 </section>
 
@@ -1478,11 +1735,11 @@ print(explanation.text)</code></pre>
 
 <div class="callout callout-warning">
   <div class="callout-title">Dette er IKKE Sentry</div>
-  <p>LogPilot instrumenterer ikke applikasjonen din. Ingen SDK, ingen agent, ingen kjøretidstilgang. I stedet, når LogPilot finner en stacktrace i loggene dine, kan den <em>valgfritt</em> slå opp den tilsvarende kildekoden i et tilkoblet Git-repo &mdash; noe som gir AI mer kontekst for å forklare feilen. Dette er et <strong>etterfølgende undersøkelsesverktøy</strong>, ikke sanntids feilsporing.</p>
+  <p>LogPilot instrumenterer ikke applikasjonen din. Ingen SDK, ingen agent, ingen runtime-tilgang. I stedet kan LogPilot, når det finner en stacktrace i loggene dine, <em>valgfritt</em> slå opp tilsvarende kildekode i et tilkoblet Git-repo &mdash; noe som gir AI mer kontekst for å forklare feilen. Dette er et <strong>etterforskningsverktøy i etterkant</strong>, ikke sanntids feilsporing.</p>
 </div>
 
 <h3>Ideen</h3>
-<p>LogPilot trekker allerede ut unntak og stacktraces fra logger. I dag forklarer AI dem basert på loggkonteksten alene. Med en valgfri Git-repo-tilkobling kan LogPilot også vise <em>hvilken kode</em> stacktracen peker til &mdash; og beriker undersøkelsen uten å kreve noen endringer i kundens applikasjon.</p>
+<p>LogPilot henter allerede ut unntak og stacktraces fra logger. I dag forklarer AI dem basert på loggkonteksten alene. Med en valgfri Git-repo-tilkobling kan LogPilot også vise <em>hvilken kode</em> stacktracen peker på &mdash; noe som beriker undersøkelsen uten at kunden trenger å endre applikasjonen sin.</p>
 
 <div class="diagram">
 What LogPilot already does            What source lookup adds (optional)
@@ -1496,10 +1753,10 @@ What LogPilot already does            What source lookup adds (optional)
 
 <h3>Slik fungerer det</h3>
 <ol>
-  <li><strong>Workspace-admin kobler til et repo</strong> (valgfritt, én gang). Skrivebeskyttet tilgang via GitHub App, deploy-nøkkel, PAT eller lokal sti.</li>
+  <li><strong>Workspace-admin kobler til et repo</strong> (valgfritt, én gang). Lesetilgang via GitHub App, deploy-nøkkel, PAT eller lokal sti.</li>
   <li><strong>LogPilot indekserer symboler</strong> i bakgrunnen: bygger en oppslagstabell over <code>pakke.klasse.metode &rarr; fil:linje</code>. Dette er en lettvekts symboltabell, ikke en full kopi av koden.</li>
-  <li><strong>Når en stacktrace dukker opp i en hendelse</strong>, løser LogPilot rammer mot symboltabellen: <code>com.enonic.xp.repo.BlobStore.get()</code> &rarr; <code>src/repo/BlobStore.java:142</code>.</li>
-  <li><strong>AI-kontekstbyggeren</strong> inkluderer de løste kildelinjene (20 linjer rundt rammen) ved siden av de eksisterende hendelsesdataene. AI kan nå forklare feilen i form av faktisk kode.</li>
+  <li><strong>Når en stacktrace dukker opp i en hendelse</strong>, løser LogPilot opp rammer mot symboltabellen: <code>com.enonic.xp.repo.BlobStore.get()</code> &rarr; <code>src/repo/BlobStore.java:142</code>.</li>
+  <li><strong>AI-kontekstbyggeren</strong> inkluderer de oppløste kildelinjene (20 linjer rundt rammen) ved siden av de eksisterende hendelsesdataene. AI kan nå forklare feilen i form av faktisk kode.</li>
 </ol>
 
 <h3>Hva brukeren ser</h3>
@@ -1513,7 +1770,7 @@ What LogPilot already does            What source lookup adds (optional)
         <strong>Hendelse:</strong> Database Connection Cascade<br>
         <strong>Årsak:</strong> NullPointerException i BlobStore.get()<br>
         <strong>Bevis:</strong> 47 forekomster, 3 systemer berørt<br>
-        <strong>AI sier:</strong> &ldquo;Blob store-oppslaget feiler når cache-nøkkelen er null, sannsynligvis under en indeksgjenoppbygging&hellip;&rdquo;
+        <strong>AI sier:</strong> &ldquo;Blob store-oppslaget feiler når cache-nøkkelen er null, sannsynligvis under en indeksoppbygging...&rdquo;
       </td>
       <td>
         <strong>Hendelse:</strong> Database Connection Cascade<br>
@@ -1521,13 +1778,13 @@ What LogPilot already does            What source lookup adds (optional)
         <strong>Kilde:</strong> <code>src/repo/BlobStore.java:142</code><br>
         <strong>Kode:</strong> <code>blob = cache.get(key);</code><br>
         <strong>Sist endret:</strong> 15. feb av dev@enonic.com<br>
-        <strong>AI sier:</strong> &ldquo;Linje 142 sender <code>key</code> til <code>cache.get()</code> uten null-sjekk. <code>key</code> blir null når <code>RepoIndex.rebuild()</code> (linje 89) kjøres under en klusterdeling. Løsning: legg til <code>if (key == null) return Optional.empty();</code> før cache-oppslaget.&rdquo;
+        <strong>AI sier:</strong> &ldquo;Linje 142 sender <code>key</code> til <code>cache.get()</code> uten null-sjekk. <code>key</code> blir null når <code>RepoIndex.rebuild()</code> (linje 89) kjører under en cluster-splittelse. Fix: legg til <code>if (key == null) return Optional.empty();</code> før cache-oppslaget.&rdquo;
       </td>
     </tr>
   </tbody>
 </table>
 
-<p>Produktet fungerer fullt ut uten en repo-tilkobling. Kildekodeoppslag er en &ldquo;koble til repoen din for dypere innsikt&rdquo;-funksjon, ikke et krav.</p>
+<p>Produktet fungerer fullt ut uten repo-tilkobling. Kildekodeoppslag er en &ldquo;koble til repo for dypere innsikt&rdquo;-funksjon, ikke et krav.</p>
 
 <h3>Arkitektur (lettvekts)</h3>
 <table>
@@ -1537,19 +1794,19 @@ What LogPilot already does            What source lookup adds (optional)
   <tbody>
     <tr>
       <td><strong>Git-kobling</strong></td>
-      <td>Skrivebeskyttet grunn kloning eller lokal sti-montering. Henter inkrementelt (ved webhook eller tidsplan). Skriver aldri til repoen.</td>
+      <td>Lesetilgang, grunne kloner eller lokal stikoppling. Henter inkrementelt (via webhook eller tidsplan). Skriver aldri til repoen.</td>
     </tr>
     <tr>
       <td><strong>Symbolindekserer</strong></td>
-      <td>Analyserer kildefiler, bygger <code>klasse.metode &rarr; fil:linje</code>-oppslag. Lagret i Postgres per workspace. Liten: ~1 MB per 100K LOC-repo.</td>
+      <td>Parser kildefiler, bygger <code>klasse.metode &rarr; fil:linje</code>-oppslag. Lagret i Postgres per workspace. Lite: ~1 MB per 100K LOC repo.</td>
     </tr>
     <tr>
       <td><strong>Rammeløser</strong></td>
-      <td>Tilordner stacktrace-rammer fra logg-hendelser til kildelokasjoner ved hjelp av symbolindeksen. Rask minnebasert oppslag.</td>
+      <td>Kobler stacktrace-rammer fra logghendeliser til kildelokasjoner ved hjelp av symbolindeksen. Rask oppslag i minnet.</td>
     </tr>
     <tr>
       <td><strong>Kontekstberiker</strong></td>
-      <td>Leser ~20 linjer kilde rundt løste lokasjoner. Legger til git blame (hvem, når). Mates inn i eksisterende AI-kontekstbygger.</td>
+      <td>Leser ~20 linjer kildekode rundt oppløste lokasjoner. Legger til git blame (hvem, når). Mates inn i eksisterende AI-kontekstbygger.</td>
     </tr>
   </tbody>
 </table>
@@ -1560,37 +1817,37 @@ What LogPilot already does            What source lookup adds (optional)
     <tr><th>Metode</th><th>Best for</th></tr>
   </thead>
   <tbody>
-    <tr><td>GitHub App</td><td>SaaS-kunder på GitHub &mdash; ett-klikks installasjon</td></tr>
+    <tr><td>GitHub App</td><td>SaaS-kunder på GitHub &mdash; én-klikks installasjon</td></tr>
     <tr><td>GitLab OAuth / prosjekttoken</td><td>GitLab-brukere</td></tr>
-    <tr><td>Deploy-nøkkel (SSH, skrivebeskyttet)</td><td>Alle Git-verter, selvhostet Git</td></tr>
-    <tr><td>Lokal sti</td><td>Selvbetjening på bærbar PC &mdash; bare pek til repo-mappen, ingen nettverkstilkobling nødvendig</td></tr>
+    <tr><td>Deploy-nøkkel (SSH, skrivebeskyttet)</td><td>Alle Git-verter, selvdriftet Git</td></tr>
+    <tr><td>Lokal sti</td><td>Self-service på bærbar PC &mdash; pek bare til repomappen din, ingen nettverktilgang nødvendig</td></tr>
   </tbody>
 </table>
 
 <h3>Språkstøtte</h3>
 <table>
   <thead>
-    <tr><th>Språk</th><th>Hvordan stacktrace &rarr; kilde fungerer</th></tr>
+    <tr><th>Språk</th><th>Slik fungerer stacktrace &rarr; kilde</th></tr>
   </thead>
   <tbody>
-    <tr><td>Java / Kotlin</td><td>Pakkestruktur tilordnes deterministisk til filsti. Best støtte.</td></tr>
+    <tr><td>Java / Kotlin</td><td>Pakkesti maps deterministisk til filsti. Beste støtte.</td></tr>
     <tr><td>Python</td><td>Tracebacks inkluderer filsti og linjenummer direkte.</td></tr>
-    <tr><td>JavaScript / TypeScript</td><td>Node.js-traces inkluderer stier. Bundlet nettleserkode trenger source maps.</td></tr>
+    <tr><td>JavaScript / TypeScript</td><td>Node.js-traces inkluderer stier. Buntet nettleserkode trenger source maps.</td></tr>
     <tr><td>Go</td><td>Panic-traces inkluderer fil:linje.</td></tr>
   </tbody>
 </table>
 
 <h3>Sikkerhet</h3>
 <ul>
-  <li><strong>Skrivebeskyttet:</strong> LogPilot skriver aldri til repoen. Ingen push-tilgang, ingen PRer, ingen endringer.</li>
-  <li><strong>Workspace-avgrenset:</strong> Repo-tilkobling og symbolindeks tilhører workspacet. RLS gjelder. Andre workspaces kan ikke se koden.</li>
-  <li><strong>Redigering gjelder:</strong> Kildekode sendt til AI passerer gjennom samme <code>RedactionGate</code>. Hardkodede hemmeligheter i kode blir redigert.</li>
-  <li><strong>Minimale data:</strong> LogPilot lagrer en symbolindeks (~1 MB), ikke en full kodekopi. Kildelinjer hentes ved behov for løste rammer.</li>
+  <li><strong>Skrivebeskyttet:</strong> LogPilot skriver aldri til repoen. Ingen push-tilgang, ingen pull requests, ingen endringer.</li>
+  <li><strong>Workspace-avgrenset:</strong> Repo-tilkobling og symbolindeks tilhører workspace-et. RLS gjelder. Andre workspaces kan ikke se koden.</li>
+  <li><strong>Redaksjon gjelder:</strong> Kildekode sendt til AI passerer gjennom samme <code>RedactionGate</code>. Hardkodede hemmeligheter i kode redigeres.</li>
+  <li><strong>Minimale data:</strong> LogPilot lagrer en symbolindeks (~1 MB), ikke en fullstendig kodekopi. Kildelinjer hentes on-demand kun for oppløste rammer.</li>
 </ul>
 
 <div class="callout callout-info">
   <div class="callout-title">Byggeprioritet: V2+</div>
-  <p>Kjerneprodukte &mdash; loggparsing, heuristikk, hendelsesdeteksjon, AI-forklaring &mdash; må fungere utmerket <strong>uten</strong> noen repo-tilkobling. Kildekodeoppslag er et berikningslag som gjør AI smartere når det er tilgjengelig. Arkitektonisk er det et nytt adapter (Git-kobling) og en ekstra inngang til den eksisterende AI-kontekstbyggeren &mdash; ingen endringer i kjerne-analysepipelinen.</p>
+  <p>Kjerneprodukte &mdash; loggparsing, heuristikk, hendelsesdeteksjon, AI-forklaring &mdash; må fungere utmerket <strong>uten</strong> noen repo-tilkobling. Kildekodeoppslag er et berikingslag som gjør AI smartere når det er tilgjengelig. Arkitektonisk er det en ny adapter (Git-kobling) og ett ekstra inndata til den eksisterende AI-kontekstbyggeren &mdash; ingen endringer i kjerneanalysepipelinen.</p>
 </div>
 </section>
 
@@ -1598,56 +1855,56 @@ What LogPilot already does            What source lookup adds (optional)
 <section id="packaging">
 <h2><span class="num">11.</span> Pakking &amp; Distribusjon</h2>
 
-<h3>Selvbetjening (bærbar PC &rarr; team &rarr; bedrift)</h3>
+<h3>Self-service (bærbar PC &rarr; team &rarr; enterprise)</h3>
 <table>
   <thead>
-    <tr><th>Format</th><th>Målgruppe</th><th>Hva det inkluderer</th></tr>
+    <tr><th>Format</th><th>Målgruppe</th><th>Hva som er inkludert</th></tr>
   </thead>
   <tbody>
     <tr>
       <td><code>pip install logpilot</code></td>
       <td>Utvikler på bærbar PC</td>
-      <td>Python-pakke + ferdigbygget Rust-hjul (PyO3). SQLite + filsystem, ingen eksterne avhengigheter. <code>logpilot serve</code> starter på localhost:8080. Oppretter automatisk &ldquo;Personlig&rdquo; workspace.</td>
+      <td>Python-pakke + ferdigbygget Rust-hjul (PyO3). SQLite + filsystem, null eksterne avhengigheter. <code>logpilot serve</code> starter på localhost:8080. Oppretter automatisk et &ldquo;Personlig&rdquo; workspace.</td>
     </tr>
     <tr>
-      <td>Enkel Docker-container</td>
+      <td>Enkelt Docker-beholder</td>
       <td>Utvikler / lite team</td>
       <td>API + worker + innebygd SQLite. <code>docker run -v ./logs:/data logpilot/logpilot</code></td>
     </tr>
     <tr>
       <td>Docker Compose</td>
       <td>Team / avdeling</td>
-      <td>LogPilot + Postgres + Redis. Sett <code>LOGPILOT_AUTH_BACKEND=oidc</code> for teamautentisering. Flere workspaces.</td>
+      <td>LogPilot + Postgres + Redis. Sett <code>LOGPILOT_AUTH_BACKEND=oidc</code> for team-autentisering. Flere workspaces.</td>
     </tr>
     <tr>
-      <td>Helm-diagram</td>
-      <td>Bedrift / stort team</td>
-      <td>Samme diagram som SaaS, distribuert til kundens Kubernetes. Full HA, ClickHouse valgfritt.</td>
+      <td>Helm-chart</td>
+      <td>Enterprise / stort team</td>
+      <td>Samme chart som SaaS, distribuert til kundens Kubernetes. Full HA, ClickHouse valgfritt.</td>
     </tr>
     <tr>
       <td>Markedsplass</td>
-      <td>Sky-kunder</td>
-      <td>AWS AMI / Azure Container App / GCP Cloud Run. Samme images, plattforminnpakninger.</td>
+      <td>Skykunder</td>
+      <td>AWS AMI / Azure Container App / GCP Cloud Run. Samme bilder, plattforminnpakninger.</td>
     </tr>
   </tbody>
 </table>
 
-<h3>SaaS (vi hoster)</h3>
+<h3>SaaS (vi drifter)</h3>
 <table>
   <thead>
     <tr><th>Komponent</th><th>Distribusjon</th></tr>
   </thead>
   <tbody>
     <tr><td>API</td><td>2&ndash;10 replikaer, HPA på CPU</td></tr>
-    <tr><td>Workers</td><td>2&ndash;20 replikaer, HPA på køddybde</td></tr>
-    <tr><td>Frontend</td><td>Nginx som serverer statisk React-bygg</td></tr>
+    <tr><td>Arbeidere</td><td>2&ndash;20 replikaer, HPA på kødybde</td></tr>
+    <tr><td>Frontend</td><td>Nginx serverer statisk React-bygg</td></tr>
     <tr><td>Infrastruktur</td><td>Administrert Postgres, ClickHouse, Redis, S3</td></tr>
   </tbody>
 </table>
 
 <div class="callout callout-success">
-  <div class="callout-title">Ét image, én CI/CD-pipeline</div>
-  <p>Selvbetjening og SaaS bruker de samme Docker-images. Den eneste forskjellen er konfigurasjon. En kunde som starter på sin bærbare PC kan senere distribuere det samme imaget til sin Kubernetes-klynge &mdash; bare legg til env-variabler for Postgres, Redis og OIDC.</p>
+  <div class="callout-title">Ett bilde, én CI-pipeline</div>
+  <p>Self-service og SaaS bruker de samme Docker-bildene. Den eneste forskjellen er konfigurasjon. En kunde som starter på sin bærbare PC kan senere distribuere samme bilde til sitt Kubernetes-cluster &mdash; bare legg til miljøvariabler for Postgres, Redis og OIDC.</p>
 </div>
 </section>
 
@@ -1656,8 +1913,8 @@ What LogPilot already does            What source lookup adds (optional)
 <h2><span class="num">12.</span> Kostnadsprofil</h2>
 
 <div class="callout callout-info">
-  <div class="callout-title">Helt open source, ingen lisensavgifter</div>
-  <p>Alle komponenter i stacken (React, FastAPI, Rust, PostgreSQL, Redis, ClickHouse, DuckDB, MinIO, Dramatiq, Docker) er open source. De eneste kostnadene er infrastrukturhosting og AI-leverandørtokens. Se <a href="logpilot-go-to-market.html#pricing">Go-To-Market-strategien</a> for detaljert kostnadsanalyse, enhetsøkonomi og prissetting.</p>
+  <div class="callout-title">Alt åpen kildekode, ingen lisensavgifter</div>
+  <p>Alle komponenter i stacken (React, FastAPI, Rust, PostgreSQL, Redis, ClickHouse, DuckDB, MinIO, Dramatiq, Docker) er åpen kildekode. De eneste kostnadene er infrastrukturhosting og AI-leverandørtokens. Se <a href="logpilot-go-to-market.html#pricing">Go-To-Market-strategien</a> for detaljert kostnadsanalyse, enhetsøkonomi og prissetting.</p>
 </div>
 
 <table>
@@ -1665,9 +1922,9 @@ What LogPilot already does            What source lookup adds (optional)
     <tr><th>Scenario</th><th>Infrastrukturkostnad</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>Bærbar PC (selvbetjening)</strong></td><td>$0 &mdash; kjører på lokal maskinvare</td></tr>
-    <tr><td><strong>Teamserver (selvbetjening)</strong></td><td>~$50/måned (enkelt VM med Docker Compose)</td></tr>
-    <tr><td><strong>SaaS (vi hoster)</strong></td><td>~$200&ndash;500/måned (administrert Postgres, Redis, S3, beregning)</td></tr>
+    <tr><td><strong>Bærbar PC (self-service)</strong></td><td>$0 &mdash; kjører på lokal maskinvare</td></tr>
+    <tr><td><strong>Teamserver (self-service)</strong></td><td>~$50/måned (enkelt VM med Docker Compose)</td></tr>
+    <tr><td><strong>SaaS (vi drifter)</strong></td><td>~$200&ndash;500/måned (administrert Postgres, Redis, S3, beregning)</td></tr>
   </tbody>
 </table>
 </section>
@@ -1684,57 +1941,57 @@ What LogPilot already does            What source lookup adds (optional)
   <tbody>
     <tr>
       <td><strong>Tid til første innsikt</strong></td>
-      <td>Brukere laster opp logger fordi noe er ødelagt <em>akkurat nå</em>. Parsehastighet og analyselatens er produktet. Dette rettferdiggjør investeringen i Rust-motoren.</td>
+      <td>Brukere laster opp logger fordi noe er ødelagt <em>akkurat nå</em>. Parse-hastighet og analyselatens er produktet. Dette rettferdiggjør investeringen i Rust-motoren.</td>
     </tr>
     <tr>
       <td><strong>Dataisolasjon &amp; sikkerhet</strong></td>
-      <td>Bedrifter vil ikke ta i bruk et loggverktøy som kan lekke data. RLS, typet redigering og revisjonslogging er krav fra dag én.</td>
+      <td>Enterprise vil ikke ta i bruk et loggverktøy som kan lekke data. RLS, typet redaksjon og revisjonslogging er krav fra dag én.</td>
     </tr>
     <tr>
       <td><strong>Distribusjonsfleksibilitet</strong></td>
-      <td>Å kjøre lokalt OG som SaaS er en konkurransefordel. Adaptermønsteret koster ~20 % mer opprinnelig, men låser opp hele markedet.</td>
+      <td>Å kjøre lokalt OG som SaaS er en konkurransefordel. Adaptermønsteret koster ~20 % mer i starten, men åpner hele markedet.</td>
     </tr>
   </tbody>
 </table>
 
-<h3>Bevisst IKKE optimaliser tidlig</h3>
+<h3>Bevisst IKKE optimalisere tidlig</h3>
 <table>
   <thead>
     <tr><th>Fristelse</th><th>Hvorfor hoppe over</th></tr>
   </thead>
   <tbody>
-    <tr><td>Sanntids loggstrømming / tail -f</td><td>Annet produkt (Datadog-territorium). Legg til senere som valgfri agent.</td></tr>
-    <tr><td>ClickHouse i lokal modus</td><td>DuckDB + Parquet er nok for enkeltbruker.</td></tr>
-    <tr><td>Multi-region SaaS</td><td>Selvbetjeningsmodus løser dataplassering til skala rettferdiggjør det.</td></tr>
-    <tr><td>Egendefinert heuristikk-editor-UI</td><td>YAML + Git er greit for V1.</td></tr>
+    <tr><td>Sanntids loggstrømming / tail -f</td><td>Annet produkt (Datadog-territorium). Legg til senere som en valgfri agent.</td></tr>
+    <tr><td>ClickHouse i lokal modus</td><td>DuckDB + Parquet er nok for én bruker.</td></tr>
+    <tr><td>Flerregions SaaS</td><td>Self-service-modus løser datalagring til skala rettferdiggjør det.</td></tr>
+    <tr><td>Egendefinert heuristikk-redigerer i UI</td><td>YAML + Git er greit for V1.</td></tr>
     <tr><td>Plugin-markedsplass</td><td>Utvidbart system ja, offentlig register nei. For tidlig.</td></tr>
   </tbody>
 </table>
 
-<h3>Hvor kompleksitet ER berettiget</h3>
+<h3>Der kompleksitet ER rettferdiggjort</h3>
 <table>
   <thead>
     <tr><th>Investering</th><th>Kostnad</th><th>Begrunnelse</th></tr>
   </thead>
   <tbody>
-    <tr><td>Rust-parseingmotor</td><td>Høy</td><td>100x ytelse. Muliggjør GB-skala uten infrastrukturskalering.</td></tr>
-    <tr><td>Typet redigerings-gate</td><td>Medium</td><td>Eliminerer en hel klasse av datalekkfeil.</td></tr>
+    <tr><td>Rust parse-motor</td><td>Høy</td><td>100x ytelse. Muliggjør GB-skala uten skalering av infrastruktur.</td></tr>
+    <tr><td>Typet redaksjonsport</td><td>Medium</td><td>Eliminerer en hel klasse av datalekkasje-feil.</td></tr>
     <tr><td>Postgres RLS</td><td>Medium</td><td>Forsvar i dybden. Applikasjonsfeil kan ikke lekke data.</td></tr>
-    <tr><td>Adapterbasert infrastruktur</td><td>Medium</td><td>Selvbetjening + SaaS fra én kodebase, fra bærbar PC til bedrift.</td></tr>
-    <tr><td>Parquet mellomformat</td><td>Lav&ndash;medium</td><td>Kolonnebaserte spørringer uten å laste alt inn i RAM.</td></tr>
+    <tr><td>Adaptorbasert infrastruktur</td><td>Medium</td><td>Self-service + SaaS fra én kodebase, fra bærbar PC til enterprise.</td></tr>
+    <tr><td>Parquet mellomformat</td><td>Lav&ndash;medium</td><td>Kolonnespørringer uten å laste alt inn i RAM.</td></tr>
   </tbody>
 </table>
 
-<h3>Hvor kompleksitet IKKE er berettiget</h3>
+<h3>Der kompleksitet IKKE er rettferdiggjort</h3>
 <table>
   <thead>
     <tr><th>Fristelse</th><th>Hvorfor hoppe over</th></tr>
   </thead>
   <tbody>
-    <tr><td>Mikrotjenester fra dag én</td><td>Modulær monolytt er enklere. Trekk ut tjenester kun ved spesifikke skaleringsflaskehalser.</td></tr>
+    <tr><td>Mikrotjenester fra dag én</td><td>Modulær monolit er enklere. Trekk ut tjenester kun ved spesifikke skaleringsflaskehalser.</td></tr>
     <tr><td>GraphQL</td><td>REST + WebSocket er enklere. Søkemønstre er kjente og endelige.</td></tr>
-    <tr><td>Event sourcing</td><td>Overkill. Standard CRUD + JSONB fungerer.</td></tr>
-    <tr><td>Kubernetes-operatører</td><td>Helm-diagram er nok til 100+ bedriftsinstallasjoner.</td></tr>
+    <tr><td>Event sourcing</td><td>Overdrevent. Standard CRUD + JSONB fungerer.</td></tr>
+    <tr><td>Kubernetes-operatører</td><td>Helm-chart er nok til 100+ enterprise-installasjoner.</td></tr>
     <tr><td>Egendefinert spørrespråk</td><td>DuckDB SQL over Parquet er allerede kraftig. Ikke oppfinn et DSL.</td></tr>
   </tbody>
 </table>
@@ -1742,14 +1999,14 @@ What LogPilot already does            What source lookup adds (optional)
 
 <!-- 11. DREAM VS PRAGMATIC -->
 <section id="comparison">
-<h2><span class="num">14.</span> Drømmestabel vs. Pragmatisk stabel</h2>
+<h2><span class="num">14.</span> Drøm vs. pragmatisk stack</h2>
 
 <table class="compare-table">
   <thead>
     <tr>
-      <th>Bekymring</th>
-      <th><span class="dream">Drømmestabel</span></th>
-      <th><span class="pragmatic">Pragmatisk stabel</span></th>
+      <th>Område</th>
+      <th><span class="dream">Drømmestacken</span></th>
+      <th><span class="pragmatic">Pragmatisk stack</span></th>
     </tr>
   </thead>
   <tbody>
@@ -1766,7 +2023,7 @@ What LogPilot already does            What source lookup adds (optional)
     <tr>
       <td><strong>Parse-motor</strong></td>
       <td>Rust + PyO3</td>
-      <td><strong>Python + ProcessPoolExecutor</strong>. Skriv om til Rust ved produkt-marked-tilpasning.</td>
+      <td><strong>Python + ProcessPoolExecutor</strong>. Skriv om til Rust ved product-market fit.</td>
     </tr>
     <tr>
       <td><strong>Bakgrunnsjobber</strong></td>
@@ -1781,7 +2038,7 @@ What LogPilot already does            What source lookup adds (optional)
     <tr>
       <td><strong>Hendelseslagring</strong></td>
       <td>ClickHouse (SaaS) + Parquet</td>
-      <td><strong>Postgres JSONB</strong> for hendelser også &mdash; bra til ~10M hendelser/workspace</td>
+      <td><strong>Postgres JSONB</strong> for hendelser også &mdash; bra opptil ~10M hendelser/workspace</td>
     </tr>
     <tr>
       <td><strong>Objektlager</strong></td>
@@ -1789,28 +2046,28 @@ What LogPilot already does            What source lookup adds (optional)
       <td><strong>Filsystem</strong> med S3-adapter klar men ubrukt</td>
     </tr>
     <tr>
-      <td><strong>Cache</strong></td>
+      <td><strong>Buffer</strong></td>
       <td>Redis</td>
       <td><strong>In-process LRU + Redis</strong> kun for kø</td>
     </tr>
     <tr>
       <td><strong>Autentisering</strong></td>
       <td>OIDC-abstraksjon</td>
-      <td><strong>Egendefinert OIDC-abstraksjon</strong> &mdash; Clerk/Auth0 kan ikke kjøre i selvbetjeningsdistribusjoner. Enkel OIDC-adapter (~80 linjer) er den riktige avveiningen.</td>
+      <td><strong>Egendefinert OIDC-abstraksjon</strong> &mdash; Clerk/Auth0 kan ikke kjøre i self-service-distribusjoner. Enkel OIDC-adapter (~80 linjer) er riktig avveining.</td>
     </tr>
     <tr>
       <td><strong>Lokal modus</strong></td>
       <td>SQLite + DuckDB + Parquet + filsystem</td>
-      <td><strong>SQLite + filsystem</strong> &mdash; DuckDB + Parquet legges til i V2 når kolonnebaserte spørringer trengs</td>
+      <td><strong>SQLite + filsystem</strong> &mdash; DuckDB + Parquet legges til i V2 når kolonnespørringer er nødvendig</td>
     </tr>
     <tr>
       <td><strong>Distribusjon</strong></td>
-      <td>Kubernetes Helm-diagram</td>
+      <td>Kubernetes Helm-chart</td>
       <td><strong>Docker Compose</strong> for alt</td>
     </tr>
     <tr>
-      <td><strong>AI-redigering</strong></td>
-      <td>Typet RedactedText newtype</td>
+      <td><strong>AI-redaksjon</strong></td>
+      <td>Typet RedactedText-nytype</td>
       <td><strong>Samme</strong> &mdash; billig og kritisk, ingen snarvei</td>
     </tr>
   </tbody>
@@ -1818,7 +2075,7 @@ What LogPilot already does            What source lookup adds (optional)
 
 <div class="callout callout-insight">
   <div class="callout-title">Oppsummering</div>
-  <p>Start pragmatisk, oppgrader til drømmen etter hvert som inntekter rettferdiggjør investeringen. Adaptermønsteret gjør denne utviklingen mulig uten omskrivinger. Se <a href="logpilot-project-plan.html">Prosjektplanen</a> for detaljerte bygfaser og tidslinje.</p>
+  <p>Start pragmatisk, gå over til drømmestacken etter hvert som inntektene rettferdiggjør investeringen. Adaptermønsteret gjør denne utviklingen mulig uten omskriving. Se <a href="logpilot-project-plan.html">Prosjektplanen</a> for detaljerte byggefaser og tidslinje.</p>
 </div>
 </section>
 
