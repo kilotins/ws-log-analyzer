@@ -26,13 +26,15 @@ RAG, SSE, NDJSON, JSONB, pgvector, embedding, token, prompt, streaming
 LogPilot, Item Consulting, Datadog, Splunk, Sentry, ChatGPT, Claude, OpenAI, Gemini, Anthropic, GitHub, GitLab, Jira, Linear, Slack, PagerDuty, Stripe, Vipps, Enonic XP, Hacker News, LinkedIn
 
 ### Development Concepts
-webhook, pipeline, endpoint, middleware, adapter, protocol, plugin, backend, frontend, deploy, release, sprint, refactor, monorepo
+webhook, pipeline, endpoint, middleware, adapter, protocol, plugin, backend, frontend, deploy, release, sprint, refactor, monorepo, scaffolding, boilerplate
+
+### Product / UX Concepts
+workspace, self-service, runbook, redaction, on-call, changelog, deployment, self-hosted, customer-hosted, trade-off, edge case
 
 ## Terms to Translate
 
 | English | Norwegian (bokmål) |
 |---------|-------------------|
-| workspace | arbeidsområde |
 | organization | organisasjon |
 | member | medlem |
 | user | bruker |
@@ -51,23 +53,12 @@ webhook, pipeline, endpoint, middleware, adapter, protocol, plugin, backend, fro
 | billing | fakturering |
 | pricing | prising |
 | trial | prøveperiode |
-| on-call | beredskap |
-| on-call engineer | beredskapsingeniør |
-| runbook | driftshåndbok / kjørebok |
-| changelog | endringslogg |
 | milestone | milepæl |
-| deployment | utrulling |
-| self-hosted | selvdriftet |
-| customer-hosted | kundedriftet |
 | open source | open source (keep English) |
-| trade-off | avveining |
-| scaffolding | stillasering |
-| boilerplate | standardkode |
 | dead code | død kode |
 | technical debt | teknisk gjeld |
 | blast radius | skadeomfang |
 | bottleneck | flaskehals |
-| edge case | grensetilfelle |
 
 ## Sentence Structure
 
