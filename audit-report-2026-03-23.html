@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogPilot Code Audit — 2026-03-23</title>
+<style>
+:root { --purple: #7C3AED; --green: #34D399; --dark: #0F172A; --gray-50: #F8FAFC; --gray-100: #F1F5F9;
+  --gray-200: #E2E8F0; --gray-500: #64748B; --gray-700: #334155; --gray-800: #1E293B;
+  --red: #DC2626; --red-bg: #FEF2F2; --yellow: #D97706; --yellow-bg: #FFFBEB;
+  --green-bg: #ECFDF5; --blue: #2563EB; --blue-bg: #EFF6FF; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; color: var(--dark); line-height: 1.7; background: var(--gray-50); }
+.page { max-width: 860px; margin: 0 auto; padding: 3rem 2rem; }
+.header { text-align: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 3px solid var(--purple); }
+.header h1 { font-size: 2rem; font-weight: 800; }
+.header h1 span { color: var(--purple); }
+.header .meta { color: var(--gray-500); font-size: 0.9rem; margin-top: 0.5rem; }
+.score-banner { background: linear-gradient(135deg, var(--purple), #6D28D9); color: white; padding: 1.5rem 2rem;
+  border-radius: 12px; margin-bottom: 2rem; text-align: center; }
+.score-banner .big { font-size: 3rem; font-weight: 800; }
+.score-banner .label { font-size: 1rem; opacity: 0.9; }
+.score-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 2rem; }
+.score-item { background: white; border: 1px solid var(--gray-200); border-radius: 8px; padding: 12px; text-align: center; }
+.score-item .num { font-size: 1.5rem; font-weight: 700; color: var(--purple); }
+.score-item .lbl { font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase; }
+section { background: white; border: 1px solid var(--gray-200); border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 1rem; }
+h2 { font-size: 1.3rem; font-weight: 700; color: var(--dark); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px; }
+h2 .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+h2 .badge-green { background: var(--green-bg); color: #059669; }
+h2 .badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+h3 { font-size: 1rem; font-weight: 600; color: var(--gray-700); margin: 1rem 0 0.5rem; }
+ul { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+li { margin-bottom: 0.3rem; font-size: 0.9rem; }
+.good { color: #059669; }
+.issue { color: var(--red); }
+.p2 { background: var(--yellow-bg); border-left: 3px solid var(--yellow); padding: 8px 12px; border-radius: 0 6px 6px 0; margin: 8px 0; font-size: 0.85rem; }
+.p3 { background: var(--blue-bg); border-left: 3px solid var(--blue); padding: 8px 12px; border-radius: 0 6px 6px 0; margin: 8px 0; font-size: 0.85rem; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+th { background: var(--gray-800); color: white; padding: 8px 12px; text-align: left; }
+td { padding: 6px 12px; border-bottom: 1px solid var(--gray-200); }
+tr:hover { background: var(--gray-100); }
+.footer { text-align: center; color: var(--gray-500); font-size: 0.8rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); }
+code { font-family: 'SF Mono', Menlo, monospace; font-size: 0.85em; background: var(--gray-100); padding: 1px 5px; border-radius: 3px; color: var(--purple); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="header">
+  <h1>Log<span>Pilot</span> Code Audit</h1>
+  <div class="meta">2026-03-23 — Claude Opus 4.6 — 1798 tests passing, 12 format plugins, 68+ heuristics</div>
+</div>
+
+<div class="score-banner">
+  <div class="big">8.2 / 10</div>
+  <div class="label">Overall Score — 0 P0 issues, 0 P1, 4 P2, 13 P3</div>
+</div>
+
+<div class="score-grid">
+  <div class="score-item"><div class="num">8</div><div class="lbl">Architecture</div></div>
+  <div class="score-item"><div class="num">7</div><div class="lbl">Code Quality</div></div>
+  <div class="score-item"><div class="num">9</div><div class="lbl">Security</div></div>
+  <div class="score-item"><div class="num">8</div><div class="lbl">Tests</div></div>
+  <div class="score-item"><div class="num">8</div><div class="lbl">Performance</div></div>
+  <div class="score-item"><div class="num">8</div><div class="lbl">Errors</div></div>
+  <div class="score-item"><div class="num">9</div><div class="lbl">AI</div></div>
+  <div class="score-item"><div class="num">9</div><div class="lbl">Formats</div></div>
+  <div class="score-item"><div class="num">8</div><div class="lbl">Reports</div></div>
+  <div class="score-item"><div class="num">8</div><div class="lbl">Docs</div></div>
+</div>
+
+<section>
+<h2>1. Architecture &amp; Modularity <span class="badge badge-green">8/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>Clean separation: <code>logpilot/</code> is pure library, <code>app*.py</code> is GUI, <code>cli.py</code> is CLI</li>
+  <li>Protocol-based format plugin system — proper duck typing, no inheritance</li>
+  <li><code>precompute_analysis()</code> centralizes all analysis in a single dict</li>
+  <li>Heuristics externalized to YAML with compiled Python fallback</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p3"><strong>P3:</strong> Duplicated regex between <code>parser.py:46-48</code> and <code>formats/base.py:52-54</code> (EXC_HEAD_RE, STACK_LINE_RE, CAUSED_BY_RE)</div>
+<div class="p3"><strong>P3:</strong> Fragile circular import — <code>formats/__init__.py:119</code> imports from <code>parser.py</code> inside a function</div>
+<div class="p2"><strong>P2:</strong> <code>app.py:1115</code> stores full event list in <code>st.session_state</code> — doubles memory for large files</div>
+</section>
+
+<section>
+<h2>2. Code Quality <span class="badge badge-yellow">7/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>LogEvent dataclass with __slots__, dict-protocol, to_dict()</li>
+  <li>Type hints on most public functions</li>
+  <li><code>sys.intern()</code> on high-cardinality strings</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p3"><strong>P3:</strong> <code>cli.py:13</code> imports private <code>_sanitize_prompt_input</code> from ai.py</div>
+<div class="p3"><strong>P3:</strong> Dead <code>callable(repl)</code> branches in <code>redact()</code> at <code>parser.py:225-238</code></div>
+<div class="p3"><strong>P3:</strong> <code>parse_file()</code> docstring says "event dicts" but returns <code>list[LogEvent]</code></div>
+</section>
+
+<section>
+<h2>3. Security <span class="badge badge-green">9/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>10 secret redaction patterns (Bearer, JWT, AWS, PEM, Basic/Digest)</li>
+  <li>4-level PII redaction (none/secrets/standard/strict) with GDPR patterns</li>
+  <li>Fast-check pre-filters avoid expensive regex on clean lines</li>
+  <li>Prompt injection defense explicit in all AI system prompts</li>
+  <li><code>_sanitize_prompt_input()</code> used consistently before AI calls</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p2"><strong>P2:</strong> Redaction level is process-global via env var — shared Streamlit deployments can't have per-user levels</div>
+<div class="p3"><strong>P3:</strong> Credit card regex <code>\b[3-6]\d{12,18}\b</code> could false-positive on long numeric IDs</div>
+</section>
+
+<section>
+<h2>4. Test Coverage <span class="badge badge-green">8/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>1798 tests across 40+ test files</li>
+  <li>Dedicated tests per format plugin (12 test files)</li>
+  <li>Scenario tests with synthetic multi-system log fixtures</li>
+  <li>Separate test files for PII, confidence, executive summary</li>
+</ul>
+<h3 class="issue">Gaps</h3>
+<div class="p2"><strong>P2:</strong> No tests for <code>incident_fingerprint()</code> and <code>match_similar_incidents()</code></div>
+<div class="p2"><strong>P2:</strong> No focused HTML report tests (collapsible sections, dark mode, AI embedding)</div>
+<div class="p3"><strong>P3:</strong> No test for <code>_evict_parse_cache()</code> edge cases</div>
+</section>
+
+<section>
+<h2>5. Performance <span class="badge badge-green">8/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>Generator-based parsing avoids loading entire files into memory</li>
+  <li>File-level gzip parse cache with LRU eviction</li>
+  <li>INFO sampling for large files</li>
+  <li>Format detection reads only first 50 lines</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p2"><strong>P2:</strong> Session state duplicates full event list in Streamlit — doubles RAM for large uploads</div>
+<div class="p3"><strong>P3:</strong> No "Caused by:" fast-check before <code>splitlines()</code> in <code>classify_event()</code></div>
+</section>
+
+<section>
+<h2>6. Error Handling <span class="badge badge-green">8/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>Graceful .gz fallback on corrupt files</li>
+  <li>Cache failures fall back to re-parsing</li>
+  <li>Format detection returns default on empty files</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p3"><strong>P3:</strong> Silent PyYAML import failure — no log message when falling back to hardcoded heuristics</div>
+<div class="p3"><strong>P3:</strong> No <code>--log-type</code> hint when format detection fails and no events are parsed</div>
+</section>
+
+<section>
+<h2>7. AI Integration <span class="badge badge-green">9/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>4 providers: Claude, Gemini, OpenAI, local — same prompt quality across all</li>
+  <li>Structured XML sections in prompts with clear data boundaries</li>
+  <li>Skill system loads domain knowledge per detected format</li>
+  <li>Conversation context (previous_answer) for follow-up queries</li>
+  <li>max_tokens 8192 prevents truncation on complex analyses</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p3"><strong>P3:</strong> Hardcoded truncation thresholds (8000, 300000, 12000 chars) — no shared constants</div>
+<div class="p3"><strong>P3:</strong> No retry/backoff on CLI AI calls — transient 429/503 fails immediately</div>
+</section>
+
+<section>
+<h2>8. Format Plugins <span class="badge badge-green">9/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>12 plugins: WAS, JSON, nginx, Log4j, CRI-O, DataPower, Tomcat, PostgreSQL, Python, syslog, Enonic, Docker JSON</li>
+  <li>Protocol-based interface — 6 required methods</li>
+  <li>Each plugin has own scoring, signal tags, stacktrace handling</li>
+  <li>Runtime registration allows extensions</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p3"><strong>P3:</strong> Default fallback is WAS — should be configurable for non-Java environments</div>
+</section>
+
+<section>
+<h2>9. Reports <span class="badge badge-green">8/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>6 formats: Markdown, JSON, HTML, PDF, Executive Summary (MD), Executive Summary (HTML)</li>
+  <li>HTML has dark/light mode, sidebar nav, confidence badges, failure chain arrows</li>
+  <li>Decision-driven layout: Incident Summary → Causes → Evidence → Supporting Data</li>
+  <li>Smart collapse: Supporting Data hidden when confidence is High</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p3"><strong>P3:</strong> Overloaded first parameter type (<code>list[LogEvent] | ReportConfig | None</code>) is confusing</div>
+<div class="p3"><strong>P3:</strong> No auto-escaping wrapper — relies on manual <code>escape()</code> calls</div>
+</section>
+
+<section>
+<h2>10. Documentation <span class="badge badge-green">8/10</span></h2>
+<h3 class="good">Strengths</h3>
+<ul>
+  <li>CLAUDE.md with skills table, key files, gotchas</li>
+  <li>25+ domain skill files covering all supported systems</li>
+  <li>GDPR skill, scenario-builder skill, Jira/Confluence skill</li>
+  <li>Memory files track decisions and project history</li>
+</ul>
+<h3 class="issue">Issues</h3>
+<div class="p3"><strong>P3:</strong> CLI <code>--redaction-level</code> help text doesn't describe what each level redacts</div>
+<div class="p3"><strong>P3:</strong> <code>parse_file()</code> docstring says "event dicts" — stale after dataclass migration</div>
+</section>
+
+<section>
+<h2>P2 Issues — Should Fix</h2>
+<table>
+<thead><tr><th>#</th><th>Issue</th><th>Location</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Session state memory duplication — events stored twice</td><td>app.py:1115</td></tr>
+<tr><td>2</td><td>Missing tests for incident_fingerprint() + match_similar_incidents()</td><td>heuristics.py:852-920</td></tr>
+<tr><td>3</td><td>Missing focused HTML report tests</td><td>test_reports.py</td></tr>
+<tr><td>4</td><td>Process-global redaction level via env var</td><td>parser.py:371</td></tr>
+</tbody>
+</table>
+</section>
+
+</div>
+
+<div class="footer">
+  Audited by Claude Opus 4.6 (1M context) — LogPilot v0.1.0 — Item Consulting
+</div>
+
+</div>
+</body>
+</html>

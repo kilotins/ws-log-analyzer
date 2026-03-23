@@ -161,21 +161,39 @@ def render_executive_summary(
             md.append(f"| {g['name']} | {label} ({score:.0%}) | {role} |")
         md.append("")
 
-    # AI summary (if available)
+    # AI analysis (if available) — extract key sections, not just a snippet
     if ai_content and ai_content.get("incident"):
         ai_text = ai_content["incident"]
-        # Extract just the executive summary section if present
-        if "## Executive Summary" in ai_text:
-            start = ai_text.index("## Executive Summary")
-            end = ai_text.find("\n## ", start + 1)
-            ai_excerpt = ai_text[start:end].strip() if end > 0 else ai_text[start:start+500].strip()
+        md.append("## AI Analysis")
+        md.append("")
+
+        # Extract the most valuable sections from AI response
+        _key_sections = [
+            "## Executive Summary",
+            "## Root Cause",
+            "## Cascade Analysis",
+            "## Suggested Actions",
+            "## Missing Logs",
+        ]
+        _extracted = []
+        for section_header in _key_sections:
+            if section_header in ai_text:
+                start = ai_text.index(section_header)
+                end = ai_text.find("\n## ", start + len(section_header))
+                section_text = ai_text[start:end].strip() if end > 0 else ai_text[start:].strip()
+                # Limit each section to 1000 chars to keep it concise but meaningful
+                if len(section_text) > 1000:
+                    section_text = section_text[:1000].rsplit("\n", 1)[0] + "\n..."
+                _extracted.append(section_text)
+
+        if _extracted:
+            md.append("\n\n".join(_extracted))
         else:
-            # First 300 chars of AI analysis
-            ai_excerpt = ai_text[:300].strip()
-            if len(ai_text) > 300:
-                ai_excerpt += "..."
-        md.append("## AI Analysis Summary")
-        md.append(ai_excerpt)
+            # No structured sections found — include full AI text up to 2000 chars
+            ai_excerpt = ai_text[:2000].strip()
+            if len(ai_text) > 2000:
+                ai_excerpt = ai_excerpt.rsplit("\n", 1)[0] + "\n..."
+            md.append(ai_excerpt)
         md.append("")
 
     # Footer
