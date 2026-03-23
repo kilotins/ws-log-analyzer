@@ -1,0 +1,49 @@
+20260322T090000.000Z [default][info][0x00000000] DataPower Gateway v10.5.0.4 started, domain 'bank-prod'
+20260322T090001.000Z [default][info][0x00000000] Service 'nav-proxy' listening on port 9444 — upstream: nav-api.nav.no:443
+20260322T090001.100Z [default][info][0x00000000] Service 'aml-proxy' listening on port 9445 — upstream: aml-register.finanstilsynet.no:443
+20260322T090001.200Z [default][info][0x00000000] Service 'vps-proxy' listening on port 9446 — upstream: api.vps.no:443
+20260322T090001.300Z [default][info][0x00000000] Service 'folkereg-proxy' listening on port 9447 — upstream: folkeregisteret.api.skatteetaten.no:443
+20260322T090002.000Z [aaa][info][0x00000000] JWT validation configured: issuer='https://auth.klpbank.no', audience='api-gateway'
+20260322T090100.000Z [mpgw][info][0x00000000] POST /nav/api/v2/person/income 200 OK (89ms) client=10.0.1.50 upstream=nav-api.nav.no:443 trace=aa11bb22-1111-2222-3333-444455550001
+20260322T090100.500Z [mpgw][info][0x00000000] GET /folkereg/api/v1/person/12345678901 200 OK (45ms) client=10.0.1.50 upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550002
+20260322T090101.000Z [mpgw][info][0x00000000] POST /aml/api/v1/screening 200 OK (120ms) client=10.0.1.51 upstream=aml-register.finanstilsynet.no:443 trace=aa11bb22-1111-2222-3333-444455550003
+20260322T090101.500Z [mpgw][info][0x00000000] GET /vps/api/v1/securities/portfolio 200 OK (67ms) client=10.0.1.50 upstream=api.vps.no:443 trace=aa11bb22-1111-2222-3333-444455550004
+20260322T090200.000Z [mpgw][info][0x00000000] POST /nav/api/v2/person/income 200 OK (92ms) client=10.0.1.52 upstream=nav-api.nav.no:443 trace=aa11bb22-1111-2222-3333-444455550005
+20260322T090201.000Z [mpgw][info][0x00000000] POST /aml/api/v1/screening 200 OK (115ms) client=10.0.1.53 upstream=aml-register.finanstilsynet.no:443 trace=aa11bb22-1111-2222-3333-444455550006
+20260322T090300.000Z [mpgw][info][0x00000000] POST /nav/api/v2/person/income 200 OK (85ms) client=10.0.1.50 upstream=nav-api.nav.no:443 trace=aa11bb22-1111-2222-3333-444455550007
+20260322T090400.000Z [mpgw][warn][0x80e00002] POST /folkereg/api/v1/person/98765432100 upstream response slow: 4523ms (threshold: 3000ms) upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550008
+20260322T090401.000Z [mpgw][warn][0x80e00002] GET /folkereg/api/v1/person/11223344556 upstream response slow: 5102ms (threshold: 3000ms) upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550009
+20260322T090402.000Z [mpgw][error][0x80e00002] POST /folkereg/api/v1/person/lookup/batch upstream timeout after 30000ms upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550010
+  Request: POST https://folkeregisteret.api.skatteetaten.no:443/api/v1/person/lookup/batch
+  Headers: Authorization: Bearer eyJhbG...***REDACTED***, Content-Type: application/json
+  Response: TIMEOUT — no response received within 30000ms
+20260322T090403.000Z [xmlparse][error][0x80c00001] Response parsing failed for /folkereg/api/v1/person/55667788990: unexpected content-type 'text/html' (expected 'application/json') upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550011
+  Received HTML error page instead of JSON response:
+  <!DOCTYPE html><html><head><title>503 Service Temporarily Unavailable</title></head>
+  <body><h1>503 Service Temporarily Unavailable</h1><p>The server is temporarily unable to service your request.</p></body></html>
+20260322T090404.000Z [mpgw][error][0x80e00002] POST /folkereg/api/v1/person/lookup/batch upstream timeout after 30000ms upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550012
+20260322T090405.000Z [mpgw][error][0x80c00001] Response validation failed for /folkereg/api/v1/person/33445566778: schema mismatch — field 'bostedsadresse' missing (required) upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550013
+  Expected schema: PersonResponse v3.2 (bostedsadresse: required, postadresse: required)
+  Received: PersonResponse v4.0 (bostedsadresse: removed, adressegradering: new field)
+  Possible cause: Folkeregisteret API upgraded from v3 to v4 without notice
+20260322T090406.000Z [mpgw][error][0x80e00002] GET /folkereg/api/v1/person/44556677889 upstream timeout after 30000ms upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550014
+20260322T090407.000Z [apiconnect][warn][0x80b00234] Circuit breaker OPEN for 'folkereg-proxy' — 5 consecutive failures in 120s
+20260322T090408.000Z [mpgw][error][0x8060001a] Processing policy 'kyc-verification' action failed at step 4: Folkeregisteret lookup unavailable
+  Fallback: KYC verification queued for manual review
+  Queue depth: 23 pending verifications
+  Impact: New customer onboarding blocked
+20260322T090410.000Z [mpgw][info][0x00000000] POST /nav/api/v2/person/income 200 OK (91ms) client=10.0.1.50 upstream=nav-api.nav.no:443 trace=aa11bb22-1111-2222-3333-444455550015
+20260322T090411.000Z [mpgw][info][0x00000000] POST /aml/api/v1/screening 200 OK (108ms) client=10.0.1.51 upstream=aml-register.finanstilsynet.no:443 trace=aa11bb22-1111-2222-3333-444455550016
+20260322T090412.000Z [mpgw][info][0x00000000] GET /vps/api/v1/securities/portfolio 200 OK (72ms) client=10.0.1.52 upstream=api.vps.no:443 trace=aa11bb22-1111-2222-3333-444455550017
+20260322T090500.000Z [mpgw][error][0x80e00002] POST /folkereg/api/v1/person/lookup/batch upstream timeout after 30000ms upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550018
+20260322T090501.000Z [mpgw][error][0x80c00001] Response parsing failed for /folkereg/api/v1/person/22334455667: unexpected content-type 'text/html' upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550019
+20260322T090502.000Z [default][error][0x80e00002] Folkeregisteret API health check FAILED — 0/5 successful responses in last 5 minutes
+  Endpoint: https://folkeregisteret.api.skatteetaten.no/api/v1/health
+  Last successful response: 2026-03-22T09:03:59Z (6 min ago)
+  Status: returning 503 + HTML error page since 09:04:00
+20260322T090600.000Z [mpgw][error][0x80e00002] POST /folkereg/api/v1/person/lookup/batch upstream timeout after 30000ms upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550020
+20260322T090601.000Z [mpgw][error][0x80c00001] Response parsing failed for /folkereg/api/v1/person/99887766554: 'text/html' instead of 'application/json' upstream=folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550021
+20260322T090700.000Z [default][warn][0x00000000] Folkeregisteret API still unavailable — circuit breaker remains OPEN (15 minutes)
+  Affected services: KYC verification, address lookup, person data enrichment
+  Manual review queue: 67 pending items
+  Estimated customer impact: ~200 blocked onboarding requests
