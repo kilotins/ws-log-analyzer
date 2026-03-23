@@ -798,32 +798,26 @@ def run_local_analysis(user_query, events, processing_container, model_id="",
 # --- AI response rendering ---
 
 def _render_claude_response(text):
-    """Render AI response with prose and fenced code blocks.
+    """Render AI response as markdown with proper code block handling.
 
-    Uses a line-by-line state-machine parser that handles nested fences correctly.
+    Renders the entire response as a single st.markdown() call for reliability,
+    with separate st.code() calls only for fenced code blocks.
+    This avoids Streamlit element limits that can cause truncated rendering.
     """
     lines = text.split("\n")
     in_block = False
     fence_len = 0
     block_lang = ""
-    block_lines = []
-    prose_lines = []
-
-    def _flush_prose():
-        content = "\n".join(prose_lines).strip()
-        if content:
-            st.markdown(content)
-        prose_lines.clear()
-
-    def _flush_code(lang, code_text):
-        code_text = code_text.strip()
-        if not code_text:
-            return
-        st.code(code_text, language=lang or None)
+    block_lines: list[str] = []
+    sections: list[tuple[str, str | None]] = []  # (content, lang_or_None)
+    prose_lines: list[str] = []
 
     for line in lines:
         stripped = line.strip()
         if stripped.startswith("```"):
+            tick_count = sum(1 for ch in stripped if ch == "`")
+            remaining = stripped[tick_count:].strip()
+            # Recount properly (only leading backticks)
             tick_count = 0
             for ch in stripped:
                 if ch == "`":
@@ -832,14 +826,20 @@ def _render_claude_response(text):
                     break
 
             if not in_block:
-                _flush_prose()
+                # Flush prose
+                prose = "\n".join(prose_lines).strip()
+                if prose:
+                    sections.append((prose, None))
+                prose_lines = []
                 in_block = True
                 fence_len = tick_count
                 block_lang = stripped[tick_count:].strip().lower()
                 block_lines = []
             elif tick_count >= fence_len:
                 in_block = False
-                _flush_code(block_lang, "\n".join(block_lines))
+                code = "\n".join(block_lines).strip()
+                if code:
+                    sections.append((code, block_lang or "text"))
                 block_lines = []
                 block_lang = ""
                 fence_len = 0
@@ -850,10 +850,21 @@ def _render_claude_response(text):
         else:
             prose_lines.append(line)
 
-    # Flush remaining prose or unclosed code block
+    # Flush remaining
     if in_block and block_lines:
-        _flush_code(block_lang, "\n".join(block_lines))
-    _flush_prose()
+        code = "\n".join(block_lines).strip()
+        if code:
+            sections.append((code, block_lang or "text"))
+    prose = "\n".join(prose_lines).strip()
+    if prose:
+        sections.append((prose, None))
+
+    # Render: prose as single markdown, code as st.code
+    for content, lang in sections:
+        if lang is None:
+            st.markdown(content)
+        else:
+            st.code(content, language=lang)
 
 
 def render_current_ai_analyses():
