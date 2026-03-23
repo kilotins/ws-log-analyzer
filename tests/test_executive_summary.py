@@ -76,7 +76,7 @@ class TestExecutiveSummaryMarkdown:
         events, analysis = _load_scenario()
         ai = {"incident": "## Executive Summary\nThe root cause was a database crash."}
         md = render_executive_summary(events, _analysis=analysis, ai_content=ai)
-        assert "AI Analysis Summary" in md
+        assert "## AI Analysis" in md
         assert "database crash" in md
 
     def test_suggested_team(self):
