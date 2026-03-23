@@ -1067,14 +1067,11 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                     use_container_width=True,
                 )
             with _brief_col2:
-                # Simple HTML wrap
-                _brief_html = (
-                    '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-                    '<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:40px auto;'
-                    'padding:0 20px;color:#0F172A;line-height:1.7}'
-                    'h1{color:#7C3AED;border-bottom:3px solid #7C3AED;padding-bottom:8px}'
-                    'h2{color:#334155;margin-top:1.5rem}strong{color:#0F172A}</style></head><body>'
-                    f'{_leadership_brief}</body></html>'
+                # Premium HTML with dark/light mode, sidebar nav, collapsible sections
+                from report_renderer import render_html as _render_brief_html
+                _brief_html = _render_brief_html(
+                    _leadership_brief,
+                    title="Leadership Incident Brief — LogPilot",
                 )
                 st.download_button(
                     "Download Brief (HTML)",
