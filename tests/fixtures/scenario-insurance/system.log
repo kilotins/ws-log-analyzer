@@ -1,0 +1,47 @@
+Mar 23 10:00:01 k8s-worker-3 kernel: [1234567.001] NET: Registered protocol family 2
+Mar 23 10:00:02 k8s-worker-3 systemd[1]: Started Session 421 of user root.
+Mar 23 10:00:05 k8s-worker-3 kernel: [1234568.001] audit: type=1400 audit(1742724005.001:12345): avc:  denied  { getattr } for pid=4201
+Mar 23 10:00:10 k8s-worker-3 containerd[892]: time="2026-03-23T10:00:10Z" level=info msg="TaskCreate" containerID=claims-api-7d9f8b6c4-xk2p9
+Mar 23 10:00:12 k8s-worker-3 systemd[1]: kubelet.service: Main process exited, code=exited, status=0/SUCCESS
+Mar 23 10:00:15 k8s-worker-3 systemd[1]: Started kubelet - Kubernetes node agent.
+Mar 23 10:00:20 k8s-worker-3 kernel: [1234572.001] eth0: renamed from veth8a3b2c1
+Mar 23 10:00:25 k8s-worker-3 containerd[892]: time="2026-03-23T10:00:25Z" level=info msg="PullImage" image="registry.gjensidige.no/claims-api:2.7.5"
+Mar 23 10:00:30 k8s-worker-3 systemd[1]: var-lib-kubelet-pods.mount: Succeeded.
+Mar 23 10:02:00 k8s-worker-3 kernel: [1234589.001] XFS (sda1): Unmounting Filesystem
+Mar 23 10:02:05 k8s-worker-3 kernel: [1234589.234] XFS (sda1): Mounting Filesystem
+Mar 23 10:05:00 k8s-worker-3 CRON[5501]: (root) CMD (/usr/local/bin/node-health-check.sh)
+Mar 23 10:05:01 k8s-worker-3 node-health-check[5502]: Node health OK: cpu=15%, mem=62%, disk=34%
+Mar 23 10:10:00 k8s-worker-3 containerd[892]: time="2026-03-23T10:10:00Z" level=info msg="container gc" containers_deleted=3
+Mar 23 10:15:00 k8s-worker-3 CRON[5601]: (root) CMD (/usr/local/bin/node-health-check.sh)
+Mar 23 10:15:01 k8s-worker-3 node-health-check[5602]: Node health OK: cpu=18%, mem=65%, disk=34%
+Mar 23 10:20:00 k8s-worker-3 kernel: [1234800.001] perf: interrupt took too long (2505 > 2500), lowering kernel.perf_event_max_sample_rate to 39000
+Mar 23 10:25:00 k8s-worker-3 CRON[5701]: (root) CMD (/usr/local/bin/node-health-check.sh)
+Mar 23 10:25:01 k8s-worker-3 node-health-check[5702]: Node health OK: cpu=20%, mem=67%, disk=34%
+Mar 23 10:29:00 k8s-worker-3 kernel: [1234840.001] TCP: request_sock_TCP: Possible SYN flooding on port 8080. Sending cookies.
+Mar 23 10:30:01 k8s-worker-3 kernel: [1234848.001] TCP: request_sock_TCP: Possible SYN flooding on port 8080. Sending cookies. Check SNMP counters.
+Mar 23 10:30:15 k8s-worker-3 kernel: [1234850.001] TCP: Connections exhausted, dropping packets from 10.0.2.50
+Mar 23 10:30:30 k8s-worker-3 kernel: [1234852.001] memory: meminfo: MemFree:524288 kB MemTotal:8388608 kB MemAvailable:612352 kB
+Mar 23 10:31:00 k8s-worker-3 kernel: [1234855.001] Out of memory: Kill process 4201 (java) score 892 or sacrifice child
+Mar 23 10:31:01 k8s-worker-3 kernel: [1234855.123] Killed process 4201 (java) total-vm:1048576kB, anon-rss:589824kB, file-rss:4096kB, shmem-rss:0kB
+Mar 23 10:31:02 k8s-worker-3 containerd[892]: time="2026-03-23T10:31:02Z" level=error msg="container claims-api-7d9f8b6c4-xk2p9 killed by OOM killer" exitCode=137
+Mar 23 10:31:05 k8s-worker-3 kernel: [1234856.001] memory: meminfo: MemFree:720896 kB after OOM kill
+Mar 23 10:33:00 k8s-worker-3 kernel: [1234870.001] memory: meminfo: MemFree:536576 kB MemAvailable:589824 kB - memory pressure increasing
+Mar 23 10:33:01 k8s-worker-3 systemd[1]: Started systemd-oomd - A userspace out-of-memory (OOM) killer.
+Mar 23 10:33:02 k8s-worker-3 systemd-oomd[9901]: Memory pressure on /system.slice is 92% for > 20s, memory: MemFree:536576 kB
+Mar 23 10:33:05 k8s-worker-3 systemd-oomd[9901]: Killed /system.slice/containerd.service/order-service-5f7d9c8b2-qs4n6 (PID 7821) as part of memory pressure reduction
+Mar 23 10:34:00 k8s-worker-3 kernel: [1234880.001] memory: meminfo: MemFree:499712 kB - continuing to drop
+Mar 23 10:35:00 k8s-worker-3 kernel: [1234890.001] memory: meminfo: MemFree:475136 kB WARNING: approaching critical threshold
+Mar 23 10:35:01 k8s-worker-3 kernel: [1234890.123] memory: cgroup memory.pressure high: /kubepods/burstable/insurance
+Mar 23 10:35:02 k8s-worker-3 systemd[1]: systemd-oomd.service: Sent SIGKILL to process group 7900 due to memory pressure.
+Mar 23 10:36,001 k8s-worker-3 CRON[5801]: (root) CMD (/usr/local/bin/node-health-check.sh)
+Mar 23 10:36:01 k8s-worker-3 node-health-check[5802]: Node health CRITICAL: cpu=89%, mem=94%, disk=34%
+Mar 23 10:38:00 k8s-worker-3 kernel: [1234910.001] memory: meminfo: MemFree:1245184 kB - memory recovering
+Mar 23 10:39:00 k8s-worker-3 kernel: [1234920.001] TCP: SYN flooding mitigation lifted on port 8080
+Mar 23 10:40:00 k8s-worker-3 containerd[892]: time="2026-03-23T10:40:00Z" level=info msg="container claims-api-7d9f8b6c4-xk2p9 started successfully"
+Mar 23 10:40:05 k8s-worker-3 CRON[5901]: (root) CMD (/usr/local/bin/node-health-check.sh)
+Mar 23 10:40:06 k8s-worker-3 node-health-check[5902]: Node health WARN: cpu=45%, mem=78%, disk=34% - recovering
+Mar 23 10:41:00 k8s-worker-3 systemd-oomd[9901]: Memory pressure on /system.slice reduced to 28%, monitoring resumed.
+Mar 23 10:45:00 k8s-worker-3 CRON[6001]: (root) CMD (/usr/local/bin/node-health-check.sh)
+Mar 23 10:45:01 k8s-worker-3 node-health-check[6002]: Node health OK: cpu=22%, mem=64%, disk=34%
+Mar 23 10:55:00 k8s-worker-3 CRON[6101]: (root) CMD (/usr/local/bin/node-health-check.sh)
+Mar 23 10:55:01 k8s-worker-3 node-health-check[6102]: Node health OK: cpu=15%, mem=61%, disk=34% - fully recovered

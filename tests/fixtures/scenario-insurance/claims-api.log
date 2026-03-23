@@ -1,0 +1,101 @@
+2026-03-23 09:58:00.001 INFO  [main] o.s.boot.SpringApplication - Starting ClaimsApiApplication v2.7.5 using Java 17.0.10 with PID 4201
+2026-03-23 09:58:00.234 INFO  [main] o.s.boot.SpringApplication - No active profile set, falling back to 1 default profile: "prod"
+2026-03-23 09:58:01.001 INFO  [main] c.z.h.HikariDataSource - HikariPool-1 - Starting... url=jdbc:postgresql://10.0.3.5:5432/claims
+2026-03-23 09:58:01.567 INFO  [main] c.z.h.HikariDataSource - HikariPool-1 - Start completed. pool size=10, maxPoolSize=25
+2026-03-23 09:58:02.100 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port(s): 8080 (http) with context path ''
+2026-03-23 09:58:02.234 INFO  [main] n.g.claimsapi.ClaimsApiApplication - Started ClaimsApiApplication in 2.233 seconds
+2026-03-23 09:58:02.300 INFO  [main] i.g.r.Resilience4jConfig - CircuitBreaker 'postgres-cb' configured: slidingWindow=10, failureThreshold=50%, waitDuration=30s
+2026-03-23 09:58:02.345 INFO  [main] i.g.r.Resilience4jConfig - CircuitBreaker 'altinn-cb' configured: slidingWindow=10, failureThreshold=50%, waitDuration=60s
+2026-03-23 10:00:01.001 INFO  [http-nio-8080-exec-1] n.g.claimsapi.controller.ClaimsController - GET /api/v1/claims?customerId=CUST-55012 traceId=t1a2b3c4-0001-0001-0001-aabbcc001001
+2026-03-23 10:00:01.089 INFO  [http-nio-8080-exec-1] n.g.claimsapi.controller.ClaimsController - 200 OK - 3 claims returned in 88ms traceId=t1a2b3c4-0001-0001-0001-aabbcc001001
+2026-03-23 10:00:05.001 INFO  [http-nio-8080-exec-2] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001002 claimRef=CLM-20260323-001
+2026-03-23 10:00:05.234 INFO  [http-nio-8080-exec-2] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-001 traceId=t1a2b3c4-0001-0001-0001-aabbcc001002
+2026-03-23 10:00:07.001 INFO  [http-nio-8080-exec-3] n.g.claimsapi.service.AltinnService - Sending notification to Altinn for claim CLM-20260323-001 endpoint=https://altinn.api.no/api/v1/notifications
+2026-03-23 10:00:07.456 INFO  [http-nio-8080-exec-3] n.g.claimsapi.service.AltinnService - Altinn notification accepted for CLM-20260323-001 responseTime=455ms
+2026-03-23 10:00:10.001 INFO  [http-nio-8080-exec-4] n.g.claimsapi.controller.ClaimsController - GET /api/v1/claims/CLM-20260323-001 traceId=t1a2b3c4-0001-0001-0001-aabbcc001003
+2026-03-23 10:00:10.089 INFO  [http-nio-8080-exec-4] n.g.claimsapi.controller.ClaimsController - 200 OK - claim CLM-20260323-001 returned in 88ms traceId=t1a2b3c4-0001-0001-0001-aabbcc001003
+2026-03-23 10:00:12.001 INFO  [http-nio-8080-exec-5] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001004 claimRef=CLM-20260323-002
+2026-03-23 10:00:12.234 INFO  [http-nio-8080-exec-5] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-002 traceId=t1a2b3c4-0001-0001-0001-aabbcc001004
+2026-03-23 10:00:15.001 INFO  [http-nio-8080-exec-6] n.g.claimsapi.service.PolicyService - Fetching policy details from policy-service for POL-2024-88123
+2026-03-23 10:00:15.145 INFO  [http-nio-8080-exec-6] n.g.claimsapi.service.PolicyService - Policy POL-2024-88123 details fetched, coverageType=VEHICLE, maxCoverage=500000
+2026-03-23 10:00:18.001 INFO  [http-nio-8080-exec-7] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001005 claimRef=CLM-20260323-003
+2026-03-23 10:00:18.234 INFO  [http-nio-8080-exec-7] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-003 traceId=t1a2b3c4-0001-0001-0001-aabbcc001005
+2026-03-23 10:00:22.001 INFO  [http-nio-8080-exec-8] n.g.claimsapi.controller.ClaimsController - GET /api/v1/claims?status=PENDING traceId=t1a2b3c4-0001-0001-0001-aabbcc001006
+2026-03-23 10:00:22.145 INFO  [http-nio-8080-exec-8] n.g.claimsapi.controller.ClaimsController - 200 OK - 8 claims returned in 144ms traceId=t1a2b3c4-0001-0001-0001-aabbcc001006
+2026-03-23 10:02:00.001 INFO  [http-nio-8080-exec-1] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001007 claimRef=CLM-20260323-005
+2026-03-23 10:02:00.234 INFO  [http-nio-8080-exec-1] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-005 traceId=t1a2b3c4-0001-0001-0001-aabbcc001007
+2026-03-23 10:05:00.001 INFO  [http-nio-8080-exec-2] n.g.claimsapi.service.AltinnService - Sending notification to Altinn for claim CLM-20260323-002 endpoint=https://altinn.api.no/api/v1/notifications
+2026-03-23 10:05:00.523 INFO  [http-nio-8080-exec-2] n.g.claimsapi.service.AltinnService - Altinn notification accepted for CLM-20260323-002 responseTime=522ms
+2026-03-23 10:08:00.001 INFO  [http-nio-8080-exec-3] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001008 claimRef=CLM-20260323-007
+2026-03-23 10:08:00.234 INFO  [http-nio-8080-exec-3] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-007 traceId=t1a2b3c4-0001-0001-0001-aabbcc001008
+2026-03-23 10:10:00.001 INFO  [http-nio-8080-exec-4] n.g.claimsapi.controller.ClaimsController - GET /api/v1/claims?customerId=CUST-62301 traceId=t1a2b3c4-0001-0001-0001-aabbcc001009
+2026-03-23 10:10:00.112 INFO  [http-nio-8080-exec-4] n.g.claimsapi.controller.ClaimsController - 200 OK - 2 claims returned in 111ms traceId=t1a2b3c4-0001-0001-0001-aabbcc001009
+2026-03-23 10:12:00.001 INFO  [http-nio-8080-exec-5] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001010 claimRef=CLM-20260323-008
+2026-03-23 10:12:00.234 INFO  [http-nio-8080-exec-5] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-008 traceId=t1a2b3c4-0001-0001-0001-aabbcc001010
+2026-03-23 10:15:00.001 INFO  [http-nio-8080-exec-6] n.g.claimsapi.service.AltinnService - Sending notification to Altinn for claim CLM-20260323-005 endpoint=https://altinn.api.no/api/v1/notifications
+2026-03-23 10:15:00.489 INFO  [http-nio-8080-exec-6] n.g.claimsapi.service.AltinnService - Altinn notification accepted for CLM-20260323-005 responseTime=488ms
+2026-03-23 10:18:00.001 INFO  [http-nio-8080-exec-7] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001011 claimRef=CLM-20260323-009
+2026-03-23 10:18:00.234 INFO  [http-nio-8080-exec-7] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-009 traceId=t1a2b3c4-0001-0001-0001-aabbcc001011
+2026-03-23 10:22:00.001 INFO  [http-nio-8080-exec-8] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001012 claimRef=CLM-20260323-010
+2026-03-23 10:22:00.234 INFO  [http-nio-8080-exec-8] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-010 traceId=t1a2b3c4-0001-0001-0001-aabbcc001012
+2026-03-23 10:25:00.001 INFO  [http-nio-8080-exec-1] n.g.claimsapi.controller.ClaimsController - GET /api/v1/claims?status=PROCESSING traceId=t1a2b3c4-0001-0001-0001-aabbcc001013
+2026-03-23 10:25:00.123 INFO  [http-nio-8080-exec-1] n.g.claimsapi.controller.ClaimsController - 200 OK - 25 claims returned in 122ms traceId=t1a2b3c4-0001-0001-0001-aabbcc001013
+2026-03-23 10:26:00.001 INFO  [http-nio-8080-exec-2] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001014 claimRef=CLM-20260323-011
+2026-03-23 10:26:00.234 INFO  [http-nio-8080-exec-2] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-011 traceId=t1a2b3c4-0001-0001-0001-aabbcc001014
+2026-03-23 10:29:00.001 INFO  [http-nio-8080-exec-3] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001015 claimRef=CLM-20260323-012
+2026-03-23 10:29:00.234 INFO  [http-nio-8080-exec-3] n.g.claimsapi.controller.ClaimsController - 201 CREATED claimId=CLM-20260323-012 traceId=t1a2b3c4-0001-0001-0001-aabbcc001015
+2026-03-23 10:30:01.001 WARN  [http-nio-8080-exec-4] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims slow response detected, elapsed=1234ms traceId=t1a2b3c4-0001-0001-0001-aabbcc001016 claimRef=CLM-20260323-013
+2026-03-23 10:30:05.001 WARN  [http-nio-8080-exec-5] c.z.h.pool.HikariPool - HikariPool-1 - Connection is not available, request timed out after 3005ms. pool total=25, active=25, idle=0, waiting=3
+2026-03-23 10:30:10.001 ERROR [http-nio-8080-exec-6] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims FAILED traceId=t1a2b3c4-0001-0001-0001-aabbcc001017 claimRef=CLM-20260323-014
+java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:213)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:162)
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:100)
+	at no.gjensidige.claimsapi.repository.ClaimsRepository.findByCustomerId(ClaimsRepository.java:55)
+	at no.gjensidige.claimsapi.service.ClaimsService.submitClaim(ClaimsService.java:88)
+	at no.gjensidige.claimsapi.controller.ClaimsController.createClaim(ClaimsController.java:112)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1067)
+Caused by: org.postgresql.util.PSQLException: FATAL: remaining connection slots are reserved for non-replication superuser connections
+	at org.postgresql.core.v3.ConnectionFactoryImpl.doAuthentication(ConnectionFactoryImpl.java:525)
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:146)
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:196)
+	... 8 more
+2026-03-23 10:30:15.001 WARN  [http-nio-8080-exec-7] c.z.h.pool.HikariPool - HikariPool-1 - Connection is not available, request timed out after 3005ms. pool total=25, active=25, idle=0, waiting=8
+2026-03-23 10:30:20.001 ERROR [http-nio-8080-exec-8] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims FAILED traceId=t1a2b3c4-0001-0001-0001-aabbcc001018 - HikariPool exhausted
+2026-03-23 10:31:00.001 WARN  [http-nio-8080-exec-1] c.z.h.pool.HikariPool - HikariPool-1 - Connection is not available, request timed out after 30005ms. pool total=25, active=25, idle=0, waiting=15
+2026-03-23 10:31:30.001 ERROR [resilience4j-1] i.g.r.circuitbreaker.CircuitBreaker - CircuitBreaker 'postgres-cb' changed state from CLOSED to OPEN. Failure rate 80.0% exceeds threshold 50.0%. Calls: 10 in sliding window, 8 failures.
+2026-03-23 10:31:30.100 WARN  [http-nio-8080-exec-2] n.g.claimsapi.controller.ClaimsController - CircuitBreaker 'postgres-cb' is OPEN, rejecting request POST /api/v1/claims traceId=t1a2b3c4-0001-0001-0001-aabbcc001019
+2026-03-23 10:31:30.200 ERROR [http-nio-8080-exec-2] n.g.claimsapi.controller.ClaimsController - 503 SERVICE_UNAVAILABLE - Circuit breaker open for postgres-cb traceId=t1a2b3c4-0001-0001-0001-aabbcc001019
+2026-03-23 10:31:45.001 WARN  [http-nio-8080-exec-3] n.g.claimsapi.service.AltinnService - Altinn API call for CLM-20260323-015 timed out after 30s, endpoint=https://altinn.api.no/api/v1/notifications
+2026-03-23 10:31:45.100 ERROR [http-nio-8080-exec-3] n.g.claimsapi.service.AltinnService - Altinn notification failed for CLM-20260323-015
+java.net.SocketTimeoutException: Read timed out after 30000ms connecting to altinn.api.no:443
+	at java.net.SocketInputStream.socketRead0(Native Method)
+	at java.net.SocketInputStream.socketRead(SocketInputStream.java:116)
+	at java.net.SocketInputStream.read(SocketInputStream.java:171)
+	at sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:478)
+	at no.gjensidige.claimsapi.service.AltinnService.sendNotification(AltinnService.java:134)
+	at no.gjensidige.claimsapi.service.AltinnService.notifyClaim(AltinnService.java:88)
+Caused by: java.net.ConnectException: Connection refused (altinn.api.no:443)
+	at sun.nio.ch.Net.pollConnect(Native Method)
+	at sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:779)
+	... 6 more
+2026-03-23 10:31:50.001 ERROR [resilience4j-1] i.g.r.circuitbreaker.CircuitBreaker - CircuitBreaker 'altinn-cb' changed state from CLOSED to OPEN. Failure rate 60.0% exceeds threshold 50.0%.
+2026-03-23 10:32:00.001 ERROR [http-nio-8080-exec-4] n.g.claimsapi.controller.ClaimsController - 503 SERVICE_UNAVAILABLE - Circuit breaker open for altinn-cb, claim CLM-20260323-016 traceId=t1a2b3c4-0001-0001-0001-aabbcc001020
+2026-03-23 10:32:30.001 WARN  [http-nio-8080-exec-5] c.z.h.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (JDBC connection pool). Active connections: 25
+2026-03-23 10:33:00.001 ERROR [http-nio-8080-exec-6] n.g.claimsapi.controller.ClaimsController - 503 SERVICE_UNAVAILABLE - Circuit breaker open for postgres-cb traceId=t1a2b3c4-0001-0001-0001-aabbcc001021
+2026-03-23 10:33:30.001 WARN  [http-nio-8080-exec-7] c.z.h.pool.HikariPool - HikariPool-1 - Detected closed connection in pool. Removing and adding replacement.
+2026-03-23 10:34:00.001 ERROR [http-nio-8080-exec-8] n.g.claimsapi.controller.ClaimsController - 503 SERVICE_UNAVAILABLE - Circuit breaker open for postgres-cb traceId=t1a2b3c4-0001-0001-0001-aabbcc001022
+2026-03-23 10:35:00.001 WARN  [resilience4j-1] i.g.r.circuitbreaker.CircuitBreaker - CircuitBreaker 'postgres-cb' is in HALF_OPEN state. Allowing 3 trial calls.
+2026-03-23 10:35:10.100 ERROR [http-nio-8080-exec-1] n.g.claimsapi.controller.ClaimsController - HALF_OPEN trial call failed. postgres-cb staying OPEN. traceId=t1a2b3c4-0001-0001-0001-aabbcc001023
+2026-03-23 10:38:00.001 WARN  [resilience4j-1] i.g.r.circuitbreaker.CircuitBreaker - CircuitBreaker 'postgres-cb' is in HALF_OPEN state. Allowing 3 trial calls.
+2026-03-23 10:39:00.100 INFO  [http-nio-8080-exec-2] n.g.claimsapi.controller.ClaimsController - HALF_OPEN trial call SUCCEEDED. traceId=t1a2b3c4-0001-0001-0001-aabbcc001024
+2026-03-23 10:39:30.001 INFO  [resilience4j-1] i.g.r.circuitbreaker.CircuitBreaker - CircuitBreaker 'postgres-cb' changed state from HALF_OPEN to CLOSED. Failure rate 33.3%.
+2026-03-23 10:40:00.100 INFO  [http-nio-8080-exec-3] c.z.h.pool.HikariPool - HikariPool-1 - Pool is recovering: active=4, idle=21, waiting=0
+2026-03-23 10:40:15.001 INFO  [http-nio-8080-exec-4] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims 201 CREATED claimId=CLM-20260323-013 (retry) traceId=t1a2b3c4-0001-0001-0001-aabbcc001016
+2026-03-23 10:40:30.001 INFO  [resilience4j-1] i.g.r.circuitbreaker.CircuitBreaker - CircuitBreaker 'altinn-cb' changed state from OPEN to HALF_OPEN.
+2026-03-23 10:41:00.100 INFO  [http-nio-8080-exec-5] n.g.claimsapi.service.AltinnService - Altinn notification accepted for CLM-20260323-015 (retry) responseTime=412ms
+2026-03-23 10:41:30.001 INFO  [resilience4j-1] i.g.r.circuitbreaker.CircuitBreaker - CircuitBreaker 'altinn-cb' changed state from HALF_OPEN to CLOSED.
+2026-03-23 10:45:00.001 INFO  [http-nio-8080-exec-6] n.g.claimsapi.controller.ClaimsController - POST /api/v1/claims 201 CREATED claimId=CLM-20260323-023 traceId=t1a2b3c4-0001-0001-0001-aabbcc001025
+2026-03-23 10:50:00.100 INFO  [http-nio-8080-exec-7] n.g.claimsapi.controller.ClaimsController - System fully recovered. All circuit breakers CLOSED. HikariPool healthy.
+2026-03-23 10:55:00.001 INFO  [http-nio-8080-exec-8] n.g.claimsapi.controller.ClaimsController - GET /api/v1/claims/status traceId=t1a2b3c4-0001-0001-0001-aabbcc001026 - 200 OK, all services nominal

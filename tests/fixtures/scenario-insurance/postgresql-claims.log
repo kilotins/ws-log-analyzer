@@ -1,0 +1,192 @@
+2026-03-23 10:00:01.123 UTC [1201] LOG:  connection received: host=10.0.2.50 port=51234 user=claims_app database=claims
+2026-03-23 10:00:01.145 UTC [1201] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:00:02.312 UTC [1202] LOG:  connection received: host=10.0.2.50 port=51235 user=claims_app database=claims
+2026-03-23 10:00:02.334 UTC [1202] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:00:03.001 UTC [1201] LOG:  statement: SELECT id, claim_number, status, amount FROM claims WHERE status='PENDING' LIMIT 100
+2026-03-23 10:00:03.089 UTC [1201] LOG:  duration: 88.234 ms
+2026-03-23 10:00:05.411 UTC [1203] LOG:  connection received: host=10.0.3.10 port=41100 user=batch_processor database=claims
+2026-03-23 10:00:05.430 UTC [1203] LOG:  connection authorized: user=batch_processor database=claims
+2026-03-23 10:00:06.002 UTC [1203] LOG:  statement: BEGIN
+2026-03-23 10:00:06.045 UTC [1203] LOG:  statement: SELECT id, claim_number, policy_number, customer_id, amount FROM claims WHERE batch_id IS NULL AND status='APPROVED' FOR UPDATE SKIP LOCKED LIMIT 50
+2026-03-23 10:00:06.112 UTC [1203] LOG:  duration: 67.234 ms
+2026-03-23 10:00:07.201 UTC [1204] LOG:  connection received: host=10.0.2.50 port=51240 user=claims_app database=claims
+2026-03-23 10:00:07.220 UTC [1204] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:00:08.001 UTC [1201] LOG:  statement: INSERT INTO claim_events (claim_id, event_type, event_time, user_id) VALUES (1042, 'STATUS_CHANGE', NOW(), 'system')
+2026-03-23 10:00:08.055 UTC [1201] LOG:  duration: 54.123 ms
+2026-03-23 10:00:09.300 UTC [1205] LOG:  connection received: host=10.0.2.60 port=52100 user=claims_ro database=claims
+2026-03-23 10:00:09.318 UTC [1205] LOG:  connection authorized: user=claims_ro database=claims
+2026-03-23 10:00:10.001 UTC [1205] LOG:  statement: SELECT COUNT(*) FROM claims WHERE status='PENDING' AND created_at > NOW() - INTERVAL '24 hours'
+2026-03-23 10:00:10.043 UTC [1205] LOG:  duration: 42.991 ms
+2026-03-23 10:00:12.100 UTC [1203] LOG:  statement: UPDATE claims SET batch_id='BATCH-20260323-001', status='PROCESSING' WHERE id IN (SELECT id FROM claims WHERE batch_id IS NULL AND status='APPROVED' LIMIT 50)
+2026-03-23 10:00:12.234 UTC [1203] LOG:  duration: 134.021 ms
+2026-03-23 10:00:13.001 UTC [1203] LOG:  statement: COMMIT
+2026-03-23 10:00:14.500 UTC [1206] LOG:  connection received: host=10.0.2.50 port=51241 user=claims_app database=claims
+2026-03-23 10:00:14.518 UTC [1206] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:00:15.200 UTC [1201] LOG:  statement: SELECT p.policy_number, p.customer_id, p.coverage_type, p.max_coverage FROM policies p JOIN claims c ON p.policy_number = c.policy_number WHERE c.id = 1043
+2026-03-23 10:00:15.289 UTC [1201] LOG:  duration: 89.445 ms
+2026-03-23 10:00:18.001 UTC [1204] LOG:  statement: BEGIN
+2026-03-23 10:00:18.045 UTC [1204] LOG:  statement: INSERT INTO claims (claim_number, policy_number, customer_id, amount, status, created_at) VALUES ('CLM-20260323-001', 'POL-2024-88123', 'CUST-55012', 15000.00, 'PENDING', NOW())
+2026-03-23 10:00:18.112 UTC [1204] LOG:  duration: 67.334 ms
+2026-03-23 10:00:18.200 UTC [1204] LOG:  statement: COMMIT
+2026-03-23 10:00:20.100 UTC [1207] LOG:  automatic vacuum of table "claims.public.claim_events": index scans: 0, pages: removed 12, remain 4502, skipped due to pins 0
+2026-03-23 10:00:22.300 UTC [1202] LOG:  statement: SELECT id, claim_number, policy_number, customer_id, amount, status FROM claims WHERE customer_id = 'CUST-55012' ORDER BY created_at DESC LIMIT 20
+2026-03-23 10:00:22.378 UTC [1202] LOG:  duration: 78.123 ms
+2026-03-23 10:00:25.001 UTC [1208] LOG:  connection received: host=10.0.2.50 port=51242 user=claims_app database=claims
+2026-03-23 10:00:25.019 UTC [1208] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:00:26.100 UTC [1204] LOG:  statement: INSERT INTO claims (claim_number, policy_number, customer_id, amount, status, created_at) VALUES ('CLM-20260323-002', 'POL-2024-77234', 'CUST-62301', 8750.50, 'PENDING', NOW())
+2026-03-23 10:00:26.167 UTC [1204] LOG:  duration: 67.012 ms
+2026-03-23 10:00:30.200 UTC [1201] LOG:  statement: SELECT COUNT(*) FROM claims WHERE status='PROCESSING'
+2026-03-23 10:00:30.238 UTC [1201] LOG:  duration: 38.112 ms
+2026-03-23 10:02:00.001 UTC [1203] LOG:  statement: BEGIN
+2026-03-23 10:02:00.045 UTC [1203] LOG:  statement: SELECT id, claim_number, policy_number, customer_id, amount FROM claims WHERE batch_id IS NULL AND status='APPROVED' FOR UPDATE SKIP LOCKED LIMIT 50
+2026-03-23 10:02:00.112 UTC [1203] LOG:  duration: 67.234 ms
+2026-03-23 10:02:01.300 UTC [1203] LOG:  statement: UPDATE claims SET batch_id='BATCH-20260323-002', status='PROCESSING' WHERE id IN (SELECT id FROM claims WHERE batch_id IS NULL AND status='APPROVED' LIMIT 50)
+2026-03-23 10:02:01.445 UTC [1203] LOG:  duration: 145.002 ms
+2026-03-23 10:02:02.001 UTC [1203] LOG:  statement: COMMIT
+2026-03-23 10:05:00.100 UTC [1204] LOG:  statement: INSERT INTO claims (claim_number, policy_number, customer_id, amount, status, created_at) VALUES ('CLM-20260323-003', 'POL-2023-11987', 'CUST-71234', 22100.00, 'PENDING', NOW())
+2026-03-23 10:05:00.178 UTC [1204] LOG:  duration: 78.223 ms
+2026-03-23 10:05:15.001 UTC [1209] LOG:  connection received: host=10.0.2.70 port=53001 user=reporting database=claims
+2026-03-23 10:05:15.019 UTC [1209] LOG:  connection authorized: user=reporting database=claims
+2026-03-23 10:05:16.100 UTC [1209] LOG:  statement: SELECT DATE_TRUNC('hour', created_at) AS hour, COUNT(*), SUM(amount) FROM claims WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY 1 ORDER BY 1
+2026-03-23 10:05:16.567 UTC [1209] LOG:  duration: 467.234 ms
+2026-03-23 10:08:00.001 UTC [1203] LOG:  statement: BEGIN
+2026-03-23 10:08:00.045 UTC [1203] LOG:  statement: SELECT id, claim_number, policy_number, customer_id, amount FROM claims WHERE batch_id IS NULL AND status='APPROVED' FOR UPDATE SKIP LOCKED LIMIT 50
+2026-03-23 10:08:00.107 UTC [1203] LOG:  duration: 62.112 ms
+2026-03-23 10:08:01.200 UTC [1203] LOG:  statement: UPDATE claims SET batch_id='BATCH-20260323-003', status='PROCESSING' WHERE id IN (SELECT id FROM claims WHERE batch_id IS NULL AND status='APPROVED' LIMIT 50)
+2026-03-23 10:08:01.345 UTC [1203] LOG:  duration: 145.223 ms
+2026-03-23 10:08:02.001 UTC [1203] LOG:  statement: COMMIT
+2026-03-23 10:10:00.100 UTC [1205] LOG:  statement: SELECT id, claim_number, status FROM claims WHERE status='PENDING' ORDER BY created_at ASC LIMIT 200
+2026-03-23 10:10:00.234 UTC [1205] LOG:  duration: 134.001 ms
+2026-03-23 10:12:30.001 UTC [1204] LOG:  statement: INSERT INTO claims (claim_number, policy_number, customer_id, amount, status, created_at) VALUES ('CLM-20260323-004', 'POL-2025-30012', 'CUST-80021', 5000.00, 'PENDING', NOW())
+2026-03-23 10:12:30.067 UTC [1204] LOG:  duration: 67.002 ms
+2026-03-23 10:15:00.001 UTC [1203] LOG:  statement: BEGIN
+2026-03-23 10:15:00.045 UTC [1203] LOG:  statement: SELECT id, claim_number, policy_number, customer_id, amount FROM claims WHERE batch_id IS NULL AND status='APPROVED' FOR UPDATE SKIP LOCKED LIMIT 50
+2026-03-23 10:15:00.109 UTC [1203] LOG:  duration: 64.334 ms
+2026-03-23 10:15:01.300 UTC [1203] LOG:  statement: UPDATE claims SET batch_id='BATCH-20260323-004', status='PROCESSING' WHERE id IN (SELECT id FROM claims WHERE batch_id IS NULL AND status='APPROVED' LIMIT 50)
+2026-03-23 10:15:01.445 UTC [1203] LOG:  duration: 145.112 ms
+2026-03-23 10:15:02.001 UTC [1203] LOG:  statement: COMMIT
+2026-03-23 10:18:00.100 UTC [1201] LOG:  statement: SELECT id, claim_number, policy_number, amount FROM claims WHERE status='APPROVED' AND payment_date IS NULL LIMIT 100
+2026-03-23 10:18:00.188 UTC [1201] LOG:  duration: 88.334 ms
+2026-03-23 10:20:00.001 UTC [1204] LOG:  statement: INSERT INTO claims (claim_number, policy_number, customer_id, amount, status, created_at) VALUES ('CLM-20260323-005', 'POL-2024-55009', 'CUST-91234', 33500.75, 'PENDING', NOW())
+2026-03-23 10:20:00.078 UTC [1204] LOG:  duration: 78.001 ms
+2026-03-23 10:22:00.001 UTC [1203] LOG:  statement: BEGIN
+2026-03-23 10:22:00.045 UTC [1203] LOG:  statement: SELECT id, claim_number, policy_number, customer_id, amount FROM claims WHERE batch_id IS NULL AND status='APPROVED' FOR UPDATE SKIP LOCKED LIMIT 50
+2026-03-23 10:22:00.109 UTC [1203] LOG:  duration: 64.112 ms
+2026-03-23 10:22:01.300 UTC [1203] LOG:  statement: UPDATE claims SET batch_id='BATCH-20260323-005', status='PROCESSING' WHERE id IN (SELECT id FROM claims WHERE batch_id IS NULL AND status='APPROVED' LIMIT 50)
+2026-03-23 10:22:01.478 UTC [1203] LOG:  duration: 178.334 ms
+2026-03-23 10:22:02.001 UTC [1203] LOG:  statement: COMMIT
+2026-03-23 10:25:00.100 UTC [1205] LOG:  statement: SELECT COUNT(*) FROM claims WHERE status IN ('PENDING','PROCESSING','APPROVED')
+2026-03-23 10:25:00.134 UTC [1205] LOG:  duration: 34.112 ms
+2026-03-23 10:27:00.001 UTC [1204] LOG:  statement: INSERT INTO claims (claim_number, policy_number, customer_id, amount, status, created_at) VALUES ('CLM-20260323-006', 'POL-2025-10045', 'CUST-10234', 12800.00, 'PENDING', NOW())
+2026-03-23 10:27:00.068 UTC [1204] LOG:  duration: 68.001 ms
+2026-03-23 10:28:00.001 UTC [1203] LOG:  statement: BEGIN
+2026-03-23 10:28:00.045 UTC [1203] LOG:  statement: SELECT id, claim_number, policy_number, customer_id, amount FROM claims WHERE batch_id IS NULL AND status='APPROVED' FOR UPDATE SKIP LOCKED LIMIT 50
+2026-03-23 10:28:00.108 UTC [1203] LOG:  duration: 63.223 ms
+2026-03-23 10:28:01.300 UTC [1203] LOG:  statement: UPDATE claims SET batch_id='BATCH-20260323-006', status='PROCESSING' WHERE id IN (SELECT id FROM claims WHERE batch_id IS NULL AND status='APPROVED' LIMIT 50)
+2026-03-23 10:28:01.434 UTC [1203] LOG:  duration: 134.002 ms
+2026-03-23 10:28:02.001 UTC [1203] LOG:  statement: COMMIT
+2026-03-23 10:29:30.100 UTC [1201] LOG:  statement: SELECT id, claim_number, status, amount FROM claims WHERE status='PENDING' LIMIT 100
+2026-03-23 10:29:30.178 UTC [1201] LOG:  duration: 78.334 ms
+2026-03-23 10:30:00.001 UTC [9901] LOG:  connection received: host=10.0.2.80 port=60100 user=flyway database=claims
+2026-03-23 10:30:00.019 UTC [9901] LOG:  connection authorized: user=flyway database=claims
+2026-03-23 10:30:00.100 UTC [9901] LOG:  statement: SELECT version, description, type, script, checksum, installed_by, installed_on, execution_time, success FROM flyway_schema_history ORDER BY installed_rank
+2026-03-23 10:30:00.145 UTC [9901] LOG:  duration: 45.112 ms
+2026-03-23 10:30:00.200 UTC [9901] LOG:  statement: SELECT LOCK_TABLE, LOCK_TYPE, LOCK_MODE FROM pg_locks JOIN pg_class ON relation = oid WHERE locktype='relation' AND relname='flyway_schema_history'
+2026-03-23 10:30:00.223 UTC [9901] LOG:  statement: BEGIN
+2026-03-23 10:30:00.301 UTC [9901] LOG:  statement: LOCK TABLE flyway_schema_history IN TABLE SHARE ROW EXCLUSIVE MODE
+2026-03-23 10:30:00.334 UTC [9901] LOG:  statement: INSERT INTO flyway_schema_history (installed_rank, version, description, type, script, checksum, installed_by, execution_time, success) VALUES (6, '5.2.0', 'Add coverage type index and claims archival partition', 'SQL', 'V5.2.0__Add_coverage_type_index_and_claims_archival_partition.sql', -812345678, 'flyway', 0, false)
+2026-03-23 10:30:00.401 UTC [9901] LOG:  statement: ALTER TABLE claims ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT FALSE
+2026-03-23 10:30:00.534 UTC [9901] LOG:  duration: 133.445 ms
+2026-03-23 10:30:00.600 UTC [9901] LOG:  statement: CREATE INDEX CONCURRENTLY idx_claims_coverage_type ON claims(coverage_type)
+2026-03-23 10:30:00.634 UTC [9901] LOG:  statement: LOCK TABLE claims IN SHARE UPDATE EXCLUSIVE MODE
+2026-03-23 10:30:01.100 UTC [9901] LOG:  statement: ALTER TABLE claims PARTITION BY RANGE (created_at)
+2026-03-23 10:30:01.223 UTC [9901] WARNING:  table "claims" has row security enabled
+2026-03-23 10:30:01.300 UTC [9901] LOG:  statement: LOCK TABLE claims IN ACCESS EXCLUSIVE MODE
+2026-03-23 10:30:03.012 UTC [1203] ERROR:  deadlock detected
+2026-03-23 10:30:03.012 UTC [1203] DETAIL:  Process 1203 waits for ShareLock on transaction 7823401; blocked by process 9901.
+	Process 9901 waits for ShareUpdateExclusiveLock on relation 16842 of database 16384; blocked by process 1203.
+	Process 1203: UPDATE claims SET batch_id='BATCH-20260323-007', status='PROCESSING' WHERE id IN (SELECT id FROM claims WHERE batch_id IS NULL AND status='APPROVED' LIMIT 50)
+	Process 9901: LOCK TABLE claims IN ACCESS EXCLUSIVE MODE
+2026-03-23 10:30:03.012 UTC [1203] HINT:  See server log for query details.
+2026-03-23 10:30:03.012 UTC [1203] CONTEXT:  while updating tuple (0,142) in relation "claims"
+2026-03-23 10:30:03.023 UTC [1203] LOG:  statement: ROLLBACK
+2026-03-23 10:30:03.100 UTC [9901] LOG:  statement: LOCK TABLE claims IN ACCESS EXCLUSIVE MODE
+2026-03-23 10:30:03.134 UTC [9901] LOG:  duration: 2134.112 ms  statement: LOCK TABLE claims IN ACCESS EXCLUSIVE MODE
+2026-03-23 10:30:05.001 UTC [1210] LOG:  connection received: host=10.0.2.50 port=51301 user=claims_app database=claims
+2026-03-23 10:30:05.019 UTC [1210] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:30:05.100 UTC [1210] LOG:  statement: BEGIN
+2026-03-23 10:30:05.134 UTC [1210] LOG:  statement: SELECT id FROM claims WHERE status='PENDING' FOR UPDATE
+2026-03-23 10:30:05.200 UTC [1210] WARNING:  query exceeds lock_timeout, waiting for lock on claims
+2026-03-23 10:30:08.001 UTC [1211] LOG:  connection received: host=10.0.2.50 port=51302 user=claims_app database=claims
+2026-03-23 10:30:08.019 UTC [1211] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:30:10.100 UTC [1212] LOG:  connection received: host=10.0.2.50 port=51303 user=claims_app database=claims
+2026-03-23 10:30:10.118 UTC [1212] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:30:12.001 UTC [1210] ERROR:  canceling statement due to lock timeout
+2026-03-23 10:30:12.001 UTC [1210] STATEMENT:  SELECT id FROM claims WHERE status='PENDING' FOR UPDATE
+2026-03-23 10:30:12.034 UTC [1210] LOG:  statement: ROLLBACK
+2026-03-23 10:30:15.001 UTC [1211] ERROR:  canceling statement due to lock timeout
+2026-03-23 10:30:15.001 UTC [1211] STATEMENT:  INSERT INTO claim_events (claim_id, event_type, event_time, user_id) VALUES (1078, 'STATUS_CHANGE', NOW(), 'system')
+2026-03-23 10:30:15.034 UTC [1211] LOG:  statement: ROLLBACK
+2026-03-23 10:30:20.001 UTC [9901] LOG:  statement: CREATE TABLE claims_archive PARTITION OF claims FOR VALUES FROM ('2020-01-01') TO ('2025-01-01')
+2026-03-23 10:30:25.100 UTC [1213] LOG:  connection received: host=10.0.2.50 port=51304 user=claims_app database=claims
+2026-03-23 10:30:25.119 UTC [1213] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:30:25.200 UTC [1214] LOG:  connection received: host=10.0.2.50 port=51305 user=claims_app database=claims
+2026-03-23 10:30:25.219 UTC [1214] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:30:25.300 UTC [1215] LOG:  connection received: host=10.0.2.50 port=51306 user=claims_app database=claims
+2026-03-23 10:30:25.319 UTC [1215] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:30:30.001 UTC [1216] LOG:  connection received: host=10.0.2.50 port=51307 user=claims_app database=claims
+2026-03-23 10:30:30.020 UTC [1216] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:30:30.100 UTC [1217] LOG:  connection received: host=10.0.3.10 port=41200 user=batch_processor database=claims
+2026-03-23 10:30:30.119 UTC [1217] LOG:  connection authorized: user=batch_processor database=claims
+2026-03-23 10:30:30.200 UTC [1218] LOG:  connection received: host=10.0.2.50 port=51308 user=claims_app database=claims
+2026-03-23 10:30:30.219 UTC [1218] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:30:30.300 UTC [9001] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:30.301 UTC [9001] DETAIL:  max_connections=100 reached. Currently 100 connections active.
+2026-03-23 10:30:31.100 UTC [9002] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:31.101 UTC [9002] DETAIL:  max_connections=100 reached. Currently 100 connections active.
+2026-03-23 10:30:32.001 UTC [9003] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:33.100 UTC [9004] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:34.001 UTC [9005] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:35.100 UTC [9006] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:36.001 UTC [9007] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:37.100 UTC [9008] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:38.001 UTC [9009] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:39.100 UTC [9010] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:40.001 UTC [9011] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:30:40.100 UTC [9012] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:31:00.001 UTC [9013] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:31:10.001 UTC [9014] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:31:20.001 UTC [9015] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:31:30.001 UTC [9016] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:32:00.001 UTC [9017] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:32:30.001 UTC [9018] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:33:00.001 UTC [9019] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:33:30.001 UTC [9020] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:34:00.001 UTC [9021] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:35:00.001 UTC [9022] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-23 10:38:00.100 UTC [9901] LOG:  statement: CREATE INDEX CONCURRENTLY idx_claims_coverage_type ON claims(coverage_type)
+2026-03-23 10:38:45.234 UTC [9901] LOG:  duration: 525134.234 ms  statement: CREATE INDEX CONCURRENTLY idx_claims_coverage_type ON claims(coverage_type)
+2026-03-23 10:39:00.001 UTC [9901] LOG:  statement: UPDATE flyway_schema_history SET installed_on=NOW(), execution_time=540100, success=true WHERE installed_rank=6
+2026-03-23 10:39:00.045 UTC [9901] LOG:  statement: COMMIT
+2026-03-23 10:39:00.100 UTC [9901] LOG:  disconnection: session time: 0:09:00.099 user=flyway database=claims host=10.0.2.80 port=60100
+2026-03-23 10:40:00.001 UTC [1201] LOG:  statement: SELECT id, claim_number, status FROM claims WHERE status='PENDING' LIMIT 10
+2026-03-23 10:40:00.067 UTC [1201] LOG:  duration: 67.112 ms
+2026-03-23 10:40:01.100 UTC [1203] LOG:  statement: BEGIN
+2026-03-23 10:40:01.134 UTC [1203] LOG:  statement: SELECT id, claim_number, policy_number, customer_id, amount FROM claims WHERE batch_id IS NULL AND status='APPROVED' FOR UPDATE SKIP LOCKED LIMIT 50
+2026-03-23 10:40:01.199 UTC [1203] LOG:  duration: 65.223 ms
+2026-03-23 10:40:02.300 UTC [1203] LOG:  statement: UPDATE claims SET batch_id='BATCH-20260323-008', status='PROCESSING' WHERE id IN (SELECT id FROM claims WHERE batch_id IS NULL AND status='APPROVED' LIMIT 50)
+2026-03-23 10:40:02.445 UTC [1203] LOG:  duration: 145.112 ms
+2026-03-23 10:40:03.001 UTC [1203] LOG:  statement: COMMIT
+2026-03-23 10:40:05.100 UTC [1219] LOG:  connection received: host=10.0.2.50 port=51400 user=claims_app database=claims
+2026-03-23 10:40:05.119 UTC [1219] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:40:10.001 UTC [1220] LOG:  connection received: host=10.0.2.50 port=51401 user=claims_app database=claims
+2026-03-23 10:40:10.019 UTC [1220] LOG:  connection authorized: user=claims_app database=claims
+2026-03-23 10:45:00.100 UTC [1201] LOG:  statement: SELECT COUNT(*) FROM claims WHERE status='PROCESSING' AND updated_at < NOW() - INTERVAL '10 minutes'
+2026-03-23 10:45:00.145 UTC [1201] LOG:  duration: 45.112 ms
+2026-03-23 10:50:00.001 UTC [1205] LOG:  statement: SELECT DATE_TRUNC('hour', created_at) AS hour, COUNT(*), SUM(amount) FROM claims WHERE created_at > NOW() - INTERVAL '1 hour' GROUP BY 1
+2026-03-23 10:50:00.112 UTC [1205] LOG:  duration: 112.334 ms
+2026-03-23 10:55:00.100 UTC [9901] LOG:  connection received: host=10.0.2.80 port=60200 user=flyway database=claims
+2026-03-23 10:55:00.118 UTC [9901] LOG:  connection authorized: user=flyway database=claims
+2026-03-23 10:55:00.200 UTC [9901] LOG:  statement: SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1
+2026-03-23 10:55:00.234 UTC [9901] LOG:  duration: 34.112 ms  statement: SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1
+2026-03-23 10:55:00.300 UTC [9901] LOG:  disconnection: session time: 0:00:00.182 user=flyway database=claims host=10.0.2.80 port=60200

@@ -1,0 +1,81 @@
+20260323T100001.001Z [claims-domain][info][0x00350015] Trans(1001): Request received for /claims/submit from 10.0.1.50 via SSL/TLS
+20260323T100001.234Z [claims-domain][info][0x00350016] Trans(1001): Routing to backend claims-api at 10.0.2.50:8080
+20260323T100001.567Z [claims-domain][info][0x00350017] Trans(1001): Backend response 200 OK in 333ms, forwarding to client
+20260323T100002.001Z [claims-domain][info][0x00350015] Trans(1002): Request received for /claims/list from 10.0.1.51 via SSL/TLS
+20260323T100002.189Z [claims-domain][info][0x00350016] Trans(1002): Routing to backend claims-api at 10.0.2.50:8080
+20260323T100002.445Z [claims-domain][info][0x00350017] Trans(1002): Backend response 200 OK in 256ms, forwarding to client
+20260323T100003.001Z [altinn-proxy][info][0x00350015] Trans(1003): Request received for /altinn/notifications from claims-api
+20260323T100003.234Z [altinn-proxy][info][0x00350016] Trans(1003): Routing to Altinn API at altinn.api.no:443
+20260323T100003.712Z [altinn-proxy][info][0x00350017] Trans(1003): Altinn response 202 ACCEPTED in 478ms
+20260323T100005.001Z [claims-domain][info][0x00350015] Trans(1004): Request received for /claims/submit from 10.0.1.52 via SSL/TLS
+20260323T100005.234Z [claims-domain][info][0x00350016] Trans(1004): Routing to backend claims-api at 10.0.2.50:8080
+20260323T100005.534Z [claims-domain][info][0x00350017] Trans(1004): Backend response 201 CREATED in 300ms, forwarding to client
+20260323T100007.001Z [signing-service][info][0x00350015] Trans(1005): Request received for /sign/document from claims-api
+20260323T100007.189Z [signing-service][info][0x00350016] Trans(1005): Routing to signing-service at 10.0.2.90:8443
+20260323T100007.556Z [signing-service][info][0x00350017] Trans(1005): Signing-service response 200 OK in 367ms
+20260323T100010.001Z [claims-domain][info][0x00350015] Trans(1006): Request received for /claims/CLM-20260323-001 from 10.0.1.53 via SSL/TLS
+20260323T100010.245Z [claims-domain][info][0x00350017] Trans(1006): Backend response 200 OK in 244ms, forwarding to client
+20260323T100012.001Z [claims-domain][info][0x00350015] Trans(1007): Request received for /claims/submit from 10.0.1.54 via SSL/TLS
+20260323T100012.300Z [claims-domain][info][0x00350017] Trans(1007): Backend response 201 CREATED in 299ms, forwarding to client
+20260323T100015.001Z [altinn-proxy][info][0x00350015] Trans(1008): Request received for /altinn/policy-status from claims-api
+20260323T100015.567Z [altinn-proxy][info][0x00350017] Trans(1008): Altinn response 200 OK in 566ms
+20260323T100018.001Z [claims-domain][info][0x00350015] Trans(1009): Request received for /claims/submit from 10.0.1.55 via SSL/TLS
+20260323T100018.300Z [claims-domain][info][0x00350017] Trans(1009): Backend response 201 CREATED in 299ms, forwarding to client
+20260323T100020.001Z [claims-domain][info][0x00350015] Trans(1010): Request received for /claims/list from 10.0.1.56 via SSL/TLS
+20260323T100020.234Z [claims-domain][info][0x00350017] Trans(1010): Backend response 200 OK in 233ms, forwarding to client
+20260323T100022.001Z [signing-service][info][0x00350015] Trans(1011): Request received for /sign/batch from claims-api
+20260323T100022.456Z [signing-service][info][0x00350017] Trans(1011): Signing-service response 200 OK in 455ms
+20260323T100025.001Z [claims-domain][info][0x00350015] Trans(1012): Request received for /claims/submit from 10.0.1.57 via SSL/TLS
+20260323T100025.290Z [claims-domain][info][0x00350017] Trans(1012): Backend response 201 CREATED in 289ms, forwarding to client
+20260323T100028.001Z [altinn-proxy][info][0x00350015] Trans(1013): Request received for /altinn/notifications from claims-api
+20260323T100028.489Z [altinn-proxy][info][0x00350017] Trans(1013): Altinn response 202 ACCEPTED in 488ms
+20260323T100029.001Z [claims-domain][info][0x00350015] Trans(1014): Request received for /claims/list from 10.0.1.58 via SSL/TLS
+20260323T100029.278Z [claims-domain][info][0x00350017] Trans(1014): Backend response 200 OK in 277ms, forwarding to client
+20260323T100030.001Z [claims-domain][warn][0x00350021] Trans(1015): JWT validation warning - token expiry within 300s for subject CUST-80056, forwarding anyway
+20260323T100030.189Z [claims-domain][info][0x00350015] Trans(1015): Request received for /claims/submit from 10.0.1.59 via SSL/TLS
+20260323T100030.500Z [claims-domain][warn][0x00350022] Trans(1015): Backend response slow (311ms), threshold=300ms, backend=claims-api
+20260323T100030.567Z [claims-domain][info][0x00350017] Trans(1015): Backend response 201 CREATED in 567ms (slow), forwarding to client
+20260323T100031.001Z [claims-domain][warn][0x00350022] Trans(1016): Backend response slow (1234ms), threshold=300ms, backend=claims-api at 10.0.2.50:8080
+20260323T100031.234Z [claims-domain][error][0x00350031] Trans(1016): Backend connection refused: connect() to 10.0.2.50:8080 failed (111: Connection refused)
+20260323T100031.235Z [claims-domain][error][0x00350032] Trans(1016): No healthy backends available for service claims-api. Upstream pool exhausted.
+20260323T100031.400Z [claims-domain][error][0x00350033] Trans(1016): Returning 503 Service Unavailable to client 10.0.1.60
+20260323T100031.500Z [altinn-proxy][warn][0x00350022] Trans(1017): Altinn API timeout after 30000ms for endpoint altinn.api.no:443. Claim CLM-20260323-015 notification pending.
+20260323T100031.600Z [altinn-proxy][error][0x00350034] Trans(1017): SSL handshake timeout to altinn.api.no:443 after 30000ms
+20260323T100031.700Z [altinn-proxy][warn][0x00350041] Trans(1017): SSL certificate for altinn.api.no expires in 12 days. Renewal recommended.
+20260323T100032.001Z [claims-domain][error][0x00350031] Trans(1018): Backend connection refused: connect() to 10.0.2.50:8080 failed (111: Connection refused)
+20260323T100032.002Z [claims-domain][error][0x00350033] Trans(1018): Returning 503 Service Unavailable to client 10.0.1.61
+20260323T100032.100Z [claims-domain][error][0x00350035] Rate-limiter triggered: 25 req/s from subnet 10.0.1.0/24 exceeds threshold 20 req/s. Throttling new connections.
+20260323T100032.200Z [claims-domain][error][0x00350031] Trans(1019): Backend connection refused: connect() to 10.0.2.50:8080 failed (111: Connection refused)
+20260323T100032.201Z [claims-domain][error][0x00350033] Trans(1019): Returning 503 Service Unavailable to client 10.0.1.62
+20260323T100032.300Z [claims-domain][error][0x00350031] Trans(1020): Backend connection refused: connect() to 10.0.2.50:8080 failed (111: Connection refused)
+20260323T100032.301Z [claims-domain][error][0x00350033] Trans(1020): Returning 503 Service Unavailable to client 10.0.1.63
+20260323T100033.001Z [claims-domain][warn][0x00350036] Trans(1021): JWT validation failed - token expired for subject CUST-90067. Request rejected.
+20260323T100033.100Z [claims-domain][error][0x00350037] Trans(1021): 401 Unauthorized returned to client 10.0.1.64 - expired JWT
+20260323T100033.200Z [claims-domain][error][0x00350031] Trans(1022): Backend connection refused: connect() to 10.0.2.50:8080 failed (111: Connection refused)
+20260323T100033.201Z [claims-domain][error][0x00350033] Trans(1022): Returning 503 Service Unavailable to client 10.0.1.65
+20260323T100033.300Z [altinn-proxy][error][0x00350034] Trans(1023): Altinn API unreachable after 3 retries. altinn.api.no connection refused.
+20260323T100034.001Z [claims-domain][error][0x00350038] Circuit-breaker OPEN for backend claims-api (10.0.2.50:8080). Failure rate: 12/15 (80%). Threshold: 50%.
+20260323T100034.100Z [claims-domain][error][0x00350039] Trans(1024): Circuit-breaker OPEN - returning fallback response to client 10.0.1.66. Claim submission rejected.
+20260323T100034.200Z [claims-domain][error][0x00350039] Trans(1025): Circuit-breaker OPEN - returning fallback response to client 10.0.1.67
+20260323T100034.300Z [claims-domain][error][0x00350039] Trans(1026): Circuit-breaker OPEN - returning fallback response to client 10.0.1.68
+20260323T100035.001Z [altinn-proxy][error][0x00350038] Circuit-breaker OPEN for Altinn API (altinn.api.no:443). Failure rate: 8/10 (80%).
+20260323T100035.100Z [claims-domain][error][0x00350039] Trans(1027): Circuit-breaker OPEN - returning fallback response to client 10.0.1.69
+20260323T100035.200Z [claims-domain][error][0x00350035] Rate-limiter triggered: 30 req/s from subnet 10.0.1.0/24 exceeds threshold 20 req/s. Dropping requests.
+20260323T100036.001Z [claims-domain][error][0x00350039] Trans(1028): Circuit-breaker OPEN - returning fallback response to client 10.0.1.70
+20260323T100036.200Z [signing-service][warn][0x00350022] Trans(1029): Signing-service response slow (2340ms). Backend 10.0.2.90:8443 under load.
+20260323T100037.001Z [claims-domain][error][0x00350039] Trans(1030): Circuit-breaker OPEN - returning fallback response to client 10.0.1.71
+20260323T100038.001Z [claims-domain][warn][0x00350040] Circuit-breaker in HALF_OPEN state for claims-api. Sending probe request to 10.0.2.50:8080
+20260323T100038.500Z [claims-domain][error][0x00350031] Circuit-breaker probe: connection refused to 10.0.2.50:8080. Remaining OPEN.
+20260323T100040.001Z [claims-domain][warn][0x00350040] Circuit-breaker in HALF_OPEN state for claims-api. Sending probe request to 10.0.2.50:8080
+20260323T100040.567Z [claims-domain][info][0x00350017] Circuit-breaker probe: backend response 200 OK in 567ms. Transitioning to CLOSED.
+20260323T100040.600Z [claims-domain][info][0x00350042] Circuit-breaker CLOSED for backend claims-api (10.0.2.50:8080). Resuming normal routing.
+20260323T100041.001Z [altinn-proxy][warn][0x00350040] Circuit-breaker in HALF_OPEN state for Altinn API. Sending probe request to altinn.api.no:443
+20260323T100041.500Z [altinn-proxy][info][0x00350017] Altinn probe: response 200 OK in 499ms. Transitioning to CLOSED.
+20260323T100041.600Z [altinn-proxy][info][0x00350042] Circuit-breaker CLOSED for Altinn API (altinn.api.no:443). Resuming normal routing.
+20260323T100045.001Z [claims-domain][info][0x00350015] Trans(1031): Request received for /claims/submit from 10.0.1.72 via SSL/TLS
+20260323T100045.289Z [claims-domain][info][0x00350017] Trans(1031): Backend response 201 CREATED in 288ms, forwarding to client
+20260323T100050.001Z [claims-domain][info][0x00350015] Trans(1032): Request received for /claims/list from 10.0.1.73 via SSL/TLS
+20260323T100050.234Z [claims-domain][info][0x00350017] Trans(1032): Backend response 200 OK in 233ms, forwarding to client
+20260323T100055.001Z [claims-domain][info][0x00350015] Trans(1033): Request received for /claims/submit from 10.0.1.74 via SSL/TLS
+20260323T100055.300Z [claims-domain][info][0x00350017] Trans(1033): Backend response 201 CREATED in 299ms. All systems nominal.
+20260323T100055.400Z [altinn-proxy][info][0x00350015] Trans(1034): Altinn notification for CLM-20260323-016 accepted in 445ms. All queued notifications delivered.
