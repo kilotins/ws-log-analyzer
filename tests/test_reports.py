@@ -367,9 +367,9 @@ class TestRenderHtmlReport:
         events = [make_event(level="ERROR", text="fail")]
         ai = {"incident": "Root cause is DB connection timeout", "incident_model": "Claude"}
         html = render_html_report(events, ai_content=ai)
-        assert "AI Analysis" in html
         assert "Root cause is DB connection timeout" in html
         assert "Claude" in html
+        assert "Incident Summary" in html
 
     def test_html_includes_ask_ai(self):
         events = [make_event(level="ERROR", text="fail")]

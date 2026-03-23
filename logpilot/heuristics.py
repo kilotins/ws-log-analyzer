@@ -415,6 +415,164 @@ def _merge_evidence(evidence_list: list[dict[str, Any]]) -> dict[str, Any]:
     return merged
 
 
+# ── M54: Confidence scoring ────────────────────────────────────────
+
+
+def compute_confidence(
+    group: dict[str, Any],
+    events: list[LogEvent] | None = None,
+) -> dict[str, Any]:
+    """Compute confidence score for an incident group.
+
+    Returns {"score": float 0-1, "label": "Low"/"Medium"/"High", "factors": list[str]}.
+    """
+    if events is None:
+        return {"score": 0.50, "label": "Medium", "factors": ["default (no events provided)"]}
+
+    factors: list[str] = []
+    score = 0.10
+    factors.append("base +0.10")
+
+    # Frequency
+    total = group.get("total_count", 0)
+    freq = min(total / 50, 0.25)
+    if freq > 0:
+        score += freq
+        factors.append(f"frequency ({total} events) +{freq:.2f}")
+
+    # Cascade depth
+    effects = group.get("effects", [])
+    depth = min(len(effects) * 0.05, 0.15)
+    if depth > 0:
+        score += depth
+        factors.append(f"cascade depth ({len(effects)} effects) +{depth:.2f}")
+
+    # System spread
+    systems = group.get("affected_systems", [])
+    spread = min(len(systems) * 0.05, 0.15)
+    if spread > 0:
+        score += spread
+        factors.append(f"system spread ({len(systems)} systems) +{spread:.2f}")
+
+    # Primary flag
+    if group.get("is_primary"):
+        score += 0.10
+        factors.append("primary incident +0.10")
+
+    # Cross-system corroboration: same IP/hostname in events from 2+ systems
+    trigger_ips: set[str] = set()
+    trigger_hosts: set[str] = set()
+    for t in group.get("triggers", []):
+        ev = t.get("evidence", {})
+        trigger_ips.update(ev.get("ip_addresses", []))
+        trigger_hosts.update(ev.get("hostnames", []))
+
+    targets = trigger_ips | trigger_hosts
+    if targets:
+        systems_with_target: set[str] = set()
+        for e in events:
+            text = (e.text or "").lower()
+            for target in targets:
+                if target.lower() in text:
+                    label = e.system_label or ""
+                    if label:
+                        systems_with_target.add(label)
+                    break
+        if len(systems_with_target) >= 2:
+            score += 0.15
+            factors.append(f"cross-system corroboration ({len(systems_with_target)} systems share target) +0.15")
+
+    # Trace correlation: shared trace ID pattern across systems
+    _trace_re = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', re.IGNORECASE)
+    trigger_traces: set[str] = set()
+    for t in group.get("triggers", []):
+        sample = t.get("evidence", {}).get("sample_line", "")
+        trigger_traces.update(_trace_re.findall(sample))
+
+    if trigger_traces:
+        trace_systems: set[str] = set()
+        for e in events:
+            text = e.text or ""
+            for tid in trigger_traces:
+                if tid in text:
+                    label = e.system_label or ""
+                    if label:
+                        trace_systems.add(label)
+                    break
+        if len(trace_systems) >= 2:
+            score += 0.10
+            factors.append(f"trace correlation ({len(trace_systems)} systems share trace ID) +0.10")
+
+    score = min(score, 1.0)
+    if score < 0.35:
+        label = "Low"
+    elif score < 0.65:
+        label = "Medium"
+    else:
+        label = "High"
+
+    return {"score": score, "label": label, "factors": factors}
+
+
+# ── M54: Failure chain builder ─────────────────────────────────────
+
+
+def build_failure_chain(
+    groups: list[dict[str, Any]],
+    cascades: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build explicit failure chain from incident groups and cross-system cascades.
+
+    Returns {
+        "primary_chain": list[str],       # max 5 steps
+        "chain_text": str,                # "A → B → C → ..."
+        "secondary_findings": list[str],  # concurrent groups not in chain
+    }
+    """
+    if not groups:
+        return {"primary_chain": [], "chain_text": "", "secondary_findings": []}
+
+    # Find primary group
+    primary = next((g for g in groups if g.get("is_primary")), groups[0])
+
+    # Build chain: trigger titles → effect titles
+    chain: list[str] = []
+    seen: set[str] = set()
+    for t in primary.get("triggers", []):
+        title = t["title"]
+        if title not in seen:
+            chain.append(title)
+            seen.add(title)
+    for e in primary.get("effects", []):
+        title = e["title"]
+        if title not in seen:
+            chain.append(title)
+            seen.add(title)
+
+    # Append cascade downstream labels if available
+    if cascades:
+        for c in cascades[:3]:
+            pattern = c.get("pattern", "")
+            if pattern and pattern not in seen:
+                chain.append(pattern)
+                seen.add(pattern)
+
+    # Cap at 5
+    chain = chain[:5]
+
+    # Secondary findings: concurrent groups
+    secondary: list[str] = []
+    for g in groups:
+        if g.get("cascade_order") == "concurrent":
+            secondary.append(f"{g['name']} ({g.get('total_count', 0)} events)")
+
+    return {
+        "primary_chain": chain,
+        "chain_text": " → ".join(chain) if chain else "",
+        "secondary_findings": secondary,
+    }
+
+
 def collect_group_evidence(group: dict[str, Any]) -> list[str]:
     """Collect deduplicated evidence lines from all triggers in a group.
 
@@ -460,11 +618,14 @@ def _heuristic_keywords(h: dict) -> list[str]:
     return keywords
 
 
-def group_into_incidents(causes: list[dict[str, Any]]) -> dict[str, Any]:
+def group_into_incidents(
+    causes: list[dict[str, Any]],
+    events: list[LogEvent] | None = None,
+) -> dict[str, Any]:
     """Group related likely causes into incident groups.
 
     Returns dict with:
-      - groups: list of incident dicts with trigger, effects, narrative
+      - groups: list of incident dicts with trigger, effects, narrative, confidence
       - ungrouped: list of causes that don't fit any incident group
     """
     if not causes:
@@ -514,6 +675,10 @@ def group_into_incidents(causes: list[dict[str, Any]]) -> dict[str, Any]:
     # Build rich narratives with evidence
     for g in groups:
         g["narrative"] = build_narrative(g)
+
+    # Compute confidence scores
+    for g in groups:
+        g["confidence"] = compute_confidence(g, events)
 
     # Ungrouped causes (skip correlation entries — they're explained by their parent causes)
     ungrouped = [c for c in causes if c["id"] not in used_ids
