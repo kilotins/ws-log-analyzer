@@ -1179,15 +1179,15 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                     if _incident_provider == "claude":
                         _brief_text, _ = call_claude_api(
                             st.session_state.get("api_key", ""), _incident_model_id,
-                            _brief_prompt, max_tokens=2048)
+                            _brief_prompt, max_tokens=4096)
                     elif _incident_provider == "gemini":
                         _brief_text, _ = call_gemini_api(
                             st.session_state.get("gemini_api_key", ""), _incident_model_id,
-                            _brief_prompt, max_tokens=2048)
+                            _brief_prompt, max_tokens=4096)
                     elif _incident_provider == "openai":
                         _brief_text, _ = call_openai_api(
                             st.session_state.get("openai_api_key", "") or "not-needed",
-                            _incident_model_id, _brief_prompt, max_tokens=2048)
+                            _incident_model_id, _brief_prompt, max_tokens=4096)
                     elif _incident_provider == "local":
                         _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
                         _brief_text, _ = call_local_api(
