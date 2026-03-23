@@ -446,6 +446,13 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                     st.session_state._incident_model_id = model_id
                     cached_answer = answer
 
+                    # Debug log: AI response details
+                    if log:
+                        _has_ml = "Missing Logs" in answer
+                        _last_50 = answer[-50:].replace("\n", "\\n")
+                        log.info("ai_response provider=%s model=%s chars=%d has_missing_logs=%s ends_with='%s'",
+                                 provider, model_id, len(answer), _has_ml, _last_50)
+
                     # Save incident fingerprint to session history
                     from logpilot.heuristics import incident_fingerprint, match_similar_incidents
                     if causes:
