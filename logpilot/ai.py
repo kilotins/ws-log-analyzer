@@ -27,6 +27,7 @@ _FORMAT_SPECIALIST: dict[str, str] = {
     "syslog":     "Linux system (syslog, journald, systemd)",
     "enonic":     "Enonic XP CMS platform",
     "crio":       "Kubernetes/OpenShift container platform (CRI-O)",
+    "datapower":  "IBM DataPower API Gateway (SSL, AAA, MPGW, API Connect)",
 }
 
 _FORMAT_PLACEHOLDER: dict[str, str] = {
@@ -38,6 +39,7 @@ _FORMAT_PLACEHOLDER: dict[str, str] = {
     "syslog":     "e.g. OOM killer, service failed, disk error, SYN flooding",
     "enonic":     "e.g. RepositoryException, cluster RED, blob not found",
     "crio":       "e.g. CrashLoopBackOff, OOMKilled, liveness probe failed",
+    "datapower":  "e.g. 0x80e00001 connection refused, SSL handshake failed, circuit breaker open, API rate limit",
 }
 
 
@@ -288,16 +290,23 @@ _SKILL_FORMAT_MAP: dict[str, list[str]] = {
     "syslog":     ["syslog-analysis.md"],
     "enonic":     ["enonic-xp-analysis.md"],
     "crio":       ["openshift-k8s-analysis.md"],
+    "datapower":  ["datapower-analysis.md"],
 }
 
 
-def select_skills(match_result: dict, user_query: str = "", detected_format: str = "") -> list[str]:
+def select_skills(match_result: dict, user_query: str = "", detected_format: str = "",
+                   source_formats: list[str] | None = None) -> list[str]:
     """Select relevant domain skill filenames based on match context, query, and log format."""
     selected: list[str] = []
 
-    # Format-specific skills first
+    # Format-specific skills — include ALL detected formats, not just dominant
+    _all_formats = set()
     if detected_format:
-        selected.extend(_SKILL_FORMAT_MAP.get(detected_format, []))
+        _all_formats.add(detected_format)
+    if source_formats:
+        _all_formats.update(source_formats)
+    for fmt in _all_formats:
+        selected.extend(_SKILL_FORMAT_MAP.get(fmt, []))
 
     for tag in match_result.get("tags") or []:
         selected.extend(_SKILL_TAG_MAP.get(tag, []))
