@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Technical Audit Report — LogPilot</title>
+<title>Technical Audit Report -- LogPilot</title>
 <style>*, *::before, *::after { box-sizing: border-box; }
 
 /* --- Light theme --- */
@@ -260,13 +260,13 @@ mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1
     </svg>
   </div>
   <div class="nav-title">Audit Report</div>
-  <div class="nav-subtitle">2026-03-23 20:40</div>
+  <div class="nav-subtitle">2026-03-23 21:48</div>
   <div class="search-box">
     <input type="text" id="report-search" placeholder="Search report..." autocomplete="off">
     <div class="search-count"></div>
   </div>
   <div class="nav-links">
-    <a class="nav-link" href="#sect-1-executive-summary" title="1. Executive Summary"><span class="num">1</span> 1. Executive Summary</a><a class="nav-link" href="#sect-2-repository-overview" title="2. Repository Overview"><span class="num">2</span> 2. Repository Overview</a><a class="nav-link" href="#sect-3-documentation-audit" title="3. Documentation Audit"><span class="num">3</span> 3. Documentation Audit</a><a class="nav-link" href="#sect-4-skills-system-analysis" title="4. Skills System Analysis"><span class="num">4</span> 4. Skills System Analysis</a><a class="nav-link" href="#sect-5-code-review-findings" title="5. Code Review Findings"><span class="num">5</span> 5. Code Review Findings</a><a class="nav-link" href="#sect-6-ai-integration-review" title="6. AI Integration Review"><span class="num">6</span> 6. AI Integration Review</a><a class="nav-link" href="#sect-7-test-coverage-analysis" title="7. Test Coverage Analysis"><span class="num">7</span> 7. Test Coverage Analysis</a><a class="nav-link" href="#sect-8-refactoring-opportunities" title="8. Refactoring Opportunities"><span class="num">8</span> 8. Refactoring Opportunities</a><a class="nav-link" href="#sect-9-feature-opportunities" title="9. Feature Opportunities"><span class="num">9</span> 9. Feature Opportunities</a><a class="nav-link" href="#sect-10-prioritized-improvement-plan" title="10. Prioritized Improvement Plan"><span class="num">10</span> 10. Prioritized Improvement Plan</a><a class="nav-link" href="#sect-changes-since-last-audit-8-5-10-earlier-today" title="Changes Since Last Audit (8.5/10 earlier today)"><span class="num">11</span> Changes Since Last Audit (8.5/10 e...</a><a class="nav-link" href="#sect-grade-summary" title="Grade Summary"><span class="num">12</span> Grade Summary</a>
+    <a class="nav-link" href="#sect-1-executive-summary" title="1. Executive Summary"><span class="num">1</span> 1. Executive Summary</a><a class="nav-link" href="#sect-2-repository-overview" title="2. Repository Overview"><span class="num">2</span> 2. Repository Overview</a><a class="nav-link" href="#sect-3-documentation-audit" title="3. Documentation Audit"><span class="num">3</span> 3. Documentation Audit</a><a class="nav-link" href="#sect-4-skills-system-analysis" title="4. Skills System Analysis"><span class="num">4</span> 4. Skills System Analysis</a><a class="nav-link" href="#sect-5-code-review-findings" title="5. Code Review Findings"><span class="num">5</span> 5. Code Review Findings</a><a class="nav-link" href="#sect-6-ai-integration-review" title="6. AI Integration Review"><span class="num">6</span> 6. AI Integration Review</a><a class="nav-link" href="#sect-7-test-coverage-analysis" title="7. Test Coverage Analysis"><span class="num">7</span> 7. Test Coverage Analysis</a><a class="nav-link" href="#sect-8-refactoring-opportunities" title="8. Refactoring Opportunities"><span class="num">8</span> 8. Refactoring Opportunities</a><a class="nav-link" href="#sect-9-feature-opportunities" title="9. Feature Opportunities"><span class="num">9</span> 9. Feature Opportunities</a><a class="nav-link" href="#sect-10-prioritized-improvement-plan" title="10. Prioritized Improvement Plan"><span class="num">10</span> 10. Prioritized Improvement Plan</a>
   </div>
   <div class="nav-controls">
     <button onclick="expandAll()">Expand all</button>
@@ -278,232 +278,49 @@ mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1
 </nav>
 <main>
   <div class="report-header">
-    <h1>Technical Audit Report — LogPilot</h1>
+    <h1>Technical Audit Report -- LogPilot</h1>
     <div class="report-meta">
-      <span>Generated: 2026-03-23 20:40</span>
-      <span>12 sections</span>
+      <span>Generated: 2026-03-23 21:48</span>
+      <span>10 sections</span>
     </div>
-    <div class="severity-grid"><div class="sev-card"><span class="sev-label">Architecture</span><span class="sev-grade good">A</span></div><div class="sev-card"><span class="sev-label">Ai Integration</span><span class="sev-grade good">A</span></div></div>
+    <div class="severity-grid"><div class="sev-card"><span class="sev-label">Overall</span><span class="sev-grade warn">B+</span></div></div>
   </div>
   <h1 id="technical-audit-report-logpilot">Technical Audit Report — LogPilot</h1>
-<p><strong>Overall Grade: 8.8/10 (A-)</strong> <strong>Date:</strong> 2026-03-23 <strong>Auditor:</strong> Claude Opus 4.6 (automated) <strong>Previous audit:</strong> 8.5/10 (earlier today)</p>
-<hr>
-<details class="section" id="sect-1-executive-summary" open><summary><span class="section-title">1. Executive Summary</span><span class="badge badge-summary section-badge">1/12</span></summary><div class="section-body">
-<p><strong>Grade: 9/10</strong></p>
-<p>LogPilot is an impressively mature single-developer project that punches well above its weight class. The codebase demonstrates disciplined architecture: a zero-dependency core engine (<code class="inline">logpilot/</code> package), a pluggable format system (12 plugins), a multi-provider AI integration layer, and a feature-rich Streamlit GUI. Since the earlier 8.5/10 audit today, several concrete improvements have been made:</p>
-<ul><li><strong>Fixed (since last audit):</strong> Audit file list expanded (20 to 38 files), delta/versioning removed from audit system, AI query history removed from exports and hidden from Streamlit UI</li><li><strong>New (since last audit):</strong> PII redaction with 4 GDPR-aware levels (M59), Executive Summary report format (M61), Docker JSON format plugin (M63), improved incident AI prompt (&quot;What Happened&quot; instead of &quot;Executive Summary&quot;), Jira &amp; Confluence integration skill, GDPR data protection skill, 5 new test scenarios (e-commerce, bank, bank-api, insurance, insurance-api)</li></ul>
-<p><strong>Key strengths:</strong></p>
-<ul><li>Clean separation between parsing core, analysis engine, and presentation layers</li><li>Comprehensive format plugin system with runtime-checkable Protocol interface</li><li>Strong prompt injection defenses (XML tag stripping, Unicode homoglyph normalization, input sanitization)</li><li>Excellent test coverage: 1,798 tests across 39 test files with 1,658 test functions</li><li>Rich heuristic engine: 68+ patterns, 19 correlations, 7 incident groups with evidence extraction and confidence scoring</li></ul>
-<p><strong>Key areas for improvement:</strong></p>
-<ul><li>Some large files exceed 1,000 lines (app.py: 1,337, app_ai.py: 1,172, app_render.py: 1,137, _heuristics_fallback.py: 1,142)</li><li>Minor code duplication between parser.py regexes and formats/was.py regexes</li><li>No type-checking CI (mypy/pyright) despite type annotations being present throughout</li><li>Token estimation is character-ratio-based rather than using tiktoken or provider SDKs</li></ul>
-<hr>
-</div></details><details class="section" id="sect-2-repository-overview"><summary><span class="section-title">2. Repository Overview</span><span class="badge badge-info section-badge">2/12</span></summary><div class="section-body">
-<p><strong>Grade: 9/10</strong></p>
-<h3 id="file-inventory">File Inventory</h3>
-<div class="table-wrap"><table><thead><tr><th>Category</th><th>Files</th><th>Lines</th></tr></thead><tbody>
-<tr><td>Core engine (<code class="inline">logpilot/*.py</code>)</td><td>10</td><td>~4,200</td></tr>
-<tr><td>Format plugins (<code class="inline">logpilot/formats/</code>)</td><td>13</td><td>~3,054</td></tr>
-<tr><td>Reports (<code class="inline">logpilot/reports/</code>)</td><td>6</td><td>~1,358</td></tr>
-<tr><td>App layer (<code class="inline">app*.py</code>)</td><td>8</td><td>~5,819</td></tr>
-<tr><td>Heuristics data</td><td>2</td><td>~2,062</td></tr>
-<tr><td>Tests (<code class="inline">tests/test_*.py</code>)</td><td>39</td><td>~15,254</td></tr>
-<tr><td>Domain skills (<code class="inline">skills/</code>)</td><td>23</td><td>--</td></tr>
-<tr><td>Implementation skills (<code class="inline">.claude/skills/</code>)</td><td>20</td><td>--</td></tr>
-<tr><td><strong>Total source</strong></td><td>~121</td><td><strong>~31,747</strong></td></tr>
-</tbody></table></div>
-<h3 id="architecture-quality">Architecture Quality</h3>
-<p>The architecture follows a clean layered design:</p>
-<ol><li><strong>Data layer</strong>: <code class="inline">LogEvent</code> dataclass (<code class="inline">event.py:14</code>) with 17 fields, <code class="inline">__slots__</code> on Python 3.10+, dict-protocol compatibility</li><li><strong>Parse layer</strong>: Format-agnostic iterator in <code class="inline">parser.py:338</code> (<code class="inline">parse_file_iter</code>) delegates to format plugins via <code class="inline">LogFormat</code> Protocol (<code class="inline">formats/base.py:9</code>)</li><li><strong>Analysis layer</strong>: <code class="inline">analysis.py</code> + <code class="inline">heuristics.py</code> -- summarize, timeline, cascades, incident grouping, confidence scoring</li><li><strong>Report layer</strong>: <code class="inline">reports/</code> package with 6 output formats sharing <code class="inline">ReportConfig</code> (<code class="inline">config.py:10</code>)</li><li><strong>AI layer</strong>: <code class="inline">ai.py</code> -- prompt building, skill selection, token estimation, multi-provider support</li><li><strong>Presentation layer</strong>: <code class="inline">app.py</code> (Streamlit GUI) + <code class="inline">cli.py</code> (CLI)</li></ol>
-<p>The <code class="inline">__init__.py</code> re-exports all public symbols (106 lines) providing a flat import surface. This is well-maintained and matches the actual API.</p>
-<h3 id="format-plugin-registry">Format Plugin Registry</h3>
-<p>12 format plugins registered in <code class="inline">formats/__init__.py:31-44</code>:</p>
-<div class="table-wrap"><table><thead><tr><th>Plugin</th><th>File</th><th>Lines</th><th>Detection</th></tr></thead><tbody>
-<tr><td>WAS/Liberty</td><td><code class="inline">was.py</code></td><td>139</td><td>Single-letter severity codes</td></tr>
-<tr><td>Docker JSON</td><td><code class="inline">docker_json.py</code></td><td>195</td><td><code class="inline">{&quot;log&quot;:...,&quot;stream&quot;:...,&quot;time&quot;:...}</code></td></tr>
-<tr><td>JSON (structured)</td><td><code class="inline">json_log.py</code></td><td>303</td><td>JSON lines with level fields</td></tr>
-<tr><td>nginx</td><td><code class="inline">nginx.py</code></td><td>280</td><td>Combined Log Format / error log</td></tr>
-<tr><td>Log4j</td><td><code class="inline">log4j.py</code></td><td>198</td><td>Log4j/Logback pattern layout</td></tr>
-<tr><td>CRI-O</td><td><code class="inline">crio.py</code></td><td>318</td><td>K8s CRI-O timestamp+stream format</td></tr>
-<tr><td>DataPower</td><td><code class="inline">datapower.py</code></td><td>201</td><td><code class="inline">[domain][level][0xcode]</code> pattern</td></tr>
-<tr><td>Tomcat</td><td><code class="inline">tomcat.py</code></td><td>171</td><td>JUL format with severity keyword</td></tr>
-<tr><td>PostgreSQL</td><td><code class="inline">postgresql.py</code></td><td>227</td><td>PG timestamp + PID + level prefix</td></tr>
-<tr><td>Python</td><td><code class="inline">python_log.py</code></td><td>344</td><td>Python logging module patterns</td></tr>
-<tr><td>syslog</td><td><code class="inline">syslog.py</code></td><td>282</td><td>RFC 3164/5424 + journald</td></tr>
-<tr><td>Enonic XP</td><td><code class="inline">enonic.py</code></td><td>319</td><td>Jetty + XP platform patterns</td></tr>
-</tbody></table></div>
-<p>All plugins follow the <code class="inline">LogFormat</code> Protocol (<code class="inline">base.py:9</code>): <code class="inline">detect()</code>, <code class="inline">extract_ts()</code>, <code class="inline">extract_level()</code>, <code class="inline">is_continuation()</code>, <code class="inline">classify_event()</code>, <code class="inline">bucket_tags()</code>. Good consistency. Each uses shared helpers from <code class="inline">base.py</code> (<code class="inline">extract_root_cause</code>, <code class="inline">extract_exception</code>, <code class="inline">is_stack_or_caused_by</code>).</p>
-<hr>
-</div></details><details class="section" id="sect-3-documentation-audit"><summary><span class="section-title">3. Documentation Audit</span><span class="badge badge-info section-badge">3/12</span></summary><div class="section-body">
-<p><strong>Grade: 8/10</strong></p>
-<h3 id="claude-md-project-instructions">CLAUDE.md (project instructions)</h3>
-<ul><li>Well-structured with technology stack, project structure references, gotchas section</li><li>Links to ARCHITECTURE.md and README.md for details</li><li>Complete skill index table (42+ entries across domain and implementation categories)</li><li><strong>Good</strong>: Critical gotchas section documents the most common pitfalls (modular core, no required deps, event boundary heuristic, secret redaction, WAS severity precedence)</li></ul>
-<h3 id="skills-system">Skills System</h3>
-<ul><li><strong>23 domain skills</strong> in <code class="inline">skills/</code>: covers WAS, nginx, Log4j, Python, syslog, Enonic XP, K8s/OpenShift, DataPower, Tomcat, PostgreSQL, Docker, JSON, JMS, GC, security, deployment, thread correlation, stacktraces, message codes, noise filtering, cross-system analysis, database errors</li><li><strong>20 implementation skills</strong> in <code class="inline">.claude/skills/</code>: covers Streamlit patterns, Claude integration, testing, documentation, Docker deployment, log format plugins, Python packaging, rebranding, auth, FastAPI, React, database adapters, observability, workspace model, scenario builder, GDPR, Jira/Confluence, writing conventions</li><li><strong>New since last audit</strong>: <code class="inline">gdpr-data-protection.md</code>, <code class="inline">jira-confluence-integration.md</code>, <code class="inline">scenario-builder.md</code></li></ul>
-<h3 id="gaps">Gaps</h3>
-<ul><li>No inline docstring for <code class="inline">precompute_analysis()</code> explaining the full dict structure it returns (callers must inspect code)</li><li>The <code class="inline">_heuristics_fallback.py</code> at 1,142 lines is a large data file with no header comment explaining its relationship to <code class="inline">heuristics_data.yaml</code></li><li>Executive summary module (<code class="inline">reports/executive_summary.py</code>) has good docstrings but the team mapping at line 127-141 has a Swedish team name (&quot;Utvecklare&quot;) mixed with English names</li></ul>
-<hr>
-</div></details><details class="section" id="sect-4-skills-system-analysis"><summary><span class="section-title">4. Skills System Analysis</span><span class="badge badge-good section-badge">4/12</span></summary><div class="section-body">
-<p><strong>Grade: 9/10</strong></p>
-<h3 id="coverage-assessment">Coverage Assessment</h3>
-<p>The skill selection system in <code class="inline">ai.py:306-361</code> is sophisticated:</p>
-<ol><li><strong>Format-based</strong>: <code class="inline">_SKILL_FORMAT_MAP</code> maps all 12 formats to relevant skills</li><li><strong>Tag-based</strong>: <code class="inline">_SKILL_TAG_MAP</code> maps signal tags (OOM/GC, HungThreads, DB/Pool, SSL/TLS, HTTP) to skills</li><li><strong>Code-prefix-based</strong>: <code class="inline">_SKILL_CODE_PREFIX_MAP</code> maps WAS code prefixes to skills</li><li><strong>Exception-based</strong>: <code class="inline">_SKILL_EXCEPTION_MAP</code> maps exception keywords to skills</li><li><strong>Query-keyword-based</strong>: <code class="inline">_SKILL_QUERY_KEYWORDS</code> maps user query terms to skills</li><li><strong>Fallback</strong>: Format-aware fallback, then <code class="inline">message-codes.md</code> as universal fallback</li></ol>
-<p>The <code class="inline">MAX_SKILLS = 5</code> cap (<code class="inline">ai.py:18</code>) prevents prompt bloat. Skills are deduplicated and validated against the filesystem (<code class="inline">_discover_skills()</code> with <code class="inline">lru_cache</code>).</p>
-<h3 id="strengths">Strengths</h3>
-<ul><li>Skills are injected into AI prompts as <code class="inline">&lt;domain_knowledge&gt;</code> blocks (<code class="inline">ai.py:419-424</code>)</li><li>Format detection feeds directly into skill selection, so a PostgreSQL log automatically gets <code class="inline">postgresql-log-analysis.md</code></li><li>Multi-format support: when multiple sources are present, skills for ALL detected formats are included (<code class="inline">ai.py:311-318</code>)</li></ul>
-<h3 id="gap">Gap</h3>
-<ul><li>The new DataPower, Tomcat, PostgreSQL, and Docker JSON plugins each have corresponding skills, but the <code class="inline">docker_json</code> format maps to <code class="inline">json-structured-logs.md</code> rather than a dedicated Docker skill. This is acceptable but could be more specific.</li><li>No automated test that verifies every format plugin has at least one matching skill entry</li></ul>
-<hr>
-</div></details><details class="section" id="sect-5-code-review-findings"><summary><span class="section-title">5. Code Review Findings</span><span class="badge badge-warn section-badge">5/12</span></summary><div class="section-body">
-<p><strong>Grade: 8/10</strong></p>
-<h3 id="positive-findings">Positive Findings</h3>
-<p><strong>Security (excellent)</strong>:</p>
-<ul><li>Secret redaction in <code class="inline">parser.py:89-101</code>: 10 patterns covering Bearer tokens, API keys, passwords, JWTs, AWS keys, PEM keys, Basic/Digest auth, SIG parameters</li><li>PII redaction (new M59) in <code class="inline">parser.py:107-181</code>: Norwegian personnummer, orgnr, email, IPv4/IPv6, credit cards, IBAN, phone numbers, usernames in paths</li><li>Four redaction levels (<code class="inline">parser.py:176-181</code>): none, secrets, standard, strict -- clean hierarchical design</li><li>Fast-check guards (<code class="inline">parser.py:103-105</code>, <code class="inline">parser.py:170-173</code>) skip regex scanning when no keywords match -- good performance optimization</li><li>Prompt injection defense in <code class="inline">ai.py:266-279</code>: XML tag stripping, Unicode homoglyph normalization for <code class="inline">&lt;</code> and <code class="inline">&gt;</code> equivalents, XML entity escaping</li></ul>
-<p><strong>Architecture (excellent)</strong>:</p>
-<ul><li><code class="inline">LogFormat</code> Protocol (<code class="inline">formats/base.py:9</code>) with <code class="inline">@runtime_checkable</code> -- clean plugin interface</li><li><code class="inline">LogEvent</code> dataclass (<code class="inline">event.py:14</code>) with dict-protocol compatibility (<code class="inline">__getitem__</code>, <code class="inline">get</code>, <code class="inline">keys</code>, <code class="inline">items</code>) for backwards compat</li><li>Parse cache with eviction (<code class="inline">parser.py:492-536</code>): content-hash keyed, gzip-compressed, 50-file cap</li><li><code class="inline">ReportConfig</code> dataclass (<code class="inline">reports/config.py:10</code>) bundles all rendering parameters -- eliminates parameter repetition</li></ul>
-<p><strong>Heuristics engine (impressive)</strong>:</p>
-<ul><li>Keyword pre-filtering (<code class="inline">heuristics.py:607-618</code>, <code class="inline">767-782</code>) avoids running all 68+ regexes against every event</li><li>Evidence extraction (<code class="inline">heuristics.py:134-219</code>): timestamps, IPs, hostnames, durations, exceptions, threads, sample lines</li><li>Incident ranking (<code class="inline">heuristics.py:225-312</code>): causal depth analysis, temporal ordering, cascade labels</li><li>Confidence scoring (<code class="inline">heuristics.py:421-514</code>): 7 factors (frequency, cascade depth, system spread, primary flag, cross-system corroboration, trace correlation)</li><li>Burst detection (<code class="inline">heuristics.py:690-743</code>): sliding window error storm detection</li></ul>
-<h3 id="issues-found">Issues Found</h3>
-<p><strong>Minor issues:</strong></p>
-<ol><li><strong>Regex duplication</strong> between <code class="inline">parser.py</code> and <code class="inline">formats/was.py</code>: <code class="inline">TS_PATTERNS</code>, <code class="inline">WAS_LEVEL_RE</code>, <code class="inline">WAS_LEVEL_MAP</code>, <code class="inline">WAS_THREAD_RE</code>, <code class="inline">WAS_CODE_RE</code> are defined in both files. The parser.py versions are used for the generic pipeline; the was.py versions for format detection. While intentional (parser.py is the legacy path), this creates maintenance risk.</li></ol>
-<ol><li><strong>Redundant callable check</strong> in <code class="inline">parser.py:225-228</code> and <code class="inline">parser.py:235-238</code>:</li></ol>
-<p>   ``<code class="inline">python    if callable(repl):        s = rx.sub(repl, s)    else:        s = rx.sub(repl, s)    </code>``    Both branches do the same thing. The callable check was likely a placeholder for lambda-based replacers that was never differentiated. (Same pattern at line 235-238.)</p>
-<ol><li><strong>Token estimation</strong> (<code class="inline">ai.py:441-444</code>) uses hardcoded character ratios (3.5 for Claude, 4.0 for Gemini/OpenAI). This is a rough approximation. For cost tracking accuracy (especially in <code class="inline">app_spend.py</code>), consider using <code class="inline">tiktoken</code> for OpenAI or the Anthropic token counting endpoint.</li></ol>
-<ol><li><strong>Large files</strong>: <code class="inline">app.py</code> (1,337 lines), <code class="inline">app_ai.py</code> (1,172), <code class="inline">app_render.py</code> (1,137), and <code class="inline">_heuristics_fallback.py</code> (1,142) are all above the 1,000-line threshold. The app layer files have been partially decomposed (app_incident.py, app_render.py, app_spend.py, app_realtime.py, app_audit.py, app_constants.py), which is good, but <code class="inline">app.py</code> and <code class="inline">app_ai.py</code> could benefit from further extraction.</li></ol>
-<ol><li><strong>Mixed language</strong> in <code class="inline">executive_summary.py:138</code>: The team mapping uses &quot;Utvecklare&quot; (Swedish) alongside English team names (DBA, DevOps, Security, Network, Infra). This would confuse non-Swedish users in exported reports.</li></ol>
-<hr>
-</div></details><details class="section" id="sect-6-ai-integration-review"><summary><span class="section-title">6. AI Integration Review</span><span class="badge badge-good section-badge">6/12</span></summary><div class="section-body">
-<p><strong>Grade: 9/10</strong></p>
-<h3 id="multi-provider-support">Multi-Provider Support</h3>
-<p>Four AI providers supported (<code class="inline">app_ai.py</code>, <code class="inline">app_incident.py</code>):</p>
-<ul><li><strong>Claude</strong> (Anthropic): Sonnet 4.6, Opus 4.6, Haiku 4.5</li><li><strong>Gemini</strong> (Google): 2.5 Pro, 2.5 Flash</li><li><strong>OpenAI</strong>: GPT-4o, GPT-4o mini, o3, o4-mini</li><li><strong>Local AI</strong>: OpenAI-compatible endpoint (LM Studio, Ollama, etc.)</li></ul>
-<p>The audit system (<code class="inline">app_audit.py:56-67</code>) supports 10 model options across all 4 providers -- excellent flexibility.</p>
-<h3 id="prompt-architecture">Prompt Architecture</h3>
-<ol><li><strong>System prompt</strong> (<code class="inline">ai.py:52-68</code>): Format-aware specialist role, structured response template, explicit instruction to treat log data as DATA not instructions</li><li><strong>Skill injection</strong> (<code class="inline">ai.py:417-424</code>): Domain knowledge injected as <code class="inline">&lt;domain_knowledge&gt;</code> blocks</li><li><strong>Input sanitization</strong> (<code class="inline">ai.py:266-279</code>): Unicode homoglyph normalization (5 left-angle + 5 right-angle variants), XML tag stripping (including common injection targets: <code class="inline">system</code>, <code class="inline">instructions</code>, <code class="inline">user_query</code>), XML entity escaping</li><li><strong>Cross-system prompt</strong> (<code class="inline">ai.py:482-549</code>): Dedicated multi-source analysis prompt with per-source summaries and cascade detection results</li><li><strong>Incident prompt</strong> (<code class="inline">ai.py</code> + <code class="inline">app_incident.py</code>): Enriched with cascade ordering and primary incident flags</li></ol>
-<h3 id="cache-system">Cache System</h3>
-<ul><li>Query-level caching via <code class="inline">claude_cache_key()</code> (<code class="inline">ai.py:447-458</code>) using SHA-256 of normalized query + context</li><li>Triage-level caching via <code class="inline">triage_cache_key()</code> (<code class="inline">ai.py:461-479</code>) keyed on event fingerprints + model ID</li><li>Anthropic prompt caching with <code class="inline">cache_control: ephemeral</code> (<code class="inline">cli.py:198</code>)</li></ul>
-<h3 id="cost-tracking">Cost Tracking</h3>
-<ul><li><code class="inline">app_spend.py</code> (882 lines) provides per-provider spend tracking -- a significant feature for cost-conscious users</li><li>Token estimation is approximate (character ratio) but functional</li></ul>
-<h3 id="security-assessment">Security Assessment</h3>
-<ul><li>No API keys stored in code or committed to git</li><li>Keys read from environment variables or Streamlit secrets</li><li>Prompt input sanitization is thorough -- covers the main injection vectors</li><li>The <code class="inline">_sanitize_prompt_input</code> function strips ALL XML-like tags (not just a whitelist), which is the safe default</li></ul>
-<hr>
-</div></details><details class="section" id="sect-7-test-coverage-analysis"><summary><span class="section-title">7. Test Coverage Analysis</span><span class="badge badge-good section-badge">7/12</span></summary><div class="section-body">
-<p><strong>Grade: 8.5/10</strong></p>
-<h3 id="test-inventory">Test Inventory</h3>
-<div class="table-wrap"><table><thead><tr><th>Category</th><th>Test Files</th><th>Test Functions</th></tr></thead><tbody>
-<tr><td>Core parsing</td><td><code class="inline">test_parsing.py</code></td><td>87</td></tr>
-<tr><td>Format plugins</td><td>8 files (<code class="inline">test_format_*.py</code> + dedicated)</td><td>~434</td></tr>
-<tr><td>Analysis/heuristics</td><td><code class="inline">test_analysis.py</code>, <code class="inline">test_heuristics.py</code>, <code class="inline">test_incidents.py</code></td><td>~135</td></tr>
-<tr><td>Confidence/chains</td><td><code class="inline">test_confidence.py</code>, <code class="inline">test_incident.py</code></td><td>67</td></tr>
-<tr><td>Reports</td><td><code class="inline">test_reports.py</code>, <code class="inline">test_report_renderer.py</code>, <code class="inline">test_executive_summary.py</code></td><td>104</td></tr>
-<tr><td>AI/prompts</td><td><code class="inline">test_ai_prompt.py</code>, <code class="inline">test_local_ai.py</code></td><td>85</td></tr>
-<tr><td>CLI</td><td><code class="inline">test_cli.py</code></td><td>29</td></tr>
-<tr><td>Discovery</td><td><code class="inline">test_discovery.py</code></td><td>46</td></tr>
-<tr><td>App layer</td><td>6 files (<code class="inline">test_app_*.py</code>)</td><td>~271</td></tr>
-<tr><td>PII redaction</td><td><code class="inline">test_pii_redaction.py</code></td><td>29</td></tr>
-<tr><td>Scenarios</td><td><code class="inline">test_scenario.py</code>, <code class="inline">test_scenario_e2e.py</code></td><td>39</td></tr>
-<tr><td>Performance</td><td><code class="inline">test_performance.py</code></td><td>38</td></tr>
-<tr><td>Integration</td><td><code class="inline">test_integration.py</code></td><td>11</td></tr>
-<tr><td>Audit</td><td><code class="inline">test_app_audit.py</code>, <code class="inline">test_audit_gaps.py</code></td><td>88</td></tr>
-<tr><td><strong>Total</strong></td><td><strong>39 files</strong></td><td><strong>~1,658 functions</strong></td></tr>
-</tbody></table></div>
-<p><strong>1,798 tests passing</strong> with 39 test files covering all major subsystems.</p>
-<h3 id="test-scenarios-new">Test Scenarios (New)</h3>
-<p>5 scenario fixtures in <code class="inline">tests/fixtures/</code>:</p>
-<ul><li><code class="inline">scenario/</code> -- base multi-format scenario (6 log files)</li><li><code class="inline">scenario-bank/</code> -- banking system (WAS, DataPower, nginx, PostgreSQL)</li><li><code class="inline">scenario-bank-api/</code> -- bank API (DataPower, nginx, KYC service)</li><li><code class="inline">scenario-insurance/</code> -- insurance platform</li><li><code class="inline">scenario-insurance-api/</code> -- insurance API</li></ul>
-<p>Each scenario includes realistic log files, simulated screenshots, and symptom descriptions. This is excellent for regression testing and demonstrates real-world coverage.</p>
-<h3 id="strengths">Strengths</h3>
-<ul><li>Every format plugin has dedicated tests (<code class="inline">test_datapower.py</code>, <code class="inline">test_tomcat.py</code>, <code class="inline">test_postgresql.py</code>, <code class="inline">test_docker_json.py</code>, etc.)</li><li>PII redaction tests (<code class="inline">test_pii_redaction.py</code>) cover all 4 levels and Norwegian-specific patterns</li><li>Executive summary tests (<code class="inline">test_executive_summary.py</code>) validate both Markdown and HTML output</li><li>Performance tests (<code class="inline">test_performance.py</code>) prevent regression on parsing speed</li><li>Audit gap tests (<code class="inline">test_audit_gaps.py</code>) verify the audit file list stays current</li></ul>
-<h3 id="gaps">Gaps</h3>
-<ul><li>No property-based testing (e.g., Hypothesis) for the regex-heavy parsing code</li><li>No fuzzing of log format detection with adversarial inputs</li><li>No mutation testing to verify test quality</li><li>E2E tests (<code class="inline">test_app_e2e.py</code>) have 25 test functions but rely on Playwright -- these are likely slow and fragile in CI</li></ul>
-<hr>
-</div></details><details class="section" id="sect-8-refactoring-opportunities"><summary><span class="section-title">8. Refactoring Opportunities</span><span class="badge badge-info section-badge">8/12</span></summary><div class="section-body">
-<p><strong>Grade: 8/10</strong></p>
-<h3 id="priority-1-eliminate-regex-duplication">Priority 1: Eliminate Regex Duplication</h3>
-<p><strong>Files</strong>: <code class="inline">parser.py</code> lines 21-63 vs <code class="inline">formats/was.py</code> lines 14-30 <strong>Impact</strong>: Maintenance risk -- a bug fix in one location might not propagate to the other <strong>Suggestion</strong>: Have <code class="inline">parser.py</code> import patterns from <code class="inline">formats/was.py</code> or extract shared constants to <code class="inline">formats/base.py</code></p>
-<h3 id="priority-2-split-large-app-files">Priority 2: Split Large App Files</h3>
-<p><strong>Files</strong>: <code class="inline">app.py</code> (1,337), <code class="inline">app_ai.py</code> (1,172), <code class="inline">app_render.py</code> (1,137) <strong>Impact</strong>: Cognitive load, merge conflicts in team development <strong>Suggestion</strong>: Extract <code class="inline">app.py</code> session state initialization into <code class="inline">app_state.py</code>, extract <code class="inline">app_ai.py</code> provider-specific callers into <code class="inline">app_providers.py</code></p>
-<h3 id="priority-3-fix-dead-code-in-redact">Priority 3: Fix Dead Code in redact()</h3>
-<p><strong>File</strong>: <code class="inline">parser.py:225-228</code> and <code class="inline">parser.py:235-238</code> <strong>Impact</strong>: Confusing -- both branches of <code class="inline">if callable(repl)</code> do the same thing <strong>Suggestion</strong>: Remove the <code class="inline">if callable(repl)</code> check entirely, just call <code class="inline">rx.sub(repl, s)</code></p>
-<h3 id="priority-4-type-check-ci">Priority 4: Type-Check CI</h3>
-<p><strong>Impact</strong>: Type annotations exist throughout but are never verified <strong>Suggestion</strong>: Add <code class="inline">mypy --strict</code> or <code class="inline">pyright</code> to CI. The codebase already uses <code class="inline">from __future__ import annotations</code> everywhere, which is good.</p>
-<h3 id="priority-5-standardize-team-names-in-executive-summary">Priority 5: Standardize Team Names in Executive Summary</h3>
-<p><strong>File</strong>: <code class="inline">reports/executive_summary.py:138</code> <strong>Impact</strong>: Mixed Swedish/English in exported reports <strong>Suggestion</strong>: Use English team names consistently (&quot;Development&quot; instead of &quot;Utvecklare&quot;) or make the mapping configurable</p>
-<hr>
-</div></details><details class="section" id="sect-9-feature-opportunities"><summary><span class="section-title">9. Feature Opportunities</span><span class="badge badge-info section-badge">9/12</span></summary><div class="section-body">
-<p><strong>Grade: 9/10</strong></p>
-<h3 id="already-strong">Already Strong</h3>
-<p>The feature set is remarkably complete for a log analyzer:</p>
-<ul><li>12 format plugins with auto-detection</li><li>68+ heuristics with evidence extraction, correlations, incident grouping</li><li>Confidence scoring with 7 factors</li><li>Cross-system cascade detection</li><li>6 export formats including Executive Summary</li><li>4 PII redaction levels with GDPR patterns</li><li>4 AI providers with 10+ model options</li><li>Real-time log tailing (<code class="inline">app_realtime.py</code>)</li><li>Cost tracking (<code class="inline">app_spend.py</code>)</li><li>Self-audit capability (<code class="inline">app_audit.py</code>)</li></ul>
-<h3 id="opportunities">Opportunities</h3>
-<ol><li><strong>Alerting/Webhook Integration</strong>: When <code class="inline">--exit-code</code> detects errors above threshold (<code class="inline">cli.py:122-125</code>), support sending alerts to Slack, PagerDuty, or generic webhooks. Low effort, high value for CI/CD pipelines.</li></ol>
-<ol><li><strong>Log Diffing / Period Comparison</strong>: The <code class="inline">compare_periods()</code> function exists in <code class="inline">analysis.py</code> but is not exposed in the CLI or Streamlit GUI. Wiring it up would enable &quot;this week vs last week&quot; comparisons.</li></ol>
-<ol><li><strong>Structured Output for CI</strong>: The JSON report (<code class="inline">reports/json_report.py</code>, 78 lines) is minimal. Consider adding SARIF format output for integration with GitHub Code Scanning or Azure DevOps.</li></ol>
-<ol><li><strong>Plugin Hot-Loading</strong>: The <code class="inline">register_format()</code> function (<code class="inline">formats/__init__.py:55-58</code>) exists but is not exposed to users. Supporting custom format plugins via a config file or directory would open up enterprise use cases.</li></ol>
-<ol><li><strong>Incremental Parsing</strong>: Currently <code class="inline">parse_file_cached</code> caches entire files. For very large logs (&gt;100MB), supporting incremental/streaming parse with checkpoint resume would improve UX.</li></ol>
-<ol><li><strong>Correlation ID Visualization</strong>: <code class="inline">correlate_by_trace_id()</code> and <code class="inline">find_cross_system_chains()</code> (<code class="inline">analysis.py:561-599</code>) produce rich data but this is not visualized in the Streamlit GUI. A request-flow diagram would be powerful.</li></ol>
-<hr>
-</div></details><details class="section" id="sect-10-prioritized-improvement-plan"><summary><span class="section-title">10. Prioritized Improvement Plan</span><span class="badge badge-info section-badge">10/12</span></summary><div class="section-body">
-<p><strong>Grade: 8.5/10</strong></p>
-<h3 id="immediate-this-sprint">Immediate (this sprint)</h3>
-<div class="table-wrap"><table><thead><tr><th>#</th><th>Task</th><th>Impact</th><th>Effort</th><th>Files</th></tr></thead><tbody>
-<tr><td>1</td><td>Fix redundant <code class="inline">callable(repl)</code> check in <code class="inline">redact()</code></td><td>Code clarity</td><td>5 min</td><td><code class="inline">parser.py:225-238</code></td></tr>
-<tr><td>2</td><td>Standardize team names to English in executive summary</td><td>Report quality</td><td>10 min</td><td><code class="inline">reports/executive_summary.py:138</code></td></tr>
-<tr><td>3</td><td>Add header comment to <code class="inline">_heuristics_fallback.py</code></td><td>Documentation</td><td>5 min</td><td><code class="inline">_heuristics_fallback.py:1</code></td></tr>
-</tbody></table></div>
-<h3 id="short-term-next-2-weeks">Short-term (next 2 weeks)</h3>
-<div class="table-wrap"><table><thead><tr><th>#</th><th>Task</th><th>Impact</th><th>Effort</th><th>Files</th></tr></thead><tbody>
-<tr><td>4</td><td>Add mypy/pyright to CI</td><td>Type safety</td><td>2-4h</td><td><code class="inline">pyproject.toml</code>, CI config</td></tr>
-<tr><td>5</td><td>Extract shared WAS regexes to eliminate duplication</td><td>Maintainability</td><td>1h</td><td><code class="inline">parser.py</code>, <code class="inline">formats/was.py</code></td></tr>
-<tr><td>6</td><td>Wire <code class="inline">compare_periods()</code> into CLI and Streamlit</td><td>Feature</td><td>2-3h</td><td><code class="inline">cli.py</code>, <code class="inline">app_render.py</code></td></tr>
-<tr><td>7</td><td>Add test for format-to-skill mapping completeness</td><td>Test coverage</td><td>30 min</td><td><code class="inline">tests/test_ai_prompt.py</code></td></tr>
-</tbody></table></div>
-<h3 id="medium-term-next-month">Medium-term (next month)</h3>
-<div class="table-wrap"><table><thead><tr><th>#</th><th>Task</th><th>Impact</th><th>Effort</th><th>Files</th></tr></thead><tbody>
-<tr><td>8</td><td>Split <code class="inline">app.py</code> and <code class="inline">app_ai.py</code> below 800 lines each</td><td>Maintainability</td><td>4-6h</td><td>App layer</td></tr>
-<tr><td>9</td><td>Add trace ID visualization to Streamlit GUI</td><td>UX</td><td>4-8h</td><td><code class="inline">app_render.py</code></td></tr>
-<tr><td>10</td><td>Support <code class="inline">--alert-webhook</code> in CLI</td><td>Operations</td><td>2-3h</td><td><code class="inline">cli.py</code></td></tr>
-<tr><td>11</td><td>Replace character-ratio token estimation with tiktoken</td><td>Accuracy</td><td>1-2h</td><td><code class="inline">ai.py:441-444</code></td></tr>
-</tbody></table></div>
-<h3 id="long-term-v2-platform">Long-term (V2 platform)</h3>
-<div class="table-wrap"><table><thead><tr><th>#</th><th>Task</th><th>Impact</th><th>Effort</th></tr></thead><tbody>
-<tr><td>12</td><td>SARIF output format for CI/CD integration</td><td>Enterprise</td><td>1-2 days</td></tr>
-<tr><td>13</td><td>Custom format plugin hot-loading</td><td>Extensibility</td><td>2-3 days</td></tr>
-<tr><td>14</td><td>Incremental parsing with checkpoints</td><td>Scale</td><td>3-5 days</td></tr>
-<tr><td>15</td><td>Property-based testing with Hypothesis</td><td>Test quality</td><td>2-3 days</td></tr>
-</tbody></table></div>
-<hr>
-</div></details><details class="section" id="sect-changes-since-last-audit-8-5-10-earlier-today"><summary><span class="section-title">Changes Since Last Audit (8.5/10 earlier today)</span><span class="badge badge-info section-badge">11/12</span></summary><div class="section-body">
-<div class="table-wrap"><table><thead><tr><th>Change</th><th>Status</th><th>Impact on Grade</th></tr></thead><tbody>
-<tr><td>Audit file list expanded (20 to 38 files)</td><td>Fixed</td><td>+0.05 (audit completeness)</td></tr>
-<tr><td>Delta/versioning removed from audit system</td><td>Fixed</td><td>+0.05 (simplification)</td></tr>
-<tr><td>AI Queries history removed from exports</td><td>Fixed</td><td>+0.05 (privacy)</td></tr>
-<tr><td>AI history hidden from Streamlit UI</td><td>Fixed</td><td>+0.05 (UX cleanup)</td></tr>
-<tr><td>PII Redaction -- 4 levels, GDPR patterns (M59)</td><td>New</td><td>+0.10 (security/compliance)</td></tr>
-<tr><td>Executive Summary report format (M61)</td><td>New</td><td>+0.05 (feature)</td></tr>
-<tr><td>Docker JSON format plugin (M63)</td><td>New</td><td>+0.05 (coverage)</td></tr>
-<tr><td>Incident AI prompt improvement</td><td>New</td><td>+0.02 (AI quality)</td></tr>
-<tr><td>Jira &amp; Confluence integration skill</td><td>New</td><td>+0.02 (skills)</td></tr>
-<tr><td>GDPR data protection skill</td><td>New</td><td>+0.02 (compliance)</td></tr>
-<tr><td>5 new test scenarios</td><td>New</td><td>+0.05 (testing)</td></tr>
-<tr><td><strong>Net change</strong></td><td></td><td><strong>+0.3 (8.5 to 8.8)</strong></td></tr>
-</tbody></table></div>
-<hr>
-</div></details><details class="section" id="sect-grade-summary"><summary><span class="section-title">Grade Summary</span><span class="badge badge-info section-badge">12/12</span></summary><div class="section-body">
-<div class="table-wrap"><table><thead><tr><th>Section</th><th>Grade</th><th>Notes</th></tr></thead><tbody>
-<tr><td>1. Executive Summary</td><td>9/10</td><td>Mature, well-architected project</td></tr>
-<tr><td>2. Repository Overview</td><td>9/10</td><td>Clean layered design, 12 format plugins</td></tr>
-<tr><td>3. Documentation</td><td>8/10</td><td>Good skills coverage, minor gaps</td></tr>
-<tr><td>4. Skills System</td><td>9/10</td><td>Sophisticated multi-signal selection</td></tr>
-<tr><td>5. Code Review</td><td>8/10</td><td>Strong security, minor duplication issues</td></tr>
-<tr><td>6. AI Integration</td><td>9/10</td><td>4 providers, solid prompt safety</td></tr>
-<tr><td>7. Test Coverage</td><td>8.5/10</td><td>1,798 tests, 39 files, 5 scenarios</td></tr>
-<tr><td>8. Refactoring</td><td>8/10</td><td>Large files, regex duplication</td></tr>
-<tr><td>9. Feature Opportunities</td><td>9/10</td><td>Already feature-rich, clear next steps</td></tr>
-<tr><td>10. Improvement Plan</td><td>8.5/10</td><td>Well-prioritized with clear effort estimates</td></tr>
-<tr><td><strong>Overall</strong></td><td><strong>8.8/10</strong></td><td><strong>Up from 8.5/10 -- PII redaction and executive summary are significant additions</strong></td></tr>
-</tbody></table></div>
-<hr>
-<p><em>Generated by Claude Opus 4.6 -- LogPilot Technical Audit</em> <em>Powered by LogPilot -- <a href="https://item.no">Item Consulting</a></em></p></div></details>
+<p><strong>Overall Grade: B+/10</strong></p>
+<details class="section" id="sect-1-executive-summary" open><summary><span class="section-title">1. Executive Summary</span><span class="badge badge-summary section-badge">1/10</span></summary><div class="section-body">
+<p><strong>Grade: A-</strong></p>
+<p><strong>Strengths:</strong></p>
+<ul><li>The codebase has a modular structure, promoting reusability and separation of concerns.</li><li>It uses standard library features, ensuring core functionality operates independently of external dependencies.</li><li>The AI integration is flexible, supporting multiple providers (Claude, Gemini, OpenAI).</li></ul>
+<p><strong>Key Findings:</strong></p>
+<ul><li>The overall structure is strong, but there are a few areas for readability and performance improvements.</li><li>Documentation is comprehensive but can be improved in specificity and linking aspects.</li><li>Security practices for handling sensitive data through redaction are well implemented.</li></ul>
+</div></details><details class="section" id="sect-2-repository-overview"><summary><span class="section-title">2. Repository Overview</span><span class="badge badge-info section-badge">2/10</span></summary><div class="section-body">
+<p><strong>Grade: A-</strong></p>
+<ul><li><strong>Files</strong>: 19 Python files.</li><li><strong>Lines</strong>: ~9,000 lines across Python files.</li><li><strong>Largest Files</strong>: <code class="inline">analysis.py</code> (992 lines), <code class="inline">heuristics.py</code> (920 lines).</li></ul>
+</div></details><details class="section" id="sect-3-documentation-audit"><summary><span class="section-title">3. Documentation Audit</span><span class="badge badge-info section-badge">3/10</span></summary><div class="section-body">
+<p><strong>Grade: B+</strong></p>
+<ul><li><strong>Accuracy</strong>: Most functions have docstrings explaining parameters and return types.</li><li><strong>Completeness</strong>: The high-level architecture documentation is comprehensive, covering file structures and main components.</li><li><strong>Improvements</strong>: </li><li>Some docstrings could be more detailed. Not all functions have examples of usage, which could enhance understanding.</li></ul>
+</div></details><details class="section" id="sect-4-skills-system-analysis"><summary><span class="section-title">4. Skills System Analysis</span><span class="badge badge-good section-badge">4/10</span></summary><div class="section-body">
+<p><strong>Grade: B</strong></p>
+<ul><li><strong>Coverage</strong>: A wide range of skills including domain knowledge, testing, and specific system analyses are covered by dedicated skill files.</li><li><strong>Gaps</strong>: </li><li>More detailed application of skills into operational scenarios would be useful.</li><li>Some skills files seem redundant or unutilized without clear links to the main codebase.</li></ul>
+</div></details><details class="section" id="sect-5-code-review-findings"><summary><span class="section-title">5. Code Review Findings</span><span class="badge badge-warn section-badge">5/10</span></summary><div class="section-body">
+<p><strong>Grade: B-</strong></p>
+<ul><li><strong>Bugs</strong>: No immediate bugs identified but potential for logical issues in regex processing due to high complexity.</li><li><strong>Style</strong>: Code follows PEP 8 but could benefit from further standardization, especially in function and variable naming conventions.</li><li><strong>Security</strong>: Effective use of redaction mechanisms; however, having input validation on all external data would strengthen security.</li></ul>
+</div></details><details class="section" id="sect-6-ai-integration-review"><summary><span class="section-title">6. AI Integration Review</span><span class="badge badge-good section-badge">6/10</span></summary><div class="section-body">
+<p><strong>Grade: B</strong></p>
+<ul><li><strong>Prompt Safety</strong>: <code class="inline">_sanitize_prompt_input</code> is in place to ensure safe AI queries.</li><li><strong>Caching</strong>: Effective use of caching mechanisms with <code class="inline">functools.lru_cache</code>, though more granular control might optimize performance.</li></ul>
+</div></details><details class="section" id="sect-7-test-coverage-analysis"><summary><span class="section-title">7. Test Coverage Analysis</span><span class="badge badge-good section-badge">7/10</span></summary><div class="section-body">
+<p><strong>Grade: B-</strong></p>
+<ul><li><strong>Coverage</strong>: Extensive use of <code class="inline">pytest</code> and <code class="inline">Playwright</code> for e2e testing.</li><li><strong>Gaps</strong>: </li><li>More unit tests covering edge cases, particularly with regex match failures, would improve robustness.</li><li>Tests could be expanded for different environment configurations.</li></ul>
+</div></details><details class="section" id="sect-8-refactoring-opportunities"><summary><span class="section-title">8. Refactoring Opportunities</span><span class="badge badge-info section-badge">8/10</span></summary><div class="section-body">
+<p><strong>Grade: B</strong></p>
+<ul><li><strong>Improve Regex Readability</strong>: Complex regex patterns could be broken into simpler components or documented inline.</li><li><strong>Enhance DRY Principles</strong>: Similar code snippets appear across files, which could be abstracted into utility functions.</li></ul>
+</div></details><details class="section" id="sect-9-feature-opportunities"><summary><span class="section-title">9. Feature Opportunities</span><span class="badge badge-info section-badge">9/10</span></summary><div class="section-body">
+<p><strong>Grade: B</strong></p>
+<ul><li><strong>Enhanced Format Detection</strong>: Introduce a learning-based mechanism to enhance format detection accuracy.</li><li><strong>Improved Logging</strong>: A configurable logging framework for better observability across different environments.</li></ul>
+</div></details><details class="section" id="sect-10-prioritized-improvement-plan"><summary><span class="section-title">10. Prioritized Improvement Plan</span><span class="badge badge-info section-badge">10/10</span></summary><div class="section-body">
+<p><strong>Grade: B+</strong></p>
+<ol><li><strong>Security Improvements</strong>: Enhance input validation (priority 1).</li><li><strong>Documentation Enhancements</strong>: Increase detail in function-level documentation and link skills more explicitly to main codebase contributions (priority 2).</li><li><strong>Testing Expansion</strong>: Implement additional unit tests for critical path functions and edge cases (priority 3).</li><li><strong>Regex Refactoring</strong>: Simplify and document complex regex patterns for better maintainability (priority 4).</li><li><strong>Feature Enhancement</strong>: Consider new features like dynamic format detection refinement using AI/ML (priority 5).</li></ol>
+<p>Implementing these improvements will solidify the project&#x27;s robustness and flexibility while enhancing the developers&#x27; capacity to maintain and extend the codebase efficiently.</p></div></details>
 </main>
 </div>
 <button class="back-to-top" title="Back to top">&#8593;</button>
