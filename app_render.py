@@ -1192,12 +1192,17 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                         _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
                         _brief_text, _ = call_local_api(
                             "not-needed", _incident_model_id, _brief_prompt,
-                            max_tokens=2048, base_url=_local_url)
+                            max_tokens=4096, base_url=_local_url)
                     else:
                         _brief_text = None
                     _brief_placeholder.empty()
                     if _brief_text:
                         st.session_state["_leadership_brief"] = _brief_text
+                        # Log probe for debug tab
+                        from app_ai import _log_probe
+                        _log_probe("Leadership Brief", _incident_provider, _incident_model_id,
+                                   f"[SYSTEM]\n{_brief_prompt['system']}\n\n[USER]\n{_brief_prompt['user'][:500]}...",
+                                   _brief_text)
                         st.rerun()
                 except Exception as _brief_err:
                     st.error(f"Brief generation failed: {_brief_err}")
