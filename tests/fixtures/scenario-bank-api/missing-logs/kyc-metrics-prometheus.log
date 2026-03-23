@@ -1,0 +1,79 @@
+## KYC Service Prometheus Metrics Export — 2026-03-22 09:00-09:15 UTC
+## Scraped from http://kyc-service:8080/actuator/prometheus
+
+# HELP http_client_requests_seconds Duration of HTTP client requests
+# TYPE http_client_requests_seconds summary
+
+# --- 09:00 scrape (healthy baseline) ---
+# timestamp: 2026-03-22T09:00:00Z
+http_client_requests_seconds{method="POST",uri="/api/v1/person/lookup/batch",status="200",clientName="folkeregisteret.api.skatteetaten.no"} count=45 sum=2.025
+http_client_requests_seconds{method="GET",uri="/api/v1/person/{id}",status="200",clientName="folkeregisteret.api.skatteetaten.no"} count=128 sum=5.76
+http_client_requests_seconds{method="POST",uri="/api/v2/person/income",status="200",clientName="nav-api.nav.no"} count=67 sum=6.03
+http_client_requests_seconds{method="POST",uri="/api/v1/screening",status="200",clientName="aml-register.finanstilsynet.no"} count=34 sum=4.08
+
+# HELP resilience4j_circuitbreaker_state Circuit breaker state (0=CLOSED, 1=OPEN, 2=HALF_OPEN)
+resilience4j_circuitbreaker_state{name="folkeregisteret"} 0
+resilience4j_circuitbreaker_state{name="nav"} 0
+resilience4j_circuitbreaker_state{name="aml"} 0
+resilience4j_circuitbreaker_state{name="vps"} 0
+
+# --- 09:03 scrape (pre-incident, slight latency increase) ---
+# timestamp: 2026-03-22T09:03:00Z
+http_client_requests_seconds{method="POST",uri="/api/v1/person/lookup/batch",status="200",clientName="folkeregisteret.api.skatteetaten.no"} count=52 sum=2.496
+http_client_requests_seconds{method="GET",uri="/api/v1/person/{id}",status="200",clientName="folkeregisteret.api.skatteetaten.no"} count=145 sum=7.975
+# NOTE: avg latency increased from 45ms to 55ms for Folkeregisteret
+
+resilience4j_circuitbreaker_state{name="folkeregisteret"} 0
+resilience4j_circuitbreaker_state{name="nav"} 0
+resilience4j_circuitbreaker_state{name="aml"} 0
+resilience4j_circuitbreaker_state{name="vps"} 0
+
+# --- 09:05 scrape (incident active) ---
+# timestamp: 2026-03-22T09:05:00Z
+http_client_requests_seconds{method="POST",uri="/api/v1/person/lookup/batch",status="200",clientName="folkeregisteret.api.skatteetaten.no"} count=52 sum=2.496
+http_client_requests_seconds{method="POST",uri="/api/v1/person/lookup/batch",status="504",clientName="folkeregisteret.api.skatteetaten.no"} count=3 sum=90.003
+http_client_requests_seconds{method="GET",uri="/api/v1/person/{id}",status="200",clientName="folkeregisteret.api.skatteetaten.no"} count=147 sum=8.105
+http_client_requests_seconds{method="GET",uri="/api/v1/person/{id}",status="503",clientName="folkeregisteret.api.skatteetaten.no"} count=2 sum=0.158
+http_client_requests_seconds{method="GET",uri="/api/v1/person/{id}",status="500",clientName="folkeregisteret.api.skatteetaten.no"} count=3 sum=0.201
+
+# NAV, AML, VPS — completely unaffected
+http_client_requests_seconds{method="POST",uri="/api/v2/person/income",status="200",clientName="nav-api.nav.no"} count=78 sum=7.02
+http_client_requests_seconds{method="POST",uri="/api/v1/screening",status="200",clientName="aml-register.finanstilsynet.no"} count=41 sum=4.92
+http_client_requests_seconds{method="GET",uri="/api/v1/securities/portfolio",status="200",clientName="api.vps.no"} count=23 sum=1.564
+
+# Circuit breaker OPEN for Folkeregisteret only
+resilience4j_circuitbreaker_state{name="folkeregisteret"} 1
+resilience4j_circuitbreaker_state{name="nav"} 0
+resilience4j_circuitbreaker_state{name="aml"} 0
+resilience4j_circuitbreaker_state{name="vps"} 0
+
+# HELP resilience4j_circuitbreaker_failure_rate Circuit breaker failure rate
+resilience4j_circuitbreaker_failure_rate{name="folkeregisteret"} 100.0
+resilience4j_circuitbreaker_failure_rate{name="nav"} 0.0
+resilience4j_circuitbreaker_failure_rate{name="aml"} 0.0
+resilience4j_circuitbreaker_failure_rate{name="vps"} 0.0
+
+# HELP resilience4j_circuitbreaker_calls_total Total circuit breaker calls
+resilience4j_circuitbreaker_calls_total{name="folkeregisteret",kind="successful"} 149
+resilience4j_circuitbreaker_calls_total{name="folkeregisteret",kind="failed"} 8
+resilience4j_circuitbreaker_calls_total{name="folkeregisteret",kind="not_permitted"} 12
+
+# --- 09:10 scrape (Folkeregisteret recovered but serving v4.0) ---
+# timestamp: 2026-03-22T09:10:00Z
+resilience4j_circuitbreaker_state{name="folkeregisteret"} 2
+# HALF_OPEN: testing if Folkeregisteret is back
+# NOTE: API responds with 200 but schema is v4.0 — deserialization still fails for v3.2 clients
+
+# --- 09:15 scrape (still broken for KYC — schema mismatch persists) ---
+# timestamp: 2026-03-22T09:15:00Z
+http_client_requests_seconds{method="GET",uri="/api/v1/person/{id}",status="200",clientName="folkeregisteret.api.skatteetaten.no"} count=160 sum=8.96
+http_client_requests_seconds{method="GET",uri="/api/v1/person/{id}",status="500",clientName="folkeregisteret.api.skatteetaten.no"} count=11 sum=0.715
+# 500 errors = Jackson deserialization failures on v4.0 responses (UnrecognizedPropertyException)
+
+resilience4j_circuitbreaker_state{name="folkeregisteret"} 0
+# Circuit breaker CLOSED (API is responding) but errors continue due to schema mismatch
+# This is a SILENT FAILURE — circuit breaker sees 200 OK but application logic fails on parsing
+
+resilience4j_circuitbreaker_failure_rate{name="folkeregisteret"} 42.0
+# 42% failure rate — below 50% threshold so circuit breaker stays closed
+# But every request for a person with 'adressegradering' field fails
