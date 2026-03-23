@@ -16,6 +16,7 @@ from .base import LogFormat
 from .crio import CRIOFormat
 from .datapower import DataPowerFormat
 from .enonic import EnonicFormat
+from .postgresql import PostgreSQLFormat
 from .tomcat import TomcatFormat
 from .json_log import JSONFormat
 from .log4j import Log4jFormat
@@ -34,6 +35,7 @@ _FORMATS: list[LogFormat] = [
     CRIOFormat(),
     DataPowerFormat(),
     TomcatFormat(),
+    PostgreSQLFormat(),
     PythonFormat(),
     SyslogFormat(),
     EnonicFormat(),

@@ -29,6 +29,7 @@ _FORMAT_SPECIALIST: dict[str, str] = {
     "crio":       "Kubernetes/OpenShift container platform (CRI-O)",
     "datapower":  "IBM DataPower API Gateway (SSL, AAA, MPGW, API Connect)",
     "tomcat":     "Apache Tomcat / Catalina application server (JUL)",
+    "postgresql": "PostgreSQL database server",
 }
 
 _FORMAT_PLACEHOLDER: dict[str, str] = {
@@ -42,6 +43,7 @@ _FORMAT_PLACEHOLDER: dict[str, str] = {
     "crio":       "e.g. CrashLoopBackOff, OOMKilled, liveness probe failed",
     "datapower":  "e.g. 0x80e00001 connection refused, SSL handshake failed, circuit breaker open, API rate limit",
     "tomcat":     "e.g. SEVERE pool exhausted, LifecycleException, stuck thread, deployment failed",
+    "postgresql": "e.g. FATAL too many clients, deadlock detected, replication lag, temp_file_limit exceeded",
 }
 
 
@@ -294,6 +296,7 @@ _SKILL_FORMAT_MAP: dict[str, list[str]] = {
     "crio":       ["openshift-k8s-analysis.md"],
     "datapower":  ["datapower-analysis.md"],
     "tomcat":     ["tomcat-analysis.md"],
+    "postgresql": ["postgresql-log-analysis.md"],
 }
 
 

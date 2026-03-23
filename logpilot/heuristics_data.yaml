@@ -324,6 +324,89 @@ heuristics:
       - "Review dmesg for hardware errors (MCE, ECC memory errors, disk failures)."
       - "If reproducible, capture a kernel crash dump (kdump) for analysis."
 
+  # ── Database Errors ──────────────────────────────────────────────
+
+  - id: pg-deadlock
+    title: "PostgreSQL Deadlock"
+    pattern: "deadlock detected|waiting for.*Lock.*blocked by|lock timeout"
+    cause: "Two or more transactions are blocking each other, causing one to be rolled back."
+    fixes:
+      - "Review the DETAIL/STATEMENT lines to identify the conflicting queries."
+      - "Ensure consistent lock ordering — always lock tables/rows in the same order."
+      - "Consider shorter transactions or advisory locks for batch operations."
+
+  - id: pg-conn-limit
+    title: "PostgreSQL Connection Limit"
+    pattern: "too many clients already|max_connections.*reached|remaining connection slots|too many connections for role"
+    cause: "The database has reached its maximum connection limit — new connections are rejected."
+    fixes:
+      - "Use a connection pooler (PgBouncer, pgpool-II) to multiplex connections."
+      - "Increase max_connections in postgresql.conf (requires restart)."
+      - "Check for connection leaks — idle connections that are never returned to the pool."
+
+  - id: pg-replication-fail
+    title: "PostgreSQL Replication / Recovery Issue"
+    pattern: "recovery mode|redo starts|invalid record length|replication.*fail|WAL.*fail|not properly shut down"
+    cause: "The database is in recovery mode or replication has failed — it was not shut down cleanly."
+    fixes:
+      - "Wait for recovery to complete (redo phase) before restarting services."
+      - "Check pg_stat_replication for replication lag on replicas."
+      - "If WAL files are missing, restore from backup or rebuild the replica."
+
+  - id: pg-temp-file
+    title: "PostgreSQL Temp File / Disk Limit"
+    pattern: "temp_file_limit|temporary file size.*exceeds|no space left on device|could not write to temporary file"
+    cause: "A query generated a temporary file exceeding the configured limit or disk space."
+    fixes:
+      - "Increase temp_file_limit in postgresql.conf or optimize the query to reduce temp usage."
+      - "Add indexes to avoid large sort/hash operations that spill to disk."
+      - "Monitor disk space on the PostgreSQL data directory."
+
+  - id: ora-error
+    title: "Oracle Database Error (ORA-)"
+    pattern: "ORA-\\d{4,5}"
+    cause: "An Oracle database error occurred. The ORA- code identifies the specific issue."
+    fixes:
+      - "Look up the ORA- code in Oracle documentation for the specific fix."
+      - "Common: ORA-00060 (deadlock), ORA-01555 (snapshot too old), ORA-04031 (shared pool), ORA-12154 (TNS)."
+      - "For ORA-01555, increase undo_retention or reduce long-running queries."
+
+  - id: db2-sqlcode
+    title: "DB2 SQL Error (SQLCODE)"
+    pattern: "SQLCODE[=: ]-?\\d+|SQLSTATE[=: ]\\w{5}|DB2 SQL Error"
+    cause: "A DB2 database error occurred. The SQLCODE identifies the specific issue."
+    fixes:
+      - "Negative SQLCODE = error, positive = warning, 0 = success."
+      - "Common: SQLCODE -911 (deadlock/timeout), -803 (duplicate key), -204 (object not found)."
+      - "Check db2diag.log for additional context on the error."
+
+  - id: mssql-error
+    title: "SQL Server Error (Msg)"
+    pattern: "Msg \\d+,.*Level \\d+|SQL Server Error|SqlException|deadlock victim"
+    cause: "A Microsoft SQL Server error occurred."
+    fixes:
+      - "Look up the Msg number in SQL Server documentation."
+      - "Common: Msg 1205 (deadlock victim), Msg 8645 (memory timeout), Msg 9002 (transaction log full)."
+      - "For deadlocks, enable trace flag 1222 to capture deadlock graphs."
+
+  - id: mysql-error
+    title: "MySQL Error"
+    pattern: "ERROR \\d{4}|MySQL.*error.*\\d{4}|InnoDB.*deadlock|Lock wait timeout exceeded"
+    cause: "A MySQL/MariaDB error occurred."
+    fixes:
+      - "Common: ERROR 1205 (lock wait timeout), ERROR 1213 (deadlock), ERROR 2002 (connection refused)."
+      - "For InnoDB deadlocks, run SHOW ENGINE INNODB STATUS for the deadlock log."
+      - "For lock wait timeouts, check for long-running transactions with SHOW PROCESSLIST."
+
+  - id: datasource-down
+    title: "DataSource / Database Unreachable"
+    pattern: "datasource.*unavail|database.*unreachable|connection refused.*5432|connection refused.*3306|connection refused.*1521|connection refused.*1433|ECONNREFUSED.*(?:5432|3306|1521|1433)"
+    cause: "The application cannot reach the database — the database may be down, restarting, or the network is blocked."
+    fixes:
+      - "Verify the database process is running and accepting connections."
+      - "Check network connectivity and firewall rules between the application and database."
+      - "If the database recently restarted, wait for it to complete recovery before reconnecting."
+
   # ── Kubernetes / OpenShift ───────────────────────────────────────
   - id: k8s-crashloop
     title: "CrashLoopBackOff"
@@ -737,7 +820,9 @@ incident_groups:
   - id: incident-database
     name: "Database / Persistence Failure"
     trigger_ids: ["datasource-down", "db-pool", "hikari-pool", "django-db",
-                  "hibernate-error"]
+                  "hibernate-error", "pg-deadlock", "pg-conn-limit",
+                  "pg-replication-fail", "pg-temp-file",
+                  "ora-error", "db2-sqlcode", "mssql-error", "mysql-error"]
     effect_ids: ["transaction-timeout", "hung-threads", "http-5xx-generic",
                  "servlet-error", "spring-startup-fail"]
     narrative: "Database connectivity or persistence issues caused application failures: {effects}. Check database health, connection pool settings, and query performance."
