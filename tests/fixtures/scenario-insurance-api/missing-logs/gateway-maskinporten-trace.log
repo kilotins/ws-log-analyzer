@@ -1,0 +1,23 @@
+20260323T110403.001Z [mpgw][debug][0x00000000] === MPGW TRACE: Maskinporten Token Refresh TXN-MPORT-001 ===
+20260323T110403.002Z [mpgw][debug][0x00000000] Token endpoint: POST https://maskinporten.no/token
+20260323T110403.003Z [mpgw][debug][0x00000000] >>> REQUEST HEADERS >>>
+20260323T110403.004Z [mpgw][debug][0x00000000]   POST /token HTTP/1.1
+20260323T110403.005Z [mpgw][debug][0x00000000]   Host: maskinporten.no
+20260323T110403.006Z [mpgw][debug][0x00000000]   Content-Type: application/x-www-form-urlencoded
+20260323T110403.007Z [mpgw][debug][0x00000000] >>> REQUEST BODY >>>
+20260323T110403.008Z [mpgw][debug][0x00000000]   grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer
+20260323T110403.009Z [mpgw][debug][0x00000000]   assertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZvcnNpa3JpbmctcHJvZC0yMDI2In0.***REDACTED***
+20260323T110403.010Z [mpgw][debug][0x00000000] JWT header decoded: {"alg":"RS256","typ":"JWT","kid":"forsikring-prod-2026"}
+20260323T110403.011Z [mpgw][debug][0x00000000] JWT claims: iss=0192b4d0-forsikring-prod, aud=https://maskinporten.no, scope=altinn:instances.read altinn:instances.write, exp=1711187243
+20260323T110403.050Z [mpgw][debug][0x00000000] <<< RESPONSE HEADERS (39ms) <<<
+20260323T110403.051Z [mpgw][debug][0x00000000]   HTTP/1.1 401 Unauthorized
+20260323T110403.052Z [mpgw][debug][0x00000000]   Content-Type: application/json
+20260323T110403.053Z [mpgw][debug][0x00000000]   WWW-Authenticate: Bearer error="invalid_grant"
+20260323T110403.054Z [mpgw][debug][0x00000000]   X-Maskinporten-Key-Rotation: 2026-03-23T10:00:00Z
+20260323T110403.055Z [mpgw][debug][0x00000000] <<< RESPONSE BODY <<<
+20260323T110403.056Z [mpgw][debug][0x00000000]   {"error":"invalid_grant","error_description":"The JWT assertion has an invalid signature. Verify that the correct certificate/key is used. Expected kid: 'forsikring-prod-2026-v2' (rotated 2026-03-23T10:00:00Z). Received kid: 'forsikring-prod-2026' (registered 2026-01-15).","hint":"Visit https://selvbetjening.maskinporten.no to upload the new key or generate a new keypair."}
+20260323T110403.057Z [mpgw][error][0x80d00001] DIAGNOSIS: Maskinporten performed automatic key rotation at 2026-03-23T10:00:00Z
+  Our JWT kid: 'forsikring-prod-2026' (uploaded 2026-01-15)
+  Expected kid: 'forsikring-prod-2026-v2' (auto-rotated by Maskinporten)
+  Response header X-Maskinporten-Key-Rotation confirms rotation timestamp
+  FIX: Upload new key at https://selvbetjening.maskinporten.no or call Digdir support (+47 75 00 60 00)

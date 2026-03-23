@@ -1,0 +1,75 @@
+20260323T110000.000Z [default][info][0x00000000] DataPower Gateway v10.5.0.4 domain 'forsikring-prod'
+20260323T110001.000Z [default][info][0x00000000] Service 'altinn-proxy' listening on port 9443 — upstream: altinn.api.no:443
+20260323T110001.100Z [default][info][0x00000000] Service 'skatteetaten-proxy' listening on port 9444 — upstream: api.skatteetaten.no:443
+20260323T110001.200Z [default][info][0x00000000] Service 'bankid-proxy' listening on port 9445 — upstream: auth.bankid.no:443
+20260323T110001.300Z [default][info][0x00000000] Service 'signicat-proxy' listening on port 9446 — upstream: api.signicat.com:443
+20260323T110001.400Z [default][info][0x00000000] Service 'helsenorge-proxy' listening on port 9447 — upstream: api.helsenorge.no:443
+20260323T110002.000Z [aaa][info][0x00000000] Maskinporten token configured: scope='altinn:instances.read altinn:instances.write', issuer='https://maskinporten.no'
+20260323T110002.100Z [aaa][info][0x00000000] BankID OIDC configured: issuer='https://auth.bankid.no', client_id='forsikring-prod'
+20260323T110100.000Z [mpgw][info][0x00000000] POST /altinn/api/v1/instances 201 Created (145ms) client=10.0.1.50 upstream=altinn.api.no:443 trace=ins-a1b2c3d4-0001
+20260323T110100.500Z [mpgw][info][0x00000000] GET /skatt/api/v1/inntekt/12345678901 200 OK (89ms) client=10.0.1.50 upstream=api.skatteetaten.no:443 trace=ins-a1b2c3d4-0002
+20260323T110101.000Z [mpgw][info][0x00000000] POST /bankid/auth/authorize 200 OK (234ms) client=10.0.1.51 upstream=auth.bankid.no:443 trace=ins-a1b2c3d4-0003
+20260323T110101.500Z [mpgw][info][0x00000000] POST /signicat/sign/document 200 OK (567ms) client=10.0.1.50 upstream=api.signicat.com:443 trace=ins-a1b2c3d4-0004
+20260323T110102.000Z [mpgw][info][0x00000000] GET /helsenorge/api/v1/pasient/12345678901/journal 200 OK (312ms) client=10.0.1.52 upstream=api.helsenorge.no:443 trace=ins-a1b2c3d4-0005
+20260323T110200.000Z [mpgw][info][0x00000000] POST /altinn/api/v1/instances 201 Created (132ms) client=10.0.1.53 trace=ins-a1b2c3d4-0006
+20260323T110200.500Z [mpgw][info][0x00000000] GET /skatt/api/v1/inntekt/98765432100 200 OK (95ms) client=10.0.1.51 trace=ins-a1b2c3d4-0007
+20260323T110201.000Z [mpgw][info][0x00000000] POST /bankid/auth/authorize 200 OK (212ms) client=10.0.1.54 trace=ins-a1b2c3d4-0008
+20260323T110201.500Z [mpgw][info][0x00000000] POST /signicat/sign/document 200 OK (534ms) client=10.0.1.52 trace=ins-a1b2c3d4-0009
+20260323T110300.000Z [mpgw][info][0x00000000] POST /altinn/api/v1/instances 201 Created (128ms) client=10.0.1.50 trace=ins-a1b2c3d4-0010
+20260323T110301.000Z [mpgw][info][0x00000000] GET /helsenorge/api/v1/pasient/55667788990/journal 200 OK (298ms) client=10.0.1.55 trace=ins-a1b2c3d4-0011
+20260323T110400.000Z [aaa][warn][0x80d00003] Maskinporten access token expires in 3 minutes — auto-refresh scheduled
+20260323T110403.000Z [aaa][error][0x80d00001] Maskinporten token refresh FAILED: HTTP 401 Unauthorized
+  POST https://maskinporten.no/token
+  grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer
+  Response: {"error":"invalid_grant","error_description":"The JWT assertion has an invalid signature. Verify that the correct certificate/key is used."}
+20260323T110403.500Z [aaa][error][0x80d00005] JWT assertion signing failed: key 'forsikring-prod-2026' not matching server expectation
+  Our key fingerprint: SHA256:a1b2c3d4e5f6...
+  Server expects: SHA256:f6e5d4c3b2a1... (rotated on 2026-03-23 by Maskinporten)
+20260323T110404.000Z [aaa][error][0x80d00001] Maskinporten token refresh retry 2/3 FAILED: same error — invalid_grant
+20260323T110405.000Z [aaa][error][0x80d00001] Maskinporten token refresh retry 3/3 FAILED — giving up
+  All Altinn API calls will fail until Maskinporten token is refreshed
+  Impact: Cannot create/read Altinn instances (skademeldinger, forsikringssaker)
+20260323T110405.500Z [mpgw][error][0x80d00001] POST /altinn/api/v1/instances REJECTED — no valid Maskinporten bearer token
+  Client: 10.0.1.50, trace=ins-a1b2c3d4-0012
+  Error: Bearer token expired at 2026-03-23T11:07:00Z, refresh failed (invalid_grant)
+20260323T110406.000Z [mpgw][error][0x80d00001] GET /altinn/api/v1/instances/50012345/data REJECTED — no valid bearer token
+  Client: 10.0.1.51, trace=ins-a1b2c3d4-0013
+20260323T110406.500Z [mpgw][error][0x80d00001] POST /altinn/api/v1/instances REJECTED — no valid bearer token
+  Client: 10.0.1.52, trace=ins-a1b2c3d4-0014
+20260323T110407.000Z [mpgw][info][0x00000000] GET /skatt/api/v1/inntekt/11223344556 200 OK (91ms) — Skatteetaten uses separate token, NOT affected
+20260323T110407.500Z [mpgw][info][0x00000000] POST /bankid/auth/authorize 200 OK (198ms) — BankID uses OIDC, NOT affected
+20260323T110408.000Z [mpgw][info][0x00000000] GET /helsenorge/api/v1/pasient/33445566778/journal 200 OK (305ms) — HelseNorge uses own token, NOT affected
+20260323T110408.500Z [ssl][error][0x80e10001] SSL handshake failed with signicat-proxy: certificate verify failed
+  Subject: CN=api.signicat.com, O=Signicat AS
+  Error: certificate has been revoked (CRL check)
+  CRL URL: http://crl.signicat.com/SignicatIssuingCA.crl
+  Revocation date: 2026-03-22T18:00:00Z (17 hours ago)
+20260323T110409.000Z [ssl][error][0x80e10002] POST /signicat/sign/document FAILED — SSL certificate revoked
+  Client: 10.0.1.50, trace=ins-a1b2c3d4-0015
+  Impact: Document signing unavailable — claims requiring e-signature blocked
+20260323T110409.500Z [ssl][error][0x80e10001] SSL handshake failed with signicat-proxy: certificate revoked (repeat)
+  trace=ins-a1b2c3d4-0016
+20260323T110410.000Z [apiconnect][warn][0x80b00234] Circuit breaker OPEN for 'altinn-proxy' — 3 consecutive auth failures
+20260323T110410.500Z [apiconnect][warn][0x80b00234] Circuit breaker OPEN for 'signicat-proxy' — 2 consecutive SSL failures
+20260323T110411.000Z [mpgw][error][0x80d00001] POST /altinn/api/v1/instances — fast-failed by circuit breaker (altinn-proxy OPEN)
+  trace=ins-a1b2c3d4-0017
+20260323T110411.500Z [mpgw][error][0x80e10001] POST /signicat/sign/document — fast-failed by circuit breaker (signicat-proxy OPEN)
+  trace=ins-a1b2c3d4-0018
+20260323T110412.000Z [mpgw][info][0x00000000] GET /skatt/api/v1/formue/12345678901 200 OK (102ms) — Skatteetaten healthy
+20260323T110412.500Z [mpgw][info][0x00000000] POST /bankid/auth/token 200 OK (178ms) — BankID healthy
+20260323T110413.000Z [mpgw][info][0x00000000] GET /helsenorge/api/v1/pasient/44556677889/epikriser 200 OK (410ms) — HelseNorge healthy
+20260323T110500.000Z [default][error][0x80d00001] Altinn API health check FAILED — Maskinporten token invalid
+  Last successful token refresh: 2026-03-23T10:07:00Z (58 min ago)
+  Root cause: Maskinporten rotated signing keys on 2026-03-23 — our key 'forsikring-prod-2026' no longer accepted
+  Action required: Upload new key to Maskinporten selvbetjening portal
+20260323T110500.500Z [default][error][0x80e10001] Signicat API health check FAILED — certificate revoked
+  Last successful call: 2026-03-23T11:02:01Z (3 min ago)
+  Root cause: Signicat revoked their TLS certificate at 2026-03-22T18:00:00Z — likely emergency rotation
+  Action required: Contact Signicat support, or add new CA cert to DataPower truststore when they re-issue
+20260323T110600.000Z [default][warn][0x00000000] === IMPACT SUMMARY ===
+  Altinn (skademeldinger): BLOCKED — Maskinporten token expired + key rotation
+  Signicat (e-signering): BLOCKED — TLS certificate revoked
+  Skatteetaten (inntekt/formue): OK — separate Maskinporten scope, different key
+  BankID (innlogging): OK — uses OIDC, not Maskinporten
+  HelseNorge (pasientjournal): OK — own token mechanism
+  Affected claims: ~45 new claims cannot be submitted to Altinn, ~12 claims awaiting e-signature

@@ -1,0 +1,21 @@
+20260323T110408.501Z [mpgw][debug][0x00000000] === MPGW TRACE: Signicat Signing TXN-SIGN-001 ===
+20260323T110408.502Z [mpgw][debug][0x00000000] Backend: POST https://api.signicat.com/sign/document
+20260323T110408.503Z [mpgw][debug][0x00000000] TLS handshake initiating with api.signicat.com:443
+20260323T110408.504Z [mpgw][debug][0x00000000] Server certificate received:
+20260323T110408.505Z [mpgw][debug][0x00000000]   Subject: CN=api.signicat.com, O=Signicat AS, L=Trondheim, ST=Trondelag, C=NO
+20260323T110408.506Z [mpgw][debug][0x00000000]   Issuer: CN=DigiCert Global G2 TLS RSA SHA256 2020 CA1, O=DigiCert Inc
+20260323T110408.507Z [mpgw][debug][0x00000000]   Serial: 0A:1B:2C:3D:4E:5F:6A:7B
+20260323T110408.508Z [mpgw][debug][0x00000000]   Valid from: 2025-06-15T00:00:00Z
+20260323T110408.509Z [mpgw][debug][0x00000000]   Valid to: 2026-06-15T23:59:59Z
+20260323T110408.510Z [mpgw][debug][0x00000000]   Status: NOT YET CHECKED (checking CRL)
+20260323T110408.600Z [mpgw][debug][0x00000000] CRL check: downloading http://crl.signicat.com/SignicatIssuingCA.crl
+20260323T110408.700Z [mpgw][debug][0x00000000] CRL downloaded: 12,456 bytes, last update 2026-03-22T18:30:00Z, next update 2026-03-23T18:30:00Z
+20260323T110408.701Z [mpgw][debug][0x00000000] CRL entry found for serial 0A:1B:2C:3D:4E:5F:6A:7B:
+20260323T110408.702Z [mpgw][debug][0x00000000]   Revocation date: 2026-03-22T18:00:00Z
+20260323T110408.703Z [mpgw][debug][0x00000000]   Revocation reason: keyCompromise (1)
+20260323T110408.704Z [mpgw][error][0x80e10001] CERTIFICATE REVOKED: api.signicat.com TLS certificate revoked due to KEY_COMPROMISE
+20260323T110408.705Z [mpgw][error][0x80e10001]   This means Signicat's private key may have been exposed
+20260323T110408.706Z [mpgw][error][0x80e10001]   Signicat should issue a new certificate — check their status page: https://status.signicat.com
+20260323T110408.707Z [mpgw][debug][0x00000000] TLS handshake ABORTED — will not send data to a server with a compromised key
+20260323T110408.708Z [mpgw][error][0x80e10001] Transaction TXN-SIGN-001 FAILED — SSL certificate revoked (keyCompromise)
+20260323T110408.709Z [mpgw][warn][0x00000000] SECURITY ADVISORY: Do NOT bypass CRL check. KEY_COMPROMISE means the server's private key may be in the hands of an attacker. Wait for Signicat to re-issue the certificate.

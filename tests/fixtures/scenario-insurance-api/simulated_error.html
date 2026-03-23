@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #0F172A; color: #e0e0e0; }
+  .chrome-bar { background: #1E293B; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #334155; }
+  .dots { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #ffbd2e; } .dot.g { background: #28c840; }
+  .url-bar { flex: 1; background: #0F172A; border-radius: 6px; padding: 6px 12px; color: #94A3B8; font-size: 13px; }
+  .container { max-width: 650px; margin: 0 auto; padding: 40px; }
+  .logo { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 24px; }
+  .logo span { color: #3B82F6; }
+  .alert-box { background: #1E293B; border: 1px solid #DC2626; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .alert-icon { font-size: 48px; text-align: center; margin-bottom: 12px; }
+  .alert-title { font-size: 20px; font-weight: 700; color: #DC2626; text-align: center; margin-bottom: 8px; }
+  .alert-sub { font-size: 14px; color: #94A3B8; text-align: center; margin-bottom: 20px; }
+  .details-box { background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; line-height: 1.8; color: #CBD5E1; }
+  .details-box .label { color: #DC2626; font-weight: 600; }
+  .details-box .val { color: #FBBF24; }
+  .details-box .dim { color: #475569; }
+  .api-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .api-item { background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 10px; }
+  .api-item .api-name { font-size: 11px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+  .api-item .api-status { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .api-item .api-detail { font-size: 10px; color: #64748B; margin-top: 2px; }
+  .api-item .red { color: #DC2626; }
+  .api-item .green { color: #34D399; }
+  .api-item .yellow { color: #FBBF24; }
+  .retry-btn { margin-top: 16px; display: block; width: 100%; background: #3B82F6; color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; }
+  .ts { position: fixed; bottom: 12px; right: 16px; font-size: 11px; color: #475569; font-family: monospace; }
+</style>
+</head>
+<body>
+<div class="chrome-bar">
+  <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+  <div class="url-bar">https://minside.forsikring.no/skademelding/ny</div>
+</div>
+<div class="container">
+  <div class="logo">Nordic<span>Forsikring</span></div>
+  <div class="alert-box">
+    <div class="alert-icon">&#128274;</div>
+    <div class="alert-title">To eksterne tjenester er utilgjengelige</div>
+    <div class="alert-sub">Skademelding og e-signering er midlertidig ute av drift.</div>
+    <div class="details-box">
+      <span class="label">Problem 1:</span> <span class="val">Altinn — Maskinporten token ugyldig (key rotation)</span><br>
+      <span class="label">Problem 2:</span> <span class="val">Signicat — TLS-sertifikat tilbakekalt (KEY_COMPROMISE)</span><br>
+      <span class="label">Tidspunkt:</span> 2026-03-23 11:04:00 CET<br>
+      <span class="label">Pavirket:</span> <span class="val">45 skademeldinger + 12 e-signeringer blokkert</span><br>
+      <span class="dim">--- minside.forsikring.no ---</span>
+    </div>
+    <div class="api-grid">
+      <div class="api-item">
+        <div class="api-name">Altinn (Skademelding)</div>
+        <div class="api-status red">Blokkert</div>
+        <div class="api-detail">Maskinporten: invalid_grant</div>
+      </div>
+      <div class="api-item">
+        <div class="api-name">Signicat (E-signering)</div>
+        <div class="api-status red">Blokkert</div>
+        <div class="api-detail">TLS cert revoked: KEY_COMPROMISE</div>
+      </div>
+      <div class="api-item">
+        <div class="api-name">Skatteetaten (Inntekt)</div>
+        <div class="api-status green">OK</div>
+        <div class="api-detail">Separat token-scope</div>
+      </div>
+      <div class="api-item">
+        <div class="api-name">BankID (Innlogging)</div>
+        <div class="api-status green">OK</div>
+        <div class="api-detail">OIDC — ikke Maskinporten</div>
+      </div>
+      <div class="api-item">
+        <div class="api-name">HelseNorge (Journal)</div>
+        <div class="api-status green">OK</div>
+        <div class="api-detail">Egen token-mekanisme</div>
+      </div>
+      <div class="api-item">
+        <div class="api-name">Gateway (DataPower)</div>
+        <div class="api-status yellow">Delvis</div>
+        <div class="api-detail">CB open: altinn, signicat</div>
+      </div>
+    </div>
+    <div class="retry-btn">Prov igjen</div>
+  </div>
+</div>
+<div class="ts">Ref: INC-2026-0323-004 | Bruker: kunde50</div>
+</body>
+</html>

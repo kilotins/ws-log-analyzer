@@ -1,0 +1,19 @@
+10.0.0.200 - kunde50 [23/Mar/2026:11:01:30 +0100] "POST /forsikring/api/claims HTTP/1.1" 201 1234 "-" "Mozilla/5.0" rt=0.156
+10.0.0.201 - kunde51 [23/Mar/2026:11:01:31 +0100] "POST /forsikring/api/claims/CLM-20260323-048/sign HTTP/1.1" 200 456 "-" "Mozilla/5.0" rt=0.589
+10.0.0.202 - kunde52 [23/Mar/2026:11:02:00 +0100] "GET /forsikring/api/claims/CLM-20260323-045/status HTTP/1.1" 200 234 "-" "NordicForsikring-App/2.3" rt=0.045
+10.0.0.203 - kunde53 [23/Mar/2026:11:02:30 +0100] "GET /forsikring/api/tax/income HTTP/1.1" 200 890 "-" "Mozilla/5.0" rt=0.102
+10.0.0.204 - kunde54 [23/Mar/2026:11:03:00 +0100] "POST /forsikring/api/auth/bankid HTTP/1.1" 200 567 "-" "Mozilla/5.0" rt=0.245
+10.0.0.200 - kunde50 [23/Mar/2026:11:04:05 +0100] "POST /forsikring/api/claims HTTP/1.1" 502 0 "-" "Mozilla/5.0" rt=1.234
+2026/03/23 11:04:05 [error] 7891#0: *34567 upstream returned 502 while reading response header from upstream, client: 10.0.0.200, server: minside.forsikring.no, request: "POST /forsikring/api/claims HTTP/1.1", upstream: "http://10.0.2.50:8080/api/claims", host: "minside.forsikring.no"
+10.0.0.205 - kunde55 [23/Mar/2026:11:04:06 +0100] "POST /forsikring/api/claims HTTP/1.1" 502 0 "-" "NordicForsikring-App/2.3" rt=1.178
+10.0.0.206 - kunde56 [23/Mar/2026:11:04:07 +0100] "POST /forsikring/api/claims HTTP/1.1" 502 0 "-" "Mozilla/5.0" rt=1.089
+10.0.0.207 - kunde57 [23/Mar/2026:11:04:08 +0100] "GET /forsikring/api/tax/income HTTP/1.1" 200 890 "-" "Mozilla/5.0" rt=0.098
+10.0.0.208 - kunde58 [23/Mar/2026:11:04:08 +0100] "POST /forsikring/api/auth/bankid HTTP/1.1" 200 567 "-" "Mozilla/5.0" rt=0.201
+10.0.0.209 - kunde59 [23/Mar/2026:11:04:09 +0100] "POST /forsikring/api/claims/CLM-20260323-058/sign HTTP/1.1" 502 0 "-" "Mozilla/5.0" rt=0.034
+2026/03/23 11:04:09 [error] 7891#0: *34572 upstream returned 502 while reading response header from upstream, client: 10.0.0.209, server: minside.forsikring.no, request: "POST /forsikring/api/claims/CLM-20260323-058/sign HTTP/1.1", upstream: "http://10.0.2.50:8080/api/claims/CLM-20260323-058/sign", host: "minside.forsikring.no"
+10.0.0.210 - kunde60 [23/Mar/2026:11:04:10 +0100] "POST /forsikring/api/claims/CLM-20260323-059/sign HTTP/1.1" 502 0 "-" "Mozilla/5.0" rt=0.028
+10.0.0.211 - kunde61 [23/Mar/2026:11:04:11 +0100] "GET /forsikring/api/health/journal HTTP/1.1" 200 2341 "-" "Mozilla/5.0" rt=0.320
+10.0.0.200 - kunde50 [23/Mar/2026:11:05:00 +0100] "POST /forsikring/api/claims HTTP/1.1" 503 186 "-" "Mozilla/5.0" rt=0.002
+10.0.0.205 - kunde55 [23/Mar/2026:11:05:30 +0100] "POST /forsikring/api/claims HTTP/1.1" 503 186 "-" "NordicForsikring-App/2.3" rt=0.001
+10.0.0.207 - kunde57 [23/Mar/2026:11:06:00 +0100] "GET /forsikring/api/tax/income HTTP/1.1" 200 890 "-" "Mozilla/5.0" rt=0.091
+10.0.0.208 - kunde58 [23/Mar/2026:11:06:30 +0100] "POST /forsikring/api/auth/bankid HTTP/1.1" 200 567 "-" "Mozilla/5.0" rt=0.189
