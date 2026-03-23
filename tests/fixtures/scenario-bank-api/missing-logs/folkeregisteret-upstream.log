@@ -1,0 +1,38 @@
+2026-03-22 08:55:00.000 UTC [freg-api-prod-01] INFO  HealthCheck - API v3.2.1 healthy, 234 req/s, avg latency 45ms
+2026-03-22 08:58:00.000 UTC [freg-api-prod-01] INFO  HealthCheck - API v3.2.1 healthy, 228 req/s, avg latency 48ms
+2026-03-22 09:00:00.000 UTC [freg-api-prod-01] WARN  DeploymentManager - Scheduled maintenance starting: API v4.0.0 migration
+2026-03-22 09:00:00.001 UTC [freg-api-prod-01] INFO  DeploymentManager - Step 1/4: Draining active connections (grace period: 30s)
+2026-03-22 09:00:30.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Step 2/4: Stopping API v3.2.1 instances
+2026-03-22 09:00:30.001 UTC [freg-api-prod-01] INFO  DeploymentManager - Instance freg-api-01 stopped
+2026-03-22 09:00:30.500 UTC [freg-api-prod-01] INFO  DeploymentManager - Instance freg-api-02 stopped
+2026-03-22 09:00:31.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Instance freg-api-03 stopped
+2026-03-22 09:00:31.001 UTC [freg-api-prod-01] WARN  DeploymentManager - All v3.2.1 instances stopped — API UNAVAILABLE during migration
+2026-03-22 09:00:32.000 UTC [freg-nginx-lb] WARN  upstream - no live upstreams while connecting to upstream, returning 503
+2026-03-22 09:00:32.001 UTC [freg-nginx-lb] INFO  maintenance - Serving static 503 maintenance page for all requests
+2026-03-22 09:01:00.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Step 3/4: Starting API v4.0.0 instances (rolling deploy)
+2026-03-22 09:01:00.001 UTC [freg-api-prod-01] INFO  DeploymentManager - Instance freg-api-01 starting v4.0.0...
+2026-03-22 09:01:30.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Instance freg-api-01 v4.0.0 started (health check pending)
+2026-03-22 09:02:00.000 UTC [freg-api-prod-01] ERROR DeploymentManager - Instance freg-api-01 health check FAILED: database migration incomplete
+2026-03-22 09:02:00.001 UTC [freg-api-prod-01] ERROR DeploymentManager - Flyway migration V4.0.0__rename_bostedsadresse.sql: running (estimated 15 min for 12M rows)
+2026-03-22 09:02:30.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Instance freg-api-02 starting v4.0.0...
+2026-03-22 09:03:00.000 UTC [freg-api-prod-01] WARN  DeploymentManager - Instance freg-api-02 started but serving PARTIAL responses (migration in progress)
+2026-03-22 09:03:00.001 UTC [freg-api-prod-01] WARN  DeploymentManager - WARNING: v4.0.0 schema active on freg-api-02 — field 'bostedsadresse' REMOVED, replaced by 'adressegradering' + 'kontaktadresse'
+2026-03-22 09:03:00.002 UTC [freg-api-prod-01] WARN  DeploymentManager - WARNING: No version negotiation — X-API-Version header from clients is IGNORED in v4.0.0 (breaking change)
+2026-03-22 09:03:30.000 UTC [freg-nginx-lb] INFO  upstream - freg-api-02 added to upstream pool (1/3 instances)
+2026-03-22 09:03:30.001 UTC [freg-nginx-lb] WARN  upstream - Only 1/3 instances available — load capacity reduced to 33%
+2026-03-22 09:03:59.000 UTC [freg-api-prod-01] INFO  RequestLog - GET /api/v1/person/12345678901 200 (67ms) — served by freg-api-02 (v4.0.0 schema)
+2026-03-22 09:04:00.000 UTC [freg-api-prod-01] INFO  RequestLog - POST /api/v1/person/lookup/batch — QUEUED (database lock wait, migration V4.0.0 still running)
+2026-03-22 09:04:02.000 UTC [freg-api-prod-01] WARN  RequestLog - POST /api/v1/person/lookup/batch — TIMEOUT after 30000ms (database migration blocking reads)
+2026-03-22 09:04:02.001 UTC [freg-api-prod-01] ERROR RequestLog - Batch lookup blocked by Flyway migration lock on table 'person_adresse' — 8.2M of 12M rows migrated
+2026-03-22 09:04:03.000 UTC [freg-nginx-lb] WARN  upstream - freg-api-01 still failing health check (migration incomplete), serving 503 for requests routed to it
+2026-03-22 09:04:05.000 UTC [freg-api-prod-01] INFO  RequestLog - GET /api/v1/person/33445566778 200 (65ms) — v4.0.0 response (new schema)
+2026-03-22 09:04:05.001 UTC [freg-api-prod-01] WARN  RequestLog - Client sent X-API-Version: v3.2 but response is v4.0.0 — version negotiation not implemented in v4.0
+2026-03-22 09:05:00.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Flyway migration V4.0.0: 10.1M of 12M rows migrated (84%)
+2026-03-22 09:10:00.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Flyway migration V4.0.0: COMPLETE (12M rows migrated)
+2026-03-22 09:10:01.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Instance freg-api-01 health check PASSED
+2026-03-22 09:10:02.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Instance freg-api-03 starting v4.0.0...
+2026-03-22 09:10:30.000 UTC [freg-api-prod-01] INFO  DeploymentManager - Step 4/4: All 3 instances running v4.0.0 — migration COMPLETE
+2026-03-22 09:10:30.001 UTC [freg-nginx-lb] INFO  upstream - All 3 instances healthy: freg-api-01, freg-api-02, freg-api-03
+2026-03-22 09:10:31.000 UTC [freg-api-prod-01] WARN  DeploymentManager - NOTE: v3.2 clients will receive v4.0 responses — no backward compatibility layer deployed
+2026-03-22 09:10:31.001 UTC [freg-api-prod-01] WARN  DeploymentManager - Deprecation notice for v3.2 was scheduled for 2026-04-01 but migration was executed 2026-03-22
+2026-03-22 09:15:00.000 UTC [freg-api-prod-01] INFO  HealthCheck - API v4.0.0 healthy, 189 req/s, avg latency 52ms — all instances serving
