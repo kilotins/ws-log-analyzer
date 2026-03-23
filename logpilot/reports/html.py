@@ -104,9 +104,7 @@ def render_html_report(
     )
     if _has_supporting:
         _add_nav("Supporting Data")
-    # 5. AI Queries (history)
-    if _sec(sections, "ai") and ai_content and ai_content.get("ask_ai"):
-        _add_nav("AI Queries")
+
 
     h: list[str] = []
     h.append('<!DOCTYPE html>')
@@ -521,20 +519,6 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 h.append('</div>')
 
         _close_section()
-
-    # 5. AI queries (history)
-    if _sec(sections, "ai") and ai_content:
-        ask_ai = ai_content.get("ask_ai")
-        if ask_ai:
-            _open_section()
-            for entry in ask_ai:
-                h.append('<div class="ai-section">')
-                h.append(f'<h3>Q: {escape(entry["query"][:120])}</h3>')
-                provider = entry.get("provider", "AI")
-                h.append(f'<div class="sample-meta">{escape(provider)} &mdash; {escape(entry.get("timestamp", ""))}</div>')
-                h.append(f'<div class="ai-answer">{escape(entry["answer"])}</div>')
-                h.append('</div>')
-            _close_section()
 
     # Footer
     h.append(f'<div class="footer">{_LOGPILOT_LOGO_SVG} Powered by LogPilot &mdash; <a href="https://item.no">Item Consulting</a></div>')

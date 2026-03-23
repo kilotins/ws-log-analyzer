@@ -236,22 +236,6 @@ def render_markdown_report(
             md.append("```")
             md.append("")
 
-    # --- 5. AI Queries (history) ---
-    if _sec(sections, "ai") and ai_content:
-        ask_ai = ai_content.get("ask_ai")
-        if ask_ai:
-            md.append("## Previous AI Queries")
-            md.append("")
-            for entry in ask_ai:
-                _eq = entry['query']
-                _eq_preview = _eq[:80] + "..." if len(_eq) > 80 else _eq
-                md.append(f"### Q: {_eq_preview}")
-                provider = entry.get("provider", "AI")
-                md.append(f"*{provider} — {entry.get('timestamp', '')}*")
-                md.append("")
-                md.append(entry["answer"])
-                md.append("")
-
     md.append("")
     md.append("---")
     md.append("*Powered by LogPilot — [Item Consulting](https://item.no)*")

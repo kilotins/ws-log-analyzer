@@ -1,0 +1,42 @@
+2026-03-21 08:30:00.000 INFO  [main] com.klpbank.CoreBankingApplication - Starting CoreBankingApplication v4.2.1 using Java 17.0.8
+2026-03-21 08:30:01.000 INFO  [main] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting... (max pool=20, idle=5)
+2026-03-21 08:30:01.500 INFO  [main] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-21 08:31:00.000 INFO  [http-nio-8080-exec-1] com.klpbank.account.AccountService - Balance lookup for account 88750: 245,891.50 NOK
+2026-03-21 08:31:01.000 INFO  [http-nio-8080-exec-2] com.klpbank.payment.PaymentService - Payment #PAY-20260321-001 processed: 1,500.00 NOK to 1234.56.78901
+2026-03-21 08:34:00.000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=20, active=3, idle=17, waiting=0
+2026-03-21 08:35:00.000 WARN  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=20, active=18, idle=2, waiting=5
+2026-03-21 08:35:25.000 ERROR [http-nio-8080-exec-5] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Connection is not available, request timed out after 30000ms
+  java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:695)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	at com.klpbank.payment.PaymentDAO.executePayment(PaymentDAO.java:89)
+	at com.klpbank.payment.PaymentService.processDomesticPayment(PaymentService.java:134)
+2026-03-21 08:35:26.000 ERROR [http-nio-8080-exec-6] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Connection is not available, request timed out after 30000ms
+2026-03-21 08:35:30.000 ERROR [http-nio-8080-exec-3] com.klpbank.aml.AMLScreeningService - AML screening failed for payment #PAY-20260321-088: connection timeout to aml-register.finanstilsynet.no
+  java.net.SocketTimeoutException: connect timed out
+	at java.net.Socket.connect(Socket.java:589)
+	at com.klpbank.aml.AMLClient.screenTransaction(AMLClient.java:67)
+	at com.klpbank.aml.AMLScreeningService.screen(AMLScreeningService.java:45)
+Caused by: java.io.IOException: Connection timed out
+	at sun.nio.ch.SocketChannelImpl.connect(SocketChannelImpl.java:734)
+2026-03-21 08:35:35.000 ERROR [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=20, active=20, idle=0, waiting=15 — POOL EXHAUSTED
+2026-03-21 08:35:40.000 ERROR [http-nio-8080-exec-7] com.klpbank.nav.NAVIntegrationService - NAV income lookup failed for person 12345678901: service timeout
+  org.springframework.web.client.ResourceAccessException: I/O error on GET request for "https://nav-api.nav.no/api/v2/person/income": Read timed out
+	at org.springframework.web.client.RestTemplate.doExecute(RestTemplate.java:785)
+	at com.klpbank.nav.NAVClient.getPersonIncome(NAVClient.java:89)
+	at com.klpbank.nav.NAVIntegrationService.lookupIncome(NAVIntegrationService.java:56)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.net.SocketInputStream.socketRead0(Native Method)
+2026-03-21 08:35:45.000 ERROR [http-nio-8080-exec-8] com.klpbank.vps.VPSSecuritiesService - VPS securities lookup failed: SSL handshake error
+  javax.net.ssl.SSLHandshakeException: Received fatal alert: protocol_version
+	at sun.security.ssl.Alert.createSSLException(Alert.java:131)
+	at com.klpbank.vps.VPSClient.getSecurities(VPSClient.java:78)
+Caused by: javax.net.ssl.SSLException: Received fatal alert: protocol_version
+	at sun.security.ssl.Alert.createSSLException(Alert.java:117)
+2026-03-21 08:36:00.000 ERROR [batch-scheduler-1] com.klpbank.batch.SalaryBatchProcessor - Salary batch SALARY-MARCH-2026 failed: 234/1500 payments unprocessed
+  com.klpbank.payment.PaymentProcessingException: Database connection pool exhausted
+	at com.klpbank.payment.PaymentDAO.executePayment(PaymentDAO.java:92)
+	at com.klpbank.batch.SalaryBatchProcessor.processBatch(SalaryBatchProcessor.java:156)
+2026-03-21 08:36:30.000 WARN  [http-nio-8080-exec-1] com.klpbank.account.AccountService - Returning cached balance for account 88750 (cache age: 5 min) — database unavailable
+2026-03-21 08:38:00.000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=20, active=5, idle=15, waiting=0 — recovered
+2026-03-21 08:38:01.000 INFO  [batch-scheduler-1] com.klpbank.batch.SalaryBatchProcessor - Retrying salary batch SALARY-MARCH-2026: 234 remaining payments

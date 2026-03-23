@@ -1,0 +1,60 @@
+20260321T083000.000Z [default][info][0x00000000] DataPower Gateway v10.5.0.4 started, domain 'bank-prod'
+20260321T083001.000Z [default][info][0x00000000] Service 'vps-proxy' listening on port 9443
+20260321T083001.100Z [default][info][0x00000000] Service 'nav-proxy' listening on port 9444
+20260321T083001.200Z [default][info][0x00000000] Service 'aml-proxy' listening on port 9445
+20260321T083001.300Z [default][info][0x00000000] Service 'core-banking-proxy' listening on port 9446
+20260321T083002.000Z [aaa][info][0x00000000] JWT validation configured: issuer='https://auth.klpbank.no', audience='api-gateway'
+20260321T083100.000Z [mpgw][info][0x00000000] Transaction completed: POST /api/v1/accounts/balance 200 OK (23ms) client=10.0.1.50 trace=f1a2b3c4-1111-2222-3333-444455556666
+20260321T083100.500Z [mpgw][info][0x00000000] Transaction completed: GET /api/v1/pension/portfolio 200 OK (45ms) client=10.0.1.50 trace=f1a2b3c4-1111-2222-3333-444455557777
+20260321T083101.000Z [mpgw][info][0x00000000] Transaction completed: POST /api/v1/payments/domestic 200 OK (67ms) client=10.0.1.51 trace=f1a2b3c4-1111-2222-3333-444455558888
+20260321T083200.000Z [mpgw][info][0x00000000] Transaction completed: GET /nav/api/v2/person/income 200 OK (120ms) client=10.0.1.50 upstream=nav-api.nav.no:443 trace=a1b2c3d4-5678-9abc-def0-111122223333
+20260321T083201.000Z [mpgw][info][0x00000000] Transaction completed: POST /vps/api/v1/securities/lookup 200 OK (89ms) client=10.0.1.51 upstream=api.vps.no:443 trace=a1b2c3d4-5678-9abc-def0-111122224444
+20260321T083400.000Z [aaa][warn][0x80d00003] JWT token expiry warning: token for client 'batch-processor' expires in 5 minutes
+20260321T083500.000Z [ssl][warn][0x80e10005] CRL check warning: CRL for CA 'BankID Root CA' expires in 48 hours
+20260321T083600.000Z [default][error][0x80e00001] Connection refused to backend 'https://core-banking.internal:8443/api/v1/accounts'
+  Backend service 'core-banking-api' is not responding on 10.0.2.10:8443
+20260321T083600.500Z [default][error][0x80e00001] Connection refused to backend 'https://core-banking.internal:8443/api/v1/transactions'
+20260321T083601.000Z [aaa][error][0x80d00001] Authentication failed: JWT signature validation error for client 'mobile-app-v3'
+  Bearer token: eyJhbGciOiJSUzI1NiIs...***REDACTED***
+  Error: Key 'kid=bank-signing-key-2026' not found in JWKS endpoint
+  JWKS URL: https://auth.klpbank.no/.well-known/jwks.json
+20260321T083601.500Z [aaa][error][0x80d00005] Token validation error: issuer mismatch — expected 'https://auth.klpbank.no', got 'https://auth-staging.klpbank.no'
+20260321T083602.000Z [default][error][0x80e00002] Connection timeout to backend 'https://nav-api.nav.no:443/api/v2/person/income' after 30000ms
+  Upstream: nav-api.nav.no:443 (DNS resolved to 159.171.100.25)
+  java.net.SocketTimeoutException: connect timed out
+	at java.net.Socket.connect(Socket.java:589)
+	at com.ibm.datapower.net.ConnectionManager.open(ConnectionManager.java:234)
+Caused by: java.io.IOException: Connection timed out
+	at sun.nio.ch.SocketChannelImpl.connect(SocketChannelImpl.java:734)
+20260321T083602.500Z [default][error][0x80e00002] Connection timeout to backend 'https://nav-api.nav.no:443/api/v2/employer/details' after 30000ms
+20260321T083603.000Z [ssl][error][0x80e10001] SSL handshake failed with 'api.vps.no:443': TLS 1.2 required but server only supports TLS 1.3
+  Negotiation failed: no common cipher suite
+  Client ciphers: TLS_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+  Server requires: TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256
+20260321T083603.500Z [ssl][error][0x80e10002] Certificate expired for 'aml-register.finanstilsynet.no:443'
+  Subject: CN=aml-register.finanstilsynet.no, O=Finanstilsynet
+  Expired: 2026-03-20T23:59:59Z (1 day ago)
+20260321T083604.000Z [default][error][0x80e00003] DNS resolution failed for hostname 'aml-register.finanstilsynet.no'
+  NXDOMAIN — hostname not found in DNS
+20260321T083605.000Z [apiconnect][error][0x80b00002] Rate limit exceeded for plan 'standard', client-id='partner-insurance-app'
+  Current rate: 152 req/min, limit: 100 req/min
+  Plan: 'standard', Product: 'pension-api', Catalog: 'production'
+20260321T083606.000Z [mpgw][error][0x8060001a] Processing policy 'aml-screening' action failed at step 2
+  Transform error: AML lookup service unavailable
+  Fallback: request queued for manual review (queue depth: 47)
+20260321T083607.000Z [default][error][0x80e00001] Connection refused to backend 'https://core-banking.internal:8443/api/v1/payments/execute'
+20260321T083607.500Z [default][error][0x80e00004] Connection reset by peer: backend 'https://core-banking.internal:8443/api/v1/accounts/88750'
+20260321T083608.000Z [aaa][error][0x80d00004] LDAP connection failed: connection timeout to ldap.klpbank.no:636 after 15000ms
+  AD group lookup for user 'svc-batch-payments' failed — authorization check skipped
+20260321T083609.000Z [network][error][0x80e00010] No route to host: 10.0.2.10:8443 — possible network partition between DMZ and internal zone
+20260321T083610.000Z [default][critical][0x80e00001] Connection refused to ALL core-banking endpoints — service completely unavailable
+  Affected endpoints: /accounts, /transactions, /payments/execute, /loans
+  Impact: All payment processing halted
+20260321T083611.000Z [apiconnect][warn][0x80b00234] Circuit breaker OPEN for 'core-banking-api' — 10 consecutive failures in 60s
+20260321T083612.000Z [mpgw][error][0x80e00002] Connection timeout to backend 'https://nav-api.nav.no:443/api/v2/benefits/lookup' after 30000ms trace=a1b2c3d4-5678-9abc-def0-111122225555
+20260321T083615.000Z [mpgw][warn][0x00000000] Fallback response sent for /api/v1/accounts/balance: cached data (age: 5 min)
+20260321T083620.000Z [mpgw][warn][0x00000000] Fallback response sent for /api/v1/pension/portfolio: cached data (age: 12 min)
+20260321T083700.000Z [default][info][0x00000000] Backend 'core-banking-api' health check: FAILED (attempt 5/5)
+20260321T083800.000Z [default][info][0x00000000] Backend 'core-banking-api' recovered — connection established to 10.0.2.10:8443
+20260321T083800.500Z [mpgw][info][0x00000000] Transaction completed: POST /api/v1/payments/domestic 200 OK (89ms) — processing backlog
+20260321T083801.000Z [mpgw][info][0x00000000] Circuit breaker CLOSED for 'core-banking-api' — service restored

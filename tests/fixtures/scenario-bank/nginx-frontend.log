@@ -1,0 +1,16 @@
+10.0.0.100 - customer1 [21/Mar/2026:08:31:00 +0100] "GET /nettbank/dashboard HTTP/1.1" 200 4521 "-" "Mozilla/5.0" rt=0.034
+10.0.0.101 - customer2 [21/Mar/2026:08:31:01 +0100] "POST /nettbank/api/payments/domestic HTTP/1.1" 200 892 "-" "KLPBank-App/3.2" rt=0.089
+10.0.0.102 - customer3 [21/Mar/2026:08:31:02 +0100] "GET /nettbank/api/pension/overview HTTP/1.1" 200 2341 "-" "Mozilla/5.0" rt=0.056
+10.0.0.100 - customer1 [21/Mar/2026:08:35:30 +0100] "POST /nettbank/api/payments/domestic HTTP/1.1" 502 0 "-" "Mozilla/5.0" rt=30.001
+2026/03/21 08:35:30 [error] 7891#0: *12345 upstream timed out (110: Connection timed out) while connecting to upstream, client: 10.0.0.100, server: nettbank.klpbank.no, request: "POST /nettbank/api/payments/domestic HTTP/1.1", upstream: "https://10.0.2.10:8443/api/v1/payments/execute", host: "nettbank.klpbank.no"
+10.0.0.101 - customer2 [21/Mar/2026:08:35:31 +0100] "GET /nettbank/api/accounts/balance HTTP/1.1" 502 0 "-" "KLPBank-App/3.2" rt=30.002
+2026/03/21 08:35:31 [error] 7891#0: *12346 upstream timed out (110: Connection timed out) while connecting to upstream, client: 10.0.0.101, server: nettbank.klpbank.no, request: "GET /nettbank/api/accounts/balance HTTP/1.1", upstream: "https://10.0.2.10:8443/api/v1/accounts/balance", host: "nettbank.klpbank.no"
+10.0.0.103 - customer4 [21/Mar/2026:08:35:32 +0100] "POST /nettbank/api/payments/international HTTP/1.1" 502 0 "-" "Mozilla/5.0" rt=30.003
+10.0.0.104 - - [21/Mar/2026:08:35:33 +0100] "GET /nettbank/api/loans/overview HTTP/1.1" 504 0 "-" "Mozilla/5.0" rt=60.001
+2026/03/21 08:35:33 [error] 7891#0: *12348 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 10.0.0.104, server: nettbank.klpbank.no, request: "GET /nettbank/api/loans/overview HTTP/1.1", upstream: "https://10.0.2.10:8443/api/v1/loans", host: "nettbank.klpbank.no"
+10.0.0.105 - customer5 [21/Mar/2026:08:35:35 +0100] "POST /nettbank/api/payments/domestic HTTP/1.1" 502 0 "-" "KLPBank-App/3.2" rt=0.002
+2026/03/21 08:35:35 [error] 7891#0: *12350 connect() failed (111: Connection refused) while connecting to upstream, client: 10.0.0.105, server: nettbank.klpbank.no, request: "POST /nettbank/api/payments/domestic HTTP/1.1", upstream: "https://10.0.2.10:8443/api/v1/payments/execute", host: "nettbank.klpbank.no"
+10.0.0.100 - customer1 [21/Mar/2026:08:36:00 +0100] "POST /nettbank/api/payments/domestic HTTP/1.1" 429 186 "-" "Mozilla/5.0" rt=0.001
+10.0.0.101 - customer2 [21/Mar/2026:08:36:01 +0100] "GET /nettbank/api/accounts/balance HTTP/1.1" 429 186 "-" "KLPBank-App/3.2" rt=0.001
+10.0.0.100 - customer1 [21/Mar/2026:08:38:00 +0100] "GET /nettbank/api/accounts/balance HTTP/1.1" 200 1234 "-" "Mozilla/5.0" rt=0.045
+10.0.0.101 - customer2 [21/Mar/2026:08:38:01 +0100] "POST /nettbank/api/payments/domestic HTTP/1.1" 200 892 "-" "KLPBank-App/3.2" rt=0.091
