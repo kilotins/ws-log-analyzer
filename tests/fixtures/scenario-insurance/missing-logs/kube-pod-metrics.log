@@ -1,0 +1,26 @@
+2026-03-23T10:30:00.000000000Z stderr F [metrics] Pod claims-api-7d9f8b6c4-xk2p9 — CPU: 245m/500m (49%), Memory: 312Mi/512Mi (61%), JVM Heap: 280Mi/384Mi (73%)
+2026-03-23T10:30:15.000000000Z stderr F [metrics] Pod claims-api-7d9f8b6c4-xk2p9 — CPU: 456m/500m (91%), Memory: 398Mi/512Mi (78%), JVM Heap: 345Mi/384Mi (90%)
+2026-03-23T10:30:15.001000000Z stderr F [metrics] WARNING: JVM heap usage above 90% — GC pressure expected
+2026-03-23T10:30:30.000000000Z stderr F [metrics] Pod claims-api-7d9f8b6c4-xk2p9 — CPU: 498m/500m (99%), Memory: 445Mi/512Mi (87%), JVM Heap: 370Mi/384Mi (96%)
+2026-03-23T10:30:30.001000000Z stderr F [metrics] CRITICAL: JVM heap at 96% — Full GC triggered
+2026-03-23T10:30:30.002000000Z stderr F [gc] GC(14) Pause Full (G1 Compaction Pause) 370M->365M(384M) 456.789ms
+2026-03-23T10:30:30.003000000Z stderr F [gc] GC(14) GC overhead: 78% of time spent in GC, recovering <3% memory per cycle
+2026-03-23T10:30:45.000000000Z stderr F [metrics] Pod claims-api-7d9f8b6c4-xk2p9 — CPU: 500m/500m (100% THROTTLED), Memory: 489Mi/512Mi (96%), JVM Heap: 378Mi/384Mi (98%)
+2026-03-23T10:30:45.001000000Z stderr F [gc] GC(15) Pause Full (G1 Compaction Pause) 378M->376M(384M) 678.901ms
+2026-03-23T10:30:45.002000000Z stderr F [gc] GC(15) GC overhead limit exceeded: 92% of time spent in GC
+2026-03-23T10:30:50.000000000Z stderr F [metrics] Pod claims-api-7d9f8b6c4-xk2p9 — CPU: THROTTLED, Memory: 510Mi/512Mi (99%), JVM Heap: 382Mi/384Mi (99%)
+2026-03-23T10:30:50.001000000Z stderr F [gc] GC(16) Allocation Failure — java.lang.OutOfMemoryError: Java heap space
+2026-03-23T10:31:01.000000000Z stderr F [kubelet] Pod claims-api-7d9f8b6c4-xk2p9 container claims-api exceeded memory limit: 567Mi > 512Mi
+2026-03-23T10:31:01.001000000Z stderr F [kubelet] OOMKilled: container claims-api (PID 1) killed by OOM Killer
+2026-03-23T10:31:01.002000000Z stderr F [kubelet] Exit code: 137 (SIGKILL)
+2026-03-23T10:31:01.003000000Z stderr F [kubelet] Container memory timeline:
+  10:30:00 — 312Mi (normal)
+  10:30:15 — 398Mi (+86Mi in 15s — connection objects accumulating from blocked pool)
+  10:30:30 — 445Mi (+47Mi — GC unable to reclaim connection waiters)
+  10:30:45 — 489Mi (+44Mi — Full GC recovering <3%)
+  10:30:50 — 510Mi (+21Mi — allocation failure)
+  10:31:01 — 567Mi — KILLED (container overhead + off-heap exceeded cgroup limit)
+2026-03-23T10:31:02.000000000Z stderr F [kubelet] Restarting container claims-api (attempt 1, backoff: 10s)
+2026-03-23T10:31:12.000000000Z stderr F [kubelet] Container claims-api started (PID 1), health check pending
+2026-03-23T10:31:15.000000000Z stderr F [metrics] Pod claims-api-7d9f8b6c4-xk2p9 — CPU: 120m/500m (24%), Memory: 245Mi/512Mi (48%), JVM Heap: 128Mi/384Mi (33%) — fresh start
+2026-03-23T10:31:30.000000000Z stderr F [kubelet] Readiness probe passed for claims-api

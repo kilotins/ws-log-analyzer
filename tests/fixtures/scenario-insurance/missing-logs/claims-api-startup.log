@@ -1,0 +1,20 @@
+2026-03-23 10:00:00.000 INFO  [main] com.nordic.claims.ClaimsApiApplication - Starting ClaimsApiApplication v3.8.2 using Java 17.0.8 with PID 1 (/app/claims-api.jar)
+2026-03-23 10:00:00.500 INFO  [main] com.nordic.claims.ClaimsApiApplication - The following 3 profiles are active: "prod", "k8s", "metrics"
+2026-03-23 10:00:02.000 INFO  [main] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-23 10:00:02.100 INFO  [main] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-23 10:00:02.101 INFO  [main] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool configuration: maximumPoolSize=20, minimumIdle=5, connectionTimeout=30000ms, idleTimeout=600000ms, maxLifetime=1800000ms
+2026-03-23 10:00:02.102 INFO  [main] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Database: PostgreSQL 16.2, Driver: PostgreSQL JDBC 42.7.1, URL: jdbc:postgresql://10.0.3.5:5432/claims_prod
+2026-03-23 10:00:03.000 INFO  [main] io.github.resilience4j.circuitbreaker.CircuitBreaker - CircuitBreaker 'postgres-cb' created: failureRateThreshold=50.0%, waitDurationInOpenState=30000ms, slidingWindowSize=10
+2026-03-23 10:00:03.100 INFO  [main] io.github.resilience4j.circuitbreaker.CircuitBreaker - CircuitBreaker 'altinn-cb' created: failureRateThreshold=50.0%, waitDurationInOpenState=60000ms, slidingWindowSize=5
+2026-03-23 10:00:05.000 INFO  [main] org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8080
+2026-03-23 10:00:05.500 INFO  [main] com.nordic.claims.ClaimsApiApplication - Started ClaimsApiApplication in 5.5 seconds
+2026-03-23 10:00:10.000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=5, active=0, idle=5, waiting=0
+2026-03-23 10:05:00.000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=8, active=3, idle=5, waiting=0
+2026-03-23 10:10:00.000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=10, active=4, idle=6, waiting=0
+2026-03-23 10:15:00.000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=12, active=5, idle=7, waiting=0
+2026-03-23 10:20:00.000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=14, active=6, idle=8, waiting=0
+2026-03-23 10:25:00.000 INFO  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=16, active=8, idle=8, waiting=0
+2026-03-23 10:28:00.000 WARN  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=18, active=14, idle=4, waiting=0 — pool growing under batch load
+2026-03-23 10:29:00.000 WARN  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=20, active=18, idle=2, waiting=2 — approaching max
+2026-03-23 10:29:30.000 WARN  [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Pool stats: total=20, active=20, idle=0, waiting=5 — MAX REACHED, requests queuing
+2026-03-23 10:29:30.001 WARN  [http-nio-8080-exec-12] com.nordic.claims.config.DatabaseHealthIndicator - Connection acquisition taking >5s — possible contention on claims table

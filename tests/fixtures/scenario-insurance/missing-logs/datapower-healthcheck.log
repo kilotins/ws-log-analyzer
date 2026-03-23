@@ -1,0 +1,21 @@
+20260323T103000.000Z [default][info][0x00000000] Health check: GET https://10.0.2.50:8080/actuator/health — 200 OK (12ms)
+20260323T103015.000Z [default][info][0x00000000] Health check: GET https://10.0.2.50:8080/actuator/health — 200 OK (15ms)
+20260323T103030.000Z [default][warn][0x80e00002] Health check: GET https://10.0.2.50:8080/actuator/health — TIMEOUT after 5000ms
+20260323T103030.001Z [default][debug][0x00000000] Health check failure count: 1/3 (threshold: 3 consecutive failures)
+20260323T103045.000Z [default][warn][0x80e00002] Health check: GET https://10.0.2.50:8080/actuator/health — TIMEOUT after 5000ms
+20260323T103045.001Z [default][debug][0x00000000] Health check failure count: 2/3
+20260323T103100.000Z [default][error][0x80e00001] Health check: GET https://10.0.2.50:8080/actuator/health — Connection refused (111)
+20260323T103100.001Z [default][debug][0x00000000] Health check failure count: 3/3 — THRESHOLD REACHED
+20260323T103100.002Z [default][warn][0x00000000] Backend 'claims-api' marked as DOWN — removing from upstream pool
+20260323T103100.003Z [default][info][0x00000000] Circuit breaker state: CLOSED → OPEN for 'claims-api-proxy'
+20260323T103100.004Z [default][info][0x00000000] All requests to claims-api will be fast-failed with 503 for 30 seconds
+20260323T103115.000Z [default][error][0x80e00001] Health check: GET https://10.0.2.50:8080/actuator/health — Connection refused (111)
+20260323T103130.000Z [default][info][0x00000000] Circuit breaker: attempting half-open probe to claims-api
+20260323T103130.100Z [default][error][0x80e00001] Health check probe: Connection refused — circuit breaker remains OPEN
+20260323T103200.000Z [default][info][0x00000000] Circuit breaker: attempting half-open probe to claims-api
+20260323T103200.100Z [default][info][0x00000000] Health check probe: 200 OK (89ms) — claims-api is responding
+20260323T103200.200Z [default][info][0x00000000] Circuit breaker state: OPEN → HALF_OPEN for 'claims-api-proxy'
+20260323T103200.300Z [default][info][0x00000000] Routing 3 test requests to claims-api for validation
+20260323T103200.500Z [default][info][0x00000000] 3/3 test requests succeeded — claims-api confirmed healthy
+20260323T103200.600Z [default][info][0x00000000] Circuit breaker state: HALF_OPEN → CLOSED for 'claims-api-proxy'
+20260323T103200.700Z [default][info][0x00000000] Backend 'claims-api' marked as UP — added back to upstream pool

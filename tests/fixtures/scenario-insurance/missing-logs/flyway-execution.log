@@ -1,0 +1,24 @@
+2026-03-23 10:29:50.000 INFO  [main] org.flywaydb.core.Flyway - Flyway Community Edition 9.22.3
+2026-03-23 10:29:50.050 INFO  [main] org.flywaydb.core.internal.database.postgresql.PostgreSQLDatabaseType - Database: jdbc:postgresql://10.0.3.5:5432/claims_prod (PostgreSQL 16.2)
+2026-03-23 10:29:50.100 INFO  [main] org.flywaydb.core.internal.command.DbMigrate - Current version of schema "public": 5.1.3
+2026-03-23 10:29:50.150 INFO  [main] org.flywaydb.core.internal.command.DbMigrate - Migrating schema "public" to version "5.2.0 - add risk category"
+2026-03-23 10:29:50.200 DEBUG [main] org.flywaydb.core.internal.command.DbMigrate - Executing SQL: -- V5.2.0__add_risk_category.sql
+2026-03-23 10:29:50.201 DEBUG [main] org.flywaydb.core.internal.command.DbMigrate - Statement 1/4: LOCK TABLE claims IN ACCESS EXCLUSIVE MODE
+2026-03-23 10:30:00.000 DEBUG [main] org.flywaydb.core.internal.command.DbMigrate - Statement 1/4 completed in 9800ms (waited for lock)
+2026-03-23 10:30:00.001 WARN  [main] org.flywaydb.core.internal.command.DbMigrate - WARNING: Lock acquisition took 9800ms — other transactions may be blocked
+2026-03-23 10:30:00.100 DEBUG [main] org.flywaydb.core.internal.command.DbMigrate - Statement 2/4: ALTER TABLE claims ADD COLUMN risk_category VARCHAR(50) DEFAULT 'STANDARD'
+2026-03-23 10:30:00.189 DEBUG [main] org.flywaydb.core.internal.command.DbMigrate - Statement 2/4 completed in 89ms
+2026-03-23 10:30:00.200 DEBUG [main] org.flywaydb.core.internal.command.DbMigrate - Statement 3/4: COMMENT ON COLUMN claims.risk_category IS 'Risk classification for automated processing'
+2026-03-23 10:30:00.201 DEBUG [main] org.flywaydb.core.internal.command.DbMigrate - Statement 3/4 completed in 1ms
+2026-03-23 10:30:00.300 DEBUG [main] org.flywaydb.core.internal.command.DbMigrate - Statement 4/4: CREATE INDEX CONCURRENTLY idx_claims_risk ON claims(risk_category)
+2026-03-23 10:30:03.000 ERROR [main] org.flywaydb.core.internal.command.DbMigrate - SQL State  : 40P01
+2026-03-23 10:30:03.001 ERROR [main] org.flywaydb.core.internal.command.DbMigrate - Error Code : 0
+2026-03-23 10:30:03.002 ERROR [main] org.flywaydb.core.internal.command.DbMigrate - Message    : ERROR: deadlock detected
+  Detail: Process 9901 waits for ShareLock on transaction 892345; blocked by process 1203.
+  Process 1203 waits for AccessExclusiveLock on relation 16421 (claims); blocked by process 9901.
+  Hint: See server log for query details.
+2026-03-23 10:30:03.003 ERROR [main] org.flywaydb.core.internal.command.DbMigrate - Migration of schema "public" to version "5.2.0 - add risk category" FAILED
+2026-03-23 10:30:03.004 ERROR [main] org.flywaydb.core.internal.command.DbMigrate - Please resolve the issue and re-run Flyway
+2026-03-23 10:30:03.005 WARN  [main] org.flywaydb.core.internal.command.DbMigrate - NOTE: The ACCESS EXCLUSIVE LOCK on table 'claims' was held for 3 seconds before the deadlock was detected. During this time, ALL other transactions on the claims table were blocked.
+2026-03-23 10:30:03.006 INFO  [main] org.flywaydb.core.internal.command.DbMigrate - Migration V5.2.0 rolled back. Schema version remains at 5.1.3.
+2026-03-23 10:30:03.010 WARN  [main] org.flywaydb.core.internal.command.DbMigrate - RECOMMENDATION: Run this migration during a maintenance window when no batch processing is active. Use 'SET lock_timeout = 5000' to fail fast instead of blocking.
