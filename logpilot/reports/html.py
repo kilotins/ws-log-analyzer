@@ -19,6 +19,31 @@ _LOGPILOT_LOGO_SVG = (
 )
 
 
+def _render_ai_markdown(escaped_text: str) -> str:
+    """Convert escaped markdown code blocks (```) to <pre> tags for proper rendering.
+
+    Input is already HTML-escaped. We only need to find ``` boundaries and wrap in <pre>.
+    """
+    import re
+    # Match escaped ``` blocks (escape() turns ` to ` — backticks are not escaped by html.escape)
+    parts = re.split(r'```(?:\w*)\n?', escaped_text)
+    if len(parts) < 3:
+        return escaped_text  # No code blocks found
+    result = []
+    for i, part in enumerate(parts):
+        if i % 2 == 1:
+            # Inside code block
+            result.append(f'<pre style="font-size:12px;padding:12px;background:var(--code-bg);color:var(--code-fg);border-radius:8px;overflow-x:auto">{part.strip()}</pre>')
+        else:
+            # Outside code block — convert ## headers and **bold**
+            text = part
+            text = re.sub(r'^## (.+)$', r'<h3>\1</h3>', text, flags=re.MULTILINE)
+            text = re.sub(r'^### (.+)$', r'<h4>\1</h4>', text, flags=re.MULTILINE)
+            text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+            result.append(text)
+    return ''.join(result)
+
+
 def render_html_report(
     events: list[LogEvent] | ReportConfig | None = None,
     top_n: int = 10,
@@ -376,7 +401,9 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 if _q:
                     h.append(f'<h3>Q: {escape(_q[:120])}</h3>')
                 h.append(f'<div class="sample-meta">Model: {escape(model)}</div>')
-                h.append(f'<div class="ai-answer">{escape(incident)}</div>')
+                # Convert markdown code blocks to <pre> for proper rendering
+                _ai_html = _render_ai_markdown(escape(incident))
+                h.append(f'<div class="ai-answer">{_ai_html}</div>')
                 h.append('</div>')
 
         _close_section()

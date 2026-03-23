@@ -1030,11 +1030,6 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
             _model = _ai_content.get("incident_model", "AI")
             _preview = (_q[:50] + "...") if len(_q) > 50 else (_q or "Current analysis")
             _ai_entries.append({"key": "incident", "label": f"{_model}: {_preview}"})
-        for idx, entry in enumerate(_ai_content.get("ask_ai", [])):
-            _q = entry.get("query", "")
-            _prov = entry.get("provider", "AI")
-            _preview = (_q[:50] + "...") if len(_q) > 50 else _q
-            _ai_entries.append({"key": f"ask_{idx}", "label": f"{_prov}: {_preview}"})
 
     _selected_sections: set[str] = set()
     _selected_ai: set[str] = set()
