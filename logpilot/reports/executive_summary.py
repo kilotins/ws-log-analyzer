@@ -169,10 +169,12 @@ def render_executive_summary(
 
         # Extract the most valuable sections from AI response
         _key_sections = [
-            "## Executive Summary",
+            "## What Happened",
+            "## Executive Summary",  # fallback for older AI responses
             "## Root Cause",
             "## Cascade Analysis",
-            "## Suggested Actions",
+            "## What To Do Now",
+            "## Suggested Actions",  # fallback for older AI responses
             "## Missing Logs",
         ]
         _extracted = []

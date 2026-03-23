@@ -100,12 +100,12 @@ class TestBuildIncidentSystemPrompt:
         assert "multiple" in prompt.lower()
         assert "WebSphere" in prompt
         assert "nginx" in prompt
-        assert "Executive Summary" in prompt
+        assert "What Happened" in prompt
         assert "Cascade Analysis" in prompt
 
-    def test_single_source_no_executive_summary(self):
+    def test_single_source_no_what_happened(self):
         prompt = build_incident_system_prompt("was")
-        assert "Executive Summary" not in prompt
+        assert "What Happened" not in prompt
 
     def test_previous_analysis_instruction(self):
         prompt = build_incident_system_prompt()
