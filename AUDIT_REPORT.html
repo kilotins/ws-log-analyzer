@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Technical Audit Report — LogPilot</title>
+<style>*, *::before, *::after { box-sizing: border-box; }
+
+/* --- Light theme --- */
+:root, [data-theme="light"] {
+  --bg-primary: #F8FAFC; --bg-secondary: #FFFFFF; --bg-tertiary: #F1F5F9;
+  --bg-hover: #E2E8F0; --border: #E2E8F0; --border-strong: #CBD5E1;
+  --text-primary: #0F172A; --text-secondary: #334155; --text-muted: #64748B;
+  --text-heading: #0F172A; --accent: #7C3AED;
+  --green: #059669; --green-bg: #ECFDF5; --yellow: #D97706; --yellow-bg: #FFFBEB;
+  --red: #DC2626; --red-bg: #FEF2F2; --blue: #2563EB; --blue-bg: #EFF6FF;
+  --purple: #7C3AED; --purple-bg: #F5F3FF;
+}
+/* --- Dark theme (auto via OS preference) --- */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+}}
+/* --- Dark theme (explicit toggle) --- */
+[data-theme="dark"] {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+}
+.theme-toggle { background:var(--bg-tertiary); border:1px solid var(--border-strong);
+  border-radius:6px; padding:6px 10px; cursor:pointer; font-size:14px;
+  color:var(--text-muted); transition:all 0.15s; }
+.theme-toggle:hover { background:var(--border-strong); color:var(--text-primary); }
+
+body {
+  margin: 0; padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-primary); color: var(--text-secondary);
+  line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- Layout --- */
+.layout { display: flex; min-height: 100vh; }
+
+nav {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  width: 260px; min-width: 260px;
+  background: var(--bg-secondary); border-right: 1px solid var(--border);
+  padding: 20px 14px; font-size: 13px;
+  display: flex; flex-direction: column;
+}
+nav .nav-title {
+  font-weight: 700; font-size: 15px; color: var(--text-heading);
+  margin-bottom: 6px;
+}
+nav .nav-subtitle {
+  font-size: 11px; color: var(--text-muted);
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+nav .nav-links { flex: 1; }
+nav a.nav-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 6px;
+  color: var(--text-muted); transition: all 0.15s;
+  margin-bottom: 1px; line-height: 1.35;
+  font-size: 12.5px;
+}
+nav a.nav-link:hover { background: var(--bg-tertiary); color: var(--text-secondary); text-decoration: none; }
+nav a.nav-link.active { background: var(--bg-tertiary); color: var(--text-primary); font-weight: 500; }
+nav a.nav-link .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; border-radius: 4px;
+  background: var(--bg-tertiary); color: var(--text-muted);
+  font-size: 11px; font-weight: 600;
+}
+nav .nav-controls {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 6px;
+}
+nav .nav-controls button {
+  flex: 1; padding: 7px; background: var(--bg-tertiary);
+  color: var(--text-muted); border: 1px solid var(--border-strong);
+  border-radius: 6px; cursor: pointer; font-size: 11px;
+  transition: all 0.15s;
+}
+nav .nav-controls button:hover { background: var(--border-strong); color: var(--text-secondary); }
+
+/* --- Search --- */
+.search-box {
+  margin-bottom: 12px;
+}
+.search-box input {
+  width: 100%; padding: 7px 10px; font-size: 12px;
+  background: var(--bg-primary); color: var(--text-secondary);
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  outline: none; transition: border-color 0.15s;
+}
+.search-box input:focus { border-color: var(--accent); }
+.search-box input::placeholder { color: var(--text-muted); }
+.search-count { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: none; }
+
+main {
+  flex: 1; max-width: 980px; padding: 36px 48px 80px;
+}
+
+/* --- Typography --- */
+h1 { color: var(--text-heading); font-size: 26px; margin: 0 0 4px; }
+h2 { color: var(--text-heading); font-size: 21px; margin: 28px 0 10px; }
+h3 { color: var(--text-primary); font-size: 17px; margin: 22px 0 8px; }
+h4 { color: var(--text-secondary); font-size: 15px; font-weight: 600; margin: 18px 0 6px; }
+p  { margin: 8px 0; }
+hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+strong { color: var(--text-primary); }
+
+/* --- Header area --- */
+.report-header { margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+.report-meta { color: var(--text-muted); font-size: 13px; margin: 6px 0 16px; }
+.report-meta span { margin-right: 16px; }
+
+/* --- Severity grid --- */
+.severity-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px; margin-top: 12px;
+}
+.sev-card {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;
+}
+.sev-card .sev-label { color: var(--text-muted); font-size: 12px; }
+.sev-card .sev-grade { font-weight: 700; font-size: 15px; }
+.sev-card .sev-grade.good { color: var(--green); }
+.sev-card .sev-grade.warn { color: var(--yellow); }
+.sev-card .sev-grade.bad  { color: var(--red); }
+.sev-card .sev-grade.info { color: var(--blue); }
+
+/* --- Collapsible sections --- */
+details.section {
+  margin: 10px 0; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-primary); transition: background 0.15s;
+}
+details.section[open] { background: var(--bg-secondary); }
+details.section > summary {
+  padding: 14px 18px; cursor: pointer;
+  font-weight: 600; color: var(--text-heading); list-style: none;
+  border-radius: 8px; transition: background 0.15s;
+  display: flex; align-items: center; gap: 10px;
+  user-select: none;
+}
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary::before {
+  content: '\25B6'; font-size: 10px; color: var(--text-muted);
+  transition: transform 0.2s ease; display: inline-block; min-width: 14px;
+}
+details.section[open] > summary::before { transform: rotate(90deg); }
+details.section > summary:hover { background: var(--bg-tertiary); }
+.section-title { flex: 1; font-size: 17px; }
+.section-badge { margin-left: auto; font-size: 11px; }
+.section-body { padding: 4px 18px 18px; }
+
+/* --- Badges --- */
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+}
+.badge-good    { background: var(--green-bg);  color: var(--green); }
+.badge-warn    { background: var(--yellow-bg); color: var(--yellow); }
+.badge-bad     { background: var(--red-bg);    color: var(--red); }
+.badge-info    { background: var(--blue-bg);   color: var(--blue); }
+.badge-summary { background: var(--purple-bg); color: var(--purple); }
+
+/* --- Tables --- */
+.table-wrap { overflow-x: auto; margin: 12px 0; border-radius: 8px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead th {
+  background: var(--bg-tertiary); color: var(--text-primary); text-align: left;
+  padding: 10px 14px; font-weight: 600; white-space: nowrap;
+  border-bottom: 2px solid var(--border-strong);
+}
+tbody td { padding: 8px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--bg-tertiary); }
+
+/* --- Code blocks --- */
+pre.code-block {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0;
+  font-size: 13px; line-height: 1.55; position: relative;
+}
+pre.code-block code {
+  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+}
+pre.code-block[data-lang]::before {
+  content: attr(data-lang); position: absolute; top: 8px; right: 12px;
+  font-size: 10px; color: var(--text-muted); font-family: sans-serif;
+  text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7;
+}
+code.inline {
+  background: var(--bg-hover); padding: 2px 7px; border-radius: 4px;
+  font-size: 0.88em; color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+}
+.kw { color: #ff7b72; } .st { color: #a5d6ff; }
+.cm { color: #8b949e; font-style: italic; } .op { color: #79c0ff; }
+
+/* --- Lists --- */
+ul, ol { padding-left: 22px; margin: 8px 0; }
+li { margin: 3px 0; }
+
+/* --- Back to top --- */
+.back-to-top {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--bg-tertiary); border: 1px solid var(--border-strong);
+  color: var(--text-muted); cursor: pointer; font-size: 18px;
+  display: none; align-items: center; justify-content: center;
+  transition: all 0.2s; z-index: 100;
+}
+.back-to-top:hover { background: var(--border-strong); color: var(--text-primary); }
+.back-to-top.visible { display: flex; }
+
+/* --- Search highlights --- */
+mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1px 2px; border-radius: 2px; }
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  nav { display: none; }
+  main { padding: 20px 16px; }
+}
+@media print {
+  nav, .back-to-top, .theme-toggle { display: none !important; }
+  details.section { border: none; break-inside: avoid; }
+  details.section > summary::before { content: ''; }
+  details.section .section-body { display: block !important; }
+  body { background: #fff; color: #000; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <div class="nav-logo" style="margin-bottom:10px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 28" fill="none" style="height:22px">
+      <path d="M4 14 L10 6 L13 6 L7 14 L13 22 L10 22 Z" fill="#7C3AED"/>
+      <path d="M11 14 L17 6 L20 6 L14 14 L20 22 L17 22 Z" fill="#34D399"/>
+      <text x="26" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="var(--text-heading)" letter-spacing="-0.3">Log</text>
+      <text x="53" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="#7C3AED" letter-spacing="-0.3">Pilot</text>
+    </svg>
+  </div>
+  <div class="nav-title">Audit Report</div>
+  <div class="nav-subtitle">2026-03-23 20:28</div>
+  <div class="search-box">
+    <input type="text" id="report-search" placeholder="Search report..." autocomplete="off">
+    <div class="search-count"></div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="#sect-1-executive-summary" title="1. Executive Summary"><span class="num">1</span> 1. Executive Summary</a><a class="nav-link" href="#sect-2-repository-overview" title="2. Repository Overview"><span class="num">2</span> 2. Repository Overview</a><a class="nav-link" href="#sect-3-documentation-audit" title="3. Documentation Audit"><span class="num">3</span> 3. Documentation Audit</a><a class="nav-link" href="#sect-4-skills-system-analysis" title="4. Skills System Analysis"><span class="num">4</span> 4. Skills System Analysis</a><a class="nav-link" href="#sect-5-code-review-findings" title="5. Code Review Findings"><span class="num">5</span> 5. Code Review Findings</a><a class="nav-link" href="#sect-6-ai-integration-review" title="6. AI Integration Review"><span class="num">6</span> 6. AI Integration Review</a><a class="nav-link" href="#sect-7-test-coverage-analysis" title="7. Test Coverage Analysis"><span class="num">7</span> 7. Test Coverage Analysis</a><a class="nav-link" href="#sect-8-refactoring-opportunities" title="8. Refactoring Opportunities"><span class="num">8</span> 8. Refactoring Opportunities</a><a class="nav-link" href="#sect-9-feature-opportunities" title="9. Feature Opportunities"><span class="num">9</span> 9. Feature Opportunities</a><a class="nav-link" href="#sect-10-prioritized-improvement-plan" title="10. Prioritized Improvement Plan"><span class="num">10</span> 10. Prioritized Improvement Plan</a><a class="nav-link" href="#sect-appendix-key-file-reference" title="Appendix: Key File Reference"><span class="num">11</span> Appendix: Key File Reference</a>
+  </div>
+  <div class="nav-controls">
+    <button onclick="expandAll()">Expand all</button>
+    <button onclick="collapseAll()">Collapse all</button>
+  </div>
+  <div style="margin-top:8px;text-align:center">
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">&#9788;</button>
+  </div>
+</nav>
+<main>
+  <div class="report-header">
+    <h1>Technical Audit Report — LogPilot</h1>
+    <div class="report-meta">
+      <span>Generated: 2026-03-23 20:28</span>
+      <span>11 sections</span>
+    </div>
+    <div class="severity-grid"><div class="sev-card"><span class="sev-label">Tests</span><span class="sev-grade good">A</span></div></div>
+  </div>
+  <h1 id="technical-audit-report-logpilot">Technical Audit Report — LogPilot</h1>
+<p><strong>Generated: 2026-03-23</strong> <strong>Overall Grade: 8.5/10 (A-)</strong></p>
+<p>LogPilot is a remarkably well-structured, production-quality log analysis toolkit with 12 format plugins, 68+ heuristics, cross-system cascade detection, and a polished Streamlit GUI. The codebase demonstrates strong engineering discipline: zero required dependencies for the core engine, comprehensive test coverage (1798 tests across 39 files), and a layered architecture that cleanly separates parsing, analysis, reporting, and presentation.</p>
+<hr>
+<details class="section" id="sect-1-executive-summary" open><summary><span class="section-title">1. Executive Summary</span><span class="badge badge-summary section-badge">1/11</span></summary><div class="section-body">
+<p><strong>Grade: 9/10</strong></p>
+<h3 id="strengths">Strengths</h3>
+<ul><li><strong>Zero-dep core</strong>: The <code class="inline">logpilot/</code> package runs on Python stdlib only — no pip install needed for CLI usage. Optional deps (anthropic, streamlit, openai, google-generativeai) are cleanly isolated.</li><li><strong>12 format plugins</strong>: WAS, JSON, nginx, Log4j, CRI-O, Python, syslog, Enonic XP, DataPower, Tomcat, PostgreSQL, Docker JSON — each with dedicated detection, classification, and signal tagging.</li><li><strong>Deep heuristics engine</strong>: 68+ pattern heuristics, 19 correlation rules, 7 incident groups, burst detection, evidence extraction, confidence scoring, failure chain building, and narrative generation (<code class="inline">logpilot/heuristics.py</code>).</li><li><strong>4 AI providers</strong>: Claude, Gemini, OpenAI, and local AI endpoints — all with prompt injection protection, token budgeting, skill selection, and response caching.</li><li><strong>6 export formats</strong>: Markdown, JSON, HTML (premium styled with dark/light mode), PDF, Executive Summary MD, Executive Summary HTML.</li><li><strong>4 PII redaction levels</strong>: <code class="inline">none</code>, <code class="inline">secrets</code>, <code class="inline">standard</code> (PII), <code class="inline">strict</code> (infrastructure) — with fast-path regex checks (<code class="inline">parser.py:103-105</code>, <code class="inline">parser.py:170-173</code>).</li><li><strong>Comprehensive testing</strong>: 1798 tests, 39 test files, 15,254 lines of test code, 5 production-like scenario fixtures.</li></ul>
+<h3 id="key-findings">Key Findings</h3>
+<ul><li>Architecture is clean and well-layered but some app-layer files are growing large (<code class="inline">app.py</code>: 1337 lines, <code class="inline">app_ai.py</code>: 1172 lines).</li><li>The heuristics system uses both YAML data files and Python fallbacks — a robust dual-source approach.</li><li>Cross-system cascade detection and trace ID correlation are production-grade features rarely seen in log analyzers.</li><li>PII redaction (M59) adds GDPR compliance with Norwegian personnummer, IBAN, phone, and IP masking.</li></ul>
+<hr>
+</div></details><details class="section" id="sect-2-repository-overview"><summary><span class="section-title">2. Repository Overview</span><span class="badge badge-info section-badge">2/11</span></summary><div class="section-body">
+<p><strong>Grade: 9/10</strong></p>
+<h3 id="file-counts-and-line-counts">File Counts and Line Counts</h3>
+<div class="table-wrap"><table><thead><tr><th>Layer</th><th>Files</th><th>Lines</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>Core engine</strong> (<code class="inline">logpilot/</code>)</td><td>8 modules</td><td>4,050</td><td>Parser, analysis, heuristics, AI, event, CLI, discovery</td></tr>
+<tr><td><strong>Format plugins</strong> (<code class="inline">logpilot/formats/</code>)</td><td>13 files</td><td>2,993</td><td>12 format plugins + base + registry</td></tr>
+<tr><td><strong>Reports</strong> (<code class="inline">logpilot/reports/</code>)</td><td>7 files</td><td>1,558</td><td>MD, HTML, JSON, PDF, executive summary, config</td></tr>
+<tr><td><strong>Heuristics data</strong></td><td>2 files</td><td>1,970</td><td><code class="inline">_heuristics_fallback.py</code> (1142), <code class="inline">heuristics_data.yaml</code> (828)</td></tr>
+<tr><td><strong>App layer</strong></td><td>7 files</td><td>5,806</td><td>Streamlit GUI, AI orchestration, incident assistant, audit, spend, realtime</td></tr>
+<tr><td><strong>Report renderer</strong></td><td>1 file</td><td>847</td><td>Markdown-to-HTML conversion</td></tr>
+<tr><td><strong>Tests</strong></td><td>39 files</td><td>15,254</td><td>Unit, integration, e2e, scenario, performance</td></tr>
+<tr><td><strong>Skills</strong></td><td>42 files</td><td>~6,000+</td><td>23 domain skills + 19 implementation/process skills</td></tr>
+<tr><td><strong>Total</strong></td><td>~120+</td><td>~32,000+</td><td>Excluding docs, configs, fixtures</td></tr>
+</tbody></table></div>
+<h3 id="key-architecture-decisions">Key Architecture Decisions</h3>
+<ul><li><strong>LogEvent dataclass</strong> (<code class="inline">event.py:13-69</code>): 17 fields with <code class="inline">__slots__</code> on Python 3.10+, dict-protocol compatibility via <code class="inline">__getitem__</code>/<code class="inline">get()</code>/<code class="inline">keys()</code> — enables both new dataclass access and legacy dict access. Clean design.</li><li><strong>Format plugin protocol</strong> (<code class="inline">formats/base.py:9-47</code>): <code class="inline">@runtime_checkable</code> Protocol class with 6 required methods. New formats register via <code class="inline">formats/__init__.py:55-58</code>.</li><li><strong>Precomputed analysis</strong> (<code class="inline">analysis.py:680-723</code>): Single <code class="inline">precompute_analysis()</code> call runs all analysis steps with progress callbacks — avoids redundant computation across report formats.</li></ul>
+<hr>
+</div></details><details class="section" id="sect-3-documentation-audit"><summary><span class="section-title">3. Documentation Audit</span><span class="badge badge-info section-badge">3/11</span></summary><div class="section-body">
+<p><strong>Grade: 8/10</strong></p>
+<h3 id="documentation-files">Documentation Files</h3>
+<ul><li><code class="inline">CLAUDE.md</code> — Project context for Claude Code with skill references, gotchas, and file mappings. Well-maintained.</li><li><code class="inline">ARCHITECTURE.md</code> — Full project structure, data model, regex layer, pipeline flow. Slightly outdated: references &quot;8 format plugins&quot; when there are now 12, and &quot;1340 tests&quot; when there are 1798.</li><li><code class="inline">README.md</code> — Installation, CLI options, usage examples.</li><li><code class="inline">CONTRIBUTING.md</code> — Developer onboarding guide.</li><li><code class="inline">MILESTONES.md</code> — Project progress tracker.</li></ul>
+<h3 id="accuracy-issues">Accuracy Issues</h3>
+<ul><li><code class="inline">ARCHITECTURE.md:13</code> — &quot;8 format plugins&quot; should be &quot;12 format plugins&quot; (DataPower, Tomcat, PostgreSQL, Docker JSON added).</li><li><code class="inline">ARCHITECTURE.md:23</code> — &quot;1340 tests across 28 test files&quot; should be &quot;1798 tests across 39 test files&quot;.</li><li><code class="inline">ARCHITECTURE.md:8</code> — <code class="inline">analysis.py</code> listed as &quot;~900 lines&quot; but is actually 992 lines.</li><li><code class="inline">ARCHITECTURE.md:9</code> — <code class="inline">heuristics.py</code> listed as &quot;~1449 lines&quot; but is actually 920 lines (split into <code class="inline">_heuristics_fallback.py</code>).</li></ul>
+<h3 id="skill-documentation">Skill Documentation</h3>
+<ul><li>23 domain skills in <code class="inline">skills/</code> covering all 12 formats plus cross-cutting concerns (GC, security, JMS, noise filtering, database errors, cross-system analysis).</li><li>19 implementation/process skills in <code class="inline">.claude/skills/</code> covering Streamlit patterns, testing, Docker, packaging, and V2 platform skills.</li><li>Total: <strong>42 skill files</strong> — comprehensive coverage.</li></ul>
+<hr>
+</div></details><details class="section" id="sect-4-skills-system-analysis"><summary><span class="section-title">4. Skills System Analysis</span><span class="badge badge-good section-badge">4/11</span></summary><div class="section-body">
+<p><strong>Grade: 9/10</strong></p>
+<h3 id="skill-selection-engine-ai-py-306-361">Skill Selection Engine (<code class="inline">ai.py:306-361</code>)</h3>
+<p>The skill selection system uses four signal sources to pick up to 5 relevant domain skills per AI query:</p>
+<ol><li><strong>Format-based</strong> (<code class="inline">_SKILL_FORMAT_MAP</code>, <code class="inline">ai.py:290-303</code>): Maps detected log format to relevant skills.</li><li><strong>Tag-based</strong> (<code class="inline">_SKILL_TAG_MAP</code>, <code class="inline">ai.py:76-82</code>): Maps signal tags (OOM/GC, HungThreads, etc.) to skills.</li><li><strong>Code-prefix</strong> (<code class="inline">_SKILL_CODE_PREFIX_MAP</code>, <code class="inline">ai.py:84-113</code>): Maps WAS/Liberty message code prefixes to skills.</li><li><strong>Exception keyword</strong> (<code class="inline">_SKILL_EXCEPTION_MAP</code>, <code class="inline">ai.py:115-143</code>): Maps exception class name fragments to skills.</li><li><strong>Query keyword</strong> (<code class="inline">_SKILL_QUERY_KEYWORDS</code>, <code class="inline">ai.py:145-206</code>): Maps free-text query terms to skills.</li></ol>
+<h3 id="coverage-analysis">Coverage Analysis</h3>
+<div class="table-wrap"><table><thead><tr><th>Format</th><th>Dedicated Skill</th><th>Format Plugin</th><th>Status</th></tr></thead><tbody>
+<tr><td>WAS</td><td><code class="inline">message-codes.md</code> + 6 more</td><td><code class="inline">was.py</code></td><td>Full coverage</td></tr>
+<tr><td>nginx</td><td><code class="inline">nginx-analysis.md</code></td><td><code class="inline">nginx.py</code></td><td>Full coverage</td></tr>
+<tr><td>Log4j</td><td><code class="inline">log4j-analysis.md</code></td><td><code class="inline">log4j.py</code></td><td>Full coverage</td></tr>
+<tr><td>JSON</td><td><code class="inline">json-structured-logs.md</code></td><td><code class="inline">json_log.py</code></td><td>Full coverage</td></tr>
+<tr><td>Python</td><td><code class="inline">python-logging-analysis.md</code></td><td><code class="inline">python_log.py</code></td><td>Full coverage</td></tr>
+<tr><td>syslog</td><td><code class="inline">syslog-analysis.md</code></td><td><code class="inline">syslog.py</code></td><td>Full coverage</td></tr>
+<tr><td>Enonic XP</td><td><code class="inline">enonic-xp-analysis.md</code></td><td><code class="inline">enonic.py</code></td><td>Full coverage</td></tr>
+<tr><td>CRI-O/K8s</td><td><code class="inline">openshift-k8s-analysis.md</code></td><td><code class="inline">crio.py</code></td><td>Full coverage</td></tr>
+<tr><td>DataPower</td><td><code class="inline">datapower-analysis.md</code></td><td><code class="inline">datapower.py</code></td><td>Full coverage</td></tr>
+<tr><td>Tomcat</td><td><code class="inline">tomcat-analysis.md</code></td><td><code class="inline">tomcat.py</code></td><td>Full coverage</td></tr>
+<tr><td>PostgreSQL</td><td><code class="inline">postgresql-log-analysis.md</code></td><td><code class="inline">postgresql.py</code></td><td>Full coverage</td></tr>
+<tr><td>Docker JSON</td><td><code class="inline">json-structured-logs.md</code></td><td><code class="inline">docker_json.py</code></td><td>Full coverage</td></tr>
+</tbody></table></div>
+<h3 id="strengths">Strengths</h3>
+<ul><li>Skill discovery is cached via <code class="inline">@functools.lru_cache(maxsize=1)</code> (<code class="inline">ai.py:282-287</code>).</li><li>Fallback logic ensures at least one skill is selected even when no signals match (<code class="inline">ai.py:353-359</code>).</li><li>Multi-format support: when logs from multiple formats are loaded, skills for ALL formats are included (<code class="inline">ai.py:311-318</code>).</li></ul>
+<hr>
+</div></details><details class="section" id="sect-5-code-review-findings"><summary><span class="section-title">5. Code Review Findings</span><span class="badge badge-warn section-badge">5/11</span></summary><div class="section-body">
+<p><strong>Grade: 8/10</strong></p>
+<h3 id="positive-patterns">Positive Patterns</h3>
+<ul><li><strong><code class="inline">sys.intern()</code> for string dedup</strong> (<code class="inline">parser.py:281, 286, 299, 383</code>): Levels and codes are interned to reduce memory for large log files.</li><li><strong>Generator-based parsing</strong> (<code class="inline">parser.py:338-432</code>): <code class="inline">parse_file_iter()</code> yields events one at a time, enabling streaming for large files.</li><li><strong>Parse cache with eviction</strong> (<code class="inline">parser.py:492-536</code>): gzip-compressed JSON cache with 50-file eviction policy.</li><li><strong>Fast-path regex checks</strong> (<code class="inline">parser.py:103-105, 170-173</code>): <code class="inline">_REDACT_FAST_CHECK</code> and <code class="inline">_PII_FAST_CHECK</code> skip expensive regex chains when no candidate patterns are present.</li><li><strong>Keyword pre-filtering for heuristics</strong> (<code class="inline">heuristics.py:607-618, 767-782</code>): Extracts keywords from regex patterns and skips full regex matching when no keywords are found in text — significant performance optimization.</li><li><strong>Prompt injection protection</strong> (<code class="inline">ai.py:266-279</code>): <code class="inline">_sanitize_prompt_input()</code> strips XML tags, normalizes Unicode homoglyphs, and escapes XML entities. System prompts explicitly warn about untrusted input.</li><li><strong>Atomic progress callbacks</strong> (<code class="inline">analysis.py:680-712</code>): <code class="inline">precompute_analysis()</code> provides granular progress feedback for the GUI.</li></ul>
+<h3 id="issues-found">Issues Found</h3>
+<h4 id="minor-issues">Minor Issues</h4>
+<ol><li><strong>Duplicate callable check</strong> (<code class="inline">parser.py:225-228, 236-238</code>): The <code class="inline">if callable(repl)</code> / <code class="inline">else</code> branches do the same thing — <code class="inline">rx.sub(repl, s)</code> works for both strings and callables. Harmless but redundant.</li></ol>
+<p>   ``<code class="inline">python    # parser.py:225-228 — both branches identical    if callable(repl):        s = rx.sub(repl, s)    else:        s = rx.sub(repl, s)    </code>``</p>
+<ol><li><strong><code class="inline">_IPV4_PRIVATE_RE</code> applied at <code class="inline">standard</code> level but defined in <code class="inline">INFRA_REPLACERS</code></strong> (<code class="inline">parser.py:165-168, 231</code>): Private IP masking runs at <code class="inline">standard</code> level via direct call (<code class="inline">parser.py:231</code>) even though <code class="inline">INFRA_REPLACERS</code> is only applied at <code class="inline">strict</code>. This is intentional behavior but the code structure is slightly confusing.</li></ol>
+<ol><li><strong>Large app-layer files</strong>: <code class="inline">app.py</code> (1337 lines), <code class="inline">app_ai.py</code> (1172 lines), <code class="inline">app_render.py</code> (1137 lines), and <code class="inline">app_spend.py</code> (882 lines) are getting large. The modular extraction pattern (app_incident, app_audit, app_realtime, app_constants) is good — continuing this pattern would help.</li></ol>
+<h4 id="security-observations">Security Observations</h4>
+<ul><li><strong>Redaction runs before output</strong> (<code class="inline">parser.py:371</code>): <code class="inline">redact()</code> is called inside <code class="inline">_build_event()</code> during parsing, ensuring all event text is sanitized before it reaches any report renderer or AI prompt. Correct order.</li><li><strong>AI prompt sandboxing</strong> (<code class="inline">ai.py:64-68</code>): System prompts include explicit instructions to treat log data as untrusted input. Unicode homoglyph normalization prevents tag reconstruction via lookalike characters (<code class="inline">ai.py:271-276</code>).</li><li><strong>No hardcoded secrets</strong>: API keys are loaded from environment variables or Streamlit secrets, never from code.</li></ul>
+<hr>
+</div></details><details class="section" id="sect-6-ai-integration-review"><summary><span class="section-title">6. AI Integration Review</span><span class="badge badge-good section-badge">6/11</span></summary><div class="section-body">
+<p><strong>Grade: 8.5/10</strong></p>
+<h3 id="provider-architecture-app-ai-py-app-incident-py">Provider Architecture (<code class="inline">app_ai.py</code>, <code class="inline">app_incident.py</code>)</h3>
+<p>Four AI providers are supported with a unified interface:</p>
+<div class="table-wrap"><table><thead><tr><th>Provider</th><th>Model Examples</th><th>Token Limit</th><th>Cache Key</th></tr></thead><tbody>
+<tr><td>Claude</td><td>claude-sonnet-4-6, claude-opus-4-6</td><td>200,000</td><td><code class="inline">claude_cache_key()</code></td></tr>
+<tr><td>Gemini</td><td>gemini-2.5-pro, gemini-2.5-flash</td><td>1,000,000</td><td><code class="inline">triage_cache_key()</code></td></tr>
+<tr><td>OpenAI</td><td>gpt-4o, o3, o4-mini</td><td>128,000</td><td><code class="inline">triage_cache_key()</code></td></tr>
+<tr><td>Local AI</td><td>Any OpenAI-compatible endpoint</td><td>Configurable</td><td><code class="inline">triage_cache_key()</code></td></tr>
+</tbody></table></div>
+<h3 id="prompt-safety-ai-py">Prompt Safety (<code class="inline">ai.py</code>)</h3>
+<ul><li><strong>System prompt</strong>: Format-aware specialist role with structured response template (<code class="inline">ai.py:52-68</code>).</li><li><strong>Input sanitization</strong>: <code class="inline">_sanitize_prompt_input()</code> strips XML tags, normalizes Unicode homoglyphs for <code class="inline">&lt;</code> and <code class="inline">&gt;</code>, escapes XML entities (<code class="inline">ai.py:266-279</code>).</li><li><strong>Event truncation</strong>: <code class="inline">_truncate_event_text()</code> limits log excerpts to 25 lines (<code class="inline">ai.py:258-263</code>).</li><li><strong>Token budgeting</strong>: <code class="inline">estimate_tokens()</code> uses provider-specific character ratios (<code class="inline">ai.py:441-444</code>). Cross-system prompts check estimated tokens and truncate at 100K (<code class="inline">ai.py:556-558</code>).</li><li><strong>Gemini safety handling</strong>: <code class="inline">ask_gemini()</code> handles safety filter blocks gracefully (referenced in <code class="inline">ai.py</code>).</li></ul>
+<h3 id="caching-strategy">Caching Strategy</h3>
+<ul><li><strong>Query-level caching</strong>: <code class="inline">claude_cache_key()</code> hashes query + codes + exceptions + tags (<code class="inline">ai.py:447-458</code>).</li><li><strong>Triage-level caching</strong>: <code class="inline">triage_cache_key()</code> hashes event count, sources, top codes/exceptions, model ID (<code class="inline">ai.py:461-479</code>).</li><li><strong>Claude API cache control</strong>: Prompt caching via <code class="inline">cache_control: {&quot;type&quot;: &quot;ephemeral&quot;}</code> on system messages (<code class="inline">cli.py:198</code>).</li></ul>
+<h3 id="incident-ai-assistant-app-incident-py">Incident AI Assistant (<code class="inline">app_incident.py</code>)</h3>
+<ul><li>Unified interface merging Ask AI and Incident Assistant (<code class="inline">app_incident.py:1-9</code>).</li><li>Multi-source detection with &quot;Analyze All Logs&quot; button (<code class="inline">app_incident.py:293-299</code>).</li><li>History management with per-entry delete via <code class="inline">_pending_hist_delete</code> pattern (<code class="inline">app_incident.py:676-683</code>). Previously had a rendering bug where deletes were processed after render — now fixed with <code class="inline">process_pending_delete()</code> at top of render cycle.</li></ul>
+<h3 id="audit-report-generation-app-audit-py">Audit Report Generation (<code class="inline">app_audit.py</code>)</h3>
+<ul><li>10 AI model options including local AI, Claude (Sonnet/Opus/Haiku), Gemini (Pro/Flash), OpenAI (GPT-4o/o3/o4-mini) (<code class="inline">app_audit.py:43-54</code>).</li><li>System prompt enforces structured 10-section format with letter grades (<code class="inline">app_audit.py:56-77</code>).</li><li>Full and compact file modes for token budget management (<code class="inline">app_audit.py:20-40</code>).</li></ul>
+<hr>
+</div></details><details class="section" id="sect-7-test-coverage-analysis"><summary><span class="section-title">7. Test Coverage Analysis</span><span class="badge badge-good section-badge">7/11</span></summary><div class="section-body">
+<p><strong>Grade: 8/10</strong></p>
+<h3 id="test-statistics">Test Statistics</h3>
+<ul><li><strong>1798 tests</strong> across <strong>39 test files</strong> totaling <strong>15,254 lines</strong></li><li><strong>5 scenario fixtures</strong>: e-commerce, bank, bank-api, insurance, insurance-api (<code class="inline">tests/fixtures/scenario*</code>)</li><li><strong>4 format sample fixtures</strong>: DataPower, Docker JSON, PostgreSQL, Tomcat (<code class="inline">tests/fixtures/*-sample.log</code>)</li></ul>
+<h3 id="test-file-breakdown">Test File Breakdown</h3>
+<div class="table-wrap"><table><thead><tr><th>Test File</th><th>Coverage Area</th></tr></thead><tbody>
+<tr><td><code class="inline">test_parsing.py</code></td><td>Core parsing, redaction, timestamps</td></tr>
+<tr><td><code class="inline">test_pii_redaction.py</code></td><td>PII redaction levels (M59)</td></tr>
+<tr><td><code class="inline">test_heuristics.py</code></td><td>Heuristics, correlations, burst detection</td></tr>
+<tr><td><code class="inline">test_incidents.py</code></td><td>Incident grouping, merge logic</td></tr>
+<tr><td><code class="inline">test_incident.py</code></td><td>Incident fingerprinting, similarity</td></tr>
+<tr><td><code class="inline">test_confidence.py</code></td><td>Confidence scoring</td></tr>
+<tr><td><code class="inline">test_analysis.py</code></td><td>Analysis functions</td></tr>
+<tr><td><code class="inline">test_ai_prompt.py</code></td><td>AI prompt building, caching, skills</td></tr>
+<tr><td><code class="inline">test_reports.py</code></td><td>Report generation (all formats)</td></tr>
+<tr><td><code class="inline">test_executive_summary.py</code></td><td>Executive summary rendering</td></tr>
+<tr><td><code class="inline">test_report_renderer.py</code></td><td>Markdown-to-HTML conversion</td></tr>
+<tr><td><code class="inline">test_event.py</code></td><td>LogEvent dataclass + dict-protocol</td></tr>
+<tr><td><code class="inline">test_cli.py</code></td><td>CLI argument parsing, AI integration</td></tr>
+<tr><td><code class="inline">test_discovery.py</code></td><td>Recursive directory scanning</td></tr>
+<tr><td><code class="inline">test_formats.py</code></td><td>Format auto-detection &amp; registry</td></tr>
+<tr><td><code class="inline">test_format_*.py</code> (7 files)</td><td>Per-format plugin tests</td></tr>
+<tr><td><code class="inline">test_datapower.py</code></td><td>DataPower format plugin</td></tr>
+<tr><td><code class="inline">test_tomcat.py</code></td><td>Tomcat format plugin</td></tr>
+<tr><td><code class="inline">test_postgresql.py</code></td><td>PostgreSQL format plugin</td></tr>
+<tr><td><code class="inline">test_docker_json.py</code></td><td>Docker JSON format plugin</td></tr>
+<tr><td><code class="inline">test_integration.py</code></td><td>Multi-file parsing, cross-format</td></tr>
+<tr><td><code class="inline">test_scenario.py</code></td><td>Production scenario tests</td></tr>
+<tr><td><code class="inline">test_scenario_e2e.py</code></td><td>End-to-end scenario tests</td></tr>
+<tr><td><code class="inline">test_app_helpers.py</code></td><td>GUI integration &amp; state</td></tr>
+<tr><td><code class="inline">test_app_e2e.py</code></td><td>Playwright end-to-end tests</td></tr>
+<tr><td><code class="inline">test_app_audit.py</code></td><td>Audit source collection</td></tr>
+<tr><td><code class="inline">test_app_spend.py</code></td><td>Spend tracking, CSV import</td></tr>
+<tr><td><code class="inline">test_app_render.py</code></td><td>Report section rendering</td></tr>
+<tr><td><code class="inline">test_app_incident_unit.py</code></td><td>Incident assistant unit tests</td></tr>
+<tr><td><code class="inline">test_app_realtime.py</code></td><td>Realtime log monitoring</td></tr>
+<tr><td><code class="inline">test_audit_gaps.py</code></td><td>Audit-driven gap coverage</td></tr>
+<tr><td><code class="inline">test_local_ai.py</code></td><td>Local AI endpoint tests</td></tr>
+<tr><td><code class="inline">test_performance.py</code></td><td>Speed benchmarks</td></tr>
+</tbody></table></div>
+<h3 id="coverage-gaps">Coverage Gaps</h3>
+<ul><li>No dedicated test file for <code class="inline">app_constants.py</code> (though constants are tested transitively).</li><li><code class="inline">report_renderer.py</code> (847 lines) has its own test file but could use more edge case coverage for HTML rendering.</li><li>The <code class="inline">logpilot/reports/pdf.py</code> (263 lines) renderer likely has limited test coverage since PDF generation is hard to assert on.</li></ul>
+<hr>
+</div></details><details class="section" id="sect-8-refactoring-opportunities"><summary><span class="section-title">8. Refactoring Opportunities</span><span class="badge badge-info section-badge">8/11</span></summary><div class="section-body">
+<p><strong>Grade: 7.5/10</strong></p>
+<h3 id="priority-1-app-layer-decomposition">Priority 1: App Layer Decomposition</h3>
+<p>The Streamlit app layer has grown organically and some files are large:</p>
+<div class="table-wrap"><table><thead><tr><th>File</th><th>Lines</th><th>Suggested Action</th></tr></thead><tbody>
+<tr><td><code class="inline">app.py</code></td><td>1,337</td><td>Extract file upload logic and folder scan to <code class="inline">app_upload.py</code></td></tr>
+<tr><td><code class="inline">app_ai.py</code></td><td>1,172</td><td>Extract provider-specific callers to <code class="inline">app_providers.py</code></td></tr>
+<tr><td><code class="inline">app_render.py</code></td><td>1,137</td><td>Already well-structured — could extract export logic to <code class="inline">app_export.py</code></td></tr>
+<tr><td><code class="inline">app_spend.py</code></td><td>882</td><td>Could extract CSV import/export to separate module</td></tr>
+</tbody></table></div>
+<h3 id="priority-2-redundant-code-in-parser-py">Priority 2: Redundant Code in <code class="inline">parser.py</code></h3>
+<ul><li><code class="inline">parser.py:225-228</code> and <code class="inline">parser.py:236-238</code>: The <code class="inline">callable(repl)</code> check is always followed by the same <code class="inline">rx.sub(repl, s)</code> call in both branches. The check is unnecessary since <code class="inline">re.sub()</code> handles both string and callable replacements natively.</li></ul>
+<h3 id="priority-3-format-plugin-boilerplate">Priority 3: Format Plugin Boilerplate</h3>
+<p>Each format plugin (12 total) repeats a similar structure: <code class="inline">detect()</code>, <code class="inline">extract_ts()</code>, <code class="inline">extract_level()</code>, <code class="inline">is_continuation()</code>, <code class="inline">classify_event()</code>, <code class="inline">bucket_tags()</code>. A base class with common implementations could reduce boilerplate:</p>
+<ul><li><code class="inline">is_continuation()</code> follows the same pattern in nearly all plugins: &quot;if no timestamp and is stacktrace, return True&quot;.</li><li><code class="inline">classify_event()</code> always calls <code class="inline">extract_exception()</code>, <code class="inline">extract_root_cause()</code>, <code class="inline">self.bucket_tags()</code>.</li></ul>
+<p>A <code class="inline">BaseLogFormat</code> class inheriting from the protocol could provide default implementations, reducing each plugin by ~20 lines.</p>
+<h3 id="priority-4-architecture-md-staleness">Priority 4: <code class="inline">ARCHITECTURE.md</code> Staleness</h3>
+<p>Several statistics in <code class="inline">ARCHITECTURE.md</code> are outdated (format count, test count, line counts). Consider generating these programmatically or adding a CI check.</p>
+<hr>
+</div></details><details class="section" id="sect-9-feature-opportunities"><summary><span class="section-title">9. Feature Opportunities</span><span class="badge badge-info section-badge">9/11</span></summary><div class="section-body">
+<p><strong>Grade: 8/10</strong></p>
+<h3 id="already-implemented-recent-milestones">Already Implemented (Recent Milestones)</h3>
+<ul><li>Recursive folder discovery with size limits and group extraction (<code class="inline">discovery.py</code>)</li><li>PII redaction with 4 levels including Norwegian personnummer/IBAN (<code class="inline">parser.py:107-181</code>)</li><li>Incident confidence scoring with cross-system corroboration (<code class="inline">heuristics.py:421-514</code>)</li><li>Failure chain builder with cascade ordering (<code class="inline">heuristics.py:520-573</code>)</li><li>Executive summary report format for management (<code class="inline">reports/executive_summary.py</code>)</li><li>Period comparison for new/disappeared error patterns (<code class="inline">analysis.py:726-812</code>)</li><li>Noise scoring and filtering (<code class="inline">analysis.py:815-992</code>)</li><li>Audit report generation via AI (<code class="inline">app_audit.py</code>)</li><li>Spend tracking and analytics (<code class="inline">app_spend.py</code>)</li><li>Realtime log monitoring (<code class="inline">app_realtime.py</code>)</li></ul>
+<h3 id="opportunities">Opportunities</h3>
+<ol><li><strong>Streaming/Incremental Parsing</strong>: The generator-based <code class="inline">parse_file_iter()</code> exists but the GUI always loads everything into memory via <code class="inline">parse_file()</code>. For very large files, streaming analysis with partial results would improve UX.</li></ol>
+<ol><li><strong>Format Plugin Auto-Registration</strong>: Currently plugins are manually listed in <code class="inline">formats/__init__.py:31-44</code>. An entry-point or directory-scanning approach would allow third-party plugins without modifying the registry.</li></ol>
+<ol><li><strong>Webhook/Alert Integration</strong>: The heuristics engine detects critical patterns (OOM, burst, cascade) but has no notification mechanism. A webhook output mode (Slack, Teams, PagerDuty) would add ops value.</li></ol>
+<ol><li><strong>Diff-Based Reports</strong>: <code class="inline">compare_periods()</code> (<code class="inline">analysis.py:726-812</code>) computes deltas but they are not rendered in any report format. Adding a diff view to the HTML report would surface regressions after deployments.</li></ol>
+<ol><li><strong>Log Sampling for Large Files</strong>: <code class="inline">sample_info</code> parameter exists (<code class="inline">parser.py:338</code>) but is not exposed in the GUI. A &quot;Quick scan&quot; mode that samples every Nth INFO event would speed up initial analysis of multi-GB files.</li></ol>
+<hr>
+</div></details><details class="section" id="sect-10-prioritized-improvement-plan"><summary><span class="section-title">10. Prioritized Improvement Plan</span><span class="badge badge-info section-badge">10/11</span></summary><div class="section-body">
+<p><strong>Grade: 8/10</strong></p>
+<h3 id="p0-fix-now-low-effort-high-impact">P0 — Fix Now (Low Effort, High Impact)</h3>
+<ol><li><strong>Update <code class="inline">ARCHITECTURE.md</code></strong> — Fix outdated counts: 12 format plugins, 39 test files, 1798 tests. Update line counts for split modules.</li><li><strong>Remove redundant <code class="inline">callable()</code> checks</strong> in <code class="inline">parser.py:225-228</code> and <code class="inline">parser.py:236-238</code> — simplify to single <code class="inline">rx.sub(repl, s)</code> calls.</li></ol>
+<h3 id="p1-next-sprint-medium-effort-high-impact">P1 — Next Sprint (Medium Effort, High Impact)</h3>
+<ol><li><strong>Extract <code class="inline">app_upload.py</code></strong> from <code class="inline">app.py</code> — Move the ~200-line file upload and folder scan block (lines 1000-1140) to a dedicated module. Reduces <code class="inline">app.py</code> to ~1100 lines.</li><li><strong>Add <code class="inline">BaseLogFormat</code> class</strong> in <code class="inline">formats/base.py</code> — Provide default implementations for <code class="inline">is_continuation()</code> and <code class="inline">classify_event()</code> skeleton. Each plugin can override as needed.</li><li><strong>Expose <code class="inline">sample_info</code> in GUI</strong> — Add a &quot;Quick scan&quot; checkbox in the sidebar that sets <code class="inline">sample_info=10</code> for files &gt; 50MB, with a note that INFO events are sampled.</li></ol>
+<h3 id="p2-backlog-higher-effort">P2 — Backlog (Higher Effort)</h3>
+<ol><li><strong>Render <code class="inline">compare_periods()</code> deltas</strong> in HTML and Markdown reports — Add a &quot;Changes vs Previous Day&quot; section when multiple days of data are present.</li><li><strong>Format plugin auto-registration</strong> — Scan <code class="inline">logpilot/formats/</code> directory for classes implementing <code class="inline">LogFormat</code> protocol, removing the manual registry in <code class="inline">__init__.py</code>.</li><li><strong>Webhook output mode</strong> — Add <code class="inline">--webhook</code> CLI flag and Streamlit integration for Slack/Teams notifications on critical findings.</li><li><strong>PDF test assertions</strong> — Add structured tests for <code class="inline">reports/pdf.py</code> that verify section headers and content presence (using pdfplumber or similar).</li><li><strong>Streaming analysis mode</strong> — For the GUI, show partial results (summary, histogram) as events are parsed, without waiting for full file completion.</li></ol>
+<hr>
+</div></details><details class="section" id="sect-appendix-key-file-reference"><summary><span class="section-title">Appendix: Key File Reference</span><span class="badge badge-info section-badge">11/11</span></summary><div class="section-body">
+<div class="table-wrap"><table><thead><tr><th>File</th><th>Lines</th><th>Role</th></tr></thead><tbody>
+<tr><td><code class="inline">logpilot/parser.py</code></td><td>536</td><td>Event parsing, redaction (secrets + PII), format auto-detection, parse cache</td></tr>
+<tr><td><code class="inline">logpilot/analysis.py</code></td><td>992</td><td>Summarize, timeline, histograms, cross-system cascades, hung threads, noise filtering</td></tr>
+<tr><td><code class="inline">logpilot/heuristics.py</code></td><td>920</td><td>68+ heuristics, 19 correlations, 7 incident groups, evidence, confidence, narratives</td></tr>
+<tr><td><code class="inline">logpilot/ai.py</code></td><td>978</td><td>AI prompts, skill selection (5 signal sources), token estimation, Gemini integration</td></tr>
+<tr><td><code class="inline">logpilot/event.py</code></td><td>69</td><td>LogEvent dataclass with 17 fields and dict-protocol compatibility</td></tr>
+<tr><td><code class="inline">logpilot/cli.py</code></td><td>212</td><td>CLI entry point with argparse, 4 AI provider support</td></tr>
+<tr><td><code class="inline">logpilot/discovery.py</code></td><td>237</td><td>Recursive folder scan with extension/binary/size filtering</td></tr>
+<tr><td><code class="inline">logpilot/formats/base.py</code></td><td>84</td><td><code class="inline">LogFormat</code> Protocol + shared regex helpers</td></tr>
+<tr><td><code class="inline">logpilot/formats/__init__.py</code></td><td>132</td><td>Format registry, auto-detection (50-line scoring)</td></tr>
+<tr><td><code class="inline">logpilot/reports/html.py</code></td><td>558</td><td>Premium HTML report with sidebar, dark/light mode, collapsible sections</td></tr>
+<tr><td><code class="inline">logpilot/reports/config.py</code></td><td>109</td><td><code class="inline">ReportConfig</code> dataclass, section toggles, report metadata</td></tr>
+<tr><td><code class="inline">logpilot/reports/executive_summary.py</code></td><td>281</td><td>1-page management summary (MD + HTML)</td></tr>
+<tr><td><code class="inline">app.py</code></td><td>1,337</td><td>Streamlit GUI entry point</td></tr>
+<tr><td><code class="inline">app_ai.py</code></td><td>1,172</td><td>AI provider orchestration, cost estimation</td></tr>
+<tr><td><code class="inline">app_incident.py</code></td><td>683</td><td>Unified AI assistant (symptom-driven debugging)</td></tr>
+<tr><td><code class="inline">app_render.py</code></td><td>1,137</td><td>Report section rendering, export (6 formats)</td></tr>
+<tr><td><code class="inline">app_audit.py</code></td><td>427</td><td>Audit report generation (10 AI models)</td></tr>
+<tr><td><code class="inline">app_spend.py</code></td><td>882</td><td>Cost tracking and analytics</td></tr>
+</tbody></table></div></div></details>
+</main>
+</div>
+<button class="back-to-top" title="Back to top">&#8593;</button>
+<script>// --- Theme toggle ---
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  if (current === 'dark') html.setAttribute('data-theme', 'light');
+  else if (current === 'light') html.setAttribute('data-theme', 'dark');
+  else {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  }
+}
+
+// --- Expand / Collapse ---
+function expandAll() {
+  document.querySelectorAll('details.section').forEach(d => d.open = true);
+}
+function collapseAll() {
+  document.querySelectorAll('details.section').forEach(d => d.open = false);
+}
+
+// --- Smooth scroll nav ---
+document.querySelectorAll('nav a.nav-link').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const id = a.getAttribute('href').slice(1);
+    const target = document.getElementById(id);
+    if (target) {
+      if (target.tagName === 'DETAILS') target.open = true;
+      // Scroll to the summary inside the details
+      const summary = target.querySelector('summary') || target;
+      summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+// --- Active nav tracking ---
+const sections = document.querySelectorAll('details.section');
+const navLinks = document.querySelectorAll('nav a.nav-link');
+const observerOpts = { threshold: 0, rootMargin: '-80px 0px -70% 0px' };
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, observerOpts);
+sections.forEach(s => observer.observe(s));
+
+// --- Back to top ---
+const btt = document.querySelector('.back-to-top');
+window.addEventListener('scroll', () => {
+  btt.classList.toggle('visible', window.scrollY > 400);
+});
+btt.addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// --- In-page search ---
+const searchInput = document.getElementById('report-search');
+const searchCount = document.querySelector('.search-count');
+let searchTimeout = null;
+
+function clearHighlights() {
+  document.querySelectorAll('mark.search-hit').forEach(m => {
+    const parent = m.parentNode;
+    parent.replaceChild(document.createTextNode(m.textContent), m);
+    parent.normalize();
+  });
+  searchCount.style.display = 'none';
+}
+
+function highlightText(query) {
+  clearHighlights();
+  if (!query || query.length < 2) return;
+  const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  let count = 0;
+  const walker = document.createTreeWalker(
+    document.querySelector('main'), NodeFilter.SHOW_TEXT, null
+  );
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node => {
+    if (node.parentElement.closest('pre, code, script, style, summary')) return;
+    if (!re.test(node.textContent)) return;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    node.textContent.replace(re, (match, _, offset) => {
+      frag.appendChild(document.createTextNode(node.textContent.slice(last, offset)));
+      const mark = document.createElement('mark');
+      mark.className = 'search-hit';
+      mark.textContent = match;
+      frag.appendChild(mark);
+      last = offset + match.length;
+      count++;
+    });
+    frag.appendChild(document.createTextNode(node.textContent.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  });
+  if (count > 0) {
+    searchCount.textContent = count + ' match' + (count === 1 ? '' : 'es');
+    searchCount.style.display = 'block';
+    // Open section containing first hit and scroll to it
+    const first = document.querySelector('mark.search-hit');
+    if (first) {
+      const details = first.closest('details.section');
+      if (details) details.open = true;
+      first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => highlightText(searchInput.value.trim()), 250);
+});
+</script>
+</body>
+</html>
