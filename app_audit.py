@@ -362,7 +362,7 @@ def _run_audit(model_label, log, status=None):
         raise ValueError("Model returned an empty response.")
 
     _status_write("Generating report...")
-    # Save markdown
+    # Save markdown (latest always in root)
     md_path = app_dir / "AUDIT_REPORT.md"
     md_path.write_text(audit_md, encoding="utf-8")
 
@@ -370,6 +370,35 @@ def _run_audit(model_label, log, status=None):
     audit_html = render_html(audit_md, title="Technical Audit Report -- LogPilot")
     html_path = app_dir / "AUDIT_REPORT.html"
     html_path.write_text(audit_html, encoding="utf-8")
+
+    # Version in reports/ folder (keep max 5, auto-clean older)
+    try:
+        import re as _re_mod
+        reports_dir = app_dir / "reports"
+        reports_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+        versioned_md = reports_dir / f"AUDIT_{timestamp}.md"
+        versioned_html = reports_dir / f"AUDIT_{timestamp}.html"
+        versioned_md.write_text(audit_md, encoding="utf-8")
+        versioned_html.write_text(audit_html, encoding="utf-8")
+        log.info("audit Versioned report: %s", versioned_md.name)
+
+        # Auto-clean: keep only the 5 most recent audit pairs
+        _audit_re = _re_mod.compile(r'^AUDIT_\d{4}-\d{2}-\d{2}_\d{4}\.(md|html)$')
+        all_audit_files = sorted(
+            (p for p in reports_dir.iterdir() if _audit_re.match(p.name)),
+            key=lambda p: p.name,
+        )
+        # Group by timestamp (md + html = 1 pair)
+        timestamps = sorted(set(p.stem.replace("AUDIT_", "") for p in all_audit_files), reverse=True)
+        for old_ts in timestamps[5:]:  # Keep newest 5
+            for ext in (".md", ".html"):
+                old_file = reports_dir / f"AUDIT_{old_ts}{ext}"
+                if old_file.exists():
+                    old_file.unlink()
+                    log.info("audit Cleaned old report: %s", old_file.name)
+    except Exception as ex:
+        log.warning("audit Could not version report: %s", ex)
 
     log.info("audit Audit report generated with %s: %s", model_label, html_path)
     return audit_html
