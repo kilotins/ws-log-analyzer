@@ -517,6 +517,7 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
         match or {"matched": False, "codes": [], "exceptions": [], "tags": []},
         description or "",
         detected_format=detected_format,
+        source_formats=source_formats,
     )
     skill_content = load_skill_content(skill_files)
     if skill_files and log:
