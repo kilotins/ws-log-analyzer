@@ -1,0 +1,98 @@
+2025-03-15 14:32:00.000 UTC
+Full thread dump OpenJDK 64-Bit Server VM (17.0.8+7 mixed mode, sharing):
+
+Threads class SMR info:
+_java_thread_list=0x00007f2a3c002a80, length=38, elements={
+0x00007f2a3c003000, 0x00007f2a3c004000, 0x00007f2a3c005000, ...
+}
+
+"http-nio-8080-exec-1" #31 daemon prio=5 os_prio=0 cpu=8234.12ms elapsed=420.00s tid=0x00007f2a3c003000 nid=0x1f BLOCKED on com.zaxxer.hikari.pool.HikariPool@0x00000000c5a01200
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:162)
+	- waiting to lock <0x00000000c5a01200> (a com.zaxxer.hikari.pool.HikariPool)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:128)
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:112)
+	at com.example.payment.repository.PaymentRepository.findByOrderId(PaymentRepository.java:45)
+	at com.example.payment.service.PaymentService.processPayment(PaymentService.java:89)
+	at com.example.payment.controller.PaymentController.processCheckout(PaymentController.java:62)
+	at jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:897)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178)
+
+"http-nio-8080-exec-2" #32 daemon prio=5 os_prio=0 cpu=7891.45ms elapsed=420.00s tid=0x00007f2a3c004000 nid=0x20 BLOCKED on com.zaxxer.hikari.pool.HikariPool@0x00000000c5a01200
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:162)
+	- waiting to lock <0x00000000c5a01200> (a com.zaxxer.hikari.pool.HikariPool)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:128)
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:112)
+	at com.example.payment.repository.PaymentRepository.savePayment(PaymentRepository.java:78)
+	at com.example.payment.service.PaymentService.processPayment(PaymentService.java:102)
+	at com.example.payment.controller.PaymentController.processCheckout(PaymentController.java:62)
+
+"http-nio-8080-exec-3" #33 daemon prio=5 os_prio=0 cpu=6200.30ms elapsed=415.00s tid=0x00007f2a3c005000 nid=0x21 BLOCKED on com.zaxxer.hikari.pool.HikariPool@0x00000000c5a01200
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:162)
+	- waiting to lock <0x00000000c5a01200> (a com.zaxxer.hikari.pool.HikariPool)
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:112)
+	at com.example.payment.service.RefundService.checkRefundEligibility(RefundService.java:34)
+	at com.example.payment.controller.PaymentController.processRefund(PaymentController.java:95)
+
+"http-nio-8080-exec-4" #34 daemon prio=5 os_prio=0 cpu=12456.78ms elapsed=420.00s tid=0x00007f2a3c006000 nid=0x22 WAITING (parking)
+   java.lang.Thread.State: WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(Native Method)
+	- parking to wait for <0x00000000c5b02300> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:211)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionNode.block(AbstractQueuedSynchronizer.java:506)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:175)
+	at com.example.payment.gateway.StripeClient.chargeCard(StripeClient.java:67)
+	- locked <0x00000000c5c03400> (a java.net.Socket)
+	at com.example.payment.service.PaymentService.executeCharge(PaymentService.java:134)
+	at com.example.payment.service.PaymentService.processPayment(PaymentService.java:95)
+
+   Locked ownable synchronizers:
+	- <0x00000000c5c03400> (a java.net.Socket)
+	  HOLDS database connection jdbc:postgresql://10.0.1.5:5432/orders [conn7]
+	  Connection acquired at: 2025-03-15T14:29:58.000Z (held for 154 seconds)
+
+"http-nio-8080-exec-5" #35 daemon prio=5 os_prio=0 cpu=5500.00ms elapsed=400.00s tid=0x00007f2a3c007000 nid=0x23 WAITING (parking)
+   java.lang.Thread.State: WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(Native Method)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:175)
+	at com.example.payment.repository.PaymentRepository.findByOrderId(PaymentRepository.java:45)
+	at com.example.payment.service.PaymentService.processPayment(PaymentService.java:89)
+
+   Locked ownable synchronizers:
+	- <0x00000000c5c04500> (a java.net.Socket)
+	  HOLDS database connection jdbc:postgresql://10.0.1.5:5432/orders [conn3]
+	  Connection acquired at: 2025-03-15T14:29:55.000Z (held for 157 seconds)
+
+"http-nio-8080-exec-6" #36 daemon prio=5 os_prio=0 cpu=3200.10ms elapsed=380.00s tid=0x00007f2a3c008000 nid=0x24 BLOCKED on com.zaxxer.hikari.pool.HikariPool@0x00000000c5a01200
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:162)
+	at com.example.payment.repository.OrderRepository.updateStatus(OrderRepository.java:92)
+	at com.example.payment.service.PaymentService.completePayment(PaymentService.java:145)
+
+"HikariPool-1 housekeeper" #15 daemon prio=5 os_prio=0 cpu=123.45ms elapsed=420.00s tid=0x00007f2a3c009000 nid=0x25 TIMED_WAITING (parking)
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(Native Method)
+	at com.zaxxer.hikari.pool.HikariPool$HouseKeeper.run(HikariPool.java:421)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+
+"GC Thread#0" os_prio=0 cpu=45678.90ms elapsed=420.00s tid=0x00007f2a3c00a000 nid=0x26
+   No Java frames
+
+"VM Periodic Task Thread" os_prio=0 cpu=1234.56ms elapsed=420.00s tid=0x00007f2a3c00b000 nid=0x27
+
+JNI global refs: 42, weak refs: 18
+
+Heap
+ garbage-first heap   total 524288K, used 510234K [0x00000000e0000000, 0x0000000100000000)
+  region size 1024K, 2 young (2048K), 0 survivors (0K)
+ Metaspace       used 78234K, committed 79360K, reserved 1114112K
+  class space    used 9876K, committed 10240K, reserved 1048576K
+
+Summary:
+  6 threads BLOCKED waiting for HikariPool connection
+  2 threads WAITING holding leaked database connections (held 154s and 157s)
+  Heap at 97.3% capacity (510234K / 524288K)
+  Connection leak detected: exec-4 holds conn7 since 14:29:58, exec-5 holds conn3 since 14:29:55

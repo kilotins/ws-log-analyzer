@@ -380,7 +380,7 @@ class TestCliDirectory:
         with patch("sys.argv", ["logpilot", "-d", str(scenario), "--out", str(out)]):
             main()
         captured = capsys.readouterr()
-        assert "6 files" in captured.err
+        assert "12 files" in captured.err
         assert out.exists()
         content = out.read_text()
         assert len(content) > 200

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; }
+  .chrome-bar { background: #2d2d3f; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #3a3a4f; }
+  .dots { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #ffbd2e; } .dot.g { background: #28c840; }
+  .url-bar { flex: 1; background: #1a1a2e; border-radius: 6px; padding: 6px 12px; color: #aaa; font-size: 13px; }
+  .container { max-width: 700px; margin: 0 auto; padding: 60px 40px; text-align: center; }
+  .error-code { font-size: 120px; font-weight: 800; color: #e74c3c; line-height: 1; margin-bottom: 10px; }
+  .error-title { font-size: 24px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+  .error-sub { font-size: 15px; color: #999; margin-bottom: 40px; }
+  .details-box { background: #16213e; border: 1px solid #e74c3c44; border-radius: 8px; padding: 20px; text-align: left; font-family: 'SF Mono', Menlo, monospace; font-size: 13px; line-height: 1.7; color: #ccc; }
+  .details-box .label { color: #e74c3c; font-weight: 600; }
+  .details-box .val { color: #f0c040; }
+  .details-box .dim { color: #666; }
+  .retry-btn { margin-top: 30px; display: inline-block; background: #e74c3c; color: #fff; border: none; padding: 12px 32px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .ts { position: fixed; bottom: 12px; right: 16px; font-size: 11px; color: #555; font-family: monospace; }
+</style>
+</head>
+<body>
+<div class="chrome-bar">
+  <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+  <div class="url-bar">https://shop.example.com/checkout/payment</div>
+</div>
+<div class="container">
+  <div class="error-code">502</div>
+  <div class="error-title">Bad Gateway</div>
+  <div class="error-sub">The server encountered a temporary error and could not complete your request.</div>
+  <div class="details-box">
+    <span class="label">Error:</span> <span class="val">upstream timed out (110: Connection timed out)</span><br>
+    <span class="label">Host:</span> payment-svc-7b4d6f8c9-xk2pn:8080<br>
+    <span class="label">Request:</span> POST /api/v2/checkout/process<br>
+    <span class="label">Trace:</span> <span class="val">abc123def456</span><br>
+    <span class="label">Time:</span> 2024-01-15 14:32:08 UTC<br>
+    <span class="dim">--- nginx/1.24.0 ---</span><br>
+    <br>
+    <span class="label">Upstream status:</span> <span class="val">504</span><br>
+    <span class="label">Response time:</span> <span class="val">30.001s</span> (timeout)<br>
+    <span class="label">Retry-After:</span> 60
+  </div>
+  <div class="retry-btn">Try Again</div>
+</div>
+<div class="ts">Request ID: req-8f3a2b1c | Incident ref: INC-2024-0115-001</div>
+</body>
+</html>

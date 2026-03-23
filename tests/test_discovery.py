@@ -336,10 +336,10 @@ class TestPipelineIntegration:
     """Test that discovered files parse correctly and retain metadata."""
 
     def test_scenario_files_discoverable(self):
-        """The scenario fixture directory should discover all 6 log files."""
+        """The scenario fixture directory should discover all 12 log files."""
         scenario = Path(__file__).parent / "fixtures" / "scenario"
         result = discover_log_files(scenario)
-        assert len(result.accepted) == 6
+        assert len(result.accepted) == 12
 
     def test_discovered_files_parseable(self):
         """All discovered scenario files should parse without error."""
@@ -352,7 +352,7 @@ class TestPipelineIntegration:
             events = parse_file(df.path)
             assert len(events) > 0, f"{df.relative_path} produced no events"
             total += len(events)
-        assert total == 85  # known count from scenario
+        assert total == 300  # 85 original + 215 from additional scenario logs
 
     def test_group_labels_in_nested_structure(self, tmp_path):
         """Files in subdirs get group labels from path."""
