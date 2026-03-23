@@ -1,0 +1,36 @@
+2026-03-22 08:30:00.000 UTC [1] LOG:  database system is ready to accept connections
+2026-03-22 08:30:00.100 UTC [23] LOG:  autovacuum launcher started
+2026-03-22 08:31:00.000 UTC [145] LOG:  connection received: host=10.0.2.10 port=42310
+2026-03-22 08:31:00.005 UTC [145] LOG:  connection authorized: user=app_user database=production
+2026-03-22 08:31:01.000 UTC [145] LOG:  duration: 2.345 ms  statement: SELECT * FROM users WHERE id = 123
+2026-03-22 08:34:00.000 UTC [23] LOG:  automatic analyze of table "production.orders" system usage is 35%
+2026-03-22 08:35:00.000 UTC [200] ERROR:  deadlock detected
+2026-03-22 08:35:00.001 UTC [200] DETAIL:  Process 200 waits for ShareLock on transaction 78234; blocked by process 201.
+	Process 201 waits for ShareLock on transaction 78233; blocked by process 200.
+2026-03-22 08:35:00.002 UTC [200] HINT:  See server log for query details.
+2026-03-22 08:35:00.003 UTC [200] STATEMENT:  UPDATE accounts SET balance = balance - 100.00 WHERE id = 456
+2026-03-22 08:35:05.000 UTC [201] ERROR:  canceling statement due to lock timeout
+2026-03-22 08:35:05.001 UTC [201] STATEMENT:  INSERT INTO transactions (from_id, to_id, amount) VALUES (456, 789, 100.00)
+2026-03-22 08:35:10.000 UTC [1] WARNING:  too many connection requests, max_connections=200 reached
+2026-03-22 08:35:10.100 UTC [300] FATAL:  sorry, too many clients already
+2026-03-22 08:35:10.200 UTC [301] FATAL:  sorry, too many clients already
+2026-03-22 08:35:15.000 UTC [200] LOG:  duration: 30005.123 ms  statement: SELECT * FROM orders WHERE batch_id = 'BATCH-001' FOR UPDATE
+2026-03-22 08:35:15.500 UTC [23] WARNING:  autovacuum worker started but database "production" has 12847 dead tuples needing cleanup
+2026-03-22 08:35:20.000 UTC [1] LOG:  temporary file: path "base/pgsql_tmp/pgsql_tmp200.0", size 536870912
+2026-03-22 08:35:20.001 UTC [1] WARNING:  temporary file size 536870912 exceeds temp_file_limit
+2026-03-22 08:35:25.000 UTC [202] FATAL:  password authentication failed for user "admin"
+2026-03-22 08:35:25.001 UTC [202] DETAIL:  Password does not match for user "admin".
+	Connection matched pg_hba.conf line 95: "host all all 10.0.0.0/8 scram-sha-256"
+2026-03-22 08:35:30.000 UTC [1] LOG:  received smart shutdown request
+2026-03-22 08:35:30.100 UTC [145] FATAL:  the database system is shutting down
+2026-03-22 08:35:31.000 UTC [1] LOG:  shutting down
+2026-03-22 08:35:32.000 UTC [1] LOG:  database system is shut down
+2026-03-22 08:37:00.000 UTC [1] LOG:  database system was shut down at 2026-03-22 08:35:32 UTC
+2026-03-22 08:37:00.100 UTC [1] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-03-22 08:37:00.500 UTC [1] LOG:  redo starts at 0/5A000028
+2026-03-22 08:37:01.000 UTC [1] LOG:  invalid record length at 0/5A001F50: wanted 24, got 0
+2026-03-22 08:37:01.500 UTC [1] LOG:  redo done at 0/5A001F20
+2026-03-22 08:37:02.000 UTC [1] LOG:  database system is ready to accept connections
+2026-03-22 08:37:02.100 UTC [23] LOG:  autovacuum launcher started
+2026-03-22 08:38:00.000 UTC [310] LOG:  duration: 1.234 ms  statement: SELECT 1
+2026-03-22 08:38:00.100 UTC [310] NOTICE:  table "temp_import" does not exist, skipping
