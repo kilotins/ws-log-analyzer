@@ -16,6 +16,7 @@ from .base import LogFormat
 from .crio import CRIOFormat
 from .datapower import DataPowerFormat
 from .enonic import EnonicFormat
+from .docker_json import DockerJSONFormat
 from .postgresql import PostgreSQLFormat
 from .tomcat import TomcatFormat
 from .json_log import JSONFormat
@@ -29,6 +30,7 @@ from .was import WASFormat
 # New formats are registered here. Order doesn't matter — detect() scores decide.
 _FORMATS: list[LogFormat] = [
     WASFormat(),
+    DockerJSONFormat(),
     JSONFormat(),
     NginxFormat(),
     Log4jFormat(),

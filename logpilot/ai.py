@@ -30,6 +30,7 @@ _FORMAT_SPECIALIST: dict[str, str] = {
     "datapower":  "IBM DataPower API Gateway (SSL, AAA, MPGW, API Connect)",
     "tomcat":     "Apache Tomcat / Catalina application server (JUL)",
     "postgresql": "PostgreSQL database server",
+    "docker_json": "Docker container (JSON log driver)",
 }
 
 _FORMAT_PLACEHOLDER: dict[str, str] = {
@@ -44,6 +45,7 @@ _FORMAT_PLACEHOLDER: dict[str, str] = {
     "datapower":  "e.g. 0x80e00001 connection refused, SSL handshake failed, circuit breaker open, API rate limit",
     "tomcat":     "e.g. SEVERE pool exhausted, LifecycleException, stuck thread, deployment failed",
     "postgresql": "e.g. FATAL too many clients, deadlock detected, replication lag, temp_file_limit exceeded",
+    "docker_json": "e.g. container OOMKilled, connection refused, stderr errors, health check failed",
 }
 
 
@@ -297,6 +299,7 @@ _SKILL_FORMAT_MAP: dict[str, list[str]] = {
     "datapower":  ["datapower-analysis.md"],
     "tomcat":     ["tomcat-analysis.md"],
     "postgresql": ["postgresql-log-analysis.md"],
+    "docker_json": ["json-structured-logs.md"],
 }
 
 

@@ -1,0 +1,21 @@
+{"log":"2026-03-23 10:30:00.000 INFO Starting application v2.1.0\n","stream":"stdout","time":"2026-03-23T10:30:00.000000001Z"}
+{"log":"2026-03-23 10:30:01.000 INFO Server listening on port 8080\n","stream":"stdout","time":"2026-03-23T10:30:01.000000001Z"}
+{"log":"2026-03-23 10:30:02.000 INFO Database connection established to 10.0.3.5:5432\n","stream":"stdout","time":"2026-03-23T10:30:02.000000001Z"}
+{"log":"2026-03-23 10:31:00.000 INFO Request processed: GET /api/health 200 (5ms)\n","stream":"stdout","time":"2026-03-23T10:31:00.000000001Z"}
+{"log":"2026-03-23 10:31:01.000 INFO Request processed: POST /api/orders 201 (45ms)\n","stream":"stdout","time":"2026-03-23T10:31:01.000000001Z"}
+{"log":"2026-03-23 10:35:00.000 ERROR Connection pool exhausted: timeout after 30000ms\n","stream":"stderr","time":"2026-03-23T10:35:00.000000001Z"}
+{"log":"  java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available\n","stream":"stderr","time":"2026-03-23T10:35:00.000000002Z"}
+{"log":"\tat com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:695)\n","stream":"stderr","time":"2026-03-23T10:35:00.000000003Z"}
+{"log":"\tat com.example.api.OrderDAO.save(OrderDAO.java:89)\n","stream":"stderr","time":"2026-03-23T10:35:00.000000004Z"}
+{"log":"Caused by: java.util.NoSuchElementException: Timeout waiting for idle object\n","stream":"stderr","time":"2026-03-23T10:35:00.000000005Z"}
+{"log":"\tat org.apache.commons.pool2.impl.GenericObjectPool.borrowObject(GenericObjectPool.java:449)\n","stream":"stderr","time":"2026-03-23T10:35:00.000000006Z"}
+{"log":"2026-03-23 10:35:01.000 ERROR ECONNREFUSED: connection refused to 10.0.3.5:5432\n","stream":"stderr","time":"2026-03-23T10:35:01.000000001Z"}
+{"log":"2026-03-23 10:35:02.000 WARN Circuit breaker OPEN for database — 5 consecutive failures\n","stream":"stderr","time":"2026-03-23T10:35:02.000000001Z"}
+{"log":"2026-03-23 10:35:03.000 ERROR javax.net.ssl.SSLHandshakeException: PKIX path building failed\n","stream":"stderr","time":"2026-03-23T10:35:03.000000001Z"}
+{"log":"\tat sun.security.ssl.Alert.createSSLException(Alert.java:131)\n","stream":"stderr","time":"2026-03-23T10:35:03.000000002Z"}
+{"log":"Caused by: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path\n","stream":"stderr","time":"2026-03-23T10:35:03.000000003Z"}
+{"log":"2026-03-23 10:35:05.000 FATAL java.lang.OutOfMemoryError: Java heap space\n","stream":"stderr","time":"2026-03-23T10:35:05.000000001Z"}
+{"log":"\tat java.base/java.util.Arrays.copyOf(Arrays.java:3512)\n","stream":"stderr","time":"2026-03-23T10:35:05.000000002Z"}
+{"log":"2026-03-23 10:35:10.000 ERROR 502 Bad Gateway error from upstream proxy\n","stream":"stderr","time":"2026-03-23T10:35:10.000000001Z"}
+{"log":"2026-03-23 10:38:00.000 INFO Database connection restored\n","stream":"stdout","time":"2026-03-23T10:38:00.000000001Z"}
+{"log":"2026-03-23 10:38:01.000 INFO Circuit breaker CLOSED — service recovered\n","stream":"stdout","time":"2026-03-23T10:38:01.000000001Z"}
