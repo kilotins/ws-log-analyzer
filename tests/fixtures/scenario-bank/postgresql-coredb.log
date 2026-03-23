@@ -1,0 +1,33 @@
+2026-03-21 08:30:00.000 CET [1] LOG:  database system is ready to accept connections
+2026-03-21 08:30:00.100 CET [23] LOG:  autovacuum launcher started
+2026-03-21 08:31:00.000 CET [145] LOG:  connection received: host=10.0.2.10 port=42310
+2026-03-21 08:31:00.005 CET [145] LOG:  connection authorized: user=core_banking database=klpbank_prod
+2026-03-21 08:34:00.000 CET [23] LOG:  automatic analyze of table "klpbank_prod.transactions" system usage is 35%
+2026-03-21 08:34:30.000 CET [1] LOG:  checkpoint starting: time
+2026-03-21 08:34:30.500 CET [1] LOG:  checkpoint complete: wrote 2456 buffers (15.0%); 0 WAL file(s) added
+2026-03-21 08:35:00.000 CET [200] ERROR:  deadlock detected
+2026-03-21 08:35:00.001 CET [200] DETAIL:  Process 200 waits for ShareLock on transaction 78234; blocked by process 201.
+	Process 201 waits for ShareLock on transaction 78233; blocked by process 200.
+2026-03-21 08:35:00.002 CET [200] HINT:  See server log for query details.
+2026-03-21 08:35:00.003 CET [200] STATEMENT:  UPDATE accounts SET balance = balance - 1500.00 WHERE account_id = '1234567890' AND balance >= 1500.00
+2026-03-21 08:35:05.000 CET [201] ERROR:  canceling statement due to lock timeout
+2026-03-21 08:35:05.001 CET [201] STATEMENT:  INSERT INTO transactions (id, from_account, to_account, amount, currency) VALUES ('PAY-20260321-088', '1234567890', '9876543210', 1500.00, 'NOK')
+2026-03-21 08:35:10.000 CET [1] WARNING:  too many connection requests, max_connections=200 reached
+2026-03-21 08:35:10.100 CET [300] FATAL:  sorry, too many clients already
+2026-03-21 08:35:10.200 CET [301] FATAL:  sorry, too many clients already
+2026-03-21 08:35:10.300 CET [302] FATAL:  sorry, too many clients already
+2026-03-21 08:35:15.000 CET [200] LOG:  duration: 30005.123 ms  statement: SELECT t.*, a.balance FROM transactions t JOIN accounts a ON t.from_account = a.account_id WHERE t.batch_id = 'SALARY-MARCH-2026' FOR UPDATE
+2026-03-21 08:35:15.500 CET [23] WARNING:  autovacuum worker started but database "klpbank_prod" has 12847 dead tuples needing cleanup
+2026-03-21 08:35:20.000 CET [1] LOG:  temporary file: path "base/pgsql_tmp/pgsql_tmp200.0", size 536870912
+2026-03-21 08:35:20.001 CET [1] WARNING:  temporary file size 536870912 exceeds temp_file_limit (256MB)
+2026-03-21 08:35:25.000 CET [1] LOG:  received smart shutdown request
+2026-03-21 08:35:25.100 CET [145] FATAL:  the database system is shutting down
+2026-03-21 08:35:25.200 CET [200] FATAL:  the database system is shutting down
+2026-03-21 08:35:26.000 CET [1] LOG:  shutting down
+2026-03-21 08:35:27.000 CET [1] LOG:  database system is shut down
+2026-03-21 08:37:00.000 CET [1] LOG:  database system was shut down at 2026-03-21 08:35:27 CET
+2026-03-21 08:37:00.500 CET [1] LOG:  database system is ready to accept connections
+2026-03-21 08:37:00.600 CET [23] LOG:  autovacuum launcher started
+2026-03-21 08:37:30.000 CET [310] LOG:  connection received: host=10.0.2.10 port=42380
+2026-03-21 08:37:30.100 CET [310] LOG:  connection authorized: user=core_banking database=klpbank_prod
+2026-03-21 08:38:00.000 CET [310] LOG:  duration: 2.345 ms  statement: SELECT balance FROM accounts WHERE account_id = '1234567890'

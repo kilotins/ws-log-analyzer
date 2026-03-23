@@ -371,19 +371,14 @@ class TestRenderHtmlReport:
         assert "Claude" in html
         assert "Incident Summary" in html
 
-    def test_html_includes_ask_ai(self):
+    def test_html_no_ai_queries_section(self):
+        """AI Queries history section should not appear in exports."""
         events = [make_event(level="ERROR", text="fail")]
         ai = {"ask_ai": [{"query": "What happened?", "answer": "A crash occurred",
                            "provider": "Gemini", "timestamp": "12:00:00"}]}
         html = render_html_report(events, ai_content=ai)
-        assert "AI Queries" in html
-        assert "What happened?" in html
-        assert "A crash occurred" in html
-
-    def test_html_no_ai_when_none(self):
-        events = [make_event(level="ERROR", text="fail")]
-        html = render_html_report(events, ai_content=None)
         assert "AI Queries" not in html
+        assert "Previous AI Queries" not in html
 
 
 # --- 10.5 render_pdf_report() content verification ---
