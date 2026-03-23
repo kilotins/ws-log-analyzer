@@ -477,10 +477,14 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         model_label = st.session_state.get("_incident_model", "AI")
         # Extract "Missing Logs" section and render it prominently
         main_answer, missing_logs = _extract_missing_logs(cached_answer)
-        st.markdown(f"**AI Analysis** ({model_label}):")
+        _answer_len = len(cached_answer)
+        _has_missing = "Missing Logs" in cached_answer
+        st.markdown(f"**AI Analysis** ({model_label}) — {_answer_len:,} chars{' · includes Missing Logs' if _has_missing else ' · no Missing Logs section'}:")
         _render_claude_response(main_answer)
         if missing_logs and "none" not in missing_logs.lower()[:50]:
             st.info(f"**Missing Logs — upload these for a more complete diagnosis:**\n\n{missing_logs}", icon="📋")
+        elif not _has_missing:
+            st.caption("AI response did not include a Missing Logs section — the response may have been truncated by the model's token limit.")
 
     # AI history removed — only the current analysis is shown above.
     # Old responses are cached in session state for conversation context but not displayed.
