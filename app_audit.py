@@ -20,11 +20,21 @@ def _get_app_dir():
 _AUDIT_FILES_FULL = [
     # Core engine
     "logpilot/__init__.py", "logpilot/parser.py", "logpilot/analysis.py",
-    "logpilot/heuristics.py", "logpilot/discovery.py",
-    "logpilot/ai.py", "logpilot/cli.py", "logpilot/event.py",
+    "logpilot/heuristics.py", "logpilot/heuristics_data.yaml",
+    "logpilot/_heuristics_fallback.py",
+    "logpilot/discovery.py", "logpilot/ai.py", "logpilot/cli.py", "logpilot/event.py",
+    # Format plugins
+    "logpilot/formats/__init__.py", "logpilot/formats/base.py",
+    "logpilot/formats/was.py", "logpilot/formats/json_log.py",
+    "logpilot/formats/nginx.py", "logpilot/formats/log4j.py",
+    "logpilot/formats/crio.py", "logpilot/formats/python_log.py",
+    "logpilot/formats/syslog.py", "logpilot/formats/enonic.py",
+    "logpilot/formats/datapower.py", "logpilot/formats/tomcat.py",
+    "logpilot/formats/postgresql.py", "logpilot/formats/docker_json.py",
+    # Reports
     "logpilot/reports/config.py", "logpilot/reports/html.py",
     "logpilot/reports/markdown.py", "logpilot/reports/json_report.py",
-    "logpilot/reports/pdf.py",
+    "logpilot/reports/pdf.py", "logpilot/reports/executive_summary.py",
     # App layer
     "app.py", "app_ai.py", "app_incident.py", "app_render.py",
     "app_audit.py", "app_spend.py", "app_realtime.py", "app_constants.py",
@@ -34,8 +44,11 @@ _AUDIT_FILES_FULL = [
 ]
 _AUDIT_FILES_COMPACT = [
     "logpilot/parser.py", "logpilot/analysis.py", "logpilot/heuristics.py",
-    "logpilot/ai.py", "logpilot/reports/html.py", "logpilot/reports/markdown.py",
-    "app.py", "app_incident.py",
+    "logpilot/ai.py", "logpilot/cli.py", "logpilot/event.py",
+    "logpilot/formats/__init__.py", "logpilot/formats/base.py",
+    "logpilot/reports/html.py", "logpilot/reports/markdown.py",
+    "logpilot/reports/executive_summary.py",
+    "app.py", "app_incident.py", "app_render.py",
     "CLAUDE.md",
 ]
 _AUDIT_SKILL_DIRS = ["skills", ".claude/skills"]
@@ -353,44 +366,12 @@ def _run_audit(model_label, log, status=None):
     md_path = app_dir / "AUDIT_REPORT.md"
     md_path.write_text(audit_md, encoding="utf-8")
 
-    # Version the report and generate delta if previous exists
-    _delta_md = None
-    try:
-        reports_dir = app_dir / "reports"
-        reports_dir.mkdir(exist_ok=True)
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
-        versioned = reports_dir / f"AUDIT_{timestamp}.md"
-        versioned.write_text(audit_md, encoding="utf-8")
-        log.info("audit Versioned report: %s", versioned.name)
-
-        # Find previous versioned report
-        import re as _re_mod
-        pattern = _re_mod.compile(r'^AUDIT_\d{4}-\d{2}-\d{2}_\d{4}\.md$')
-        all_reports = sorted(p for p in reports_dir.iterdir() if pattern.match(p.name))
-        previous = None
-        for r in all_reports:
-            if r != versioned:
-                previous = r
-        if previous:
-            sys.path.insert(0, str(app_dir / "scripts"))
-            from compare_audits import compare_audits, render_delta
-            results = compare_audits(previous, versioned)
-            _delta_md = render_delta(results, previous.name, versioned.name)
-            delta_path = reports_dir / f"DELTA_AUDIT_{timestamp}.md"
-            delta_path.write_text(_delta_md, encoding="utf-8")
-            log.info("audit Delta report: %s", delta_path.name)
-    except Exception as ex:
-        log.warning("audit Could not generate delta: %s", ex)
-
     # Convert to HTML
     audit_html = render_html(audit_md, title="Technical Audit Report -- LogPilot")
     html_path = app_dir / "AUDIT_REPORT.html"
     html_path.write_text(audit_html, encoding="utf-8")
 
     log.info("audit Audit report generated with %s: %s", model_label, html_path)
-    # Store delta for display
-    if _delta_md:
-        st.session_state._audit_delta = _delta_md
     return audit_html
 
 
