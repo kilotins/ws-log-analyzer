@@ -54,6 +54,11 @@ See [README.md](README.md) for installation, CLI options, and usage.
 | **Log Formats** | `.claude/skills/log-format-plugins.md` — LogFormat protocol, auto-detect, skapa nya format-plugins |
 | **Packaging** | `.claude/skills/python-packaging.md` — pyproject.toml, building, PyPI, entry points |
 | **Rebranding** | `.claude/skills/rebranding-guide.md` — Checklista för att byta projektnamn |
+| **Scenarios** | `.claude/skills/scenario-builder.md` — Build realistic multi-system test scenarios |
+| **DataPower** | `skills/datapower-analysis.md` — IBM DataPower gateway, error codes, SSL, AAA |
+| **Tomcat** | `skills/tomcat-analysis.md` — Catalina JUL format, SEVERE mapping, stuck threads |
+| **PostgreSQL** | `skills/postgresql-log-analysis.md` — PG log format, DETAIL/HINT, deadlocks, replication |
+| **DB Errors** | `skills/database-errors.md` — Oracle ORA-, DB2 SQLCODE, MSSQL Msg, MySQL, PG |
 
 ## Critical Gotchas
 
