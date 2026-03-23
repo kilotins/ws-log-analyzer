@@ -1,0 +1,45 @@
+2026-03-23 11:01:00.000 INFO  [main] no.nordic.forsikring.ClaimsApiApplication - Starting ClaimsApiApplication v3.8.2
+2026-03-23 11:01:05.000 INFO  [main] no.nordic.forsikring.ClaimsApiApplication - Started ClaimsApiApplication in 5.0 seconds
+2026-03-23 11:01:30.000 INFO  [http-nio-8080-exec-1] no.nordic.forsikring.claims.ClaimService - Claim CLM-20260323-050 created: type=TRAVEL, amount=12500 NOK
+2026-03-23 11:01:30.500 INFO  [http-nio-8080-exec-1] no.nordic.forsikring.altinn.AltinnClient - Submitting claim CLM-20260323-050 to Altinn: POST /api/v1/instances trace=ins-a1b2c3d4-0001
+2026-03-23 11:01:30.650 INFO  [http-nio-8080-exec-1] no.nordic.forsikring.altinn.AltinnClient - Altinn instance created: instanceId=50012345 (145ms) trace=ins-a1b2c3d4-0001
+2026-03-23 11:02:00.000 INFO  [http-nio-8080-exec-2] no.nordic.forsikring.signing.SigningService - Requesting e-signature for claim CLM-20260323-048 via Signicat
+2026-03-23 11:02:01.000 INFO  [http-nio-8080-exec-2] no.nordic.forsikring.signing.SigningService - E-signature completed for CLM-20260323-048 (567ms) trace=ins-a1b2c3d4-0004
+2026-03-23 11:02:30.000 INFO  [http-nio-8080-exec-3] no.nordic.forsikring.tax.SkatteetatenClient - Income lookup for 12345678901: 650,000 NOK (89ms) trace=ins-a1b2c3d4-0002
+2026-03-23 11:03:00.000 INFO  [http-nio-8080-exec-4] no.nordic.forsikring.health.HelseNorgeClient - Patient journal retrieved for 55667788990 (298ms) trace=ins-a1b2c3d4-0011
+2026-03-23 11:04:05.000 ERROR [http-nio-8080-exec-5] no.nordic.forsikring.altinn.AltinnClient - Altinn submission FAILED for claim CLM-20260323-055: 401 Unauthorized
+  org.springframework.web.client.HttpClientErrorException$Unauthorized: 401 Unauthorized: "{"error":"invalid_token","error_description":"The access token is expired or invalid"}"
+	at org.springframework.web.client.HttpClientErrorException.create(HttpClientErrorException.java:105)
+	at no.nordic.forsikring.altinn.AltinnClient.submitClaim(AltinnClient.java:89)
+	at no.nordic.forsikring.claims.ClaimService.processNewClaim(ClaimService.java:134)
+Caused by: no.nordic.forsikring.auth.MaskinportenTokenException: Token refresh failed — invalid_grant: JWT assertion has invalid signature
+	at no.nordic.forsikring.auth.MaskinportenClient.refreshToken(MaskinportenClient.java:67)
+2026-03-23 11:04:06.000 ERROR [http-nio-8080-exec-6] no.nordic.forsikring.altinn.AltinnClient - Altinn submission FAILED for claim CLM-20260323-056: same auth error
+2026-03-23 11:04:06.500 WARN  [http-nio-8080-exec-6] no.nordic.forsikring.altinn.AltinnClient - Maskinporten token status: EXPIRED (expired at 11:07:00, refresh failed 3x)
+2026-03-23 11:04:07.000 ERROR [http-nio-8080-exec-7] no.nordic.forsikring.altinn.AltinnClient - Altinn submission FAILED for claim CLM-20260323-057
+2026-03-23 11:04:07.500 WARN  [http-nio-8080-exec-7] no.nordic.forsikring.claims.ClaimService - Claim CLM-20260323-057 queued for retry — Altinn unavailable
+2026-03-23 11:04:08.000 INFO  [http-nio-8080-exec-8] no.nordic.forsikring.tax.SkatteetatenClient - Income lookup for 33445566778: 480,000 NOK (94ms) — Skatteetaten OK
+2026-03-23 11:04:08.500 INFO  [http-nio-8080-exec-9] no.nordic.forsikring.auth.BankIDClient - BankID authentication OK for session s-123456 (198ms)
+2026-03-23 11:04:09.000 ERROR [http-nio-8080-exec-10] no.nordic.forsikring.signing.SigningService - E-signature FAILED for CLM-20260323-058: SSL error
+  javax.net.ssl.SSLHandshakeException: PKIX path validation failed: java.security.cert.CertPathValidatorException: Certificate has been revoked
+	at sun.security.ssl.Alert.createSSLException(Alert.java:131)
+	at no.nordic.forsikring.signing.SignicatClient.signDocument(SignicatClient.java:78)
+Caused by: java.security.cert.CertificateRevokedException: Certificate has been revoked, reason: KEY_COMPROMISE, revocation date: 2026-03-22T18:00:00Z
+	at sun.security.provider.certpath.PKIXCertPathValidator.validate(PKIXCertPathValidator.java:349)
+2026-03-23 11:04:09.500 ERROR [http-nio-8080-exec-10] no.nordic.forsikring.signing.SigningService - Signicat certificate REVOKED — reason: KEY_COMPROMISE
+  Certificate: CN=api.signicat.com, O=Signicat AS
+  Revoked: 2026-03-22T18:00:00Z (KEY_COMPROMISE — possible security incident at Signicat)
+  All e-signing operations are blocked until Signicat re-issues their certificate
+2026-03-23 11:04:10.000 ERROR [http-nio-8080-exec-11] no.nordic.forsikring.signing.SigningService - E-signature FAILED for CLM-20260323-059: same SSL error (cert revoked)
+2026-03-23 11:04:10.500 WARN  [http-nio-8080-exec-11] no.nordic.forsikring.claims.ClaimService - 12 claims awaiting e-signature — Signicat blocked
+2026-03-23 11:04:11.000 INFO  [http-nio-8080-exec-12] no.nordic.forsikring.health.HelseNorgeClient - Patient journal retrieved for 44556677889 (315ms) — HelseNorge OK
+2026-03-23 11:04:15.000 WARN  [scheduled-task-1] no.nordic.forsikring.claims.ClaimBatchProcessor - Batch processing paused: 45 claims waiting for Altinn submission, 12 waiting for e-signature
+  Altinn: Maskinporten token invalid (key rotation at Maskinporten)
+  Signicat: TLS certificate revoked (KEY_COMPROMISE)
+  Skatteetaten, BankID, HelseNorge: all healthy
+2026-03-23 11:05:00.000 ERROR [scheduled-task-1] no.nordic.forsikring.altinn.AltinnClient - Altinn retry batch: 0/45 successful — Maskinporten still returning invalid_grant
+2026-03-23 11:05:00.500 WARN  [scheduled-task-1] no.nordic.forsikring.auth.MaskinportenClient - Key rotation detected: Maskinporten JWKS endpoint shows new key 'forsikring-prod-2026-v2' since 2026-03-23T10:00:00Z
+  Our key: 'forsikring-prod-2026' (uploaded 2026-01-15)
+  Expected: 'forsikring-prod-2026-v2' (rotated by Maskinporten 2026-03-23)
+  Fix: Upload new key via https://selvbetjening.maskinporten.no or contact Digdir
+2026-03-23 11:06:00.000 WARN  [http-nio-8080-exec-1] no.nordic.forsikring.claims.ClaimService - Claim CLM-20260323-060: fallback — saved locally, marked for Altinn retry when token refreshed
