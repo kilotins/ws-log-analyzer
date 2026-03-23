@@ -985,6 +985,111 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     # Collect AI content from session_state for export
     _ai_content = _collect_ai_content()
 
+    # --- Action Buttons: Export / Brief Leaders / Jira ---
+    _has_analysis = bool(_ai_content and _ai_content.get("incident"))
+    _btn_col1, _btn_col2, _btn_col3 = st.columns(3)
+
+    with _btn_col2:
+        if _has_analysis:
+            _ai_model_label = _ai_content.get("incident_model", "AI")
+            _brief_clicked = st.button(
+                f"👔 Brief Leaders",
+                help=f"AI rewrites the analysis for non-technical leadership (via {_ai_model_label})",
+                use_container_width=True,
+            )
+            if _brief_clicked:
+                _brief_analysis = _ai_content.get("incident", "")
+                _brief_prompt = {
+                    "system": (
+                        "You are a communications specialist who translates technical incident reports "
+                        "into clear, non-technical language for C-level executives and board members.\n\n"
+                        "RULES:\n"
+                        "- No error codes, no stack traces, no technical jargon\n"
+                        "- Translate technical terms: 'database connection pool exhaustion' → 'the database ran out of capacity'\n"
+                        "- Focus on: What happened? Who was affected? What are we doing about it? Is it fixed?\n"
+                        "- Include: timeline (when it started/ended), business impact (customers affected, revenue risk), "
+                        "confidence level (how sure are we), and next steps\n"
+                        "- Keep it under 400 words — one page maximum\n"
+                        "- Use professional but accessible language\n"
+                        "- Start with: # Incident Brief for Leadership\n"
+                        "- End with: ## Status and Next Steps"
+                    ),
+                    "user": (
+                        f"Rewrite this technical incident analysis as a leadership brief:\n\n"
+                        f"{_brief_analysis[:6000]}"
+                    ),
+                }
+                # Use same provider as the incident analysis
+                _incident_provider = st.session_state.get("_incident_provider", "claude")
+                _incident_model_id = st.session_state.get("_incident_model_id", "claude-sonnet-4-6")
+                try:
+                    from app_ai import call_claude_api, call_gemini_api, call_openai_api, call_local_api
+                    _brief_placeholder = st.empty()
+                    _brief_placeholder.info("Generating leadership brief...")
+                    if _incident_provider == "claude":
+                        _brief_text, _ = call_claude_api(
+                            st.session_state.get("api_key", ""), _incident_model_id,
+                            _brief_prompt, max_tokens=2048)
+                    elif _incident_provider == "gemini":
+                        _brief_text, _ = call_gemini_api(
+                            st.session_state.get("gemini_api_key", ""), _incident_model_id,
+                            _brief_prompt, max_tokens=2048)
+                    elif _incident_provider == "openai":
+                        _brief_text, _ = call_openai_api(
+                            st.session_state.get("openai_api_key", "") or "not-needed",
+                            _incident_model_id, _brief_prompt, max_tokens=2048)
+                    elif _incident_provider == "local":
+                        _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
+                        _brief_text, _ = call_local_api(
+                            "not-needed", _incident_model_id, _brief_prompt,
+                            max_tokens=2048, base_url=_local_url)
+                    else:
+                        _brief_text = None
+                    _brief_placeholder.empty()
+                    if _brief_text:
+                        st.session_state["_leadership_brief"] = _brief_text
+                        st.rerun()
+                except Exception as _brief_err:
+                    st.error(f"Brief generation failed: {_brief_err}")
+
+    # Show leadership brief if generated
+    _leadership_brief = st.session_state.get("_leadership_brief")
+    if _leadership_brief:
+        with st.expander("👔 Leadership Brief", expanded=True):
+            st.markdown(_leadership_brief)
+            _brief_col1, _brief_col2 = st.columns(2)
+            with _brief_col1:
+                st.download_button(
+                    "Download Brief (Markdown)",
+                    data=_leadership_brief,
+                    file_name="leadership_brief.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                )
+            with _brief_col2:
+                # Simple HTML wrap
+                _brief_html = (
+                    '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+                    '<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:40px auto;'
+                    'padding:0 20px;color:#0F172A;line-height:1.7}'
+                    'h1{color:#7C3AED;border-bottom:3px solid #7C3AED;padding-bottom:8px}'
+                    'h2{color:#334155;margin-top:1.5rem}strong{color:#0F172A}</style></head><body>'
+                    f'{_leadership_brief}</body></html>'
+                )
+                st.download_button(
+                    "Download Brief (HTML)",
+                    data=_brief_html,
+                    file_name="leadership_brief.html",
+                    mime="text/html",
+                    use_container_width=True,
+                )
+
+    with _btn_col3:
+        st.button("🎫 Create Jira", disabled=True,
+                  help="Coming soon — generate Jira tickets from incident analysis",
+                  use_container_width=True)
+
+    st.markdown("---")
     st.subheader("Generate Report")
     _ai_note = " + AI analysis" if _ai_content else ""
 
