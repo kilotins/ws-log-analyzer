@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #0F172A; color: #e0e0e0; }
+  .chrome-bar { background: #1E293B; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #334155; }
+  .dots { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #ffbd2e; } .dot.g { background: #28c840; }
+  .url-bar { flex: 1; background: #0F172A; border-radius: 6px; padding: 6px 12px; color: #94A3B8; font-size: 13px; }
+  .container { max-width: 650px; margin: 0 auto; padding: 40px 40px; }
+  .logo { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 24px; }
+  .logo span { color: #3B82F6; }
+  .alert-box { background: #1E293B; border: 1px solid #DC2626; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .alert-icon { font-size: 48px; text-align: center; margin-bottom: 12px; }
+  .alert-title { font-size: 20px; font-weight: 700; color: #DC2626; text-align: center; margin-bottom: 8px; }
+  .alert-sub { font-size: 14px; color: #94A3B8; text-align: center; margin-bottom: 20px; }
+  .details-box { background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; line-height: 1.8; color: #CBD5E1; }
+  .details-box .label { color: #DC2626; font-weight: 600; }
+  .details-box .val { color: #FBBF24; }
+  .details-box .dim { color: #475569; }
+  .status-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .status-item { flex: 1; min-width: 90px; background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 10px; text-align: center; }
+  .status-item .st-label { font-size: 10px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+  .status-item .st-val { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .status-item .st-val.red { color: #DC2626; }
+  .status-item .st-val.yellow { color: #FBBF24; }
+  .status-item .st-val.green { color: #34D399; }
+  .retry-btn { margin-top: 20px; display: block; width: 100%; background: #3B82F6; color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; }
+  .ts { position: fixed; bottom: 12px; right: 16px; font-size: 11px; color: #475569; font-family: monospace; }
+</style>
+</head>
+<body>
+<div class="chrome-bar">
+  <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+  <div class="url-bar">https://minside.forsikring.no/skademelding</div>
+</div>
+<div class="container">
+  <div class="logo">Nordic<span>Forsikring</span></div>
+  <div class="alert-box">
+    <div class="alert-icon">&#9888;</div>
+    <div class="alert-title">Skademelding kan ikke sendes</div>
+    <div class="alert-sub">Vi opplever tekniske problemer med skadesystemet. Vennligst prov igjen om noen minutter.</div>
+    <div class="details-box">
+      <span class="label">Feil:</span> <span class="val">502 Bad Gateway — skadebehandling utilgjengelig</span><br>
+      <span class="label">Tidspunkt:</span> 2026-03-23 10:32:00 UTC<br>
+      <span class="label">Referanse:</span> <span class="val">CLM-20260323-045</span><br>
+      <span class="label">Batch-jobb:</span> <span class="val">BATCH-CLM-20260323 — stoppet (234/1500 ubehandlet)</span><br>
+      <span class="dim">--- minside.forsikring.no ---</span>
+    </div>
+    <div class="status-row">
+      <div class="status-item">
+        <div class="st-label">Skademelder</div>
+        <div class="st-val red">Nede</div>
+      </div>
+      <div class="status-item">
+        <div class="st-label">Claims API</div>
+        <div class="st-val red">CrashLoop</div>
+      </div>
+      <div class="status-item">
+        <div class="st-label">Database</div>
+        <div class="st-val yellow">Deadlock</div>
+      </div>
+      <div class="status-item">
+        <div class="st-label">Gateway</div>
+        <div class="st-val yellow">CB Open</div>
+      </div>
+      <div class="status-item">
+        <div class="st-label">Ordretjeneste</div>
+        <div class="st-val yellow">Timeout</div>
+      </div>
+    </div>
+    <div class="retry-btn">Prov igjen</div>
+  </div>
+</div>
+<div class="ts">Ref: INC-2026-0323-003 | Bruker: kunde45</div>
+</body>
+</html>

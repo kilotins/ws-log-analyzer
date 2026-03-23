@@ -1,0 +1,33 @@
+2026-03-23 10:30:00.000 UTC [1] LOG:  pg_stat_activity snapshot — active connections: 187/200
+2026-03-23 10:30:00.001 UTC [1] LOG:  Connection breakdown by application:
+  claims-api (HikariPool): 80 connections (42 active, 38 idle)
+  claims-webapp (Tomcat JDBC): 45 connections (30 active, 15 idle)
+  claim-worker (psycopg2): 25 connections (20 active, 5 idle)
+  flyway-migration: 1 connection (1 active — holding ACCESS EXCLUSIVE LOCK on claims)
+  autovacuum: 3 connections (1 active)
+  monitoring: 5 connections (idle)
+  pgbouncer-health: 2 connections (idle)
+  replication: 2 connections (streaming)
+  other: 24 connections
+2026-03-23 10:30:05.000 UTC [1] LOG:  pg_stat_activity snapshot — active connections: 195/200
+2026-03-23 10:30:05.001 UTC [1] WARNING:  Connection count approaching max_connections (195/200)
+2026-03-23 10:30:05.002 UTC [1] LOG:  Connection breakdown by application:
+  claims-api (HikariPool): 85 connections (80 active — ALL waiting for lock on claims table, 5 idle)
+  claims-webapp (Tomcat JDBC): 50 connections (48 active — waiting for lock, 2 idle)
+  claim-worker (psycopg2): 28 connections (25 active — waiting, 3 idle)
+  flyway-migration: 1 connection (1 active — STILL holding ACCESS EXCLUSIVE LOCK)
+  other: 31 connections
+2026-03-23 10:30:05.003 UTC [1] WARNING:  85 connections from claims-api are ALL blocked waiting for AccessExclusiveLock held by PID 9901 (flyway)
+2026-03-23 10:30:10.000 UTC [1] LOG:  pg_stat_activity snapshot — active connections: 200/200 — MAX REACHED
+2026-03-23 10:30:10.001 UTC [1] ERROR:  new connection attempts will be rejected (max_connections=200)
+2026-03-23 10:30:10.002 UTC [1] LOG:  Connection breakdown by application:
+  claims-api (HikariPool): 88 connections (88 active — ALL blocked)
+  claims-webapp (Tomcat JDBC): 52 connections (52 active — ALL blocked)
+  claim-worker (psycopg2): 30 connections (30 active — ALL blocked)
+  flyway-migration: 1 connection (1 active — ACCESS EXCLUSIVE LOCK released after deadlock rollback at 10:30:03)
+  other: 29 connections
+2026-03-23 10:30:10.003 UTC [1] WARNING:  Lock released at 10:30:03 but 170 connections still waiting — thundering herd pattern
+2026-03-23 10:30:10.004 UTC [1] LOG:  Longest waiting connection: PID 1210 (claims-api) waiting 7.0s for ShareLock on claims
+2026-03-23 10:30:15.000 UTC [1] LOG:  pg_stat_activity snapshot — active connections: 200/200
+2026-03-23 10:30:15.001 UTC [1] LOG:  42 connections are in state 'idle in transaction (aborted)' — not returning to pool
+2026-03-23 10:30:15.002 UTC [1] WARNING:  Idle-in-transaction connections are holding resources — applications may have connection leaks during error handling
