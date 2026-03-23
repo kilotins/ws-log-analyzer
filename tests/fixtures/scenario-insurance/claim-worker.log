@@ -1,0 +1,98 @@
+2026-03-23 10:00:01,001 INFO  celery.worker Worker ready. Concurrency=8, queue=claims-processing, broker=amqp://rabbitmq:5672
+2026-03-23 10:00:01,123 INFO  celery.worker Registered tasks: [process_claim, send_notification, generate_document, archive_claim, recalculate_premium]
+2026-03-23 10:00:02,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0001] received claimId=CLM-20260323-001
+2026-03-23 10:00:02,234 INFO  claim_worker.db Connected to PostgreSQL at 10.0.3.5:5432, pool_size=5
+2026-03-23 10:00:02,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0001] completed claimId=CLM-20260323-001 duration=566ms
+2026-03-23 10:00:05,001 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0002] received claimId=CLM-20260323-001
+2026-03-23 10:00:05,345 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0002] completed, SMS sent to +4791234567 duration=344ms
+2026-03-23 10:00:08,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0003] received claimId=CLM-20260323-002
+2026-03-23 10:00:08,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0003] completed claimId=CLM-20260323-002 duration=566ms
+2026-03-23 10:00:10,001 INFO  claim_worker.tasks Task generate_document[a1b2c3d4-0004] received claimId=CLM-20260323-001 docType=CONFIRMATION
+2026-03-23 10:00:10,789 INFO  claim_worker.tasks Task generate_document[a1b2c3d4-0004] completed, PDF generated 45678 bytes duration=788ms
+2026-03-23 10:00:12,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0005] received claimId=CLM-20260323-003
+2026-03-23 10:00:12,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0005] completed claimId=CLM-20260323-003 duration=566ms
+2026-03-23 10:00:15,001 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0006] received claimId=CLM-20260323-002
+2026-03-23 10:00:15,312 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0006] completed, SMS sent to +4798765432 duration=311ms
+2026-03-23 10:00:18,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0007] received claimId=CLM-20260323-004
+2026-03-23 10:00:18,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0007] completed claimId=CLM-20260323-004 duration=566ms
+2026-03-23 10:00:20,001 INFO  claim_worker.queue Queue depth check: claims-processing has 3 pending tasks
+2026-03-23 10:00:22,001 INFO  claim_worker.tasks Task archive_claim[a1b2c3d4-0008] received claimId=CLM-20260323-000 (archival batch)
+2026-03-23 10:00:23,234 INFO  claim_worker.tasks Task archive_claim[a1b2c3d4-0008] completed, 15 claims archived duration=1233ms
+2026-03-23 10:02:00,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0009] received claimId=CLM-20260323-005
+2026-03-23 10:02:00,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0009] completed claimId=CLM-20260323-005 duration=566ms
+2026-03-23 10:04:00,001 INFO  claim_worker.tasks Task recalculate_premium[a1b2c3d4-0010] received policyId=POL-2024-88123
+2026-03-23 10:04:01,234 INFO  claim_worker.tasks Task recalculate_premium[a1b2c3d4-0010] completed, new premium=12500 duration=1233ms
+2026-03-23 10:05:00,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0011] received claimId=CLM-20260323-006
+2026-03-23 10:05:00,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0011] completed claimId=CLM-20260323-006 duration=566ms
+2026-03-23 10:06,001 INFO  claim_worker.tasks Task generate_document[a1b2c3d4-0012] received claimId=CLM-20260323-003 docType=SETTLEMENT
+2026-03-23 10:06:00,890 INFO  claim_worker.tasks Task generate_document[a1b2c3d4-0012] completed, PDF generated 78901 bytes duration=889ms
+2026-03-23 10:08:00,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0013] received claimId=CLM-20260323-007
+2026-03-23 10:08:00,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0013] completed claimId=CLM-20260323-007 duration=566ms
+2026-03-23 10:10:00,001 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0014] received claimId=CLM-20260323-005
+2026-03-23 10:10:00,312 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0014] completed, SMS sent to +4792345678 duration=311ms
+2026-03-23 10:12:00,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0015] received claimId=CLM-20260323-008
+2026-03-23 10:12:00,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0015] completed claimId=CLM-20260323-008 duration=566ms
+2026-03-23 10:14:00,001 INFO  claim_worker.tasks Task recalculate_premium[a1b2c3d4-0016] received policyId=POL-2023-11987
+2026-03-23 10:14:01,345 INFO  claim_worker.tasks Task recalculate_premium[a1b2c3d4-0016] completed, new premium=9800 duration=1344ms
+2026-03-23 10:15:00,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0017] received claimId=CLM-20260323-009
+2026-03-23 10:15:00,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0017] completed claimId=CLM-20260323-009 duration=566ms
+2026-03-23 10:17:00,001 INFO  claim_worker.queue Queue depth check: claims-processing has 2 pending tasks
+2026-03-23 10:18:00,001 INFO  claim_worker.tasks Task generate_document[a1b2c3d4-0018] received claimId=CLM-20260323-007 docType=CONFIRMATION
+2026-03-23 10:18:00,867 INFO  claim_worker.tasks Task generate_document[a1b2c3d4-0018] completed, PDF generated 56789 bytes duration=866ms
+2026-03-23 10:20:00,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0019] received claimId=CLM-20260323-010
+2026-03-23 10:20:00,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0019] completed claimId=CLM-20260323-010 duration=566ms
+2026-03-23 10:22:00,001 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0020] received claimId=CLM-20260323-008
+2026-03-23 10:22:00,312 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0020] completed, SMS sent to +4793456789 duration=311ms
+2026-03-23 10:25:00,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0021] received claimId=CLM-20260323-011
+2026-03-23 10:25:00,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0021] completed claimId=CLM-20260323-011 duration=566ms
+2026-03-23 10:28:00,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0022] received claimId=CLM-20260323-012
+2026-03-23 10:28:00,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0022] completed claimId=CLM-20260323-012 duration=566ms
+2026-03-23 10:29:00,001 INFO  claim_worker.queue Queue depth check: claims-processing has 5 pending tasks
+2026-03-23 10:30:01,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0023] received claimId=CLM-20260323-013
+2026-03-23 10:30:05,234 WARN  claim_worker.db Database query slow: SELECT * FROM claims took 4233ms, threshold=1000ms
+2026-03-23 10:30:10,001 WARNING claim_worker.tasks Task process_claim[a1b2c3d4-0023] soft time limit approaching (25s/30s) claimId=CLM-20260323-013
+2026-03-23 10:30:31,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0023] SoftTimeLimitExceeded claimId=CLM-20260323-013
+celery.exceptions.SoftTimeLimitExceeded: SoftTimeLimitExceeded('process_claim',)
+  File "/app/claim_worker/tasks.py", line 88, in process_claim
+    result = db.execute(query, params)
+  File "/app/claim_worker/db.py", line 45, in execute
+    return self.conn.execute(sql, args)
+  File "/usr/local/lib/python3.11/site-packages/psycopg2/extensions.py", line 112, in execute
+    self.cursor.execute(query, vars)
+psycopg2.OperationalError: could not connect to server: Connection refused
+	Is the server running on host "10.0.3.5" and accepting TCP/IP connections on port 5432?
+2026-03-23 10:30:32,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0023] retrying in 60s (attempt 1/3)
+2026-03-23 10:30:35,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0024] received claimId=CLM-20260323-014
+2026-03-23 10:30:35,567 ERROR  claim_worker.db psycopg2.OperationalError connecting to 10.0.3.5:5432
+psycopg2.OperationalError: FATAL:  remaining connection slots are reserved for non-replication superuser connections
+	at psycopg2/_psycopg/connection.c:1072
+	at psycopg2/_psycopg/connection.c:862
+2026-03-23 10:30:36,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0024] failed, retrying (attempt 1/3)
+2026-03-23 10:31:00,001 WARN  claim_worker.queue Queue depth growing: claims-processing has 18 pending tasks (threshold=10)
+2026-03-23 10:31:10,001 ERROR  claim_worker.tasks Task send_notification[a1b2c3d4-0025] received claimId=CLM-20260323-013
+2026-03-23 10:31:10,567 ERROR  claim_worker.db psycopg2.OperationalError connecting to 10.0.3.5:5432 - connection refused
+2026-03-23 10:31:11,001 ERROR  claim_worker.tasks Task send_notification[a1b2c3d4-0025] failed, retrying (attempt 1/3)
+2026-03-23 10:31:30,001 WARN  claim_worker.queue Queue depth growing: claims-processing has 34 pending tasks (threshold=10). Workers stalled.
+2026-03-23 10:32:00,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0023] retrying (attempt 2/3)
+2026-03-23 10:32:00,567 ERROR  claim_worker.db psycopg2.OperationalError: connection refused to 10.0.3.5:5432
+2026-03-23 10:32:01,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0023] retry 2 failed
+2026-03-23 10:32:30,001 CRITICAL claim_worker.queue Queue depth critical: claims-processing has 52 pending tasks. Consumer lag severe.
+2026-03-23 10:33:00,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0024] retrying (attempt 2/3)
+2026-03-23 10:33:00,567 ERROR  claim_worker.db psycopg2.OperationalError: could not connect to server: Connection refused at 10.0.3.5:5432
+2026-03-23 10:33:30,001 CRITICAL claim_worker.queue Queue depth critical: claims-processing has 71 pending tasks. New tasks being rejected by broker.
+2026-03-23 10:34:00,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0023] final retry failed after 3 attempts. Task will be sent to dead letter queue.
+2026-03-23 10:34:01,001 ERROR  claim_worker.deadletter Task a1b2c3d4-0023 moved to dead letter queue: claims-processing.dlq
+2026-03-23 10:34:30,001 CRITICAL claim_worker.queue Queue depth critical: claims-processing has 89 pending tasks.
+2026-03-23 10:35:00,001 ERROR  claim_worker.tasks Task process_claim[a1b2c3d4-0024] final retry failed. Moved to DLQ.
+2026-03-23 10:35:30,001 CRITICAL claim_worker.queue Queue depth critical: claims-processing has 102 pending tasks. ALL WORKERS BLOCKED.
+2026-03-23 10:39:00,001 INFO  claim_worker.db Database connection restored to 10.0.3.5:5432
+2026-03-23 10:39:30,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0026] received claimId=CLM-20260323-013 (retry after recovery)
+2026-03-23 10:39:30,567 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0026] completed duration=566ms
+2026-03-23 10:40:00,001 INFO  claim_worker.queue Queue draining: 97 pending tasks. Workers recovering.
+2026-03-23 10:40:30,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0027] completed claimId=CLM-20260323-014 duration=578ms
+2026-03-23 10:41,001 INFO  claim_worker.tasks Task send_notification[a1b2c3d4-0028] completed claimId=CLM-20260323-013 duration=334ms
+2026-03-23 10:43,001 INFO  claim_worker.queue Queue draining: 45 pending tasks. Recovery progressing.
+2026-03-23 10:45,001 INFO  claim_worker.queue Queue draining: 18 pending tasks.
+2026-03-23 10:48,001 INFO  claim_worker.queue Queue normal: claims-processing has 3 pending tasks.
+2026-03-23 10:50,001 INFO  claim_worker.tasks Task process_claim[a1b2c3d4-0029] received claimId=CLM-20260323-015 duration=555ms
+2026-03-23 10:55,001 INFO  claim_worker.queue Queue depth normal: 0 pending tasks. All workers idle. Backlog fully drained.

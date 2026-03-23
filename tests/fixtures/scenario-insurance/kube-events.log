@@ -1,0 +1,50 @@
+2026-03-23T10:00:01.000000000Z stderr F time="2026-03-23T10:00:01Z" level=info msg="Pod claims-api-7d9f8b6c4-xk2p9 started on node k8s-worker-3" namespace=insurance
+2026-03-23T10:00:01.100000000Z stderr F time="2026-03-23T10:00:01Z" level=info msg="Readiness probe succeeded for claims-api-7d9f8b6c4-xk2p9" container=claims-api
+2026-03-23T10:00:02.000000000Z stderr F time="2026-03-23T10:00:02Z" level=info msg="Pod claim-worker-6c8d7f5b3-mn4q1 started on node k8s-worker-3" namespace=insurance
+2026-03-23T10:00:02.100000000Z stderr F time="2026-03-23T10:00:02Z" level=info msg="Readiness probe succeeded for claim-worker-6c8d7f5b3-mn4q1" container=claim-worker
+2026-03-23T10:00:05.000000000Z stderr F time="2026-03-23T10:00:05Z" level=info msg="Pod claims-api-7d9f8b6c4-xk2p9 health check PASS /actuator/health" namespace=insurance status=200
+2026-03-23T10:00:10.000000000Z stderr F time="2026-03-23T10:00:10Z" level=info msg="HorizontalPodAutoscaler claims-api: currentReplicas=2, desiredReplicas=2, CPU=12%" namespace=insurance
+2026-03-23T10:00:15.000000000Z stderr F time="2026-03-23T10:00:15Z" level=info msg="Pod claims-api-7d9f8b6c4-pl9r2 health check PASS /actuator/health" namespace=insurance status=200
+2026-03-23T10:00:20.000000000Z stderr F time="2026-03-23T10:00:20Z" level=info msg="Pod claim-worker-6c8d7f5b3-mn4q1 health check PASS /health" namespace=insurance status=200
+2026-03-23T10:00:30.000000000Z stderr F time="2026-03-23T10:00:30Z" level=info msg="ResourceQuota insurance/compute-quota: used cpu=450m/2000m, memory=1.2Gi/4Gi" namespace=insurance
+2026-03-23T10:02:00.000000000Z stderr F time="2026-03-23T10:02:00Z" level=info msg="Pod claims-api-7d9f8b6c4-xk2p9 health check PASS /actuator/health" namespace=insurance status=200
+2026-03-23T10:05:00.000000000Z stderr F time="2026-03-23T10:05:00Z" level=info msg="HorizontalPodAutoscaler claims-api: currentReplicas=2, desiredReplicas=2, CPU=18%" namespace=insurance
+2026-03-23T10:10:00.000000000Z stderr F time="2026-03-23T10:10:00Z" level=info msg="Pod claims-api-7d9f8b6c4-xk2p9 health check PASS /actuator/health" namespace=insurance status=200
+2026-03-23T10:10:00.100000000Z stderr F time="2026-03-23T10:10:00Z" level=info msg="ResourceQuota insurance/compute-quota: used cpu=512m/2000m, memory=1.4Gi/4Gi" namespace=insurance
+2026-03-23T10:15:00.000000000Z stderr F time="2026-03-23T10:15:00Z" level=info msg="Pod claims-api-7d9f8b6c4-pl9r2 health check PASS /actuator/health" namespace=insurance status=200
+2026-03-23T10:20:00.000000000Z stderr F time="2026-03-23T10:20:00Z" level=info msg="HorizontalPodAutoscaler claims-api: currentReplicas=2, desiredReplicas=2, CPU=20%" namespace=insurance
+2026-03-23T10:25:00.000000000Z stderr F time="2026-03-23T10:25:00Z" level=info msg="Pod claim-worker-6c8d7f5b3-mn4q1 health check PASS /health" namespace=insurance status=200
+2026-03-23T10:28:00.000000000Z stderr F time="2026-03-23T10:28:00Z" level=info msg="ResourceQuota insurance/compute-quota: used cpu=534m/2000m, memory=1.5Gi/4Gi" namespace=insurance
+2026-03-23T10:30:01.000000000Z stderr F time="2026-03-23T10:30:01Z" level=warn msg="Pod claims-api-7d9f8b6c4-xk2p9 readiness probe slow: /actuator/health took 2345ms (threshold 1000ms)" namespace=insurance
+2026-03-23T10:30:15.000000000Z stderr F time="2026-03-23T10:30:15Z" level=warn msg="HorizontalPodAutoscaler claims-api: CPU spike detected currentReplicas=2, CPU=78%, scaling evaluation" namespace=insurance
+2026-03-23T10:30:30.000000000Z stderr F time="2026-03-23T10:30:30Z" level=warn msg="Pod claims-api-7d9f8b6c4-xk2p9 readiness probe FAILED: /actuator/health returned 503" namespace=insurance
+2026-03-23T10:30:31.000000000Z stderr F time="2026-03-23T10:30:31Z" level=warn msg="Pod claims-api-7d9f8b6c4-xk2p9 removed from service endpoints due to failed readiness probe" namespace=insurance
+2026-03-23T10:30:45.000000000Z stderr F time="2026-03-23T10:30:45Z" level=warn msg="HorizontalPodAutoscaler claims-api: scaling up to 4 replicas due to high CPU (78%)" namespace=insurance
+2026-03-23T10:30:50.000000000Z stderr F time="2026-03-23T10:30:50Z" level=info msg="Pod claims-api-7d9f8b6c4-nw7x3 scheduled on k8s-worker-3" namespace=insurance
+2026-03-23T10:30:52.000000000Z stderr F time="2026-03-23T10:30:52Z" level=info msg="Pod claims-api-7d9f8b6c4-nw7x3 pulling image registry.gjensidige.no/claims-api:2.7.5" namespace=insurance
+2026-03-23T10:31:00.000000000Z stderr F time="2026-03-23T10:31:00Z" level=warn msg="Pod claims-api-7d9f8b6c4-xk2p9 liveness probe FAILED: /actuator/health returned 503 (3 consecutive failures)" namespace=insurance
+2026-03-23T10:31:01.000000000Z stderr F time="2026-03-23T10:31:01Z" level=error msg="Pod claims-api-7d9f8b6c4-xk2p9 container claims-api OOMKilled: Container exceeded memory limit 512Mi, actual usage 567Mi" namespace=insurance
+2026-03-23T10:31:02.000000000Z stderr F time="2026-03-23T10:31:02Z" level=error msg="Pod claims-api-7d9f8b6c4-xk2p9 restarting container claims-api after OOMKilled (exit code 137)" namespace=insurance
+2026-03-23T10:31:10.000000000Z stderr F time="2026-03-23T10:31:10Z" level=error msg="Pod claims-api-7d9f8b6c4-xk2p9 CrashLoopBackOff: back-off 10s restarting failed container" namespace=insurance
+2026-03-23T10:31:15.000000000Z stderr F time="2026-03-23T10:31:15Z" level=info msg="Pod claims-api-7d9f8b6c4-nw7x3 image pulled successfully" namespace=insurance
+2026-03-23T10:31:20.000000000Z stderr F time="2026-03-23T10:31:20Z" level=error msg="Pod claims-api-7d9f8b6c4-nw7x3 init container wait-for-db: FAILED to connect to 10.0.3.5:5432, retrying..." namespace=insurance
+2026-03-23T10:31:30.000000000Z stderr F time="2026-03-23T10:31:30Z" level=error msg="Pod claims-api-7d9f8b6c4-xk2p9 CrashLoopBackOff: back-off 20s restarting failed container (2nd restart)" namespace=insurance
+2026-03-23T10:32:00.000000000Z stderr F time="2026-03-23T10:32:00Z" level=error msg="Pod claims-api-7d9f8b6c4-nw7x3 init container wait-for-db: STILL unable to connect to 10.0.3.5:5432 after 40s" namespace=insurance
+2026-03-23T10:32:30.000000000Z stderr F time="2026-03-23T10:32:30Z" level=error msg="Pod claims-api-7d9f8b6c4-xk2p9 CrashLoopBackOff: back-off 40s restarting failed container (3rd restart)" namespace=insurance
+2026-03-23T10:33:00.000000000Z stderr F time="2026-03-23T10:33:00Z" level=error msg="Node k8s-worker-3 MemoryPressure condition is True: available=523Mi, threshold=512Mi" namespace=kube-system
+2026-03-23T10:33:01.000000000Z stderr F time="2026-03-23T10:33:01Z" level=warn msg="Node k8s-worker-3 evicting pod order-service-5f7d9c8b2-qs4n6 due to MemoryPressure" namespace=kube-system
+2026-03-23T10:33:30.000000000Z stderr F time="2026-03-23T10:33:30Z" level=error msg="Pod claims-api-7d9f8b6c4-xk2p9 CrashLoopBackOff: back-off 80s restarting failed container (4th restart)" namespace=insurance
+2026-03-23T10:34:00.000000000Z stderr F time="2026-03-23T10:34:00Z" level=error msg="Node k8s-worker-3 MemoryPressure: kubelet evicting pods, available memory critically low (489Mi)" namespace=kube-system
+2026-03-23T10:35:00.000000000Z stderr F time="2026-03-23T10:35:00Z" level=warn msg="Node k8s-worker-3 MemoryPressure condition True, taint node-role.kubernetes.io/memory-pressure applied" namespace=kube-system
+2026-03-23T10:38:00.000000000Z stderr F time="2026-03-23T10:38:00Z" level=info msg="Pod claims-api-7d9f8b6c4-nw7x3 init container wait-for-db: PostgreSQL 10.0.3.5:5432 is ready" namespace=insurance
+2026-03-23T10:38:10.000000000Z stderr F time="2026-03-23T10:38:10Z" level=info msg="Pod claims-api-7d9f8b6c4-nw7x3 main container starting: claims-api:2.7.5" namespace=insurance
+2026-03-23T10:38:30.000000000Z stderr F time="2026-03-23T10:38:30Z" level=info msg="Pod claims-api-7d9f8b6c4-nw7x3 readiness probe PASS: /actuator/health 200 OK" namespace=insurance
+2026-03-23T10:38:31.000000000Z stderr F time="2026-03-23T10:38:31Z" level=info msg="Pod claims-api-7d9f8b6c4-nw7x3 added to service endpoints" namespace=insurance
+2026-03-23T10:40:00.000000000Z stderr F time="2026-03-23T10:40:00Z" level=info msg="Pod claims-api-7d9f8b6c4-xk2p9 CrashLoopBackOff backoff expired, attempting restart" namespace=insurance
+2026-03-23T10:40:30.000000000Z stderr F time="2026-03-23T10:40:30Z" level=info msg="Pod claims-api-7d9f8b6c4-xk2p9 started successfully, readiness probe PASS" namespace=insurance
+2026-03-23T10:41:00.000000000Z stderr F time="2026-03-23T10:41:00Z" level=info msg="Node k8s-worker-3 MemoryPressure condition cleared: available=1.2Gi" namespace=kube-system
+2026-03-23T10:41:01.000000000Z stderr F time="2026-03-23T10:41:01Z" level=info msg="Node k8s-worker-3 memory-pressure taint removed" namespace=kube-system
+2026-03-23T10:42:00.000000000Z stderr F time="2026-03-23T10:42:00Z" level=info msg="HorizontalPodAutoscaler claims-api: scaling down to 2 replicas, CPU=15%" namespace=insurance
+2026-03-23T10:45:00.000000000Z stderr F time="2026-03-23T10:45:00Z" level=info msg="All pods in namespace insurance are Ready and healthy" namespace=insurance
+2026-03-23T10:50:00.000000000Z stderr F time="2026-03-23T10:50:00Z" level=info msg="ResourceQuota insurance/compute-quota: used cpu=490m/2000m, memory=1.3Gi/4Gi - normal levels restored" namespace=insurance
+2026-03-23T10:55:00.000000000Z stderr F time="2026-03-23T10:55:00Z" level=info msg="Pod claims-api-7d9f8b6c4-xk2p9 health check PASS /actuator/health - system fully recovered" namespace=insurance

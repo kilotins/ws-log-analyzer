@@ -1,0 +1,69 @@
+10.0.0.100 - - [23/Mar/2026:10:00:01 +0000] "GET /claims HTTP/1.1" 200 4523 "https://minforsikring.gjensidige.no/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" rt=0.312 upstream_addr=10.0.2.30:8443
+10.0.0.101 - - [23/Mar/2026:10:00:02 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "https://minforsikring.gjensidige.no/claims/new" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" rt=0.445 upstream_addr=10.0.2.30:8443
+10.0.0.102 - - [23/Mar/2026:10:00:03 +0000] "GET /claims/CLM-20260323-001 HTTP/1.1" 200 3456 "https://minforsikring.gjensidige.no/claims" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1)" rt=0.289 upstream_addr=10.0.2.30:8443
+10.0.0.103 - - [23/Mar/2026:10:00:05 +0000] "GET /api/v1/policies/POL-2024-88123 HTTP/1.1" 200 2345 "-" "okhttp/4.12.0" rt=0.178 upstream_addr=10.0.2.30:8443
+10.0.0.104 - - [23/Mar/2026:10:00:06 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "https://minforsikring.gjensidige.no/claims/new" "Mozilla/5.0 (Windows NT 10.0)" rt=0.334 upstream_addr=10.0.2.30:8443
+10.0.0.100 - - [23/Mar/2026:10:00:08 +0000] "GET /dashboard HTTP/1.1" 200 8901 "https://minforsikring.gjensidige.no/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" rt=0.234 upstream_addr=10.0.2.40:8080
+10.0.0.105 - - [23/Mar/2026:10:00:10 +0000] "GET /claims HTTP/1.1" 200 4567 "-" "Mozilla/5.0 (Linux; Android 14)" rt=0.267 upstream_addr=10.0.2.30:8443
+10.0.0.106 - - [23/Mar/2026:10:00:12 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "https://minforsikring.gjensidige.no/claims/new" "Mozilla/5.0 (Macintosh)" rt=0.356 upstream_addr=10.0.2.30:8443
+10.0.0.107 - - [23/Mar/2026:10:00:14 +0000] "GET /claims/documents/DOC-1042 HTTP/1.1" 200 45678 "-" "axios/1.6.8" rt=0.567 upstream_addr=10.0.2.30:8443
+10.0.0.108 - - [23/Mar/2026:10:00:15 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "okhttp/4.12.0" rt=0.289 upstream_addr=10.0.2.30:8443
+10.0.0.109 - - [23/Mar/2026:10:00:18 +0000] "GET /claims HTTP/1.1" 200 4523 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" rt=0.201 upstream_addr=10.0.2.30:8443
+10.0.0.110 - - [23/Mar/2026:10:00:20 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (iPhone)" rt=0.312 upstream_addr=10.0.2.30:8443
+10.0.0.111 - - [23/Mar/2026:10:00:22 +0000] "GET /dashboard HTTP/1.1" 200 9012 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" rt=0.245 upstream_addr=10.0.2.40:8080
+10.0.0.112 - - [23/Mar/2026:10:00:25 +0000] "GET /claims/CLM-20260323-002 HTTP/1.1" 200 3567 "-" "Mozilla/5.0 (Macintosh)" rt=0.212 upstream_addr=10.0.2.30:8443
+10.0.0.113 - - [23/Mar/2026:10:00:28 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Linux; Android 14)" rt=0.389 upstream_addr=10.0.2.30:8443
+10.0.0.100 - - [23/Mar/2026:10:02:00 +0000] "GET /claims HTTP/1.1" 200 4523 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" rt=0.234 upstream_addr=10.0.2.30:8443
+10.0.0.114 - - [23/Mar/2026:10:02:30 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Macintosh)" rt=0.301 upstream_addr=10.0.2.30:8443
+10.0.0.115 - - [23/Mar/2026:10:04:00 +0000] "GET /api/v1/policies/POL-2025-10045 HTTP/1.1" 200 2301 "-" "okhttp/4.12.0" rt=0.156 upstream_addr=10.0.2.30:8443
+10.0.0.116 - - [23/Mar/2026:10:05:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.289 upstream_addr=10.0.2.30:8443
+10.0.0.117 - - [23/Mar/2026:10:06:00 +0000] "GET /dashboard HTTP/1.1" 200 8890 "-" "Mozilla/5.0 (iPhone)" rt=0.223 upstream_addr=10.0.2.40:8080
+10.0.0.118 - - [23/Mar/2026:10:08:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Linux; Android 14)" rt=0.334 upstream_addr=10.0.2.30:8443
+10.0.0.119 - - [23/Mar/2026:10:10:00 +0000] "GET /claims HTTP/1.1" 200 5678 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.289 upstream_addr=10.0.2.30:8443
+10.0.0.120 - - [23/Mar/2026:10:12:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Macintosh)" rt=0.267 upstream_addr=10.0.2.30:8443
+10.0.0.121 - - [23/Mar/2026:10:14:00 +0000] "GET /claims/CLM-20260323-004 HTTP/1.1" 200 3456 "-" "Mozilla/5.0 (iPhone)" rt=0.201 upstream_addr=10.0.2.30:8443
+10.0.0.122 - - [23/Mar/2026:10:15:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.312 upstream_addr=10.0.2.30:8443
+10.0.0.123 - - [23/Mar/2026:10:17:00 +0000] "GET /dashboard HTTP/1.1" 200 9123 "-" "Mozilla/5.0 (Linux; Android 14)" rt=0.245 upstream_addr=10.0.2.40:8080
+10.0.0.124 - - [23/Mar/2026:10:18:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Macintosh)" rt=0.356 upstream_addr=10.0.2.30:8443
+10.0.0.125 - - [23/Mar/2026:10:20:00 +0000] "GET /claims HTTP/1.1" 200 4523 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.234 upstream_addr=10.0.2.30:8443
+10.0.0.126 - - [23/Mar/2026:10:22:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (iPhone)" rt=0.289 upstream_addr=10.0.2.30:8443
+10.0.0.127 - - [23/Mar/2026:10:24:00 +0000] "GET /claims/CLM-20260323-006 HTTP/1.1" 200 3456 "-" "Mozilla/5.0 (Linux; Android 14)" rt=0.212 upstream_addr=10.0.2.30:8443
+10.0.0.128 - - [23/Mar/2026:10:26:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Macintosh)" rt=0.301 upstream_addr=10.0.2.30:8443
+10.0.0.129 - - [23/Mar/2026:10:28:00 +0000] "GET /dashboard HTTP/1.1" 200 8901 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.223 upstream_addr=10.0.2.40:8080
+10.0.0.130 - - [23/Mar/2026:10:29:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (iPhone)" rt=0.334 upstream_addr=10.0.2.30:8443
+10.0.0.131 - - [23/Mar/2026:10:30:01 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.789 upstream_addr=10.0.2.30:8443
+10.0.0.132 - - [23/Mar/2026:10:30:10 +0000] "POST /claims/submit HTTP/1.1" 503 612 "-" "Mozilla/5.0 (Macintosh)" rt=10.045 upstream_addr=10.0.2.30:8443
+2026/03/23 10:30:10 [error] 1234#1234: *4521 connect() failed (111: Connection refused) while connecting to upstream, client: 10.0.0.132, server: minforsikring.gjensidige.no, request: "POST /claims/submit HTTP/1.1", upstream: "https://10.0.2.30:8443/claims/submit", host: "minforsikring.gjensidige.no"
+10.0.0.133 - - [23/Mar/2026:10:30:15 +0000] "POST /claims/submit HTTP/1.1" 503 612 "-" "Mozilla/5.0 (iPhone)" rt=10.023 upstream_addr=10.0.2.30:8443
+10.0.0.134 - - [23/Mar/2026:10:30:20 +0000] "GET /claims HTTP/1.1" 504 178 "-" "Mozilla/5.0 (Linux; Android 14)" rt=30.001 upstream_addr=10.0.2.30:8443
+2026/03/23 10:30:20 [error] 1234#1234: *4534 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 10.0.0.134, server: minforsikring.gjensidige.no, request: "GET /claims HTTP/1.1", upstream: "https://10.0.2.30:8443/claims", host: "minforsikring.gjensidige.no"
+10.0.0.135 - - [23/Mar/2026:10:30:25 +0000] "POST /claims/submit HTTP/1.1" 503 612 "-" "Mozilla/5.0 (Macintosh)" rt=10.011 upstream_addr=10.0.2.30:8443
+10.0.0.136 - - [23/Mar/2026:10:30:30 +0000] "POST /claims/submit HTTP/1.1" 503 612 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=10.034 upstream_addr=10.0.2.30:8443
+10.0.0.137 - - [23/Mar/2026:10:30:35 +0000] "GET /dashboard HTTP/1.1" 504 178 "-" "Mozilla/5.0 (iPhone)" rt=30.001 upstream_addr=10.0.2.40:8080
+2026/03/23 10:30:35 [error] 1234#1234: *4545 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 10.0.0.137, server: minforsikring.gjensidige.no, request: "GET /dashboard HTTP/1.1", upstream: "http://10.0.2.40:8080/dashboard", host: "minforsikring.gjensidige.no"
+10.0.0.138 - - [23/Mar/2026:10:31:00 +0000] "POST /claims/submit HTTP/1.1" 503 612 "-" "Mozilla/5.0 (Linux; Android 14)" rt=10.019 upstream_addr=10.0.2.30:8443
+10.0.0.139 - - [23/Mar/2026:10:31:10 +0000] "POST /claims/submit HTTP/1.1" 429 112 "-" "Mozilla/5.0 (Macintosh)" rt=0.001 upstream_addr=-
+2026/03/23 10:31:10 [warn] 1234#1234: *4559 limiting requests, excess: 5.432 by zone "claims_limit", client: 10.0.0.139, server: minforsikring.gjensidige.no, request: "POST /claims/submit HTTP/1.1"
+10.0.0.140 - - [23/Mar/2026:10:31:15 +0000] "POST /claims/submit HTTP/1.1" 429 112 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.001 upstream_addr=-
+10.0.0.141 - - [23/Mar/2026:10:31:20 +0000] "POST /claims/submit HTTP/1.1" 429 112 "-" "Mozilla/5.0 (iPhone)" rt=0.001 upstream_addr=-
+10.0.0.142 - - [23/Mar/2026:10:31:30 +0000] "GET /claims HTTP/1.1" 504 178 "-" "Mozilla/5.0 (Linux; Android 14)" rt=30.001 upstream_addr=10.0.2.30:8443
+2026/03/23 10:31:30 [error] 1234#1234: *4570 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 10.0.0.142, server: minforsikring.gjensidige.no, request: "GET /claims HTTP/1.1", upstream: "https://10.0.2.30:8443/claims", host: "minforsikring.gjensidige.no"
+10.0.0.143 - - [23/Mar/2026:10:32:00 +0000] "POST /claims/submit HTTP/1.1" 502 589 "-" "Mozilla/5.0 (Macintosh)" rt=0.023 upstream_addr=10.0.2.30:8443
+2026/03/23 10:32:00 [error] 1234#1234: *4581 recv() failed (104: Connection reset by peer) while reading response header from upstream, client: 10.0.0.143, server: minforsikring.gjensidige.no, request: "POST /claims/submit HTTP/1.1", upstream: "https://10.0.2.30:8443/claims/submit", host: "minforsikring.gjensidige.no"
+10.0.0.144 - - [23/Mar/2026:10:32:15 +0000] "POST /claims/submit HTTP/1.1" 429 112 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.001 upstream_addr=-
+10.0.0.145 - - [23/Mar/2026:10:32:30 +0000] "GET /claims HTTP/1.1" 502 589 "-" "Mozilla/5.0 (iPhone)" rt=0.034 upstream_addr=10.0.2.30:8443
+10.0.0.100 - - [23/Mar/2026:10:33:00 +0000] "POST /claims/submit HTTP/1.1" 503 612 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" rt=10.001 upstream_addr=10.0.2.30:8443
+10.0.0.101 - - [23/Mar/2026:10:33:30 +0000] "POST /claims/submit HTTP/1.1" 429 112 "-" "Mozilla/5.0 (Macintosh)" rt=0.001 upstream_addr=-
+10.0.0.102 - - [23/Mar/2026:10:34:00 +0000] "GET /claims HTTP/1.1" 504 178 "-" "Mozilla/5.0 (iPhone)" rt=30.001 upstream_addr=10.0.2.30:8443
+10.0.0.103 - - [23/Mar/2026:10:34:30 +0000] "POST /claims/submit HTTP/1.1" 502 589 "-" "Mozilla/5.0 (Linux; Android 14)" rt=0.045 upstream_addr=10.0.2.30:8443
+10.0.0.104 - - [23/Mar/2026:10:35:00 +0000] "POST /claims/submit HTTP/1.1" 429 112 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.001 upstream_addr=-
+10.0.0.105 - - [23/Mar/2026:10:36:00 +0000] "GET /claims HTTP/1.1" 504 178 "-" "Mozilla/5.0 (Macintosh)" rt=30.001 upstream_addr=10.0.2.30:8443
+10.0.0.106 - - [23/Mar/2026:10:37:00 +0000] "POST /claims/submit HTTP/1.1" 503 612 "-" "Mozilla/5.0 (iPhone)" rt=10.012 upstream_addr=10.0.2.30:8443
+10.0.0.107 - - [23/Mar/2026:10:38:00 +0000] "POST /claims/submit HTTP/1.1" 503 612 "-" "Mozilla/5.0 (Linux; Android 14)" rt=10.001 upstream_addr=10.0.2.30:8443
+10.0.0.108 - - [23/Mar/2026:10:40:01 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.567 upstream_addr=10.0.2.30:8443
+10.0.0.109 - - [23/Mar/2026:10:40:30 +0000] "GET /claims HTTP/1.1" 200 4523 "-" "Mozilla/5.0 (Macintosh)" rt=0.289 upstream_addr=10.0.2.30:8443
+10.0.0.110 - - [23/Mar/2026:10:41:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (iPhone)" rt=0.334 upstream_addr=10.0.2.30:8443
+10.0.0.111 - - [23/Mar/2026:10:42:00 +0000] "GET /dashboard HTTP/1.1" 200 8901 "-" "Mozilla/5.0 (Linux; Android 14)" rt=0.245 upstream_addr=10.0.2.40:8080
+10.0.0.112 - - [23/Mar/2026:10:45:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (Windows NT 10.0)" rt=0.301 upstream_addr=10.0.2.30:8443
+10.0.0.113 - - [23/Mar/2026:10:50:00 +0000] "GET /claims HTTP/1.1" 200 4523 "-" "Mozilla/5.0 (Macintosh)" rt=0.267 upstream_addr=10.0.2.30:8443
+10.0.0.114 - - [23/Mar/2026:10:55:00 +0000] "POST /claims/submit HTTP/1.1" 201 1234 "-" "Mozilla/5.0 (iPhone)" rt=0.312 upstream_addr=10.0.2.30:8443
