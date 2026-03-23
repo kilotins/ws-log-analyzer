@@ -393,12 +393,15 @@ if "_app_theme" not in st.session_state:
     if isinstance(_saved_theme, dict) and _saved_theme.get("theme"):
         st.session_state._app_theme = _saved_theme["theme"]
         # Apply theme config immediately before UI renders
-        import streamlit.config as _stcfg_init
-        if _saved_theme["theme"] == "dark":
-            _stcfg_init.set_option("theme.base", "dark")
-            _stcfg_init.set_option("theme.backgroundColor", "#0d1117")
-            _stcfg_init.set_option("theme.secondaryBackgroundColor", "#161b22")
-            _stcfg_init.set_option("theme.textColor", "#e6edf3")
+        try:
+            import streamlit.config as _stcfg_init
+            if _saved_theme["theme"] == "dark":
+                _stcfg_init.set_option("theme.base", "dark")
+                _stcfg_init.set_option("theme.backgroundColor", "#0d1117")
+                _stcfg_init.set_option("theme.secondaryBackgroundColor", "#161b22")
+                _stcfg_init.set_option("theme.textColor", "#e6edf3")
+        except (ImportError, AttributeError):
+            pass
 
 # --- Streamlit UI ---
 _FAVICON = str(_APP_DIR / "assets" / "favicon.svg")

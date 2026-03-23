@@ -442,6 +442,8 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                 if answer:
                     st.session_state._incident_answer = answer
                     st.session_state._incident_model = selected_model
+                    st.session_state._incident_provider = provider
+                    st.session_state._incident_model_id = model_id
                     cached_answer = answer
 
                     # Save incident fingerprint to session history
