@@ -87,12 +87,12 @@ class TestBuildIncidentSystemPrompt:
 
     def test_lists_all_supported_formats(self):
         prompt = build_incident_system_prompt()
-        for fmt in ("was", "nginx", "log4j", "json", "python", "syslog", "enonic", "crio"):
+        for fmt in ("was", "nginx", "log4j", "json", "python", "syslog", "enonic", "crio", "datapower"):
             assert fmt in prompt
 
     def test_suggests_additional_logs(self):
         prompt = build_incident_system_prompt("was")
-        assert "additional log formats" in prompt
+        assert "Missing Logs" in prompt
 
     def test_multi_source_mode(self):
         prompt = build_incident_system_prompt(
