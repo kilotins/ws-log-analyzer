@@ -1,0 +1,36 @@
+20260320T141500.000Z [default][info][0x00000000] DataPower Gateway started successfully, firmware version 10.5.0.4
+20260320T141501.000Z [default][info][0x00000000] Service 'payment-proxy' listening on port 9443
+20260320T141502.000Z [mpgw][info][0x00000000] Transaction completed: 200 OK (12ms) client=10.0.0.50
+20260320T141503.000Z [mpgw][info][0x00000000] Transaction completed: 200 OK (8ms) client=10.0.0.51
+20260320T141530.000Z [ssl][warn][0x80e10005] CRL check warning: CRL for CA 'Intermediate-CA-1' expires in 24 hours
+20260320T141542.123Z [default][error][0x80e00001] Connection refused to backend service 'https://api.example.com:8443/v1/payments'
+20260320T141542.456Z [default][error][0x80e00001] Connection refused to backend service 'https://api.example.com:8443/v1/orders'
+20260320T141543.456Z [apiconnect][warn][0x80b00234] Rate limit threshold at 80% for plan 'gold', client-id='app-checkout-prod'
+20260320T141544.789Z [mpgw][error][0x8060001a] Processing policy 'payment-validate' action failed at step 3
+  Transform error in stylesheet 'payment-map.xsl':
+  XSLT execution error: variable 'amount' is undefined
+  Input document: <payment><order-id>88750</order-id></payment>
+20260320T141545.012Z [xmlparse][error][0x80c00001] XML parsing failed: not well-formed at line 23, column 45
+  Expected closing tag for element 'transaction'
+  Context: ...><amount>149.99</amount><currency>USD</curren...
+20260320T141546.345Z [ssl][error][0x80e10001] SSL handshake failed: peer certificate expired
+  Subject: CN=api.example.com, O=Example Corp
+  Issuer: CN=DigiCert SHA2 Extended Validation Server CA
+  Expired: 2026-03-19T23:59:59Z (1 day ago)
+20260320T141547.000Z [ssl][error][0x80e10003] Certificate not trusted: incomplete chain for 'api.example.com'
+20260320T141548.000Z [aaa][error][0x80d00001] Authentication failed for user 'svc-checkout' against LDAP server 10.0.1.20:636
+20260320T141548.500Z [aaa][error][0x80d00004] LDAP connection failed: connection timeout to 10.0.1.20:636 after 30000ms
+20260320T141549.000Z [network][error][0x80e00003] DNS resolution failed for hostname 'internal-db.corp.local'
+20260320T141550.000Z [default][error][0x80e00002] Connection timeout to backend 'https://db-proxy.internal:5432' after 30000ms
+  java.net.SocketTimeoutException: connect timed out
+	at java.net.Socket.connect(Socket.java:589)
+	at com.ibm.datapower.net.ConnectionManager.open(ConnectionManager.java:234)
+	at com.ibm.datapower.processing.BackendHandler.invoke(BackendHandler.java:156)
+Caused by: java.io.IOException: Connection timed out
+	at sun.nio.ch.SocketChannelImpl.connect(SocketChannelImpl.java:734)
+20260320T141551.000Z [default][error][0x80e00004] Connection reset by peer: backend 'https://api.example.com:8443/v1/refunds'
+20260320T141552.000Z [crypto][error][0x80a00001] Key generation failed: algorithm 'RSA-4096' not supported by current firmware
+20260320T141553.000Z [apiconnect][error][0x80b00001] API subscription not found for client-id 'unknown-app', catalog 'production'
+20260320T141554.000Z [default][critical][0x80e00010] No route to host: 10.0.2.100:443 — network partition detected
+20260320T141555.000Z [mpgw][info][0x00000000] Transaction completed: 200 OK (45ms) client=10.0.0.52
+20260320T141600.000Z [default][info][0x00000000] Health check OK: all backend services responding
