@@ -28,6 +28,7 @@ _FORMAT_SPECIALIST: dict[str, str] = {
     "enonic":     "Enonic XP CMS platform",
     "crio":       "Kubernetes/OpenShift container platform (CRI-O)",
     "datapower":  "IBM DataPower API Gateway (SSL, AAA, MPGW, API Connect)",
+    "tomcat":     "Apache Tomcat / Catalina application server (JUL)",
 }
 
 _FORMAT_PLACEHOLDER: dict[str, str] = {
@@ -40,6 +41,7 @@ _FORMAT_PLACEHOLDER: dict[str, str] = {
     "enonic":     "e.g. RepositoryException, cluster RED, blob not found",
     "crio":       "e.g. CrashLoopBackOff, OOMKilled, liveness probe failed",
     "datapower":  "e.g. 0x80e00001 connection refused, SSL handshake failed, circuit breaker open, API rate limit",
+    "tomcat":     "e.g. SEVERE pool exhausted, LifecycleException, stuck thread, deployment failed",
 }
 
 
@@ -291,6 +293,7 @@ _SKILL_FORMAT_MAP: dict[str, list[str]] = {
     "enonic":     ["enonic-xp-analysis.md"],
     "crio":       ["openshift-k8s-analysis.md"],
     "datapower":  ["datapower-analysis.md"],
+    "tomcat":     ["tomcat-analysis.md"],
 }
 
 
