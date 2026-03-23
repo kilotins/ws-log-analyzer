@@ -9,7 +9,7 @@ from pathlib import Path
 from .event import LogEvent, ERROR_LEVELS
 from .parser import parse_file
 from .analysis import summarize
-from .reports import render_json_report, render_markdown_report
+from .reports import render_json_report, render_markdown_report, render_html_report
 from .ai import build_claude_prompt, _sanitize_prompt_input
 
 
@@ -22,8 +22,8 @@ def main() -> None:
     ap.add_argument("--top", type=int, default=10, help="Top-N items in summary.")
     ap.add_argument("--samples", type=int, default=5, help="How many sample events to print.")
     ap.add_argument("--hist-minutes", type=int, default=1, help="Histogram bucket size in minutes.")
-    ap.add_argument("--out", default="report.md", help="Write markdown report to this file.")
-    ap.add_argument("--format", choices=["markdown", "json"], default="markdown", help="Output format.")
+    ap.add_argument("--out", default=None, help="Output file path (default: report.md/json/html based on format).")
+    ap.add_argument("--format", choices=["markdown", "json", "html"], default="markdown", help="Output format.")
     ap.add_argument("--claude", action="store_true", help="Also ask Claude for root-cause suggestions (sanitized).")
     ap.add_argument("--model", default="claude-sonnet-4-6", help="Claude model to use with --claude.")
     ap.add_argument("-q", "--quiet", action="store_true", help="Suppress progress messages.")
@@ -88,14 +88,21 @@ def main() -> None:
     if not args.quiet and len(file_paths) > 1:
         print(f"  Combined: {len(all_events)} events from {len(file_paths)} files", file=sys.stderr)
 
-    out_path = Path(args.out)
-    if args.format == "json" and args.out == "report.md":
-        out_path = out_path.with_suffix(".json")
+    _format_ext = {"markdown": ".md", "json": ".json", "html": ".html"}
+    if args.out:
+        out_path = Path(args.out)
+    else:
+        out_path = Path("report" + _format_ext[args.format])
+
+    from .analysis import precompute_analysis
+    _analysis = precompute_analysis(all_events, top_n=args.top, samples_n=args.samples, hist_minutes=args.hist_minutes)
 
     if args.format == "json":
-        report = render_json_report(all_events, top_n=args.top, samples_n=args.samples, hist_minutes=args.hist_minutes)
+        report = render_json_report(all_events, _analysis=_analysis)
+    elif args.format == "html":
+        report = render_html_report(all_events, _analysis=_analysis)
     else:
-        report = render_markdown_report(all_events, top_n=args.top, samples_n=args.samples, hist_minutes=args.hist_minutes)
+        report = render_markdown_report(all_events, _analysis=_analysis)
 
     out_path.write_text(report, encoding="utf-8")
     if not args.quiet:
