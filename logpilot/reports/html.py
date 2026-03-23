@@ -51,7 +51,17 @@ def render_html_report(
     file_summary = a["file_summary"]
     causes = a["causes"]
     hung = a["hung"]
+    grouped = a.get("grouped")
+    failure_chain = a.get("failure_chain", {})
     _title, _subtitle = _report_meta(a)
+
+    # Determine primary confidence for smart collapse
+    _primary_confidence = "Medium"
+    if grouped:
+        for _g in grouped.get("groups", []):
+            if _g.get("is_primary"):
+                _primary_confidence = _g.get("confidence", {}).get("label", "Medium")
+                break
 
     # --- Collect nav items ---
     nav_items: list[tuple[str, str]] = []  # (id, label)
@@ -69,29 +79,32 @@ def render_html_report(
     error_count = sum(level_counts.get(l, 0) for l in ("ERROR", "SEVERE", "FATAL"))
     warn_count = level_counts.get("WARNING", 0) + level_counts.get("WARN", 0)
 
-    # Section order: insights first, raw data last
-    if _sec(sections, "onset") and a.get("incident_timeline", {}).get("trigger_dt"):
-        _add_nav("Problem Onset")
-    if _sec(sections, "ai") and ai_content and ai_content.get("incident"):
-        _add_nav("AI Analysis")
+    # Section order: decision-driven (insights first, supporting data last)
+    # 1. Incident Summary (merged onset + primary + confidence + chain + AI)
+    _has_onset = _sec(sections, "onset") and a.get("incident_timeline", {}).get("trigger_dt")
+    _has_ai = _sec(sections, "ai") and ai_content and ai_content.get("incident")
+    _has_primary = grouped and any(g.get("is_primary") for g in grouped.get("groups", []))
+    if _has_onset or _has_ai or _has_primary:
+        _add_nav("Incident Summary")
+    # 2. Causes Hierarchy
     if _sec(sections, "causes") and causes:
         _add_nav("Likely Causes & Fixes")
-    if _sec(sections, "levels"):
-        _add_nav("Severity Distribution")
-    if _sec(sections, "codes") and s["codes"]:
-        _add_nav("Message Codes")
-    if _sec(sections, "exceptions") and s["exceptions"]:
-        _add_nav("Exceptions")
-    if _sec(sections, "tags") and s["tags"]:
-        _add_nav("Signal Tags")
-    if _sec(sections, "hung") and hung:
-        _add_nav("Hung Thread Drilldown")
-    if _sec(sections, "timeline"):
-        _add_nav("Timeline")
-    if _sec(sections, "files") and len(file_summary) > 1:
-        _add_nav("Per-File Breakdown")
-    if _sec(sections, "samples"):
-        _add_nav("Sample Events")
+    # 3. Key Evidence (timeline + hung threads)
+    _has_evidence = _sec(sections, "timeline") or (_sec(sections, "hung") and hung)
+    if _has_evidence:
+        _add_nav("Key Evidence")
+    # 4. Supporting Data (smart collapse)
+    _has_supporting = (
+        _sec(sections, "levels")
+        or (_sec(sections, "codes") and s["codes"])
+        or (_sec(sections, "exceptions") and s["exceptions"])
+        or (_sec(sections, "tags") and s["tags"])
+        or (_sec(sections, "files") and len(file_summary) > 1)
+        or _sec(sections, "samples")
+    )
+    if _has_supporting:
+        _add_nav("Supporting Data")
+    # 5. AI Queries (history)
     if _sec(sections, "ai") and ai_content and ai_content.get("ask_ai"):
         _add_nav("AI Queries")
 
@@ -221,6 +234,13 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
 .sample-meta { font-size:0.8rem; color:var(--text-muted); margin-bottom:8px; }
 .onset-alert { background:var(--red-bg); border:1px solid var(--red);
   border-radius:8px; padding:14px; margin:12px 0; color:var(--red); }
+.badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; margin-left:8px; }
+.badge-high { background:var(--green-bg); color:var(--green); }
+.badge-medium { background:var(--yellow-bg); color:var(--yellow); }
+.badge-low { background:var(--red-bg); color:var(--red); }
+.chain { font-size:14px; margin:10px 0; padding:10px 14px; background:var(--bg-tertiary);
+  border-radius:6px; border-left:3px solid var(--accent); color:var(--text-secondary); }
+.chain .arrow { color:var(--text-muted); margin:0 6px; }
 .footer { margin-top:32px; padding-top:12px; border-top:1px solid var(--border);
   color:var(--text-muted); font-size:0.75rem; text-align:center; }
 .footer a { color:var(--accent); }
@@ -290,13 +310,21 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
     def _close_section() -> None:
         h.append('</div></details>')
 
-    # --- Render sections (insights first, raw data last) ---
+    # --- Render sections (decision-driven: insights first, supporting data last) ---
 
-    # 1. Problem onset
-    if _sec(sections, "onset"):
+    # Prepare grouped data (use pre-computed from precompute_analysis if available)
+    if not grouped and causes:
+        from ..heuristics import group_into_incidents
+        grouped = group_into_incidents(causes)
+    from ..heuristics import collect_group_evidence
+
+    # 1. Incident Summary (merged: onset + primary incident + confidence + chain + AI)
+    if _has_onset or _has_ai or _has_primary:
+        _open_section(True)
+
+        # Problem onset
         itl = a.get("incident_timeline")
-        if itl and itl.get("trigger_dt"):
-            _open_section(True)
+        if _has_onset and itl and itl.get("trigger_dt"):
             trigger = itl.get("trigger_event", {})
             trigger_dt = itl["trigger_dt"]
             _t_parts = [trigger.get("level", "ERROR")]
@@ -308,51 +336,73 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 f'<div class="onset-alert">'
                 f'<strong>Problem onset: {escape(trigger_dt.strftime("%Y-%m-%d %H:%M:%S"))}</strong>'
                 f' &mdash; {" ".join(_t_parts)}</div>')
-            _close_section()
 
-    # 2. AI analysis (primary insight)
-    if _sec(sections, "ai") and ai_content:
-        incident = ai_content.get("incident")
-        if incident:
-            _open_section(True)
-            h.append('<div class="ai-section">')
-            model = ai_content.get("incident_model", "AI")
-            _q = ai_content.get("incident_query", "")
-            if _q:
-                h.append(f'<h3>Q: {escape(_q[:120])}</h3>')
-            h.append(f'<div class="sample-meta">Model: {escape(model)}</div>')
-            h.append(f'<div class="ai-answer">{escape(incident)}</div>')
-            h.append('</div>')
-            _close_section()
+        # Primary incident with confidence badge
+        if grouped:
+            for g in grouped.get("groups", []):
+                if g.get("is_primary"):
+                    conf = g.get("confidence", {})
+                    conf_label = conf.get("label", "Medium")
+                    conf_score = conf.get("score", 0.5)
+                    badge_cls = f"badge-{conf_label.lower()}"
+                    h.append(f'<h3>Primary incident: {escape(g["name"])}'
+                             f'<span class="badge {badge_cls}">{conf_label} confidence ({conf_score:.0%})</span></h3>')
+                    h.append(f'<p><em>{escape(g["narrative"])}</em></p>')
+                    h.append(f'<p><strong>{escape(g.get("investigate_first", ""))}</strong></p>')
 
-    # 3. Likely causes
-    if _sec(sections, "causes") and causes:
-        from ..heuristics import group_into_incidents
-        grouped = group_into_incidents(causes)
+                    # Affected systems
+                    systems_list = g.get("affected_systems", [])
+                    if systems_list:
+                        h.append(f'<p>Affected systems: {escape(", ".join(systems_list))}</p>')
+                    break
+
+        # Failure chain
+        chain_text = failure_chain.get("chain_text", "")
+        if chain_text:
+            chain_html = ' <span class="arrow">&rarr;</span> '.join(
+                escape(step) for step in failure_chain.get("primary_chain", []))
+            h.append(f'<div class="chain"><strong>Failure chain:</strong> {chain_html}</div>')
+
+        # Secondary findings
+        secondary = failure_chain.get("secondary_findings", [])
+        if secondary:
+            h.append(f'<p><em>Also detected: {escape(", ".join(secondary))}</em></p>')
+
+        # AI analysis inline
+        if _has_ai and ai_content:
+            incident = ai_content.get("incident")
+            if incident:
+                h.append('<div class="ai-section">')
+                model = ai_content.get("incident_model", "AI")
+                _q = ai_content.get("incident_query", "")
+                if _q:
+                    h.append(f'<h3>Q: {escape(_q[:120])}</h3>')
+                h.append(f'<div class="sample-meta">Model: {escape(model)}</div>')
+                h.append(f'<div class="ai-answer">{escape(incident)}</div>')
+                h.append('</div>')
+
+        _close_section()
+
+    # 2. Causes Hierarchy (with confidence badges per group)
+    if _sec(sections, "causes") and causes and grouped:
         _open_section(True)
-
-        # Primary incident banner
-        for g in grouped["groups"]:
-            if g.get("is_primary"):
-                h.append(f'<div class="onset-alert"><strong>Primary incident: {escape(g["name"])}</strong>'
-                         f' &mdash; {escape(g.get("investigate_first", ""))}</div>')
-                break
-
-        for g in grouped["groups"]:
+        for g in grouped.get("groups", []):
             cascade = g.get("cascade_order", "")
             rank = g.get("rank", "")
             label = "root cause" if g.get("is_primary") else cascade
+            conf = g.get("confidence", {})
+            conf_label = conf.get("label", "")
+            conf_score = conf.get("score", 0)
+            badge_cls = f"badge-{conf_label.lower()}" if conf_label else ""
+            badge_html = f' <span class="badge {badge_cls}">{conf_label} {conf_score:.0%}</span>' if conf_label else ""
             h.append('<div class="cause">')
-            h.append(f'<h3>Step {rank} &mdash; {escape(g["name"])} ({g["total_count"]:,} events) &mdash; {escape(label)}</h3>')
+            h.append(f'<h3>Step {rank} &mdash; {escape(g["name"])} ({g["total_count"]:,} events) &mdash; {escape(label)}{badge_html}</h3>')
             h.append(f'<p><em>{escape(g["narrative"])}</em></p>')
 
-            # Investigate directive
             directive = g.get("investigate_first", "")
             if directive:
                 h.append(f'<p><strong>{escape(directive)}</strong></p>')
 
-            # Evidence (deduplicated)
-            from ..heuristics import collect_group_evidence
             ev_lines = collect_group_evidence(g)
             if ev_lines:
                 h.append(f'<pre style="font-size:12px;padding:8px">{escape(chr(10).join(ev_lines))}</pre>')
@@ -367,7 +417,7 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 for fix in t["fixes"]:
                     h.append(f'<li>{escape(fix)}</li>')
             h.append('</ul></details></div>')
-        if grouped["ungrouped"]:
+        if grouped.get("ungrouped"):
             h.append('<h3>Other Findings</h3>')
             for c in grouped["ungrouped"]:
                 h.append('<div class="cause">')
@@ -379,98 +429,100 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 h.append('</ul></details></div>')
         _close_section()
 
-    # 4. Severity
-    if _sec(sections, "levels"):
-        _open_section()
-        h.append('<div class="table-wrap"><table><thead><tr><th>Level</th><th>Count</th></tr></thead><tbody>')
-        for k, v in s["levels"]:
-            cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
-            h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v:,}</td></tr>')
-        h.append('</tbody></table></div>')
+    # 3. Key Evidence (timeline + hung threads)
+    _expand_supporting = _primary_confidence in ("Low", None, "")
+    if _has_evidence:
+        _open_section(True)
+        # Timeline
+        if _sec(sections, "timeline"):
+            h.append('<h3>Timeline</h3>')
+            _export_hist = compact_histogram(hist)
+            hist_lines = render_histogram(_export_hist)
+            h.append(f'<pre>{escape(chr(10).join(hist_lines))}</pre>')
+        # Hung threads
+        if _sec(sections, "hung") and hung:
+            h.append('<h3>Hung Thread Drilldown</h3>')
+            for t in hung:
+                h.append(f'<h3>{escape(t["thread_name"])} ({t["count"]} occurrence{"s" if t["count"] != 1 else ""})</h3>')
+                if t["stack_sample"]:
+                    h.append(f'<pre>{escape(chr(10).join(t["stack_sample"]))}</pre>')
         _close_section()
 
-    # 5. Message codes
-    if _sec(sections, "codes") and s["codes"]:
-        _open_section()
-        h.append('<div class="table-wrap"><table><thead><tr><th>Code</th><th>Count</th></tr></thead><tbody>')
-        for k, v in s["codes"]:
-            h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
-        h.append('</tbody></table></div>')
+    # 4. Supporting Data (smart collapse: expanded on Low confidence, collapsed on High)
+    if _has_supporting:
+        _open_section(_expand_supporting)
+
+        # Severity
+        if _sec(sections, "levels"):
+            h.append('<h3>Severity Distribution</h3>')
+            h.append('<div class="table-wrap"><table><thead><tr><th>Level</th><th>Count</th></tr></thead><tbody>')
+            for k, v in s["levels"]:
+                cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
+                h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v:,}</td></tr>')
+            h.append('</tbody></table></div>')
+
+        # Message codes
+        if _sec(sections, "codes") and s["codes"]:
+            h.append('<h3>Message Codes</h3>')
+            h.append('<div class="table-wrap"><table><thead><tr><th>Code</th><th>Count</th></tr></thead><tbody>')
+            for k, v in s["codes"]:
+                h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
+            h.append('</tbody></table></div>')
+
+        # Exceptions
+        if _sec(sections, "exceptions") and s["exceptions"]:
+            h.append('<h3>Exceptions</h3>')
+            h.append('<div class="table-wrap"><table><thead><tr><th>Exception</th><th>Count</th></tr></thead><tbody>')
+            for k, v in s["exceptions"]:
+                h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
+            h.append('</tbody></table></div>')
+
+        # Signal tags
+        if _sec(sections, "tags") and s["tags"]:
+            h.append('<h3>Signal Tags</h3>')
+            for tag, count in s["tags"]:
+                h.append(f'<span class="tag">{escape(tag)}: {count:,}</span>')
+
+        # Per-file breakdown
+        if _sec(sections, "files") and len(file_summary) > 1:
+            h.append('<h3>Per-File Breakdown</h3>')
+            h.append('<div class="table-wrap"><table><thead><tr><th>File</th><th>Events</th><th>Errors</th></tr></thead><tbody>')
+            for fname, total, errors in file_summary:
+                h.append(f'<tr><td>{escape(Path(fname).name)}</td><td>{total:,}</td><td>{errors:,}</td></tr>')
+            h.append('</tbody></table></div>')
+
+        # Sample events
+        if _sec(sections, "samples"):
+            h.append('<h3>Sample Events</h3>')
+            for idx, e in enumerate(samples, start=1):
+                lvl = e.level or "UNKNOWN"
+                cls = "level-error" if lvl in ("ERROR", "SEVERE", "FATAL") else "level-warning" if lvl in ("WARNING", "WARN") else ""
+                header = f'{idx}. <span class="{cls}">{escape(lvl)}</span>'
+                if e.code:
+                    header += f' <code class="inline">{escape(e.code)}</code>'
+                if e.exception:
+                    header += f' &mdash; {escape(e.exception)}'
+                if e.ts:
+                    header += f' ({escape(e.ts)})'
+                sample_label = getattr(e, "sample_label", None)
+                if sample_label:
+                    header += f' <span class="tag">{escape(sample_label)}</span>'
+                h.append(f'<div class="sample"><div class="sample-header">{header}</div>')
+                parts = []
+                if e.tags:
+                    parts.append("Tags: " + ", ".join(e.tags))
+                if e.thread_id:
+                    parts.append(f"Thread: 0x{e.thread_id}")
+                if e.root_cause and e.root_cause != e.exception:
+                    parts.append(f"Root cause: {e.root_cause}")
+                if parts:
+                    h.append(f'<div class="sample-meta">{escape(" | ".join(parts))}</div>')
+                h.append(f'<pre>{escape(e.text[:MAX_EVENT_TEXT])}</pre>')
+                h.append('</div>')
+
         _close_section()
 
-    # 6. Exceptions
-    if _sec(sections, "exceptions") and s["exceptions"]:
-        _open_section()
-        h.append('<div class="table-wrap"><table><thead><tr><th>Exception</th><th>Count</th></tr></thead><tbody>')
-        for k, v in s["exceptions"]:
-            h.append(f'<tr><td><code class="inline">{escape(k)}</code></td><td>{v:,}</td></tr>')
-        h.append('</tbody></table></div>')
-        _close_section()
-
-    # 7. Signal tags
-    if _sec(sections, "tags") and s["tags"]:
-        _open_section()
-        for tag, count in s["tags"]:
-            h.append(f'<span class="tag">{escape(tag)}: {count:,}</span>')
-        _close_section()
-
-    # 8. Hung threads
-    if _sec(sections, "hung") and hung:
-        _open_section()
-        for t in hung:
-            h.append(f'<h3>{escape(t["thread_name"])} ({t["count"]} occurrence{"s" if t["count"] != 1 else ""})</h3>')
-            if t["stack_sample"]:
-                h.append(f'<pre>{escape(chr(10).join(t["stack_sample"]))}</pre>')
-        _close_section()
-
-    # 10. Timeline
-    if _sec(sections, "timeline"):
-        _open_section()
-        _export_hist = compact_histogram(hist)
-        hist_lines = render_histogram(_export_hist)
-        h.append(f'<pre>{escape(chr(10).join(hist_lines))}</pre>')
-        _close_section()
-
-    # 11. Per-file breakdown
-    if _sec(sections, "files") and len(file_summary) > 1:
-        _open_section()
-        h.append('<div class="table-wrap"><table><thead><tr><th>File</th><th>Events</th><th>Errors</th></tr></thead><tbody>')
-        for fname, total, errors in file_summary:
-            h.append(f'<tr><td>{escape(Path(fname).name)}</td><td>{total:,}</td><td>{errors:,}</td></tr>')
-        h.append('</tbody></table></div>')
-        _close_section()
-
-    # 12. Sample events
-    if _sec(sections, "samples"):
-        _open_section()
-        for idx, e in enumerate(samples, start=1):
-            lvl = e.level or "UNKNOWN"
-            cls = "level-error" if lvl in ("ERROR", "SEVERE", "FATAL") else "level-warning" if lvl in ("WARNING", "WARN") else ""
-            header = f'{idx}. <span class="{cls}">{escape(lvl)}</span>'
-            if e.code:
-                header += f' <code class="inline">{escape(e.code)}</code>'
-            if e.exception:
-                header += f' &mdash; {escape(e.exception)}'
-            if e.ts:
-                header += f' ({escape(e.ts)})'
-            sample_label = getattr(e, "sample_label", None)
-            if sample_label:
-                header += f' <span class="tag">{escape(sample_label)}</span>'
-            h.append(f'<div class="sample"><div class="sample-header">{header}</div>')
-            parts = []
-            if e.tags:
-                parts.append("Tags: " + ", ".join(e.tags))
-            if e.thread_id:
-                parts.append(f"Thread: 0x{e.thread_id}")
-            if e.root_cause and e.root_cause != e.exception:
-                parts.append(f"Root cause: {e.root_cause}")
-            if parts:
-                h.append(f'<div class="sample-meta">{escape(" | ".join(parts))}</div>')
-            h.append(f'<pre>{escape(e.text[:MAX_EVENT_TEXT])}</pre>')
-            h.append('</div>')
-        _close_section()
-
-    # 13. AI queries (history)
+    # 5. AI queries (history)
     if _sec(sections, "ai") and ai_content:
         ask_ai = ai_content.get("ask_ai")
         if ask_ai:

@@ -35,6 +35,9 @@ def render_markdown_report(
     samples = a["samples"]
     hist = a["hist"]
     file_summary = a["file_summary"]
+    causes = a["causes"]
+    grouped = a.get("grouped")
+    failure_chain = a.get("failure_chain", {})
 
     md: list[str] = []
     _title, _subtitle = _report_meta(a)
@@ -61,47 +64,55 @@ def render_markdown_report(
 
     md.append("")
 
-    if _sec(sections, "files") and len(file_summary) > 1:
-        md.append("## Per-File Breakdown")
-        for fname, total, errors in file_summary:
-            err_note = f" ({errors} errors)" if errors else ""
-            md.append(f"- `{fname}`: {total} events{err_note}")
-        md.append("")
-
-    if _sec(sections, "levels"):
-        md.append("## Top Levels")
-        md += [f"- **{k}**: {v}" for k, v in s["levels"]]
-        md.append("")
-    if _sec(sections, "codes"):
-        md.append("## Top Message Codes")
-        md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
-        md.append("")
-    if _sec(sections, "exceptions"):
-        md.append("## Top Exceptions/Errors")
-        md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
-        md.append("")
-    if _sec(sections, "tags"):
-        md.append("## Signal Tags")
-        md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
-        md.append("")
-    causes = a["causes"]
-    if _sec(sections, "causes") and causes:
+    # --- 1. Incident Summary (primary + confidence + chain + AI) ---
+    if not grouped and causes:
         from ..heuristics import group_into_incidents
         grouped = group_into_incidents(causes)
-        md.append("## Likely Causes & Fixes")
-        md.append("")
+    from ..heuristics import collect_group_evidence
 
-        # Primary incident callout
+    if grouped and grouped.get("groups"):
         for g in grouped["groups"]:
             if g.get("is_primary"):
-                md.append(f"> **Primary incident: {g['name']}** — {g.get('investigate_first', '')}")
+                conf = g.get("confidence", {})
+                conf_label = conf.get("label", "Medium")
+                conf_score = conf.get("score", 0.5)
+                md.append(f"> **Primary incident: {g['name']}** ({conf_label} confidence, {conf_score:.0%})")
+                chain_text = failure_chain.get("chain_text", "")
+                if chain_text:
+                    md.append(f"> {chain_text}")
+                systems_list = g.get("affected_systems", [])
+                if systems_list:
+                    md.append(f"> Affected systems: {', '.join(systems_list)}")
                 md.append("")
                 break
 
-        for g in grouped["groups"]:
+    # AI analysis (inline after summary)
+    if _sec(sections, "ai") and ai_content:
+        incident = ai_content.get("incident")
+        if incident:
+            _q = ai_content.get("incident_query", "")
+            _q_preview = _q[:80] + "..." if len(_q) > 80 else _q
+            _heading = f"## AI Analysis — {_q_preview}" if _q_preview else "## AI Analysis"
+            md.append(_heading)
+            model = ai_content.get("incident_model", "AI")
+            md.append(f"*Model: {model}*")
+            md.append("")
+            md.append(incident)
+            md.append("")
+
+    # --- 2. Likely Causes & Fixes (with confidence per group) ---
+    if _sec(sections, "causes") and causes and grouped:
+        md.append("## Likely Causes & Fixes")
+        md.append("")
+
+        for g in grouped.get("groups", []):
             rank = g.get("rank", "")
             label = "root cause" if g.get("is_primary") else g.get("cascade_order", "")
-            md.append(f"### Step {rank} — {g['name']} ({g['total_count']} events) — {label}")
+            conf = g.get("confidence", {})
+            conf_label = conf.get("label", "")
+            conf_score = conf.get("score", 0)
+            conf_str = f" [{conf_label} {conf_score:.0%}]" if conf_label else ""
+            md.append(f"### Step {rank} — {g['name']} ({g['total_count']} events) — {label}{conf_str}")
             md.append("")
             md.append(f"*{g['narrative']}*")
             md.append("")
@@ -109,8 +120,6 @@ def render_markdown_report(
             if directive:
                 md.append(f"**{directive}**")
                 md.append("")
-            # Evidence (deduplicated)
-            from ..heuristics import collect_group_evidence
             ev_lines = collect_group_evidence(g)
             if ev_lines:
                 md.append("```")
@@ -130,7 +139,7 @@ def render_markdown_report(
                 for fix in t["fixes"]:
                     md.append(f"- {fix}")
             md.append("")
-        if grouped["ungrouped"]:
+        if grouped.get("ungrouped"):
             md.append("### Other Findings")
             md.append("")
             for c in grouped["ungrouped"]:
@@ -140,6 +149,7 @@ def render_markdown_report(
                     md.append(f"- {fix}")
                 md.append("")
 
+    # --- 3. Key Evidence (timeline + hung threads) ---
     hung = a["hung"]
     if _sec(sections, "hung") and hung:
         md.append("## Hung Thread Drilldown")
@@ -175,6 +185,31 @@ def render_markdown_report(
         md.append("```")
         md.append("")
 
+    # --- 4. Supporting Data ---
+    if _sec(sections, "files") and len(file_summary) > 1:
+        md.append("## Per-File Breakdown")
+        for fname, total, errors in file_summary:
+            err_note = f" ({errors} errors)" if errors else ""
+            md.append(f"- `{fname}`: {total} events{err_note}")
+        md.append("")
+
+    if _sec(sections, "levels"):
+        md.append("## Top Levels")
+        md += [f"- **{k}**: {v}" for k, v in s["levels"]]
+        md.append("")
+    if _sec(sections, "codes"):
+        md.append("## Top Message Codes")
+        md += [f"- `{k}`: {v}" for k, v in s["codes"]] or ["- _(none detected)_"]
+        md.append("")
+    if _sec(sections, "exceptions"):
+        md.append("## Top Exceptions/Errors")
+        md += [f"- `{k}`: {v}" for k, v in s["exceptions"]] or ["- _(none detected)_"]
+        md.append("")
+    if _sec(sections, "tags"):
+        md.append("## Signal Tags")
+        md += [f"- **{k}**: {v}" for k, v in s["tags"]] or ["- _(none detected)_"]
+        md.append("")
+
     if _sec(sections, "samples"):
         md.append("## Sample Events (sanitized)")
         md.append("")
@@ -201,20 +236,8 @@ def render_markdown_report(
             md.append("```")
             md.append("")
 
+    # --- 5. AI Queries (history) ---
     if _sec(sections, "ai") and ai_content:
-        incident = ai_content.get("incident")
-        if incident:
-            md.append("")
-            _q = ai_content.get("incident_query", "")
-            _q_preview = _q[:80] + "..." if len(_q) > 80 else _q
-            _heading = f"## AI Analysis — {_q_preview}" if _q_preview else "## AI Analysis"
-            md.append(_heading)
-            model = ai_content.get("incident_model", "AI")
-            md.append(f"*Model: {model}*")
-            md.append("")
-            md.append(incident)
-            md.append("")
-
         ask_ai = ai_content.get("ask_ai")
         if ask_ai:
             md.append("## Previous AI Queries")

@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
 from .event import ERROR_LEVELS  # noqa: F401 — re-exported for backwards compat
 
 # Re-export public API from submodules for backwards compatibility
-from .heuristics import group_into_incidents, likely_causes  # noqa: F401
+from .heuristics import group_into_incidents, likely_causes, compute_confidence, build_failure_chain  # noqa: F401
 from .parser import HUNG_THREAD_RE, HUNG_THREAD_NAME_RE, STACK_LINE_RE, CAUSED_BY_RE  # noqa: F401
 
 
@@ -701,8 +701,13 @@ def precompute_analysis(events: list[LogEvent], top_n: int = 10, samples_n: int 
     _progress("Analyzing hung threads...", 0.70)
     hung = hung_thread_drilldown(events)
 
-    _progress("Detecting cascades...", 0.90)
+    _progress("Detecting cascades...", 0.85)
     cascades = detect_cross_system_cascades(events)
+
+    _progress("Grouping incidents...", 0.90)
+    from .heuristics import group_into_incidents, build_failure_chain
+    grouped = group_into_incidents(causes, events=events)
+    failure_chain = build_failure_chain(grouped["groups"], cascades)
 
     _progress("Analysis complete", 1.0)
     return {
@@ -713,6 +718,8 @@ def precompute_analysis(events: list[LogEvent], top_n: int = 10, samples_n: int 
         "causes": causes,
         "hung": hung,
         "cascades": cascades,
+        "grouped": grouped,
+        "failure_chain": failure_chain,
     }
 
 
