@@ -178,16 +178,16 @@ def _run_ai_call(provider, model_id, selected_model, msg_dict, image_bytes,
             if provider == "claude":
                 answer, usage = call_claude_api(
                     st.session_state.get("api_key", ""), model_id, msg_dict,
-                    stream_placeholder=stream_placeholder, max_tokens=4096)
+                    stream_placeholder=stream_placeholder, max_tokens=8192)
             elif provider == "gemini":
                 answer, usage = call_gemini_api(
                     st.session_state.get("gemini_api_key", ""), model_id, msg_dict,
-                    max_tokens=4096)
+                    max_tokens=8192)
             elif provider == "openai":
                 answer, usage = call_openai_api(
                     st.session_state.get("openai_api_key", "") or "not-needed",
                     model_id, msg_dict, stream_placeholder=stream_placeholder,
-                    max_tokens=4096)
+                    max_tokens=8192)
             elif provider == "local":
                 _local_key = st.session_state.get("local_ai_api_key", "") or "not-needed"
                 _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
