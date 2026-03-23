@@ -1,0 +1,41 @@
+2026-03-22 09:04:02.001 DEBUG [http-nio-8080-exec-5] no.klpbank.kyc.FolkeregisteretClient - Sending batch lookup request to https://folkeregisteret.api.skatteetaten.no/api/v1/person/lookup/batch
+2026-03-22 09:04:02.002 DEBUG [http-nio-8080-exec-5] no.klpbank.kyc.FolkeregisteretClient - Request body: {"personnumre":["98765432100","11223344556","55667788990"],"felter":["navn","bostedsadresse","postadresse","foedselsdato","statsborgerskap"]}
+2026-03-22 09:04:02.003 DEBUG [http-nio-8080-exec-5] no.klpbank.kyc.FolkeregisteretClient - Request headers: Authorization=Bearer ***REDACTED***, Content-Type=application/json, X-API-Version=v3.2
+2026-03-22 09:04:32.004 ERROR [http-nio-8080-exec-5] no.klpbank.kyc.FolkeregisteretClient - Batch lookup TIMEOUT after 30000ms
+  org.springframework.web.client.ResourceAccessException: I/O error on POST request for "https://folkeregisteret.api.skatteetaten.no/api/v1/person/lookup/batch": Read timed out
+	at org.springframework.web.client.RestTemplate.doExecute(RestTemplate.java:785)
+	at no.klpbank.kyc.FolkeregisteretClient.lookupBatch(FolkeregisteretClient.java:89)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.net.SocketInputStream.socketRead0(Native Method)
+2026-03-22 09:04:03.001 DEBUG [http-nio-8080-exec-6] no.klpbank.kyc.FolkeregisteretClient - Sending person lookup request: GET https://folkeregisteret.api.skatteetaten.no/api/v1/person/55667788990
+2026-03-22 09:04:03.080 DEBUG [http-nio-8080-exec-6] no.klpbank.kyc.FolkeregisteretClient - Response status: 503 Service Unavailable
+2026-03-22 09:04:03.081 DEBUG [http-nio-8080-exec-6] no.klpbank.kyc.FolkeregisteretClient - Response Content-Type: text/html; charset=utf-8
+2026-03-22 09:04:03.082 DEBUG [http-nio-8080-exec-6] no.klpbank.kyc.FolkeregisteretClient - Response body (UNEXPECTED HTML):
+2026-03-22 09:04:03.083 DEBUG [http-nio-8080-exec-6] no.klpbank.kyc.FolkeregisteretClient -   <!DOCTYPE html><html><head><title>503 Service Temporarily Unavailable</title></head><body><h1>503 Service Temporarily Unavailable</h1><p>The server is temporarily unable to service your request due to maintenance downtime. Please try again later.</p><!-- Skatteetaten maintenance window: API v4.0 migration 09:00-09:30 --></body></html>
+2026-03-22 09:04:03.084 ERROR [http-nio-8080-exec-6] no.klpbank.kyc.FolkeregisteretClient - Cannot parse response as JSON: Content-Type is 'text/html', not 'application/json'
+  com.fasterxml.jackson.core.JsonParseException: Unexpected character ('<' (code 60)): expected a valid value (JSON String, Number, Array, Object or token 'null', 'true' or 'false')
+	at com.fasterxml.jackson.core.JsonParser._constructError(JsonParser.java:2391)
+	at no.klpbank.kyc.FolkeregisteretClient.parseResponse(FolkeregisteretClient.java:112)
+2026-03-22 09:04:04.001 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - Sending person lookup request: GET https://folkeregisteret.api.skatteetaten.no/api/v1/person/33445566778
+2026-03-22 09:04:04.068 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - Response status: 200 OK
+2026-03-22 09:04:04.069 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - Response Content-Type: application/json
+2026-03-22 09:04:04.070 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - Response X-API-Version: v4.0.0 (EXPECTED: v3.2)
+2026-03-22 09:04:04.071 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - Response body:
+2026-03-22 09:04:04.072 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient -   {"identifikasjonsnummer":"33445566778","navn":{"fornavn":"Kari","etternavn":"Nordmann"},"adressegradering":"ugradert","kontaktadresse":{"adressenavn":"Storgata","husnummer":"15","postnummer":"0182","poststed":"Oslo"},"foedselsdato":"1985-06-15","statsborgerskap":"NOR","status":"bosatt","kjoenn":"kvinne"}
+2026-03-22 09:04:04.073 ERROR [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - JSON deserialization failed: unknown field 'adressegradering'
+  com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException: Unrecognized field "adressegradering" (class no.klpbank.kyc.model.PersonResponse), not marked as ignorable (5 known properties: "identifikasjonsnummer", "navn", "bostedsadresse", "postadresse", "foedselsdato")
+	at com.fasterxml.jackson.databind.DeserializationContext.handleUnknownProperty(DeserializationContext.java:943)
+	at no.klpbank.kyc.FolkeregisteretClient.parseResponse(FolkeregisteretClient.java:112)
+2026-03-22 09:04:04.074 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - Known fields in PersonResponse v3.2: [identifikasjonsnummer, navn, bostedsadresse, postadresse, foedselsdato]
+2026-03-22 09:04:04.075 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - Received fields from API: [identifikasjonsnummer, navn, adressegradering, kontaktadresse, foedselsdato, statsborgerskap, status, kjoenn]
+2026-03-22 09:04:04.076 DEBUG [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - DIFF: missing=[bostedsadresse, postadresse], new=[adressegradering, kontaktadresse, statsborgerskap, status, kjoenn]
+2026-03-22 09:04:04.077 WARN  [http-nio-8080-exec-7] no.klpbank.kyc.FolkeregisteretClient - API VERSION MISMATCH: requested v3.2, received v4.0.0 — Skatteetaten may have upgraded without deprecation notice
+2026-03-22 09:04:05.001 ERROR [http-nio-8080-exec-8] no.klpbank.kyc.AddressService - Address verification for 33445566778 failed: 'bostedsadresse' is null in API response
+  java.lang.NullPointerException: Cannot invoke "no.klpbank.kyc.model.Address.getPostnummer()" because "bostedsadresse" is null
+	at no.klpbank.kyc.AddressService.verifyAddress(AddressService.java:67)
+	at no.klpbank.kyc.AddressService.lambda$verifyBatch$0(AddressService.java:45)
+2026-03-22 09:04:05.002 DEBUG [http-nio-8080-exec-8] no.klpbank.kyc.AddressService - PersonResponse object: PersonResponse{identifikasjonsnummer='33445566778', navn=Navn{fornavn='Kari', etternavn='Nordmann'}, bostedsadresse=null, postadresse=null, foedselsdato='1985-06-15'}
+2026-03-22 09:04:05.003 DEBUG [http-nio-8080-exec-8] no.klpbank.kyc.AddressService - NOTE: 'bostedsadresse' is null because Folkeregisteret v4.0 renamed it to 'kontaktadresse' + added 'adressegradering' field
+2026-03-22 09:04:05.004 ERROR [http-nio-8080-exec-8] no.klpbank.kyc.OnboardingService - Onboarding #ONB-20260322-015 BLOCKED: address verification failed
+  no.klpbank.kyc.KYCException: Cannot complete KYC for 33445566778 — bostedsadresse unavailable (Folkeregisteret API schema change v3→v4?)
+	at no.klpbank.kyc.OnboardingService.completeOnboarding(OnboardingService.java:112)

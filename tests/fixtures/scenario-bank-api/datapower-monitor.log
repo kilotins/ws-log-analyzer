@@ -1,0 +1,56 @@
+20260322T090000.000Z [monitor][info][0x00000000] === DataPower Gateway Statistics Snapshot ===
+20260322T090000.001Z [monitor][info][0x00000000] Uptime: 14d 3h 22m | Domain: bank-prod | Firmware: 10.5.0.4
+20260322T090000.002Z [monitor][info][0x00000000] --- Connection Pool Status ---
+20260322T090000.003Z [monitor][info][0x00000000]   nav-proxy:      pool=10 active=2  idle=8  max=50  errors=0
+20260322T090000.004Z [monitor][info][0x00000000]   aml-proxy:      pool=10 active=1  idle=9  max=50  errors=0
+20260322T090000.005Z [monitor][info][0x00000000]   vps-proxy:      pool=10 active=1  idle=9  max=50  errors=0
+20260322T090000.006Z [monitor][info][0x00000000]   folkereg-proxy: pool=10 active=3  idle=7  max=50  errors=0
+20260322T090000.007Z [monitor][info][0x00000000]   core-banking:   pool=10 active=2  idle=8  max=50  errors=0
+20260322T090000.008Z [monitor][info][0x00000000] --- Circuit Breaker Status ---
+20260322T090000.009Z [monitor][info][0x00000000]   All circuit breakers: CLOSED
+20260322T090000.010Z [monitor][info][0x00000000] --- HTTP Response Code Distribution (last 5 min) ---
+20260322T090000.011Z [monitor][info][0x00000000]   200: 847  |  201: 12  |  204: 3  |  4xx: 2  |  5xx: 0
+20260322T090300.000Z [monitor][info][0x00000000] === Statistics Snapshot ===
+20260322T090300.001Z [monitor][info][0x00000000] --- Connection Pool Status ---
+20260322T090300.002Z [monitor][info][0x00000000]   nav-proxy:      pool=10 active=3  idle=7  max=50  errors=0
+20260322T090300.003Z [monitor][info][0x00000000]   aml-proxy:      pool=10 active=2  idle=8  max=50  errors=0
+20260322T090300.004Z [monitor][info][0x00000000]   vps-proxy:      pool=10 active=1  idle=9  max=50  errors=0
+20260322T090300.005Z [monitor][info][0x00000000]   folkereg-proxy: pool=10 active=5  idle=5  max=50  errors=0
+20260322T090300.006Z [monitor][info][0x00000000]   core-banking:   pool=10 active=2  idle=8  max=50  errors=0
+20260322T090300.007Z [monitor][info][0x00000000] --- HTTP Response Code Distribution (last 5 min) ---
+20260322T090300.008Z [monitor][info][0x00000000]   200: 912  |  201: 15  |  204: 5  |  4xx: 1  |  5xx: 0
+20260322T090500.000Z [monitor][info][0x00000000] === Statistics Snapshot ===
+20260322T090500.001Z [monitor][info][0x00000000] --- Connection Pool Status ---
+20260322T090500.002Z [monitor][info][0x00000000]   nav-proxy:      pool=10 active=3  idle=7  max=50  errors=0
+20260322T090500.003Z [monitor][info][0x00000000]   aml-proxy:      pool=10 active=2  idle=8  max=50  errors=0
+20260322T090500.004Z [monitor][info][0x00000000]   vps-proxy:      pool=10 active=1  idle=9  max=50  errors=0
+20260322T090500.005Z [monitor][error][0x80e00002]   folkereg-proxy: pool=10 active=10 idle=0  max=50  errors=8  TIMEOUT_COUNT=5  503_COUNT=3
+20260322T090500.006Z [monitor][info][0x00000000]   core-banking:   pool=10 active=2  idle=8  max=50  errors=0
+20260322T090500.007Z [monitor][info][0x00000000] --- Circuit Breaker Status ---
+20260322T090500.008Z [monitor][error][0x00000000]   folkereg-proxy: OPEN (since 09:04:07, failures: 5, last_failure: 503 + timeout)
+20260322T090500.009Z [monitor][info][0x00000000]   nav-proxy:      CLOSED (healthy)
+20260322T090500.010Z [monitor][info][0x00000000]   aml-proxy:      CLOSED (healthy)
+20260322T090500.011Z [monitor][info][0x00000000]   vps-proxy:      CLOSED (healthy)
+20260322T090500.012Z [monitor][info][0x00000000]   core-banking:   CLOSED (healthy)
+20260322T090500.013Z [monitor][info][0x00000000] --- HTTP Response Code Distribution (last 5 min) ---
+20260322T090500.014Z [monitor][error][0x00000000]   200: 534  |  201: 8  |  204: 2  |  4xx: 1  |  5xx: 12 (+12 from folkereg-proxy)
+20260322T090500.015Z [monitor][info][0x00000000] --- Timeout Counters ---
+20260322T090500.016Z [monitor][error][0x00000000]   folkereg-proxy: 5 timeouts (30000ms) in last 5 min — ALL to folkeregisteret.api.skatteetaten.no:443
+20260322T090500.017Z [monitor][info][0x00000000]   nav-proxy:      0 timeouts
+20260322T090500.018Z [monitor][info][0x00000000]   aml-proxy:      0 timeouts
+20260322T090500.019Z [monitor][info][0x00000000]   vps-proxy:      0 timeouts
+20260322T090500.020Z [monitor][info][0x00000000]   core-banking:   0 timeouts
+20260322T090700.000Z [monitor][info][0x00000000] === Statistics Snapshot ===
+20260322T090700.001Z [monitor][info][0x00000000] --- Connection Pool Status ---
+20260322T090700.002Z [monitor][info][0x00000000]   nav-proxy:      pool=10 active=2  idle=8  max=50  errors=0
+20260322T090700.003Z [monitor][info][0x00000000]   aml-proxy:      pool=10 active=1  idle=9  max=50  errors=0
+20260322T090700.004Z [monitor][info][0x00000000]   vps-proxy:      pool=10 active=1  idle=9  max=50  errors=0
+20260322T090700.005Z [monitor][error][0x80e00002]   folkereg-proxy: pool=10 active=0  idle=0  max=50  errors=14  CIRCUIT_BREAKER=OPEN
+20260322T090700.006Z [monitor][info][0x00000000]   core-banking:   pool=10 active=2  idle=8  max=50  errors=0
+20260322T090700.007Z [monitor][info][0x00000000] --- Circuit Breaker Status ---
+20260322T090700.008Z [monitor][error][0x00000000]   folkereg-proxy: OPEN (15 min, 0/3 health checks passed)
+20260322T090700.009Z [monitor][info][0x00000000]   All other proxies: CLOSED (healthy)
+20260322T090700.010Z [monitor][warn][0x00000000] --- Impact Summary ---
+20260322T090700.011Z [monitor][warn][0x00000000]   Affected endpoint: folkeregisteret.api.skatteetaten.no:443
+20260322T090700.012Z [monitor][warn][0x00000000]   Total failed requests: 14 (5 timeout, 3 x 503, 3 schema mismatch, 3 fast-failed by circuit breaker)
+20260322T090700.013Z [monitor][warn][0x00000000]   Unaffected endpoints: nav-api.nav.no, aml-register.finanstilsynet.no, api.vps.no — all healthy

@@ -1,0 +1,82 @@
+20260322T090402.001Z [mpgw][debug][0x00000000] === MPGW TRACE: Transaction TXN-20260322-090402-001 ===
+20260322T090402.002Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 1/6 (Match)
+20260322T090402.003Z [mpgw][debug][0x00000000] Inbound: POST /folkereg/api/v1/person/lookup/batch from 10.0.1.50:42380
+20260322T090402.004Z [mpgw][debug][0x00000000] Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJhbmstc2lnbmluZy1rZXktMjAyNiJ9.***REDACTED***
+20260322T090402.005Z [mpgw][debug][0x00000000] trace=aa11bb22-1111-2222-3333-444455550010
+20260322T090402.006Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 2/6 (JWT Validate)
+20260322T090402.007Z [mpgw][info][0x00000000] JWT validation OK: iss=https://auth.klpbank.no, aud=api-gateway, exp=2026-03-22T10:00:00Z
+20260322T090402.008Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 3/6 (Transform Request)
+20260322T090402.009Z [mpgw][debug][0x00000000] Request transform: added X-Correlation-ID=aa11bb22-1111-2222-3333-444455550010
+20260322T090402.010Z [mpgw][debug][0x00000000] Request transform: added X-Client-Org=KLPBank, X-API-Version=v3.2
+20260322T090402.011Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 4/6 (Route to Backend)
+20260322T090402.012Z [mpgw][debug][0x00000000] Backend: https://folkeregisteret.api.skatteetaten.no:443/api/v1/person/lookup/batch
+20260322T090402.013Z [mpgw][debug][0x00000000] >>> REQUEST HEADERS >>>
+20260322T090402.014Z [mpgw][debug][0x00000000]   POST /api/v1/person/lookup/batch HTTP/1.1
+20260322T090402.015Z [mpgw][debug][0x00000000]   Host: folkeregisteret.api.skatteetaten.no
+20260322T090402.016Z [mpgw][debug][0x00000000]   Authorization: Bearer eyJhbGciOiJSUzI1NiIs...***REDACTED***
+20260322T090402.017Z [mpgw][debug][0x00000000]   Content-Type: application/json
+20260322T090402.018Z [mpgw][debug][0x00000000]   Accept: application/json
+20260322T090402.019Z [mpgw][debug][0x00000000]   X-Correlation-ID: aa11bb22-1111-2222-3333-444455550010
+20260322T090402.020Z [mpgw][debug][0x00000000]   X-Client-Org: KLPBank
+20260322T090402.021Z [mpgw][debug][0x00000000]   X-API-Version: v3.2
+20260322T090402.022Z [mpgw][debug][0x00000000] >>> REQUEST BODY (234 bytes) >>>
+20260322T090402.023Z [mpgw][debug][0x00000000]   {"personnumre":["98765432100","11223344556","55667788990"],"felter":["navn","bostedsadresse","postadresse","foedselsdato","statsborgerskap"]}
+20260322T090402.024Z [mpgw][debug][0x00000000] Waiting for backend response...
+20260322T090432.001Z [mpgw][error][0x80e00002] TIMEOUT after 30000ms — no HTTP response received from folkeregisteret.api.skatteetaten.no:443
+20260322T090432.002Z [mpgw][debug][0x00000000] <<< NO RESPONSE — TCP connection alive but server not responding <<<
+20260322T090432.003Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 5/6 (Error Handler) — TRIGGERED
+20260322T090432.004Z [mpgw][error][0x80e00002] Error handler returning 504 Gateway Timeout to client 10.0.1.50
+20260322T090432.005Z [mpgw][debug][0x00000000] Transaction TXN-20260322-090402-001 FAILED (30001ms)
+
+20260322T090403.001Z [mpgw][debug][0x00000000] === MPGW TRACE: Transaction TXN-20260322-090403-001 ===
+20260322T090403.002Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 1/6 (Match)
+20260322T090403.003Z [mpgw][debug][0x00000000] Inbound: GET /folkereg/api/v1/person/55667788990 from 10.0.1.50:42382
+20260322T090403.004Z [mpgw][debug][0x00000000] trace=aa11bb22-1111-2222-3333-444455550011
+20260322T090403.005Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 4/6 (Route to Backend)
+20260322T090403.006Z [mpgw][debug][0x00000000] >>> REQUEST HEADERS >>>
+20260322T090403.007Z [mpgw][debug][0x00000000]   GET /api/v1/person/55667788990 HTTP/1.1
+20260322T090403.008Z [mpgw][debug][0x00000000]   Host: folkeregisteret.api.skatteetaten.no
+20260322T090403.009Z [mpgw][debug][0x00000000]   Accept: application/json
+20260322T090403.010Z [mpgw][debug][0x00000000]   X-API-Version: v3.2
+20260322T090403.080Z [mpgw][debug][0x00000000] <<< RESPONSE HEADERS (79ms) <<<
+20260322T090403.081Z [mpgw][debug][0x00000000]   HTTP/1.1 503 Service Temporarily Unavailable
+20260322T090403.082Z [mpgw][debug][0x00000000]   Content-Type: text/html; charset=utf-8
+20260322T090403.083Z [mpgw][debug][0x00000000]   Content-Length: 241
+20260322T090403.084Z [mpgw][debug][0x00000000]   Server: nginx/1.24.0
+20260322T090403.085Z [mpgw][debug][0x00000000]   Retry-After: 300
+20260322T090403.086Z [mpgw][debug][0x00000000] <<< RESPONSE BODY (241 bytes) <<<
+20260322T090403.087Z [mpgw][debug][0x00000000]   <!DOCTYPE html><html><head><title>503 Service Temporarily Unavailable</title></head><body><h1>503 Service Temporarily Unavailable</h1><p>The server is temporarily unable to service your request due to maintenance downtime. Please try again later.</p><!-- Skatteetaten maintenance window: API v4.0 migration 09:00-09:30 --></body></html>
+20260322T090403.088Z [mpgw][error][0x80c00001] Content-Type mismatch: expected 'application/json', got 'text/html; charset=utf-8'
+20260322T090403.089Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 5/6 (Error Handler) — TRIGGERED
+20260322T090403.090Z [mpgw][error][0x80c00001] Error handler: backend returned HTML instead of JSON — possible maintenance page
+20260322T090403.091Z [mpgw][debug][0x00000000] Transaction TXN-20260322-090403-001 FAILED (90ms)
+
+20260322T090405.001Z [mpgw][debug][0x00000000] === MPGW TRACE: Transaction TXN-20260322-090405-001 ===
+20260322T090405.002Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 1/6 (Match)
+20260322T090405.003Z [mpgw][debug][0x00000000] Inbound: GET /folkereg/api/v1/person/33445566778 from 10.0.1.51:42390
+20260322T090405.004Z [mpgw][debug][0x00000000] trace=aa11bb22-1111-2222-3333-444455550013
+20260322T090405.005Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 4/6 (Route to Backend)
+20260322T090405.006Z [mpgw][debug][0x00000000] >>> REQUEST HEADERS >>>
+20260322T090405.007Z [mpgw][debug][0x00000000]   GET /api/v1/person/33445566778 HTTP/1.1
+20260322T090405.008Z [mpgw][debug][0x00000000]   Host: folkeregisteret.api.skatteetaten.no
+20260322T090405.009Z [mpgw][debug][0x00000000]   Accept: application/json
+20260322T090405.010Z [mpgw][debug][0x00000000]   X-API-Version: v3.2
+20260322T090405.070Z [mpgw][debug][0x00000000] <<< RESPONSE HEADERS (65ms) <<<
+20260322T090405.071Z [mpgw][debug][0x00000000]   HTTP/1.1 200 OK
+20260322T090405.072Z [mpgw][debug][0x00000000]   Content-Type: application/json
+20260322T090405.073Z [mpgw][debug][0x00000000]   Content-Length: 1456
+20260322T090405.074Z [mpgw][debug][0x00000000]   X-API-Version: v4.0.0
+20260322T090405.075Z [mpgw][debug][0x00000000] <<< RESPONSE BODY (1456 bytes) <<<
+20260322T090405.076Z [mpgw][debug][0x00000000]   {"identifikasjonsnummer":"33445566778","navn":{"fornavn":"Kari","etternavn":"Nordmann"},"adressegradering":"ugradert","kontaktadresse":{"adressenavn":"Storgata","husnummer":"15","postnummer":"0182","poststed":"Oslo"},"foedselsdato":"1985-06-15","statsborgerskap":"NOR","status":"bosatt","kjoenn":"kvinne"}
+20260322T090405.077Z [mpgw][error][0x80c00001] Response SCHEMA VALIDATION FAILED:
+20260322T090405.078Z [mpgw][error][0x80c00001]   MISSING required field: 'bostedsadresse' (PersonResponse v3.2 schema)
+20260322T090405.079Z [mpgw][error][0x80c00001]   UNKNOWN field: 'adressegradering' (not in PersonResponse v3.2 schema)
+20260322T090405.080Z [mpgw][error][0x80c00001]   UNKNOWN field: 'kontaktadresse' (not in PersonResponse v3.2 schema — was 'postadresse' in v3.2)
+20260322T090405.081Z [mpgw][warn][0x00000000]   Response X-API-Version: 'v4.0.0' — our request asked for 'v3.2'
+20260322T090405.082Z [mpgw][warn][0x00000000]   DIAGNOSIS: Folkeregisteret has upgraded from v3.2 to v4.0 — breaking changes detected:
+20260322T090405.083Z [mpgw][warn][0x00000000]     - 'bostedsadresse' REMOVED (was required) → replaced by 'adressegradering' + 'kontaktadresse'
+20260322T090405.084Z [mpgw][warn][0x00000000]     - 'postadresse' RENAMED to 'kontaktadresse'
+20260322T090405.085Z [mpgw][warn][0x00000000]     - New field 'kjoenn' added
+20260322T090405.086Z [mpgw][warn][0x00000000]   ACTION REQUIRED: Update PersonResponse model to handle v4.0 schema
+20260322T090405.087Z [mpgw][debug][0x00000000] Policy: folkereg-person-lookup | Step: 5/6 (Error Handler) — TRIGGERED
+20260322T090405.088Z [mpgw][debug][0x00000000] Transaction TXN-20260322-090405-001 FAILED (87ms) — schema validation error

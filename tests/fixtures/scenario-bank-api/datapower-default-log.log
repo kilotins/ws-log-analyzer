@@ -1,0 +1,37 @@
+20260322T090100.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: POST /api/v1/person/lookup/batch → folkeregisteret.api.skatteetaten.no:443
+20260322T090100.002Z [default][debug][0x00000000] [folkereg-proxy] TLS handshake: TLS 1.2, cipher TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, cert CN=folkeregisteret.api.skatteetaten.no (valid until 2026-09-15)
+20260322T090100.003Z [default][debug][0x00000000] [folkereg-proxy] TCP connection established to 159.171.100.30:443 (pool: 3 active, 7 idle)
+20260322T090100.045Z [default][debug][0x00000000] [folkereg-proxy] Response: 200 OK, Content-Type: application/json, Content-Length: 2341, latency: 44ms
+20260322T090100.046Z [default][debug][0x00000000] [folkereg-proxy] Request COMPLETE: POST /api/v1/person/lookup/batch → 200 (45ms total)
+20260322T090200.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: POST /api/v1/person/income → nav-api.nav.no:443 trace=aa11bb22-1111-2222-3333-444455550005
+20260322T090200.092Z [default][debug][0x00000000] [folkereg-proxy] Response: 200 OK, latency: 91ms — NAV API healthy
+20260322T090400.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: POST /api/v1/person/lookup/batch → folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550008
+20260322T090400.002Z [default][debug][0x00000000] [folkereg-proxy] TCP connection reuse from pool to 159.171.100.30:443 (pool: 8 active, 2 idle)
+20260322T090404.524Z [default][warn][0x80e00002] [folkereg-proxy] Response SLOW: 200 OK, latency: 4523ms (threshold: 3000ms) trace=aa11bb22-1111-2222-3333-444455550008
+20260322T090401.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: GET /api/v1/person/11223344556 → folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550009
+20260322T090406.103Z [default][warn][0x80e00002] [folkereg-proxy] Response SLOW: 200 OK, latency: 5102ms trace=aa11bb22-1111-2222-3333-444455550009
+20260322T090402.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: POST /api/v1/person/lookup/batch → folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550010
+20260322T090402.002Z [default][debug][0x00000000] [folkereg-proxy] TCP connection attempt to 159.171.100.30:443 — pool exhausted (10 active, 0 idle), opening new connection
+20260322T090402.003Z [default][debug][0x00000000] [folkereg-proxy] TCP SYN sent to 159.171.100.30:443 — waiting for SYN-ACK
+20260322T090432.001Z [default][error][0x80e00002] [folkereg-proxy] TIMEOUT: no response after 30000ms, TCP state: ESTABLISHED but no HTTP response received trace=aa11bb22-1111-2222-3333-444455550010
+20260322T090432.002Z [default][debug][0x00000000] [folkereg-proxy] TCP RST sent to 159.171.100.30:443, connection closed
+20260322T090403.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: GET /api/v1/person/55667788990 → folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550011
+20260322T090403.089Z [default][error][0x80c00001] [folkereg-proxy] Response PARSE ERROR: expected Content-Type 'application/json' but received 'text/html; charset=utf-8' trace=aa11bb22-1111-2222-3333-444455550011
+20260322T090403.090Z [default][debug][0x00000000] [folkereg-proxy] Response HTTP status: 503, Content-Length: 241, Server: nginx/1.24.0
+20260322T090403.091Z [default][debug][0x00000000] [folkereg-proxy] Response body (first 512 bytes): <!DOCTYPE html><html><head><title>503 Service Temporarily Unavailable</title></head><body><h1>503 Service Temporarily Unavailable</h1><p>The server is temporarily unable to service your request due to maintenance downtime. Please try again later.</p><!-- Skatteetaten maintenance window --></body></html>
+20260322T090404.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: POST /api/v1/person/lookup/batch → folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550012
+20260322T090434.001Z [default][error][0x80e00002] [folkereg-proxy] TIMEOUT: no response after 30000ms trace=aa11bb22-1111-2222-3333-444455550012
+20260322T090405.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: GET /api/v1/person/33445566778 → folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550013
+20260322T090405.078Z [default][error][0x80c00001] [folkereg-proxy] Response SCHEMA MISMATCH: field 'bostedsadresse' MISSING (required by PersonResponse v3.2) trace=aa11bb22-1111-2222-3333-444455550013
+20260322T090405.079Z [default][debug][0x00000000] [folkereg-proxy] Response contained unexpected field 'adressegradering' (not in schema v3.2)
+20260322T090405.080Z [default][debug][0x00000000] [folkereg-proxy] API-Version header in response: 'v4.0.0' — MISMATCH with expected 'v3.2.1'
+20260322T090405.081Z [default][warn][0x00000000] [folkereg-proxy] BREAKING CHANGE DETECTED: Folkeregisteret API upgraded from v3.2 to v4.0 — 'bostedsadresse' removed, 'adressegradering' added
+20260322T090406.001Z [default][debug][0x00000000] [folkereg-proxy] Request START: GET /api/v1/person/44556677889 → folkeregisteret.api.skatteetaten.no:443 trace=aa11bb22-1111-2222-3333-444455550014
+20260322T090436.001Z [default][error][0x80e00002] [folkereg-proxy] TIMEOUT: no response after 30000ms trace=aa11bb22-1111-2222-3333-444455550014
+20260322T090407.001Z [default][info][0x00000000] [folkereg-proxy] Circuit breaker state change: CLOSED → OPEN (5 failures in 120s, threshold: 5)
+20260322T090407.002Z [default][debug][0x00000000] [folkereg-proxy] All pending requests to folkeregisteret.api.skatteetaten.no will be fast-failed for 60s
+20260322T090500.001Z [default][debug][0x00000000] [folkereg-proxy] Health check: GET https://folkeregisteret.api.skatteetaten.no/api/v1/health
+20260322T090500.089Z [default][error][0x80e00002] [folkereg-proxy] Health check response: 503, body: HTML maintenance page
+20260322T090600.001Z [default][debug][0x00000000] [folkereg-proxy] Health check: GET https://folkeregisteret.api.skatteetaten.no/api/v1/health
+20260322T090600.076Z [default][error][0x80e00002] [folkereg-proxy] Health check response: 503 (still in maintenance)
+20260322T090700.001Z [default][info][0x00000000] [folkereg-proxy] Circuit breaker remains OPEN — 0/3 health checks passed in last 15 min
