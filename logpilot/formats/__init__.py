@@ -14,6 +14,7 @@ from typing import IO
 
 from .base import LogFormat
 from .crio import CRIOFormat
+from .datapower import DataPowerFormat
 from .enonic import EnonicFormat
 from .json_log import JSONFormat
 from .log4j import Log4jFormat
@@ -30,6 +31,7 @@ _FORMATS: list[LogFormat] = [
     NginxFormat(),
     Log4jFormat(),
     CRIOFormat(),
+    DataPowerFormat(),
     PythonFormat(),
     SyslogFormat(),
     EnonicFormat(),
