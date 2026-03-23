@@ -726,11 +726,19 @@ def build_incident_user_prompt(
     parts.append("</log_summary>")
     parts.append("")
 
-    # 3. Heuristic findings
+    # 3. Heuristic findings (with fixes and incident grouping)
     if causes:
         parts.append("<heuristic_findings>")
         for c in causes[:10]:
-            parts.append(f"- {c['title']} ({c['count']} events): {c['cause']}")
+            fixes_str = ""
+            if c.get("fixes"):
+                fixes_str = " Fixes: " + "; ".join(c["fixes"][:3])
+            cascade_str = ""
+            if c.get("cascade_order"):
+                cascade_str = f" [{c['cascade_order']}]"
+            elif c.get("is_primary"):
+                cascade_str = " [root cause]"
+            parts.append(f"- {c['title']} ({c['count']} events){cascade_str}: {c['cause']}{fixes_str}")
         parts.append("</heuristic_findings>")
         parts.append("")
 

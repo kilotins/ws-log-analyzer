@@ -1,0 +1,27 @@
+$ kubectl rollout history deployment/payment-api -n checkout
+deployment.apps/payment-api
+REVISION  CHANGE-CAUSE
+1         Initial deployment 2025-03-10T09:00:00Z — payment-api:2.4.0
+2         image update 2025-03-12T11:30:00Z — payment-api:2.4.1 (HikariPool timeout fix)
+3         config update 2025-03-14T16:00:00Z — env HIKARI_MAX_POOL_SIZE=10, DB_CONNECT_TIMEOUT=30000
+
+$ kubectl rollout history deployment/payment-db -n checkout
+deployment.apps/payment-db
+REVISION  CHANGE-CAUSE
+1         Initial deployment 2025-03-10T09:00:00Z — postgres:16.2-alpine
+2         config update 2025-03-11T14:00:00Z — max_connections=100, shared_buffers=256MB
+
+$ kubectl rollout history deployment/order-service -n checkout
+deployment.apps/order-service
+REVISION  CHANGE-CAUSE
+1         Initial deployment 2025-03-10T09:00:00Z — order-service:1.8.2
+2         image update 2025-03-13T10:00:00Z — order-service:1.8.3 (circuit breaker tuning)
+
+$ kubectl rollout history deployment/checkout-was -n checkout
+deployment.apps/checkout-was
+REVISION  CHANGE-CAUSE
+1         Initial deployment 2025-03-10T09:00:00Z — checkout-was:3.2.0
+2         config update 2025-03-11T15:00:00Z — JDBC pool max=50, transaction timeout=120s
+
+NOTE: No deployments or rollbacks occurred between 2025-03-14T16:00:00Z and 2025-03-15T15:00:00Z.
+The incident at 14:30 UTC on 2025-03-15 was NOT triggered by a code or config change.

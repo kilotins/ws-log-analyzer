@@ -1,0 +1,41 @@
+2025-03-15 14:15:00.000 UTC  kube-system  Normal   NodeHasSufficientMemory   node/worker-node-01   Node worker-node-01 status is now: NodeHasSufficientMemory
+2025-03-15 14:15:00.100 UTC  kube-system  Normal   NodeHasSufficientDisk     node/worker-node-01   Node worker-node-01 status is now: NodeHasSufficientDisk
+2025-03-15 14:15:00.200 UTC  kube-system  Normal   NodeReady                 node/worker-node-01   Node worker-node-01 status is now: NodeReady
+2025-03-15 14:20:00.000 UTC  checkout     Normal   Scheduled                 pod/payment-api-7b8c9d-x2k4f   Successfully assigned checkout/payment-api-7b8c9d-x2k4f to worker-node-01
+2025-03-15 14:20:01.000 UTC  checkout     Normal   Pulled                    pod/payment-api-7b8c9d-x2k4f   Container image "registry.example.com/payment-api:2.4.1" already present on machine
+2025-03-15 14:20:02.000 UTC  checkout     Normal   Created                   pod/payment-api-7b8c9d-x2k4f   Created container payment-api
+2025-03-15 14:20:03.000 UTC  checkout     Normal   Started                   pod/payment-api-7b8c9d-x2k4f   Started container payment-api
+2025-03-15 14:20:05.000 UTC  checkout     Normal   Scheduled                 pod/payment-db-5f6a7b-m3n8p    Successfully assigned checkout/payment-db-5f6a7b-m3n8p to worker-node-01
+2025-03-15 14:20:06.000 UTC  checkout     Normal   Pulled                    pod/payment-db-5f6a7b-m3n8p    Container image "postgres:16.2-alpine" already present on machine
+2025-03-15 14:20:07.000 UTC  checkout     Normal   Created                   pod/payment-db-5f6a7b-m3n8p    Created container postgres
+2025-03-15 14:20:08.000 UTC  checkout     Normal   Started                   pod/payment-db-5f6a7b-m3n8p    Started container postgres
+2025-03-15 14:25:00.000 UTC  checkout     Normal   Pulling                   pod/order-service-8c9d0e-q5r2s  Pulling image "registry.example.com/order-service:1.8.3"
+2025-03-15 14:25:02.000 UTC  checkout     Normal   Pulled                    pod/order-service-8c9d0e-q5r2s  Successfully pulled image in 1.8s
+2025-03-15 14:25:03.000 UTC  checkout     Normal   Started                   pod/order-service-8c9d0e-q5r2s  Started container order-service
+2025-03-15 14:29:30.000 UTC  checkout     Warning  SystemOOM                 node/worker-node-01   System OOM encountered, victim process: replication (PID 24)
+2025-03-15 14:29:45.000 UTC  checkout     Warning  Unhealthy                 pod/payment-db-5f6a7b-m3n8p    Readiness probe failed: could not connect to server: Connection refused
+2025-03-15 14:29:46.000 UTC  checkout     Warning  Unhealthy                 pod/payment-db-5f6a7b-m3n8p    Liveness probe failed: server is in recovery mode
+2025-03-15 14:29:50.000 UTC  checkout     Normal   Pulled                    pod/payment-db-5f6a7b-m3n8p    Readiness probe passed: server accepting connections
+2025-03-15 14:30:01.000 UTC  checkout     Warning  Unhealthy                 pod/payment-db-5f6a7b-m3n8p    Readiness probe failed: FATAL: sorry, too many clients already
+2025-03-15 14:30:05.000 UTC  checkout     Warning  Unhealthy                 pod/payment-api-7b8c9d-x2k4f   Readiness probe failed: HTTP probe failed with statuscode: 503
+2025-03-15 14:30:10.000 UTC  checkout     Warning  Unhealthy                 pod/payment-api-7b8c9d-x2k4f   Liveness probe failed: HTTP probe failed with statuscode: 503
+2025-03-15 14:30:12.000 UTC  checkout     Warning  Evicted                   pod/monitoring-agent-v2k9l      The node was low on resource: memory. Threshold: 100Mi, available: 82Mi
+2025-03-15 14:30:20.000 UTC  kube-system  Warning  NodeHasMemoryPressure     node/worker-node-01   Node worker-node-01 status is now: NodeHasMemoryPressure
+2025-03-15 14:30:25.123 UTC  checkout     Warning  OOMKilled                 pod/payment-api-7b8c9d-x2k4f   Container payment-api exceeded memory limit: 524Mi > 512Mi (request: 256Mi, limit: 512Mi)
+2025-03-15 14:30:25.500 UTC  checkout     Normal   Killing                   pod/payment-api-7b8c9d-x2k4f   Stopping container payment-api
+2025-03-15 14:30:26.000 UTC  checkout     Warning  BackOff                   pod/payment-api-7b8c9d-x2k4f   Back-off restarting failed container payment-api in pod payment-api-7b8c9d-x2k4f_checkout
+2025-03-15 14:30:28.000 UTC  checkout     Warning  BackOff                   pod/payment-api-7b8c9d-x2k4f   Back-off 10s restarting failed container
+2025-03-15 14:30:30.000 UTC  checkout     Warning  Unhealthy                 pod/order-service-8c9d0e-q5r2s  Readiness probe failed: HTTP probe failed with statuscode: 503
+2025-03-15 14:30:38.000 UTC  checkout     Normal   Pulled                    pod/payment-api-7b8c9d-x2k4f   Container image "registry.example.com/payment-api:2.4.1" already present on machine
+2025-03-15 14:30:38.500 UTC  checkout     Normal   Created                   pod/payment-api-7b8c9d-x2k4f   Created container payment-api
+2025-03-15 14:30:39.000 UTC  checkout     Warning  Failed                    pod/payment-api-7b8c9d-x2k4f   Error: failed to start container: bind: address already in use (port 8080)
+2025-03-15 14:30:50.000 UTC  checkout     Warning  BackOff                   pod/payment-api-7b8c9d-x2k4f   Back-off 20s restarting failed container
+2025-03-15 14:31:00.000 UTC  checkout     Warning  FailedScheduling          pod/payment-api-7b8c9d-spare    0/3 nodes are available: 1 node has memory pressure, 2 Insufficient memory
+2025-03-15 14:31:10.000 UTC  checkout     Normal   Created                   pod/payment-api-7b8c9d-x2k4f   Created container payment-api
+2025-03-15 14:31:11.000 UTC  checkout     Normal   Started                   pod/payment-api-7b8c9d-x2k4f   Started container payment-api
+2025-03-15 14:31:30.000 UTC  checkout     Normal   Pulled                    pod/payment-api-7b8c9d-x2k4f   Readiness probe passed
+2025-03-15 14:32:00.000 UTC  checkout     Normal   Pulled                    pod/payment-db-5f6a7b-m3n8p    Readiness probe passed: server accepting connections
+2025-03-15 14:35:00.000 UTC  checkout     Normal   Pulled                    pod/order-service-8c9d0e-q5r2s  Readiness probe passed
+2025-03-15 14:40:00.000 UTC  kube-system  Normal   NodeHasSufficientMemory   node/worker-node-01   Node worker-node-01 status is now: NodeHasSufficientMemory
+2025-03-15 14:40:01.000 UTC  checkout     Normal   ScalingReplicaSet         deployment/payment-api   Scaled up replica set payment-api-7b8c9d to 2
+2025-03-15 14:45:00.000 UTC  kube-system  Normal   NodeReady                 node/worker-node-01   Node worker-node-01 status is now: NodeReady

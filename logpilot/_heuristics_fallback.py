@@ -581,6 +581,25 @@ _HEURISTICS_INLINE = [
         ],
     },
     {
+        "id": "k8s-node-pressure",
+        "title": "Kubernetes Node Memory Pressure",
+        "match": re.compile(
+            r'NodeHasMemoryPressure|NodeHasDiskPressure|SystemOOM'
+            r'|Evicted.*low on resource.*memory|node.*memory pressure'
+            r'|MemoryPressure.*True',
+            re.IGNORECASE,
+        ),
+        "cause": "The Kubernetes node is running out of memory, causing pod evictions and OOM kills. "
+                 "This is a node-level issue — individual pod limits may be fine but the node is overcommitted.",
+        "fixes": [
+            "Check total node memory vs. sum of all pod requests: kubectl describe node <name> | grep -A10 'Allocated resources'.",
+            "Increase the node's memory (larger instance type) or add more nodes to spread the load.",
+            "Set ResourceQuotas and LimitRanges on the namespace to prevent overcommit.",
+            "Review which pods are on this node — a noisy neighbor may be consuming excessive memory.",
+            "Consider pod anti-affinity rules to avoid co-locating memory-heavy workloads (e.g. database + app on same node).",
+        ],
+    },
+    {
         "id": "k8s-scheduling",
         "title": "Pod Scheduling Failure",
         "match": re.compile(
@@ -945,6 +964,30 @@ _CORRELATIONS_INLINE: list[dict[str, Any]] = [
         ],
     },
     {
+        "id": "corr-node-pressure-oomkill",
+        "requires": ["k8s-node-pressure", "k8s-oomkilled"],
+        "title": "Node Memory Pressure Causing Pod OOMKills",
+        "cause": "The Kubernetes node is under memory pressure, causing the kernel to OOM-kill containers. "
+                 "Individual pod memory limits may be correct — the node itself is overcommitted.",
+        "fixes": [
+            "This is a node-level problem, not a pod-level problem. Increase node memory or add nodes first.",
+            "Check total committed memory: kubectl describe node | grep -A10 'Allocated resources'.",
+            "If one pod is the memory hog, set stricter limits on it. Otherwise, scale the node pool.",
+            "Consider pod anti-affinity to avoid co-locating memory-intensive pods on the same node.",
+        ],
+    },
+    {
+        "id": "corr-node-pressure-eviction",
+        "requires": ["k8s-node-pressure", "k8s-scheduling"],
+        "title": "Node Pressure Preventing Pod Scheduling",
+        "cause": "Node memory/disk pressure is preventing new pods from being scheduled, compounding the outage.",
+        "fixes": [
+            "Scale up the node pool or add nodes with more memory.",
+            "Evict non-critical pods to free resources for critical workloads.",
+            "Set PriorityClasses to ensure critical pods get scheduled first during resource pressure.",
+        ],
+    },
+    {
         "id": "corr-oom-kill-service",
         "requires": ["oom-killer", "systemd-service-fail"],
         "title": "OOM Killer Took Down a Service",
@@ -1040,9 +1083,10 @@ _INCIDENT_GROUPS_INLINE: list[dict[str, Any]] = [
     {
         "id": "incident-oom-cascade",
         "name": "Memory Exhaustion Cascade",
-        "trigger_ids": {"oom-gc", "oom-killer", "k8s-oomkilled"},
+        "trigger_ids": {"oom-gc", "oom-killer", "k8s-oomkilled", "k8s-node-pressure"},
         "effect_ids": {"hung-threads", "db-pool", "hikari-pool", "servlet-error",
-                       "transaction-timeout", "http-5xx-generic", "k8s-crashloop"},
+                       "transaction-timeout", "http-5xx-generic", "k8s-crashloop",
+                       "k8s-scheduling"},
         "narrative": "Memory exhaustion triggered a cascade of failures: {effects}. "
                      "Fix the memory issue first — other errors are symptoms.",
     },

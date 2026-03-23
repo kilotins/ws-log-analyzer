@@ -1,0 +1,36 @@
+[2025-03-15T14:25:00.100+0000][info][gc] Using G1
+[2025-03-15T14:25:00.200+0000][info][gc] Initial heap size: 256M, max heap size: 512M
+[2025-03-15T14:25:00.300+0000][info][gc,init] Heap Region Size: 1M
+[2025-03-15T14:26:00.100+0000][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 128M->45M(512M) 4.234ms
+[2025-03-15T14:27:00.200+0000][info][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 156M->52M(512M) 5.102ms
+[2025-03-15T14:28:00.300+0000][info][gc] GC(2) Pause Young (Normal) (G1 Evacuation Pause) 178M->68M(512M) 6.891ms
+[2025-03-15T14:29:00.100+0000][info][gc] GC(3) Pause Young (Normal) (G1 Evacuation Pause) 210M->95M(512M) 8.456ms
+[2025-03-15T14:29:30.000+0000][info][gc] GC(4) Pause Young (Normal) (G1 Evacuation Pause) 245M->142M(512M) 12.789ms
+[2025-03-15T14:29:45.000+0000][info][gc] GC(5) Pause Young (Concurrent Start) (G1 Humongous Allocation) 298M->210M(512M) 18.345ms
+[2025-03-15T14:29:45.100+0000][info][gc] GC(6) Concurrent Mark Cycle
+[2025-03-15T14:29:50.000+0000][info][gc] GC(6) Pause Remark 320M->310M(512M) 22.567ms
+[2025-03-15T14:29:55.000+0000][info][gc] GC(7) Pause Young (Normal) (G1 Evacuation Pause) 365M->340M(512M) 35.123ms
+[2025-03-15T14:30:00.000+0000][info][gc] GC(8) Pause Young (Normal) (G1 Evacuation Pause) 398M->385M(512M) 48.901ms
+[2025-03-15T14:30:05.000+0000][info][gc] GC(9) Pause Young (Concurrent Start) (G1 Evacuation Pause) 425M->418M(512M) 67.234ms
+[2025-03-15T14:30:05.100+0000][info][gc] GC(10) Concurrent Mark Cycle
+[2025-03-15T14:30:08.000+0000][info][gc] GC(10) Pause Remark 445M->442M(512M) 89.567ms
+[2025-03-15T14:30:10.000+0000][info][gc] GC(11) Pause Mixed (G1 Evacuation Pause) 460M->455M(512M) 112.345ms
+[2025-03-15T14:30:12.000+0000][warning][gc] GC(12) Pause Full (G1 Compaction Pause) 478M->470M(512M) 234.567ms
+[2025-03-15T14:30:12.001+0000][warning][gc] GC(12) User=0.45s Sys=0.02s Real=0.23s
+[2025-03-15T14:30:15.000+0000][warning][gc] GC(13) Pause Full (G1 Compaction Pause) 488M->482M(512M) 345.678ms
+[2025-03-15T14:30:15.001+0000][warning][gc] GC(13) User=0.68s Sys=0.03s Real=0.35s
+[2025-03-15T14:30:18.000+0000][warning][gc] GC(14) Pause Full (G1 Compaction Pause) 495M->490M(512M) 456.789ms
+[2025-03-15T14:30:18.001+0000][warning][gc,heap] GC(14) Heap after GC: Eden: 0K Used, Old: 490M Used, Humongous: 12M
+[2025-03-15T14:30:18.002+0000][warning][gc] GC(14) GC overhead limit approaching: 89% time spent in GC
+[2025-03-15T14:30:20.000+0000][warning][gc] GC(15) Pause Full (G1 Compaction Pause) 505M->502M(512M) 567.890ms
+[2025-03-15T14:30:20.001+0000][warning][gc,heap] GC(15) Heap after GC: Eden: 0K Used, Old: 502M Used, Humongous: 8M
+[2025-03-15T14:30:20.002+0000][error  ][gc] GC(15) GC overhead limit exceeded: 94% of time spent in GC, recovering <2% memory per cycle
+[2025-03-15T14:30:22.000+0000][error  ][gc] GC(16) Pause Full (G1 Compaction Pause) 512M->510M(512M) 789.012ms
+[2025-03-15T14:30:22.001+0000][error  ][gc,heap] GC(16) Heap exhausted: Eden: 0K, Survivor: 0K, Old: 510M, Humongous: 2M — no space for allocation
+[2025-03-15T14:30:25.000+0000][error  ][gc] GC(17) Allocation Failure — java.lang.OutOfMemoryError: Java heap space
+[2025-03-15T14:30:25.001+0000][error  ][gc] GC(17) Heap dump written to /tmp/heap-payment-api-20250315-143025.hprof (512MB)
+[2025-03-15T14:31:11.000+0000][info][gc] Using G1
+[2025-03-15T14:31:11.100+0000][info][gc] Initial heap size: 256M, max heap size: 512M
+[2025-03-15T14:31:30.000+0000][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 128M->32M(512M) 3.456ms
+[2025-03-15T14:35:00.000+0000][info][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 165M->48M(512M) 4.789ms
+[2025-03-15T14:40:00.000+0000][info][gc] GC(2) Pause Young (Normal) (G1 Evacuation Pause) 180M->55M(512M) 5.123ms

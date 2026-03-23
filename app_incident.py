@@ -250,10 +250,35 @@ def _check_api_key(provider):
     return api_key or "not-needed"
 
 
+def _enrich_causes_with_groups(causes: list) -> list:
+    """Add incident group ranking (cascade_order, is_primary) to causes for AI prompt context."""
+    if not causes:
+        return causes
+    from logpilot.heuristics import group_into_incidents
+    result = group_into_incidents(causes)
+    groups = result.get("groups", [])
+    # Build lookup: cause_id → group ranking info
+    cause_rank = {}
+    for g in groups:
+        for t in g.get("triggers", []):
+            cause_rank[t["id"]] = {"cascade_order": g.get("cascade_order", ""), "is_primary": g.get("is_primary", False)}
+        for e in g.get("effects", []):
+            cause_rank[e["id"]] = {"cascade_order": g.get("cascade_order", ""), "is_primary": False}
+    # Annotate causes (non-destructive copy)
+    enriched = []
+    for c in causes:
+        ec = dict(c)
+        rank_info = cause_rank.get(c["id"], {})
+        ec["cascade_order"] = rank_info.get("cascade_order", "")
+        ec["is_primary"] = rank_info.get("is_primary", False)
+        enriched.append(ec)
+    return enriched
+
+
 def render_incident_assistant(events, analysis, log=None, lookup_cache=None, store_cache=None):
     """Render the Incident AI Assistant — unified AI analysis for all use cases."""
     summary = analysis.get("summary", {})
-    causes = analysis.get("causes", [])
+    causes = _enrich_causes_with_groups(analysis.get("causes", []))
     itl = analysis.get("incident_timeline")
     cascades = analysis.get("cascades", [])
 
