@@ -4,6 +4,7 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -103,6 +104,82 @@ _REDACT_FAST_CHECK = re.compile(
     r'(?i)(bearer|api[_-]?key|token|secret|password|passwd|credential|pwd|eyJ|AKIA|basic\s+[A-Za-z0-9]|BEGIN.*PRIVATE|sig=|digest\s)',
 )
 
+# --- PII redaction patterns (M59: GDPR compliance) ---
+
+# Norwegian personnummer: 11 digits (DDMMYY + 5 individual digits)
+_PERSONNR_RE = re.compile(r'\b(\d{2}[01]\d[0-9]\d)\d{5}\b')
+
+# Norwegian organisasjonsnummer: 9 digits starting with 8 or 9
+_ORGNR_RE = re.compile(r'\b([89]\d{2})\d{6}\b')
+
+# Email addresses
+_EMAIL_RE = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
+
+# IPv4 — keep subnet, mask host
+_IPV4_PRIVATE_RE = re.compile(
+    r'\b(10\.\d{1,3}\.\d{1,3})\.\d{1,3}\b'
+    r'|\b(172\.(?:1[6-9]|2\d|3[01])\.\d{1,3})\.\d{1,3}\b'
+    r'|\b(192\.168\.\d{1,3})\.\d{1,3}\b'
+)
+_IPV4_PUBLIC_RE = re.compile(
+    r'\b(?!10\.)(?!172\.(?:1[6-9]|2\d|3[01])\.)(?!192\.168\.)(?!127\.)'
+    r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b'
+)
+
+# IPv6 — require at least 3 colon-separated hex groups OR :: with hex groups
+# Avoids matching timestamps like 10:30:00 by requiring hex chars (a-f) somewhere
+_IPV6_RE = re.compile(
+    r'\b(?:[0-9a-fA-F]{1,4}:){3,7}[0-9a-fA-F]{1,4}\b'
+    r'|\b[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}\b'
+)
+
+# Credit card (13-19 digits, Luhn-plausible starts)
+_CREDIT_CARD_RE = re.compile(r'\b[3-6]\d{12,18}\b')
+
+# IBAN (NO + 2 check + up to 11 digits, or generic 2-letter country + 2 check + up to 30)
+_IBAN_RE = re.compile(r'\b[A-Z]{2}\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{2,22}\b')
+
+# Phone numbers (Norwegian: +47/0047 + 8 digits)
+_PHONE_NO_RE = re.compile(r'(?:\+47|0047)\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2}\b')
+
+# Usernames in paths or log fields
+_USERNAME_PATH_RE = re.compile(r'(/home/|/Users/|user[=: ]+)([A-Za-z][A-Za-z0-9._-]{2,20})')
+
+
+def _redact_ipv4_private(m: re.Match) -> str:
+    """Keep subnet, mask host for private IPs."""
+    subnet = m.group(1) or m.group(2) or m.group(3)
+    return f"{subnet}.[x]"
+
+
+PII_REPLACERS = [
+    (_PERSONNR_RE, r'\1*****'),
+    (_ORGNR_RE, r'\1******'),
+    (_EMAIL_RE, '[EMAIL]'),
+    (_PHONE_NO_RE, '[PHONE]'),
+    (_CREDIT_CARD_RE, '[CARD]'),
+    (_IBAN_RE, '[IBAN]'),
+    (_IPV6_RE, '[IPv6]'),
+]
+
+INFRA_REPLACERS = [
+    (_IPV4_PUBLIC_RE, '[EXT_IP]'),
+    (_USERNAME_PATH_RE, r'\1[USER]'),
+]
+
+_PII_FAST_CHECK = re.compile(
+    r'\d{11}|\b[89]\d{8}\b|@.*\.\w{2,}|\+47|0047|\b[3-6]\d{12}'
+    r'|\b[A-Z]{2}\d{2}\d{4}|(?:[0-9a-fA-F]{1,4}:){3}',
+)
+
+# --- Redaction levels ---
+REDACTION_LEVELS = {
+    "none": [],
+    "secrets": SECRET_REPLACERS,
+    "standard": SECRET_REPLACERS + PII_REPLACERS,
+    "strict": SECRET_REPLACERS + PII_REPLACERS + INFRA_REPLACERS,
+}
+
 # Timezone extraction patterns
 TZ_OFFSET_RE = re.compile(r'([+-]\d{2}:?\d{2})\s*$|[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?([+-]\d{2}:?\d{2}|Z)\b')
 TZ_ABBREV_RE = re.compile(r'\b(UTC|GMT|[A-Z]{2,4}T|CEST|CET|BST|IST|JST|KST|AEST)\b')
@@ -122,12 +199,44 @@ def open_text(path: Path) -> IO[str]:
     return path.open("r", errors="ignore")
 
 
-def redact(s: str) -> str:
-    """Remove secrets (bearer tokens, API keys, passwords, etc.) from text."""
-    if not _REDACT_FAST_CHECK.search(s):
+def redact(s: str, level: str = "secrets") -> str:
+    """Remove sensitive data from text at the specified redaction level.
+
+    Levels:
+        none: No redaction
+        secrets: Bearer tokens, API keys, passwords, JWTs (default — backward compatible)
+        standard: Secrets + PII (personnummer, email, phone, cards, IBAN, IPv6)
+        strict: Standard + infrastructure (public IPs, usernames in paths)
+    """
+    if level == "none":
         return s
-    for rx, repl in SECRET_REPLACERS:
-        s = rx.sub(repl, s)
+
+    # Fast-check for secrets
+    if _REDACT_FAST_CHECK.search(s):
+        for rx, repl in SECRET_REPLACERS:
+            s = rx.sub(repl, s)
+
+    if level == "secrets":
+        return s
+
+    # PII redaction (standard + strict)
+    if _PII_FAST_CHECK.search(s):
+        for rx, repl in PII_REPLACERS:
+            if callable(repl):
+                s = rx.sub(repl, s)
+            else:
+                s = rx.sub(repl, s)
+
+    # Private IP subnet masking (standard + strict)
+    s = _IPV4_PRIVATE_RE.sub(_redact_ipv4_private, s)
+
+    if level == "strict":
+        for rx, repl in INFRA_REPLACERS:
+            if callable(repl):
+                s = rx.sub(repl, s)
+            else:
+                s = rx.sub(repl, s)
+
     return s
 
 
@@ -259,7 +368,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
 
     def _build_event() -> LogEvent:
         text = "\n".join(current)
-        text = redact(text)
+        text = redact(text, level=os.environ.get("LOGPILOT_REDACTION_LEVEL", "secrets"))
         meta = fmt.classify_event(text)
         return LogEvent(
             text=text,

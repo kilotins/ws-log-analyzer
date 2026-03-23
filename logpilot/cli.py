@@ -32,12 +32,17 @@ def main() -> None:
     ap.add_argument("--list-formats", action="store_true", help="List available log format plugins and exit.")
     ap.add_argument("--ai-endpoint", default=None, help="Local AI endpoint URL (e.g. http://localhost:1234/v1). Also: LOGPILOT_AI_ENDPOINT env var.")
     ap.add_argument("--ai-model", default=None, help="Local AI model name. Also: LOGPILOT_AI_MODEL env var.")
+    ap.add_argument("--redaction-level", choices=["none", "secrets", "standard", "strict"], default="secrets",
+                     help="PII redaction level: none, secrets (default), standard (+PII), strict (+IPs/usernames)")
     ap.add_argument("--exit-code", action="store_true", help="Exit with code 1 if errors exceed threshold")
     ap.add_argument("--error-threshold", type=int, default=0, help="Number of errors that triggers non-zero exit (used with --exit-code)")
     args = ap.parse_args()
 
     if args.log_format == "json":
         os.environ["WSLOG_LOG_FORMAT"] = "json"
+
+    if args.redaction_level != "secrets":
+        os.environ["LOGPILOT_REDACTION_LEVEL"] = args.redaction_level
 
     if args.list_formats:
         from .formats import list_formats
