@@ -480,8 +480,8 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         if missing_logs and "none" not in missing_logs.lower()[:50]:
             st.info(f"**Missing Logs — upload these for a more complete diagnosis:**\n\n{missing_logs}", icon="📋")
 
-    # --- Render history ---
-    _render_ai_history()
+    # AI history removed — only the current analysis is shown above.
+    # Old responses are cached in session state for conversation context but not displayed.
 
     # Clear button moved to sidebar (Settings)
 
