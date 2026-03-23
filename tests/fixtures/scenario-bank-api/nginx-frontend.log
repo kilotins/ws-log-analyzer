@@ -1,0 +1,13 @@
+10.0.0.100 - advisor1 [22/Mar/2026:09:01:30 +0100] "POST /nettbank/api/kyc/verify HTTP/1.1" 200 1234 "-" "KLPBank-Advisor/2.1" rt=0.167
+10.0.0.101 - advisor2 [22/Mar/2026:09:02:00 +0100] "POST /nettbank/api/onboarding/start HTTP/1.1" 200 892 "-" "Mozilla/5.0" rt=0.245
+10.0.0.102 - customer1 [22/Mar/2026:09:03:00 +0100] "POST /nettbank/api/onboarding/complete HTTP/1.1" 200 456 "-" "Mozilla/5.0" rt=0.189
+10.0.0.100 - advisor1 [22/Mar/2026:09:04:02 +0100] "POST /nettbank/api/kyc/verify HTTP/1.1" 504 0 "-" "KLPBank-Advisor/2.1" rt=30.002
+2026/03/22 09:04:02 [error] 7891#0: *23456 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 10.0.0.100, server: nettbank.klpbank.no, request: "POST /nettbank/api/kyc/verify HTTP/1.1", upstream: "http://10.0.2.20:8080/api/v1/kyc/verify", host: "nettbank.klpbank.no"
+10.0.0.101 - advisor2 [22/Mar/2026:09:04:03 +0100] "POST /nettbank/api/onboarding/start HTTP/1.1" 502 0 "-" "Mozilla/5.0" rt=0.005
+2026/03/22 09:04:03 [error] 7891#0: *23457 connect() failed (111: Connection refused) while connecting to upstream, client: 10.0.0.101, server: nettbank.klpbank.no, request: "POST /nettbank/api/onboarding/start HTTP/1.1", upstream: "http://10.0.2.20:8080/api/v1/onboarding/start", host: "nettbank.klpbank.no"
+10.0.0.103 - customer2 [22/Mar/2026:09:04:05 +0100] "POST /nettbank/api/onboarding/complete HTTP/1.1" 500 234 "-" "Mozilla/5.0" rt=0.034
+10.0.0.104 - advisor3 [22/Mar/2026:09:04:10 +0100] "GET /nettbank/api/person/address HTTP/1.1" 500 198 "-" "KLPBank-Advisor/2.1" rt=0.028
+10.0.0.100 - advisor1 [22/Mar/2026:09:05:00 +0100] "POST /nettbank/api/kyc/verify HTTP/1.1" 503 186 "-" "KLPBank-Advisor/2.1" rt=0.002
+10.0.0.105 - advisor4 [22/Mar/2026:09:05:30 +0100] "POST /nettbank/api/onboarding/start HTTP/1.1" 503 186 "-" "Mozilla/5.0" rt=0.001
+10.0.0.106 - customer3 [22/Mar/2026:09:06:00 +0100] "GET /nettbank/api/person/12345678901 HTTP/1.1" 200 890 "-" "Mozilla/5.0" rt=0.045
+10.0.0.100 - advisor1 [22/Mar/2026:09:06:30 +0100] "POST /nettbank/api/kyc/verify HTTP/1.1" 503 186 "-" "KLPBank-Advisor/2.1" rt=0.001

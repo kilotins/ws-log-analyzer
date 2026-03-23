@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #0F172A; color: #e0e0e0; }
+  .chrome-bar { background: #1E293B; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #334155; }
+  .dots { display: flex; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #ffbd2e; } .dot.g { background: #28c840; }
+  .url-bar { flex: 1; background: #0F172A; border-radius: 6px; padding: 6px 12px; color: #94A3B8; font-size: 13px; }
+  .container { max-width: 600px; margin: 0 auto; padding: 40px 40px; }
+  .bank-logo { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 24px; }
+  .bank-logo span { color: #7C3AED; }
+  .alert-box { background: #1E293B; border: 1px solid #F59E0B; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .alert-icon { font-size: 48px; text-align: center; margin-bottom: 12px; }
+  .alert-title { font-size: 20px; font-weight: 700; color: #F59E0B; text-align: center; margin-bottom: 8px; }
+  .alert-sub { font-size: 14px; color: #94A3B8; text-align: center; margin-bottom: 20px; }
+  .details-box { background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; line-height: 1.8; color: #CBD5E1; }
+  .details-box .label { color: #F59E0B; font-weight: 600; }
+  .details-box .val { color: #FBBF24; }
+  .details-box .dim { color: #475569; }
+  .status-row { display: flex; gap: 12px; margin-top: 16px; }
+  .status-item { flex: 1; background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 12px; text-align: center; }
+  .status-item .st-label { font-size: 11px; color: #64748B; text-transform: uppercase; }
+  .status-item .st-val { font-size: 16px; font-weight: 700; }
+  .status-item .st-val.red { color: #DC2626; }
+  .status-item .st-val.green { color: #34D399; }
+  .status-item .st-val.yellow { color: #FBBF24; }
+  .retry-btn { margin-top: 20px; display: block; width: 100%; background: #7C3AED; color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; }
+  .ts { position: fixed; bottom: 12px; right: 16px; font-size: 11px; color: #475569; font-family: monospace; }
+</style>
+</head>
+<body>
+<div class="chrome-bar">
+  <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+  <div class="url-bar">https://nettbank.klpbank.no/radgiver/onboarding</div>
+</div>
+<div class="container">
+  <div class="bank-logo">KLP<span>Bank</span> Radgiverportal</div>
+  <div class="alert-box">
+    <div class="alert-icon">&#9888;</div>
+    <div class="alert-title">KYC-verifisering utilgjengelig</div>
+    <div class="alert-sub">Folkeregisteret-oppslag feiler. Nye kunder kan ikke onboardes.</div>
+    <div class="details-box">
+      <span class="label">Feil:</span> <span class="val">Folkeregisteret API returnerer 503</span><br>
+      <span class="label">Pavirket:</span> KYC-verifisering, adresseoppslag, personnummer-validering<br>
+      <span class="label">Tidspunkt:</span> 2026-03-22 09:04:00 CET<br>
+      <span class="label">I ko:</span> <span class="val">67 onboarding-foresporsler venter pa manuell behandling</span><br>
+      <span class="dim">--- nettbank.klpbank.no/radgiver ---</span>
+    </div>
+    <div class="status-row">
+      <div class="status-item">
+        <div class="st-label">Folkeregisteret</div>
+        <div class="st-val red">503 Nede</div>
+      </div>
+      <div class="status-item">
+        <div class="st-label">NAV API</div>
+        <div class="st-val green">OK</div>
+      </div>
+      <div class="status-item">
+        <div class="st-label">AML Register</div>
+        <div class="st-val green">OK</div>
+      </div>
+      <div class="status-item">
+        <div class="st-label">VPS</div>
+        <div class="st-val green">OK</div>
+      </div>
+    </div>
+    <div class="retry-btn">Prov igjen</div>
+  </div>
+</div>
+<div class="ts">Ref: INC-2026-0322-001 | Radgiver: advisor1</div>
+</body>
+</html>
