@@ -386,8 +386,19 @@ if "_local_settings_loaded" not in st.session_state:
         st.session_state._local_prev_preset = _saved_local.get("preset", "")
     st.session_state._local_settings_loaded = True
 
-
-
+# Load persisted theme on fresh session
+_THEME_FILE = CACHE_DIR / ".theme.json"
+if "_app_theme" not in st.session_state:
+    _saved_theme = _load_json_file(_THEME_FILE, {})
+    if isinstance(_saved_theme, dict) and _saved_theme.get("theme"):
+        st.session_state._app_theme = _saved_theme["theme"]
+        # Apply theme config immediately before UI renders
+        import streamlit.config as _stcfg_init
+        if _saved_theme["theme"] == "dark":
+            _stcfg_init.set_option("theme.base", "dark")
+            _stcfg_init.set_option("theme.backgroundColor", "#0d1117")
+            _stcfg_init.set_option("theme.secondaryBackgroundColor", "#161b22")
+            _stcfg_init.set_option("theme.textColor", "#e6edf3")
 
 # --- Streamlit UI ---
 _FAVICON = str(_APP_DIR / "assets" / "favicon.svg")
@@ -556,6 +567,10 @@ with st.sidebar:
                              key="theme_select")
     if _theme_options[_selected] != _current_theme:
         st.session_state._app_theme = _theme_options[_selected]
+        try:
+            _save_json_file(_THEME_FILE, {"theme": _theme_options[_selected]})
+        except Exception:
+            pass
         import streamlit.config as _stcfg
         if _theme_options[_selected] == "dark":
             _stcfg.set_option("theme.base", "dark")
@@ -725,9 +740,13 @@ with st.sidebar:
 
         # --- Preset + Endpoint ---
         _prev_preset = st.session_state.get("_local_prev_preset", "")
+        _preset_names = list(LOCAL_AI_PRESETS.keys())
+        _saved_preset = st.session_state.get("_local_saved_preset", "")
+        _preset_index = _preset_names.index(_saved_preset) if _saved_preset in _preset_names else 0
         _preset = st.selectbox(
             "Preset",
-            list(LOCAL_AI_PRESETS.keys()),
+            _preset_names,
+            index=_preset_index,
             key="local_ai_preset",
             help="Select your local AI server type",
         )
