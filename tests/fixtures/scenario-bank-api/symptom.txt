@@ -1,0 +1,1 @@
+KYC-verifisering feiler siden kl 09:04. Folkeregisteret-oppslag returnerer 503 og uventet JSON-schema (felt 'bostedsadresse' mangler). 67 onboarding-forespørsler er i kø for manuell behandling. DataPower circuit breaker er OPEN for folkereg-proxy. NAV, AML og VPS fungerer normalt. Hva er rotårsaken og trenger vi DataPower probe-data for å bekrefte?
