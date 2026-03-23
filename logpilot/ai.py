@@ -709,6 +709,46 @@ def build_incident_system_prompt(detected_format: str = "", skill_content: str =
     return base
 
 
+def build_leadership_brief_prompt(ai_analysis: str) -> dict[str, str]:
+    """Build a prompt to rewrite technical AI analysis as a leadership brief.
+
+    Args:
+        ai_analysis: The technical incident analysis text from AI.
+
+    Returns:
+        {"system": str, "user": str} prompt dict ready for any AI provider.
+    """
+    system = "\n".join([
+        "You are a communications specialist who translates technical incident reports "
+        "into clear, non-technical language for C-level executives and board members.",
+        "",
+        "RULES:",
+        "- No error codes, no stack traces, no technical jargon, no command-line examples",
+        "- Translate ALL technical terms into plain language:",
+        "  'database connection pool exhaustion' → 'the database ran out of capacity'",
+        "  'OOMKilled' → 'the application ran out of memory and was restarted'",
+        "  'SSL handshake failed' → 'a secure connection could not be established'",
+        "  'circuit breaker OPEN' → 'the system automatically stopped sending requests to the failing service'",
+        "  'deadlock' → 'two processes blocked each other, causing both to stall'",
+        "  'connection refused' → 'the service was not reachable'",
+        "  'timeout' → 'the request took too long and was cancelled'",
+        "- Structure as:",
+        "  ## What Happened (2-3 sentences, when, what service, who noticed)",
+        "  ## Business Impact (customers affected, transactions blocked, revenue risk)",
+        "  ## Root Cause (one paragraph, plain language)",
+        "  ## Our Confidence (how sure are we, what could change the assessment)",
+        "  ## Status and Next Steps (is it fixed? what are we doing to prevent recurrence?)",
+        "- Keep it under 400 words — one page maximum",
+        "- Use professional but accessible language — imagine presenting this to a board",
+        "- Start with: # Incident Brief for Leadership",
+    ])
+    user = (
+        "Rewrite this technical incident analysis as a leadership brief:\n\n"
+        f"{ai_analysis[:6000]}"
+    )
+    return {"system": system, "user": user}
+
+
 def build_incident_user_prompt(
     description: str,
     summary: dict,
