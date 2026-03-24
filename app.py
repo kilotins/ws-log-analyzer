@@ -355,6 +355,19 @@ _STATE_DEFAULTS = {
     "_incident_provider": "claude",
     "_incident_model_id": "claude-sonnet-4-6",
     "_leadership_brief": None,
+    # Jira / Confluence integration
+    "_jira_tickets": None,
+    "_jira_cache_key": "",
+    "_jira_url": "",
+    "_jira_email": "",
+    "_jira_token": "",
+    "_jira_project": "",
+    "_jira_issue_type": "Bug",
+    "_jira_server_type": "cloud",
+    "_confluence_space": "",
+    "_confluence_parent": "",
+    "_confluence_page_url": "",
+    "_confluence_page_id": "",
 }
 
 _EXPECTED_STATE_KEYS = set(_STATE_DEFAULTS.keys())
@@ -865,6 +878,9 @@ with st.sidebar:
                 _save_local_ai_settings(st.session_state.local_ai_endpoint,
                                          st.session_state.local_ai_model,
                                          _local_key, _preset)
+
+    from app_jira import render_jira_sidebar
+    render_jira_sidebar()
 
     st.markdown("---")
     st.session_state.debug_payload = st.toggle(
