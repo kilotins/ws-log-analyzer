@@ -44,6 +44,7 @@ dev = ["pytest>=7", "ruff", "mypy", "build", "twine"]
 
 [project.scripts]
 logpilot = "logpilot.cli:main"
+logpilot-gui = "logpilot.gui:main"
 
 [project.urls]
 Homepage = "https://github.com/kilotins/ws-log-analyzer"
@@ -52,6 +53,7 @@ Issues = "https://github.com/kilotins/ws-log-analyzer/issues"
 
 [tool.setuptools]
 packages = ["logpilot", "logpilot.formats", "logpilot.reports"]
+py-modules = ["app", "app_ai", "app_render", "app_incident", "app_audit", "app_spend", "app_realtime", "app_jira", "app_constants", "report_renderer"]
 
 [tool.setuptools.package-data]
 logpilot = ["heuristics_data.yaml"]
