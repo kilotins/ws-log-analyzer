@@ -16,11 +16,11 @@ pip install -e ".[test,gui,pdf,claude,gemini,openai]"
 ## Running Tests
 
 ```bash
-# All unit tests (1217 tests, ~25 seconds)
-pytest tests/ --ignore=tests/test_app_e2e.py -v
+# All unit tests (1629+ tests, ~25 seconds)
+pytest tests/ --ignore=tests/test_app_e2e.py --ignore=tests/test_e2e_full.py --ignore=tests/test_scenario_e2e.py -v
 
 # Fast: stop on first failure
-pytest tests/ --ignore=tests/test_app_e2e.py -x -q
+pytest tests/ --ignore=tests/test_app_e2e.py --ignore=tests/test_e2e_full.py --ignore=tests/test_scenario_e2e.py -x -q
 
 # Single test file
 pytest tests/test_parsing.py -v
@@ -38,25 +38,37 @@ logpilot/                  # Core engine package (stdlib only, zero required dep
 ├── event.py               # LogEvent dataclass
 ├── parser.py              # Parsing, redaction, format auto-detection
 ├── analysis.py            # Summarize, timeline, cross-system cascades
-├── heuristics.py          # 83 heuristics, 17 correlations, 7 incident groups
-├── splunk.py              # Splunk query generation, hung thread drilldown
-├── reports.py             # Markdown, JSON, HTML, PDF renderers
+├── heuristics.py          # 68 heuristics, 19 correlations, 7 incident groups
+├── discovery.py           # Recursive folder scan, rotated log support
+├── trace_to_code.py       # Stack trace → source code location mapping
+├── code_search.py         # Source code search for trace correlation
+├── jira_tickets.py        # Jira ticket generation from incidents
 ├── ai.py                  # AI prompt building, skill selection, caching
 ├── cli.py                 # CLI entry point
-└── formats/               # 8 format plugins (WAS, JSON, nginx, Log4j, Python, syslog, Enonic, CRI-O)
+├── reports/               # Report renderers (7 modules)
+│   ├── markdown.py        # Markdown report
+│   ├── html.py            # HTML report
+│   ├── json_report.py     # JSON report
+│   ├── pdf.py             # PDF report
+│   ├── brief_pdf.py       # Executive brief PDF
+│   ├── executive_summary.py  # Executive summary extraction
+│   └── config.py          # Report configuration
+└── formats/               # 11 format plugins (WAS, JSON, nginx, Log4j, Python, syslog, Enonic, CRI-O, DataPower, Tomcat, PostgreSQL)
 
 app.py                     # Streamlit GUI entry point
 app_ai.py                  # AI provider orchestration (Claude, Gemini, OpenAI, local)
+app_incident.py            # Unified Incident AI Assistant
 app_render.py              # Report rendering UI with incident grouping
 app_audit.py               # AI-driven code quality audit
+app_jira.py                # Jira integration UI
 app_spend.py               # Cost tracking & analytics
 app_realtime.py            # Live log monitoring
 app_constants.py           # Shared constants (LEVEL_COLORS, etc.)
 report_renderer.py         # Markdown → HTML conversion
 
-skills/                    # Domain knowledge files (20 files)
-.claude/skills/            # Claude Code skills (9 files)
-tests/                     # 1217 tests across 27 test files
+skills/                    # Domain knowledge files (20+ files)
+.claude/skills/            # Claude Code skills (12+ files)
+tests/                     # 1629+ tests across 44+ test files + 25 Playwright e2e tests
 scripts/                   # Audit automation (run_audit.py, compare_audits.py)
 ```
 
