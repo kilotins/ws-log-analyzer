@@ -233,7 +233,8 @@ def _run_ai_call(provider, model_id, selected_model, msg_dict, image_bytes,
         except Exception as ex:
             _log_probe(call_label, provider, model_id, _req_text, "", error=str(ex))
             status.update(label="Analysis failed", state="error")
-            st.error(f"AI call failed: {ex}")
+            from app_ai import _sanitize_error
+            st.error(f"AI call failed: {_sanitize_error(str(ex))}")
             if log:
                 log.error("ai Analysis failed: %s", ex)
             return None

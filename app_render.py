@@ -1205,7 +1205,8 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                                    _brief_text)
                         st.rerun()
                 except Exception as _brief_err:
-                    st.error(f"Brief generation failed: {_brief_err}")
+                    from app_ai import _sanitize_error
+                    st.error(f"Brief generation failed: {_sanitize_error(str(_brief_err))}")
         else:
             st.markdown(_leadership_brief)
             _brief_col1, _brief_col2 = st.columns(2)
