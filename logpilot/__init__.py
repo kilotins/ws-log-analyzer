@@ -40,6 +40,10 @@ from .analysis import (
     compute_noise_scores, filter_noise,
 )
 
+# --- trace to code ---
+from .trace_to_code import CodeLocation, extract_code_locations  # noqa: F401
+from .code_search import CodeMatch, search_codebase  # noqa: F401
+
 # --- jira ---
 from .jira_tickets import generate_all_tickets, generate_ticket_text, suggest_team  # noqa: F401
 
@@ -100,6 +104,8 @@ __all__ = [
     "build_incident_system_prompt", "build_incident_user_prompt", "incident_cache_key",
     "TOKEN_LIMITS", "estimate_tokens", "claude_cache_key", "ask_gemini",
     "MAX_SKILLS",
+    # trace to code
+    "CodeLocation", "extract_code_locations", "CodeMatch", "search_codebase",
     # jira
     "generate_all_tickets", "generate_ticket_text", "suggest_team",
     # discovery

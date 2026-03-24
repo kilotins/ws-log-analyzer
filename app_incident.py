@@ -567,6 +567,14 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
     from logpilot.analysis import compare_periods
     what_changed = compare_periods(events_for_ai)
 
+    # --- Trace to Code (if repo linked) ---
+    code_matches_for_ai = None
+    _repo_path = st.session_state.get("_code_repo_path", "")
+    if _repo_path and _repo_path.strip():
+        _cached_matches = st.session_state.get("_code_matches")
+        if _cached_matches:
+            code_matches_for_ai = [m.to_dict() for m in _cached_matches[:5]]
+
     # --- User prompt ---
     query_label = description or "Cross-system analysis of all uploaded logs"
     user_text = build_incident_user_prompt(
@@ -582,6 +590,7 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
         per_source_errors=source_errors,
         previous_answer=previous_answer,
         what_changed=what_changed,
+        code_matches=code_matches_for_ai,
     )
 
     # --- Cache ---
