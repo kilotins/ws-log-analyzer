@@ -1074,7 +1074,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     with _fmt_col:
         _export_fmt = st.selectbox(
             "Export format",
-            ["PDF", "HTML", "Markdown", "JSON", "Executive Summary"],
+            ["PDF", "HTML", "Markdown", "JSON"],
             key="export_format",
             label_visibility="collapsed",
         )
@@ -1113,11 +1113,6 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
             elif _export_fmt == "HTML":
                 _html = render_html_report(_cfg)
                 _data, _fname, _mime = _html, _base.replace(".md", ".html"), "text/html"
-            elif _export_fmt == "Executive Summary":
-                from logpilot.reports.executive_summary import render_executive_summary_html
-                _summary = render_executive_summary_html(
-                    events_for_export, _analysis=_pa, ai_content=_ai_content)
-                _data, _fname, _mime = _summary, _base.replace("report_", "executive_summary_").replace(".md", ".html"), "text/html"
             else:  # PDF
                 _data, _fname, _mime = render_pdf_report(_cfg), _base.replace(".md", ".pdf"), "application/pdf"
             st.session_state[_export_key] = (_data, _fname, _mime)
