@@ -868,7 +868,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
 
     if _is_filtered:
         import hashlib as _hl
-        _filter_hash = _hl.md5(str(len(display_events)).encode() + str(sum(hash(e.ts or "") for e in display_events[:100])).encode()).hexdigest()[:12]
+        _filter_hash = _hl.sha256(str(len(display_events)).encode() + str(sum(hash(e.ts or "") for e in display_events[:100])).encode()).hexdigest()[:12]
         _filter_key = f"_fa_{len(display_events)}_{_filter_hash}"
         # Evict old filter cache entries (keep max 5)
         _old_fa = [k for k in st.session_state if k.startswith("_fa_") and k != _filter_key]
@@ -919,14 +919,14 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
         render_incident_assistant(display_events, a, log=log,
                                   lookup_cache=lookup_cache, store_cache=store_cache)
 
-    # --- 4. Cross-System Timeline (multi-source only) ---
+    # --- 3. Cross-System Timeline (multi-source only) ---
     _sources = set(e.system_label or "" for e in display_events)
     if len(_sources) >= 2:
         with st.expander(f"Cross-System Timeline ({len(_sources)} sources)"):
             cascades = a.get("cascades", [])
             render_cross_system_timeline(display_events, cascades)
 
-    # --- 6. Incident Timeline ---
+    # --- 4. Incident Timeline ---
     itl_label = "Incident Timeline"
     if display_itl:
         n = len(display_itl["window_events"])
@@ -934,7 +934,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     with st.expander(itl_label):
         render_incident_timeline(display_itl)
 
-    # --- 7. Likely Causes & Fixes ---
+    # --- 5. Likely Causes & Fixes ---
     if display_causes:
         with st.expander(f"Likely Causes & Fixes ({len(display_causes)} detected)"):
             render_likely_causes(display_causes)
@@ -942,7 +942,7 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     # --- 7b. Drill-down Filters (Code, Exception, Time — scope samples only) ---
     render_sample_filters(display_events)
 
-    # --- 8. Event Samples + Hung Threads + Cascades ---
+    # --- 6. Event Samples + Hung Threads + Cascades ---
     _sample_filtered, sample_display_events = _apply_sample_filters_from_state(display_events)
     if _sample_filtered:
         from logpilot.analysis import precompute_analysis as _pa_fn
@@ -970,14 +970,11 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
             st.session_state._context_event_idx = -1
             st.rerun()
 
-    # --- 9. Export ---
+    # --- 7. Export ---
     st.markdown("---")
     events_for_export = display_events if _is_filtered else a["events"]
-    # Reuse cached analysis when not filtered to avoid expensive recomputation on every rerun
-    if not _is_filtered:
-        _pa = a  # Already computed at analysis time
-    else:
-        _pa = precompute_analysis(events_for_export, a.get("top_n", 10), a.get("samples_n", 5), a.get("hist_minutes", 1))
+    # Reuse cached analysis — either the original or the filter-cached version
+    _pa = fa if _is_filtered else a
 
     if _is_filtered:
         st.info(f"Export contains filtered data ({len(display_events)} of {a['total_events']} events).")
@@ -1155,28 +1152,11 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                 _incident_provider = st.session_state.get("_incident_provider", "claude")
                 _incident_model_id = st.session_state.get("_incident_model_id", "claude-sonnet-4-6")
                 try:
-                    from app_ai import call_claude_api, call_gemini_api, call_openai_api, call_local_api
+                    from app_ai import call_ai_provider
                     _brief_placeholder = st.empty()
                     _brief_placeholder.info("Generating leadership brief...")
-                    if _incident_provider == "claude":
-                        _brief_text, _ = call_claude_api(
-                            st.session_state.get("api_key", ""), _incident_model_id,
-                            _brief_prompt, max_tokens=4096)
-                    elif _incident_provider == "gemini":
-                        _brief_text, _ = call_gemini_api(
-                            st.session_state.get("gemini_api_key", ""), _incident_model_id,
-                            _brief_prompt, max_tokens=4096)
-                    elif _incident_provider == "openai":
-                        _brief_text, _ = call_openai_api(
-                            st.session_state.get("openai_api_key", "") or "not-needed",
-                            _incident_model_id, _brief_prompt, max_tokens=4096)
-                    elif _incident_provider == "local":
-                        _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
-                        _brief_text, _ = call_local_api(
-                            "not-needed", _incident_model_id, _brief_prompt,
-                            max_tokens=4096, base_url=_local_url)
-                    else:
-                        _brief_text = None
+                    _brief_text, _ = call_ai_provider(
+                        _incident_provider, _incident_model_id, _brief_prompt, max_tokens=4096)
                     _brief_placeholder.empty()
                     if _brief_text:
                         st.session_state["_leadership_brief"] = _brief_text

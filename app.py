@@ -352,6 +352,9 @@ _STATE_DEFAULTS = {
     "_incident_screenshot": None,
     "_incident_answer": None,
     "_incident_model": None,
+    "_incident_provider": "claude",
+    "_incident_model_id": "claude-sonnet-4-6",
+    "_leadership_brief": None,
 }
 
 _EXPECTED_STATE_KEYS = set(_STATE_DEFAULTS.keys())
@@ -376,7 +379,7 @@ for _prov in _PROVIDER_HISTORY_FILES:
         st.session_state[_hkey] = provider_history_manager.load(_prov)
 
 # Load persisted local AI settings on fresh session
-if "_local_settings_loaded" not in st.session_state:
+if not st.session_state._local_settings_loaded:
     _saved_local = _load_local_ai_settings()
     if _saved_local:
         st.session_state.local_ai_endpoint = _saved_local.get("endpoint", st.session_state.local_ai_endpoint)
@@ -1138,7 +1141,7 @@ with tab_analyze:
                 "events": all_events,
                 "summary": s,
                 "error_count": error_count,
-                "file_count": len(uploaded_files),
+                "file_count": _total_files,
                 "file_summary": file_summary,
                 "causes": causes,
                 "hist": hist,
@@ -1160,6 +1163,8 @@ with tab_analyze:
             st.session_state.claude_history = []
             st.session_state.selected_code = None
             st.session_state.selected_action = None
+            st.session_state._incident_answer = None
+            st.session_state._leadership_brief = None
             provider_history_manager.save("claude", [])
 
     a = st.session_state.analysis
