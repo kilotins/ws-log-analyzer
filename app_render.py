@@ -1193,9 +1193,8 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                     use_container_width=True,
                 )
 
-    # --- Jira Ticket (placeholder) ---
-    if _has_analysis:
+    # --- Jira Tickets ---
+    if display_causes:
         st.markdown("---")
-        st.subheader("🎫 Create Jira Ticket")
-        st.caption("Coming soon — generate Jira tickets with team suggestions from incident analysis")
-        st.button("Create Jira Ticket", disabled=True, use_container_width=True)
+        from app_jira import render_jira_tickets
+        render_jira_tickets(display_causes, _pa)

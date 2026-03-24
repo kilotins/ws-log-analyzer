@@ -40,6 +40,9 @@ from .analysis import (
     compute_noise_scores, filter_noise,
 )
 
+# --- jira ---
+from .jira_tickets import generate_all_tickets, generate_ticket_text, suggest_team  # noqa: F401
+
 # --- reports ---
 from .reports import (
     ReportConfig,
@@ -97,6 +100,8 @@ __all__ = [
     "build_incident_system_prompt", "build_incident_user_prompt", "incident_cache_key",
     "TOKEN_LIMITS", "estimate_tokens", "claude_cache_key", "ask_gemini",
     "MAX_SKILLS",
+    # jira
+    "generate_all_tickets", "generate_ticket_text", "suggest_team",
     # discovery
     "discover_log_files", "DiscoveredFile", "DiscoveryResult", "RejectedFile",
     # event
