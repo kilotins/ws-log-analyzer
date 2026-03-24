@@ -30,6 +30,7 @@ See [README.md](README.md) for installation, CLI options, and usage.
 | **Domain** | `.claude/skills/ws-log-parsing.yaml` — event boundaries, signal tags, extending the analyzer |
 | **UI** | `.claude/skills/streamlit-patterns.md` — session state, callbacks, widget gotchas, file structure |
 | **AI** | `.claude/skills/claude-integration.md` — prompt structure, security, caching, API key storage |
+| **PDF** | `.claude/skills/pdf-report.md` — fpdf2 renderer, sections, branding, encoding gotchas |
 | **Testing** | `.claude/skills/testing.md` — pytest, Playwright e2e, Streamlit DOM gotchas |
 | **Docs** | `.claude/skills/documentation.md` — 3-level doc structure, templates, writing rules |
 | **WAS Codes** | `skills/message-codes.md` — WAS message code prefixes and high-impact codes |
