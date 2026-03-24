@@ -35,13 +35,17 @@ def _get_version() -> str:
 
     Returns e.g. '0.1.0+42.b00bc60' or '0.1.0' if git is unavailable.
     """
-    # Base version from pyproject.toml
-    base = "0.1.0"
+    # Base version from __init__.py (single source of truth), fallback to pyproject.toml
+    base = "1.1.0"
     try:
-        import tomllib
-        base = tomllib.loads((_APP_DIR / "pyproject.toml").read_text())["project"]["version"]
+        from logpilot import __version__
+        base = __version__
     except Exception:
-        pass
+        try:
+            import tomllib
+            base = tomllib.loads((_APP_DIR / "pyproject.toml").read_text())["project"]["version"]
+        except Exception:
+            pass
     # Git commit count + short hash
     try:
         import subprocess
