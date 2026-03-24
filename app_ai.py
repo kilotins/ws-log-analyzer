@@ -23,6 +23,17 @@ _NO_RETRY_STATUS = frozenset({400, 401, 403, 404})
 _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
+def _sanitize_error(msg: str) -> str:
+    """Remove API keys and tokens from error messages before displaying to users."""
+    import re
+    # Mask anything that looks like an API key (long alphanumeric strings after key-related words)
+    msg = re.sub(r'(sk-(?:ant-|proj-)?)[A-Za-z0-9_-]{8,}', r'\1***', msg)
+    msg = re.sub(r'(AIza)[A-Za-z0-9_-]{8,}', r'\1***', msg)
+    msg = re.sub(r'(key provided: )[^\s.]+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'(api[_-]?key[=: ]+)[^\s,}"\']+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
+    return msg
+
+
 def _should_retry(exc: Exception) -> bool:
     """Return True if *exc* represents a transient error worth retrying."""
     import socket
@@ -1172,7 +1183,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                 except Exception as ex:
                     _log_probe("Triage", provider, model_id, _triage_req, "", error=str(ex))
                     status.update(label="Triage failed", state="error")
-                    st.error(f"AI call failed: {ex}")
+                    st.error(f"AI call failed: {_sanitize_error(str(ex))}")
                     if log:
                         log.error("triage Cross-system triage failed: %s", ex)
                     return
