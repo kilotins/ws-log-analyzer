@@ -13,5 +13,6 @@ SystemOut.log
 uploads/
 /reports/
 cache/
+.env
 logs/
 demo/
