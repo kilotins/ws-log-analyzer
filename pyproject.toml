@@ -1,8 +1,33 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "logpilot"
-version = "0.1.0"
-description = "LogPilot — Multi-format log analyzer with AI-powered triage (WAS, nginx, Log4j, Python, syslog, K8s, JSON, Enonic)"
+version = "1.0.0"
+description = "Multi-format log analyzer with AI-powered root cause analysis"
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.9"
+authors = [
+    {name = "Item Consulting", email = "post@item.no"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Systems Administration",
+]
 dependencies = []
 
 [project.optional-dependencies]
@@ -11,15 +36,25 @@ gemini = ["google-generativeai>=0.5"]
 openai = ["openai>=1.0"]
 gui = ["streamlit>=1.30", "plotly>=5.0"]
 pdf = ["fpdf2>=2.7"]
+all-ai = ["anthropic>=0.40", "google-generativeai>=0.5", "openai>=1.0"]
+all = ["logpilot[gui,all-ai,pdf]"]
 test = ["pytest>=7"]
-e2e = ["pytest>=7", "playwright>=1.40"]
-
-[tool.setuptools]
-packages = ["logpilot"]
-py-modules = ["app"]
+e2e = ["pytest>=7", "playwright>=1.40", "pytest-playwright>=0.4"]
+dev = ["pytest>=7", "ruff", "mypy", "build", "twine"]
 
 [project.scripts]
 logpilot = "logpilot.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/kilotins/ws-log-analyzer"
+Repository = "https://github.com/kilotins/ws-log-analyzer"
+Issues = "https://github.com/kilotins/ws-log-analyzer/issues"
+
+[tool.setuptools]
+packages = ["logpilot", "logpilot.formats", "logpilot.reports"]
+
+[tool.setuptools.package-data]
+logpilot = ["heuristics_data.yaml"]
 
 [tool.mypy]
 python_version = "3.9"
