@@ -1172,14 +1172,6 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
             st.markdown(_leadership_brief)
             _brief_col1, _brief_col2 = st.columns(2)
             with _brief_col1:
-                st.download_button(
-                    "Download Brief (Markdown)",
-                    data=_leadership_brief,
-                    file_name="leadership_brief.md",
-                    mime="text/markdown",
-                    use_container_width=True,
-                )
-            with _brief_col2:
                 from report_renderer import render_html as _render_brief_html
                 _brief_html = _render_brief_html(
                     _leadership_brief,
@@ -1190,6 +1182,19 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
                     data=_brief_html,
                     file_name="leadership_brief.html",
                     mime="text/html",
+                    use_container_width=True,
+                )
+            with _brief_col2:
+                from logpilot.reports.brief_pdf import render_brief_pdf
+                _brief_pdf = render_brief_pdf(
+                    _leadership_brief,
+                    title="Incident Brief for Leadership",
+                )
+                st.download_button(
+                    "Download Brief (PDF)",
+                    data=_brief_pdf,
+                    file_name="leadership_brief.pdf",
+                    mime="application/pdf",
                     use_container_width=True,
                 )
 
