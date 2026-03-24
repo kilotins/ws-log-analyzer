@@ -7,11 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps first (cache-friendly layer)
+# Install Python deps first (cache-friendly — only reruns when pyproject.toml changes)
+# Copy minimal package structure so pip can resolve ".[extras]"
 COPY pyproject.toml .
+RUN mkdir -p logpilot && touch logpilot/__init__.py
 RUN pip install --no-cache-dir ".[gui,claude,gemini,openai,pdf]"
 
-# Copy application code
+# Copy all application code (overwrites the stub __init__.py)
 COPY logpilot/ logpilot/
 COPY app.py app_ai.py app_render.py app_incident.py app_audit.py \
      app_spend.py app_realtime.py app_jira.py app_constants.py \
