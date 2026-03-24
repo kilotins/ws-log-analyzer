@@ -633,6 +633,11 @@ def build_incident_system_prompt(detected_format: str = "", skill_content: str =
             "Be concrete: 'Run kubectl delete pod X' not 'Consider restarting the affected service'.",
             "Use the fix suggestions from <heuristic_findings> — they contain actionable remediation steps.",
             "",
+            "## Code Fix Suggestions",
+            "If source code snippets were provided in <matched_source_code>, suggest SPECIFIC code changes.",
+            "Show before/after diffs or describe exact changes needed. Reference file:line precisely.",
+            "If no source code was provided, skip this section entirely.",
+            "",
             "## Confidence",
             "Table: Finding | Confidence | Evidence.",
             "Be honest about what you're sure about vs. what needs more data to confirm.",
@@ -658,6 +663,11 @@ def build_incident_system_prompt(detected_format: str = "", skill_content: str =
             "## Suggested Actions",
             "Numbered list, prioritized. Include SPECIFIC commands or config changes.",
             "Use the fix suggestions from <heuristic_findings>.",
+            "",
+            "## Code Fix Suggestions",
+            "If source code snippets were provided in <matched_source_code>, suggest SPECIFIC code changes.",
+            "Show before/after diffs or describe exact changes needed. Reference file:line precisely.",
+            "If no source code was provided, skip this section entirely.",
             "",
             "## Confidence Assessment",
             "What you're sure about vs. uncertain.",
@@ -762,6 +772,7 @@ def build_incident_user_prompt(
     per_source_errors: dict | None = None,
     previous_answer: str | None = None,
     what_changed: list[dict] | None = None,
+    code_matches: list[dict] | None = None,
 ) -> str:
     """Build the user prompt for incident diagnosis, combining symptom + log context.
 
@@ -954,6 +965,19 @@ def build_incident_user_prompt(
             if delta["gone_tags"]:
                 parts.append(f"  Disappeared signal tags: {', '.join(delta['gone_tags'])}")
         parts.append("</what_changed>")
+        parts.append("")
+
+    # 10. Matched source code from user's codebase (Trace to Code)
+    if code_matches:
+        parts.append("<matched_source_code>")
+        parts.append("The following source code snippets were found in the user's codebase,")
+        parts.append("matching the stacktrace locations from the log events:")
+        for m in code_matches[:5]:  # Limit to 5 to save tokens
+            parts.append(f"\n--- {m['rel_path']}:{m['line_num']} ({m['confidence']} match) ---")
+            parts.append(f"```{m.get('language', '')}")
+            parts.append(m.get("snippet", ""))
+            parts.append("```")
+        parts.append("</matched_source_code>")
         parts.append("")
 
     user_text = "\n".join(parts)

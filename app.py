@@ -356,6 +356,10 @@ _STATE_DEFAULTS = {
     "_incident_model_id": "claude-sonnet-4-6",
     "_leadership_brief": None,
     # Jira / Confluence integration
+    # Trace to Code
+    "_code_repo_path": "",
+    "_code_matches": None,
+    # Jira / Confluence integration
     "_jira_tickets": None,
     "_jira_cache_key": "",
     "_jira_url": "",
@@ -878,6 +882,22 @@ with st.sidebar:
                 _save_local_ai_settings(st.session_state.local_ai_endpoint,
                                          st.session_state.local_ai_model,
                                          _local_key, _preset)
+
+    with st.expander("Link Source Code (optional)", expanded=False):
+        _repo = st.text_input(
+            "Source code path",
+            value=st.session_state.get("_code_repo_path", ""),
+            placeholder="/path/to/your/project",
+            help="LogPilot will search this directory (READ-ONLY) for code matching stacktraces in your logs",
+            key="_code_repo_input",
+        )
+        st.session_state["_code_repo_path"] = _repo
+        if _repo:
+            from pathlib import Path as _P
+            if _P(_repo).is_dir():
+                st.success(f"Linked: {_repo}")
+            else:
+                st.warning("Directory not found")
 
     from app_jira import render_jira_sidebar
     render_jira_sidebar()

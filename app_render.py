@@ -759,6 +759,44 @@ def render_global_filters(events):
         st.caption(f"Filtering by {' + '.join(parts)} — {len(filtered):,} of {len(events):,} events")
 
 
+def _render_code_locations(events, repo_path: str) -> None:
+    """Render matched code locations from the user's codebase (M50: Trace to Code)."""
+    from logpilot.trace_to_code import extract_code_locations
+    from logpilot.code_search import search_codebase
+
+    # Cache code matches in session state
+    cache_key = f"_code_{len(events)}_{repo_path}"
+    if st.session_state.get("_code_cache_key") != cache_key:
+        locations = extract_code_locations(events)
+        if locations:
+            matches = search_codebase(repo_path, locations, max_results=30)
+            st.session_state["_code_matches"] = matches
+        else:
+            st.session_state["_code_matches"] = []
+        st.session_state["_code_cache_key"] = cache_key
+
+    matches = st.session_state.get("_code_matches", [])
+    if not matches:
+        return
+
+    conf_badge = {"exact": "🟢", "file": "🟡", "grep": "⚪"}
+
+    with st.expander(f"Code Locations ({len(matches)} matches in your codebase)", expanded=False):
+        # Group by file
+        by_file: dict[str, list] = {}
+        for m in matches:
+            by_file.setdefault(m.rel_path, []).append(m)
+
+        for rel_path, file_matches in by_file.items():
+            lang = file_matches[0].location.language
+            for m in file_matches:
+                badge = conf_badge.get(m.confidence, "")
+                method_str = f" — `{m.location.method}()`" if m.location.method else ""
+                st.markdown(f"{badge} **{m.rel_path}:{m.line_num}**{method_str}")
+                st.code("\n".join(m.snippet), language=lang)
+                st.caption(f"Matched from: `{m.location.source_line or m.location.file_hint}` [{m.confidence}]")
+
+
 def render_sample_filters(events):
     """Render drill-down filters (Code, Exception, Time) above sample events."""
     all_exceptions = sorted({e.exception for e in events if e.exception})
@@ -938,6 +976,11 @@ def render_report_sections(a, log=None, lookup_cache=None, store_cache=None):
     if display_causes:
         with st.expander(f"Likely Causes & Fixes ({len(display_causes)} detected)"):
             render_likely_causes(display_causes)
+
+    # --- 5b. Code Locations (Trace to Code) ---
+    _repo_path = st.session_state.get("_code_repo_path", "")
+    if _repo_path and display_events:
+        _render_code_locations(display_events, _repo_path)
 
     # --- 7b. Drill-down Filters (Code, Exception, Time — scope samples only) ---
     render_sample_filters(display_events)
