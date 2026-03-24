@@ -135,7 +135,7 @@ def render_executive_summary(
                          "authz-denied", "ssh-brute-force", "ldap-connection-fail"},
             "Network": {"connection-refused", "timeout-generic", "dns-resolution-fail",
                         "network-unreachable", "nginx-502"},
-            "Utvecklare": {"oom-gc", "repeated-exception", "session-error",
+            "Developers": {"oom-gc", "repeated-exception", "session-error",
                            "servlet-error", "spring-startup-fail"},
             "Infra": {"oom-killer", "disk-full", "kernel-panic"},
         }

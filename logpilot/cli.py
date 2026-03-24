@@ -8,7 +8,6 @@ from pathlib import Path
 
 from .event import LogEvent, ERROR_LEVELS
 from .parser import parse_file
-from .analysis import summarize
 from .reports import render_json_report, render_markdown_report, render_html_report, render_executive_summary, render_executive_summary_html
 from .ai import build_claude_prompt, _sanitize_prompt_input
 
@@ -127,12 +126,12 @@ def main() -> None:
     # AI analysis — build shared prompt
     _use_ai = args.claude or args.ai_endpoint or args.ai_model
     if _use_ai:
-        summary = summarize(all_events, args.top)
+        _summary = _analysis["summary"]
         cli_match = {
             "matched": True,
-            "codes": [c for c, _ in summary["codes"]],
-            "exceptions": [e for e, _ in summary["exceptions"]],
-            "tags": [t for t, _ in summary["tags"]],
+            "codes": [c for c, _ in _summary["codes"]],
+            "exceptions": [e for e, _ in _summary["exceptions"]],
+            "tags": [t for t, _ in _summary["tags"]],
             "matching_events": [],
         }
 
@@ -191,7 +190,7 @@ def main() -> None:
                 sys.exit(1)
 
             try:
-                client = Anthropic(timeout=30.0)
+                client = Anthropic(timeout=120.0)
                 message = client.messages.create(
                     model=args.model,
                     max_tokens=4096,

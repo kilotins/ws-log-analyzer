@@ -107,7 +107,8 @@ _REDACT_FAST_CHECK = re.compile(
 # --- PII redaction patterns (M59: GDPR compliance) ---
 
 # Norwegian personnummer: 11 digits (DDMMYY + 5 individual digits)
-_PERSONNR_RE = re.compile(r'\b(\d{2}[01]\d[0-9]\d)\d{5}\b')
+# Day 01-31, month 01-12, then 2-digit year + 5 individual digits
+_PERSONNR_RE = re.compile(r'\b((?:0[1-9]|[12]\d|3[01])(?:0[1-9]|1[0-2])\d{2})\d{5}\b')
 
 # Norwegian organisasjonsnummer: 9 digits starting with 8 or 9
 _ORGNR_RE = re.compile(r'\b([89]\d{2})\d{6}\b')
@@ -133,11 +134,11 @@ _IPV6_RE = re.compile(
     r'|\b[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}\b'
 )
 
-# Credit card (13-19 digits, Luhn-plausible starts)
-_CREDIT_CARD_RE = re.compile(r'\b[3-6]\d{12,18}\b')
+# Credit card — common prefixes: Visa (4), MC (51-55/2221-2720), Amex (34/37), Discover (6011/65)
+_CREDIT_CARD_RE = re.compile(r'\b(?:4\d{3}|5[1-5]\d{2}|3[47]\d{2}|6(?:011|5\d{2}))\d{8,15}\b')
 
-# IBAN (NO + 2 check + up to 11 digits, or generic 2-letter country + 2 check + up to 30)
-_IBAN_RE = re.compile(r'\b[A-Z]{2}\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{2,22}\b')
+# IBAN — 2-letter country + 2 check digits + 11-30 BBAN digits (min 15 chars total)
+_IBAN_RE = re.compile(r'\b[A-Z]{2}\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{3,22}\b')
 
 # Phone numbers (Norwegian: +47/0047 + 8 digits)
 _PHONE_NO_RE = re.compile(r'(?:\+47|0047)\s?\d{2}\s?\d{2}\s?\d{2}\s?\d{2}\b')
@@ -222,20 +223,14 @@ def redact(s: str, level: str = "secrets") -> str:
     # PII redaction (standard + strict)
     if _PII_FAST_CHECK.search(s):
         for rx, repl in PII_REPLACERS:
-            if callable(repl):
-                s = rx.sub(repl, s)
-            else:
-                s = rx.sub(repl, s)
+            s = rx.sub(repl, s)
 
     # Private IP subnet masking (standard + strict)
     s = _IPV4_PRIVATE_RE.sub(_redact_ipv4_private, s)
 
     if level == "strict":
         for rx, repl in INFRA_REPLACERS:
-            if callable(repl):
-                s = rx.sub(repl, s)
-            else:
-                s = rx.sub(repl, s)
+            s = rx.sub(repl, s)
 
     return s
 

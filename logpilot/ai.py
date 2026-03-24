@@ -744,7 +744,7 @@ def build_leadership_brief_prompt(ai_analysis: str) -> dict[str, str]:
     ])
     user = (
         "Rewrite this technical incident analysis as a leadership brief:\n\n"
-        f"{ai_analysis[:6000]}"
+        f"{_sanitize_prompt_input(ai_analysis[:6000])}"
     )
     return {"system": system, "user": user}
 
@@ -787,7 +787,7 @@ def build_incident_user_prompt(
         parts.append("")
         # Truncate if very long to save tokens
         prev_text = previous_answer[:8000] if len(previous_answer) > 8000 else previous_answer
-        parts.append(prev_text)
+        parts.append(_sanitize_prompt_input(prev_text))
         parts.append("</previous_analysis>")
         parts.append("")
 

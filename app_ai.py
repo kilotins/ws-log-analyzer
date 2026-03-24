@@ -1181,3 +1181,23 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
         _model_label = st.session_state.get("_triage_model", "AI")
         st.markdown(f"**Cross-System Triage** ({_model_label}):")
         st.markdown(_triage_answer)
+
+
+def call_ai_provider(provider: str, model_id: str, prompt: dict,
+                     max_tokens: int = 4096) -> tuple[str | None, dict]:
+    """Dispatch an AI call to the correct provider. Returns (text, usage)."""
+    if provider == "claude":
+        return call_claude_api(
+            st.session_state.get("api_key", ""), model_id, prompt, max_tokens=max_tokens)
+    elif provider == "gemini":
+        return call_gemini_api(
+            st.session_state.get("gemini_api_key", ""), model_id, prompt, max_tokens=max_tokens)
+    elif provider == "openai":
+        return call_openai_api(
+            st.session_state.get("openai_api_key", "") or "not-needed",
+            model_id, prompt, max_tokens=max_tokens)
+    elif provider == "local":
+        _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
+        return call_local_api(
+            "not-needed", model_id, prompt, max_tokens=max_tokens, base_url=_local_url)
+    return (None, {})
