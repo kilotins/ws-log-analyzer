@@ -1,7 +1,13 @@
+# Virtual envs
 .venv/
 venv/
+
+# Git / CI
 .git/
 .github/
+.gitignore
+
+# Dev tooling
 .claude/
 __pycache__/
 *.pyc
@@ -9,17 +15,44 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
+# Tests & docs
 tests/
 docs/
 scripts/
+demo/
+
+# Runtime dirs (created fresh in container)
 uploads/
 reports/
 cache/
 logs/
+
+# Build artifacts
 *.egg-info/
+dist/
+MANIFEST.in
+
+# Sample / example files
+*.log
+*.yaml
+*.json
 *.bak
 .DS_Store
+
+# Docker files (not needed inside image)
+Dockerfile
+docker-compose.yml
+
+# Env & secrets
 .env
-AUDIT_REPORT.*
+.env.example
+
+# Reports & docs (not needed at runtime)
+*.md
+audit-report-*
 PROJECT_OVERVIEW.*
-MILESTONES.md
+
+# Scripts
+gen_logs.sh
+start.sh

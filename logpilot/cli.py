@@ -15,6 +15,16 @@ from .ai import (
     select_skills, load_skill_content, _sanitize_prompt_input,
 )
 
+import re
+
+def _sanitize_ai_error(msg: str) -> str:
+    """Remove API keys and tokens from error messages."""
+    msg = re.sub(r'(sk-(?:ant-|proj-)?)[A-Za-z0-9_-]{8,}', r'\1***', msg)
+    msg = re.sub(r'(AIza)[A-Za-z0-9_-]{8,}', r'\1***', msg)
+    msg = re.sub(r'(key provided: )[^\s.]+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'(api[_-]?key[=: ]+)[^\s,}"\']+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
+    return msg
+
 
 def _detect_formats(events: list[LogEvent]) -> tuple[str, list[str], bool]:
     """Detect dominant format and list of all formats from events.
@@ -132,10 +142,10 @@ def _call_ai(provider: str, model: str, endpoint: str, prompt: dict,
                 print("", file=sys.stderr)  # newline after stream
             return "".join(text_parts)
         except (ImportError, OSError, ValueError, RuntimeError) as ex:
-            print(f"Claude API call failed: {ex}", file=sys.stderr)
+            print(f"Claude API call failed: {_sanitize_ai_error(str(ex))}", file=sys.stderr)
             print("Tip: ensure ANTHROPIC_API_KEY is set.", file=sys.stderr)
         except Exception as ex:
-            print(f"Claude API call failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+            print(f"Claude API call failed: {type(ex).__name__}: {_sanitize_ai_error(str(ex))}", file=sys.stderr)
         return None
 
     elif provider == "gemini":
@@ -159,7 +169,7 @@ def _call_ai(provider: str, model: str, endpoint: str, prompt: dict,
                 print(text, file=sys.stderr)
             return text
         except Exception as ex:
-            print(f"Gemini API call failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+            print(f"Gemini API call failed: {type(ex).__name__}: {_sanitize_ai_error(str(ex))}", file=sys.stderr)
         return None
 
     elif provider == "openai":
@@ -195,7 +205,7 @@ def _call_ai(provider: str, model: str, endpoint: str, prompt: dict,
                 print("", file=sys.stderr)
             return "".join(text_parts)
         except Exception as ex:
-            print(f"OpenAI API call failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+            print(f"OpenAI API call failed: {type(ex).__name__}: {_sanitize_ai_error(str(ex))}", file=sys.stderr)
         return None
 
     else:  # local
@@ -227,10 +237,10 @@ def _call_ai(provider: str, model: str, endpoint: str, prompt: dict,
                 print("", file=sys.stderr)
             return "".join(text_parts)
         except (ImportError, OSError, ValueError, RuntimeError) as ex:
-            print(f"Local AI call failed: {ex}", file=sys.stderr)
+            print(f"Local AI call failed: {_sanitize_ai_error(str(ex))}", file=sys.stderr)
             print(f"Tip: ensure {endpoint} is running.", file=sys.stderr)
         except Exception as ex:
-            print(f"Local AI call failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+            print(f"Local AI call failed: {type(ex).__name__}: {_sanitize_ai_error(str(ex))}", file=sys.stderr)
         return None
 
 
@@ -386,4 +396,4 @@ def main() -> None:
     else:
         out_path.write_text(report, encoding="utf-8")
     if not args.quiet:
-        print(f"Wrote report: {out_path}")
+        print(f"Wrote report: {out_path}", file=sys.stderr)
