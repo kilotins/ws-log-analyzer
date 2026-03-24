@@ -123,26 +123,11 @@ def render_executive_summary(
         md.append("")
 
         # Suggested team
-        from ..heuristics import likely_causes
-        _team_map = {
-            "DBA": {"db-pool", "pg-deadlock", "pg-conn-limit", "pg-replication-fail",
-                     "pg-temp-file", "ora-error", "db2-sqlcode", "mssql-error",
-                     "mysql-error", "hikari-pool", "datasource-down"},
-            "DevOps": {"k8s-crashloop", "k8s-oomkilled", "k8s-scheduling",
-                       "k8s-node-pressure", "k8s-imagepull", "k8s-mount-fail",
-                       "deploy-fail", "systemd-service-fail"},
-            "Security": {"ssl-trust", "cert-expiry", "auth-failure-generic",
-                         "authz-denied", "ssh-brute-force", "ldap-connection-fail"},
-            "Network": {"connection-refused", "timeout-generic", "dns-resolution-fail",
-                        "network-unreachable", "nginx-502"},
-            "Developers": {"oom-gc", "repeated-exception", "session-error",
-                           "servlet-error", "spring-startup-fail"},
-            "Infra": {"oom-killer", "disk-full", "kernel-panic"},
-        }
+        from ..jira_tickets import TEAM_SUGGESTIONS
         trigger_ids = {t["id"] for t in primary.get("triggers", [])}
         suggested_teams = []
-        for team, heuristic_ids in _team_map.items():
-            if trigger_ids & heuristic_ids:
+        for team, heuristic_ids in TEAM_SUGGESTIONS.items():
+            if trigger_ids & set(heuristic_ids):
                 suggested_teams.append(team)
         if suggested_teams:
             md.append(f"**Suggested team:** {', '.join(suggested_teams)}")

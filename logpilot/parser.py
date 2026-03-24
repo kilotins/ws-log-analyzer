@@ -25,7 +25,7 @@ TS_PATTERNS = [
     re.compile(r'(?P<ts>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[,:.]\d{3,6})?)'),
 ]
 
-LEVEL_RE = re.compile(r'\b(SEVERE|ERROR|WARN|WARNING|INFO|DEBUG|FINE|FINER|FINEST)\b', re.IGNORECASE)
+LEVEL_RE = re.compile(r'\b(SEVERE|ERROR|WARN|WARNING|INFO|DEBUG|FINE|FINER|FINEST|TRACE|FATAL|CRITICAL)\b', re.IGNORECASE)
 
 # WebSphere uses single-letter severity after thread ID: [ts] threadid Component X
 # I=Info, A=Audit, W=Warning, E=Error, O=SystemOut/SystemErr, F=Fatal, R=Report, D=Detail
@@ -42,12 +42,8 @@ WAS_THREAD_RE = re.compile(r'\]\s+([0-9a-f]{8})\s+')
 # WebSphere / Liberty message codes (general pattern: 4-5 uppercase letters + 4 digits + severity letter)
 WAS_CODE_RE = re.compile(r'\b([A-Z]{4,5}\d{4}[A-Z])\b')
 
-# Java exceptions / errors
-EXC_HEAD_RE = re.compile(r'\b([a-zA-Z_$]+(?:\.[a-zA-Z_$]+)+(?:Exception|Error))\b')
-STACK_LINE_RE = re.compile(r'^\s+at\s+[\w.$]+\(.*\)$')
-CAUSED_BY_RE = re.compile(r'^\s*Caused by:\s+(?P<cause>.+)$')
-
-OOM_RE = re.compile(r'OutOfMemoryError|Java heap space|GC overhead limit exceeded', re.IGNORECASE)
+# Java exceptions / errors — canonical definitions in formats.base
+from .formats.base import EXC_HEAD_RE, STACK_LINE_RE, CAUSED_BY_RE, OOM_RE
 HUNG_THREAD_RE = re.compile(r'hung thread|ThreadMonitor|WSVR0605|stuck thread|CWWKE0701E', re.IGNORECASE)
 
 # Hung thread drilldown: extract thread name from WAS ThreadMonitor messages
