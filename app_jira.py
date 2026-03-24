@@ -103,14 +103,13 @@ def render_jira_tickets(causes: list[dict], analysis: dict) -> None:
     col_copy, col_jira, col_confluence = st.columns(3)
 
     with col_copy:
-        # Format selected tickets as copyable markdown
         selected_tickets = [tickets[i] for i in selected]
-        clipboard_text = _format_tickets_markdown(selected_tickets)
+        csv_data = _format_tickets_csv(selected_tickets)
         st.download_button(
-            f"Download {len(selected)} ticket(s) as Markdown",
-            data=clipboard_text,
-            file_name="jira_tickets.md",
-            mime="text/markdown",
+            f"Export {len(selected)} ticket(s) as CSV",
+            data=csv_data,
+            file_name="jira_tickets.csv",
+            mime="text/csv",
             use_container_width=True,
         )
 
@@ -144,13 +143,33 @@ def render_jira_tickets(causes: list[dict], analysis: dict) -> None:
                       use_container_width=True)
 
 
-def _format_tickets_markdown(tickets: list[dict]) -> str:
-    """Format tickets as a single markdown document for download/copy."""
-    parts: list[str] = []
-    for i, t in enumerate(tickets, 1):
-        parts.append(t["description"])
-        parts.append("")
-    return "\n".join(parts)
+def _format_tickets_csv(tickets: list[dict]) -> str:
+    """Format tickets as CSV for Jira CSV import.
+
+    Columns match Jira's built-in CSV importer:
+    Summary, Description, Priority, Labels, Issue Type, Component
+    """
+    import csv
+    import io
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Summary", "Description", "Priority", "Labels",
+        "Issue Type", "Suggested Team",
+    ])
+    issue_type = st.session_state.get("_jira_issue_type", "Bug")
+    for t in tickets:
+        writer.writerow([
+            t["summary"],
+            t["description"],
+            {"P1 Critical": "Critical", "P2 Major": "Major", "P3 Minor": "Minor"}.get(
+                t["priority"], "Major"),
+            " ".join(l.replace(" ", "-") for l in t["labels"]),
+            issue_type,
+            t["suggested_team"],
+        ])
+    return output.getvalue()
 
 
 # ── Sidebar configuration ─────────────────────────────────────────────
