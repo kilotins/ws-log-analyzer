@@ -12,6 +12,21 @@ import re
 from datetime import datetime, timezone
 
 
+_UNICODE_MAP = {
+    "\u2192": "->", "\u2190": "<-", "\u2014": "--", "\u2013": "-",
+    "\u2011": "-", "\u2018": "'", "\u2019": "'", "\u201c": '"',
+    "\u201d": '"', "\u2026": "...", "\u2022": "-", "\u2212": "-",
+    "\u00a0": " ", "\u200b": "",
+}
+
+
+def _safe(text: str) -> str:
+    """Replace common Unicode chars with ASCII equivalents, then encode to latin-1."""
+    for char, repl in _UNICODE_MAP.items():
+        text = text.replace(char, repl)
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
 def render_brief_pdf(markdown_text: str, title: str = "Incident Brief for Leadership") -> bytes:
     """Convert a leadership brief (markdown) to a premium branded PDF.
 
@@ -28,9 +43,6 @@ def render_brief_pdf(markdown_text: str, title: str = "Incident Brief for Leader
     SLATE_300 = (203, 213, 225)  # #CBD5E1
     SLATE_100 = (241, 245, 249)  # #F1F5F9
     WHITE = (255, 255, 255)
-
-    def _safe(text: str) -> str:
-        return text.encode("latin-1", errors="replace").decode("latin-1")
 
     class BriefPDF(FPDF):
         def header(self):
@@ -195,6 +207,8 @@ def _render_body(pdf, text: str, body_color: tuple, bold_color: tuple) -> None:
                 line = line.strip()
                 if line.startswith("- ") or line.startswith("* "):
                     line = line[2:]
+                # Strip **bold** markers
+                line = re.sub(r'\*\*([^*]+)\*\*', r'\1', line)
                 pdf.set_x(pdf.l_margin + 6)
                 pdf.set_font("Helvetica", "", 9)
                 pdf.set_text_color(*body_color)
