@@ -62,3 +62,15 @@
 2026-03-25 08:30:30.400 UTC [1260] LOG:  duration: 82.445 ms  statement: SELECT p.*, m.* FROM patients p LEFT JOIN medications m ON p.id = m.patient_id WHERE p.external_id = 'P-10042'
 2026-03-25 08:31:00.500 UTC [1261] LOG:  duration: 48.112 ms  statement: SELECT p.* FROM patients p WHERE p.external_id = 'P-10043'
 2026-03-25 08:32:00.600 UTC [1234] LOG:  stats — connections: 22 active, 78 idle; transactions: 8/s; longest query: 95ms
+2026-03-25 09:15:09.000 +0100 [1262] LOG:  connection received: host=10.0.5.20 port=45320
+2026-03-25 09:15:09.001 +0100 [1262] LOG:  connection authorized: user=patient_app database=patientdb application_name=HikariPool-1
+2026-03-25 08:15:09.500 UTC [1263] LOG:  duration: 18450.778 ms  statement: SELECT p.* FROM patients p WHERE p.external_id = 'P-10051'
+2026-03-25 08:15:09.510 UTC [1263] DETAIL:  planner chose nested loop due to stale statistics
+2026-03-25 08:15:11.000 UTC [1264] WARNING:  archive command failed with exit code 1
+2026-03-25 08:15:11.001 UTC [1264] HINT:  archive_mode is disabled in this test environment; WAL archiving warning is expected
+2026-03-25 08:15:11.
+2026-03-25 08:15:16.300 UTC [1265] FATAL:  remaining connection slots are reserved for non-replication superuser connections
+2026-03-25 08:15:16.301 UTC [1265] DETAIL:  Current connections: 100 of 100 allowed
+2026-03-25 08:14:59.400 UTC [1229] LOG:  checkpoint complete: wrote 12 buffers (0.1%); sync=0.002 s; total=0.015 s
+2026-03-25 08:20:00 UTC [1266] ERROR:  malformed log line from sidecar collector missing pid and fractional seconds
+2026-03-25 08:30:02.000 UTC [1234] LOG:  log rotation marker: switched to postgresql-patientdb.log.1

@@ -36,3 +36,13 @@ Mar 25 08:30:05 health-node-01 kernel: [43805.678] memory: total=8192MB used=563
 Mar 25 08:30:10 health-node-01 crond[3465]: (root) CMD (/usr/local/bin/health-check.sh)
 Mar 25 08:30:11 health-node-01 health-check.sh[3466]: All services healthy: patient-api=OK notification-svc=OK postgresql=OK
 Mar 25 08:31:00 health-node-01 kernel: [43860.901] TCP: eth0: 456 active connections, 89 TIME_WAIT — nominal
+Mar 25 08:14:59 health-node-01 systemd[1]: Rotating logs for nginx-gateway.service and patient-api.service
+Mar 25 10:15:03 health-node-01 envoy[991]: upstream TLS verification failed for patient-api.health.svc.cluster.local: certificate has expired
+Mar 25 08:15:12 health-node-01 kernel: [42912.222] net_ratelimit: 24 callbacks suppressed
+Mar 25 08:15:13 health-node-01 kernel: [42913.333] audit: kauditd_printk_skb: 7 callbacks suppressed
+Mar 25 08:15:18 health-node-01 kubelet[2345]: E0325 08:15:18.444 2345 remote_runtime.go:616] ExecSync from runtime service failed: rpc error: code = DeadlineExceeded desc = command still running
+Mar 25 08:15:19 health-node-01 patient-api[8901]: UTF8 decode fallback applied to upstream payload bytes=fffe534c expiring-cert
+Mar 25 08:15:20 health-node-01 notification-svc[4521]: Connection refused while contacting patient-api after log rota
+Mar 25 08:15:21 health-node-01 systemd[1]: sandbox-canary.service: Main process exited, code=exited, status=1/FAILURE
+Mar 25 08:15:21 health-node-01 systemd[1]: sandbox-canary.service: Failed with result 'exit-code'.
+Mar 25 08:15:21 health-node-01 systemd[1]: sandbox-canary.service: Failure is expected during chaos drill window and does not affect production traffic.

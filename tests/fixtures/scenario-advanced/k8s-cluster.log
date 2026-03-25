@@ -31,3 +31,10 @@
 2026-03-25T08:30:20.678901234+00:00 stdout F I0325 08:30:20.678901 1 prober.go:116] Liveness probe succeeded for pod health/notification-svc-3a2b1c4d5e-j8n2p: HTTP 200
 2026-03-25T08:30:30.789012345+00:00 stdout F I0325 08:30:30.789012 1 node_status.go:512] Node health-node-01: Ready, cpu=42%, memory=68%, disk=45%
 2026-03-25T08:31:00.890123456+00:00 stdout F I0325 08:31:00.890123 1 event.go:294] Event(v1.ObjectReference{Kind:"Service", Namespace:"health", Name:"patient-api"}): type: 'Normal' reason: 'EndpointsReady' All endpoints healthy: 10.0.5.20:8443
+2026-03-25T10:15:02.111111111+02:00 stderr F W0325 10:15:02.111111 1 event.go:294] Event(v1.ObjectReference{Kind:"Pod", Namespace:"health", Name:"patient-api-6d4f7b8c9a-x2k4m"}): type: 'Warning' reason: 'SSLError' Alternate log forwarder timezone recorded TLS failure from same incident
+2026-03-25T08:14:59.999999999+00:00 stdout F I0325 08:14:59.999999 1 event.go:294] Event(v1.ObjectReference{Kind:"Job", Namespace:"health", Name:"daily-cache-warmup"}): type: 'Normal' reason: 'Completed' Cache warmup job finished successfully
+2026-03-25T08:15:18.222222222+00:00 stdout P E0325 08:15:18.222222 1 reflector.go:789] watch of *v1.Pod ended with: context deadline excee
+2026-03-25T08:15:18.222222223+00:00 stdout F ded for pod health/notification-svc-3a2b1c4d5e-j8n2p
+2026-03-25T08:15:18.
+2026-03-25T08:18:30.333333333+00:00 stderr F E0325 08:18:30.333333 1 event.go:294] Event(v1.ObjectReference{Kind:"ClusterOperator", Namespace:"openshift-ingress", Name:"ingress"}): type: 'Warning' reason: 'CanaryCheckFailed' Router canary route failed in sandbox namespace only
+2026-03-25T08:20:00.010000000+00:00 stdout F I0325 08:20:00.010000 1 log_manager.go:77] Rotating kubelet log file k8s-cluster.log -> k8s-cluster.log.1
