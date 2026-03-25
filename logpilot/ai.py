@@ -936,10 +936,14 @@ def build_incident_user_prompt(
     if error_events:
         parts.append("<error_samples>")
         for e in error_events[:5]:
+            _text = getattr(e, "text", "") or (e.get("text", "") if isinstance(e, dict) else "")
+            _level = getattr(e, "level", "") or (e.get("level", "") if isinstance(e, dict) else "")
+            _code = getattr(e, "code", "") or (e.get("code", "") if isinstance(e, dict) else "")
+            _exc = getattr(e, "exception", "") or (e.get("exception", "") if isinstance(e, dict) else "")
             safe_text = _sanitize_prompt_input(
-                _truncate_event_text(e.get("text", ""), max_lines=10)
+                _truncate_event_text(_text, max_lines=10)
             )
-            parts.append(f"[{e.get('level', '')}] {e.get('code', '')} {e.get('exception', '')}")
+            parts.append(f"[{_level}] {_code} {_exc}")
             parts.append(safe_text)
             parts.append("")
         parts.append("</error_samples>")
