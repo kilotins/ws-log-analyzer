@@ -61,6 +61,7 @@ def _iter_files(repo_path: Path, extensions: set[str] | None = None) -> list[Pat
     """Iterate source files in a repo, respecting skip dirs and limits."""
     files: list[Path] = []
     count = 0
+    repo_root = repo_path.resolve()
 
     def _walk(directory: Path) -> None:
         nonlocal count
@@ -73,18 +74,29 @@ def _iter_files(repo_path: Path, extensions: set[str] | None = None) -> list[Pat
         for entry in entries:
             if count >= _MAX_FILES_SCANNED:
                 return
+            try:
+                if entry.is_symlink():
+                    continue
+            except OSError:
+                continue
             if entry.is_dir():
                 if entry.name not in _SKIP_DIRS:
                     _walk(entry)
             elif entry.is_file():
+                try:
+                    resolved = entry.resolve()
+                except OSError:
+                    continue
+                if not resolved.is_relative_to(repo_root):
+                    continue
                 if extensions and entry.suffix not in extensions:
                     continue
                 try:
-                    if entry.stat().st_size > _MAX_FILE_SIZE:
+                    if resolved.stat().st_size > _MAX_FILE_SIZE:
                         continue
                 except OSError:
                     continue
-                files.append(entry)
+                files.append(resolved)
                 count += 1
 
     _walk(repo_path)
