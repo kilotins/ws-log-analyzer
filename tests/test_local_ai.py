@@ -187,6 +187,6 @@ class TestCloudProvidersUnaffected:
         assert "GPT-4o" in AI_MODELS
 
     def test_token_costs_unchanged(self):
-        from app_ai import TOKEN_COSTS
+        from app_constants import TOKEN_COSTS
         assert "claude-sonnet-4-6" in TOKEN_COSTS
         assert "gpt-4o" in TOKEN_COSTS
