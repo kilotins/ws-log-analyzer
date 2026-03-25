@@ -196,3 +196,4 @@ python -m logpilot SystemOut.log --ai local \
 API keys can also be entered in the Streamlit sidebar. Keys are persisted via system keyring with a local file fallback (`cache/.api_keys.json`), so you only need to enter them once.
 
 In the GUI, select your preferred model from the **AI Model** dropdown, then click **Ask AI for help**.
+\n<!-- Test PR verification -->
