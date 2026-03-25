@@ -90,6 +90,7 @@ Your role depends on which worktree you are in:
 - Do the full task: analyze, change code, run tests, summarize results.
 - Stay on task — no opportunistic side-refactors.
 - All existing tests must pass before committing.
+- Open a PR when requested, but never merge it yourself.
 
 ## Worktrees (Parallel Agent Work)
 
@@ -107,12 +108,15 @@ ws-log-analyzer-gemini/   ← gemini-work branch (Gemini)
 - Run tests before committing: all 1922+ tests must pass.
 - Do NOT merge to main — the user will merge your branch when ready.
 - Do NOT push to origin unless the user asks.
+- If the worktree has unrelated uncommitted files, create PRs with an explicit head branch:
+  `gh pr create --head <branch> --base main ...`
 
 **Workflow:**
 1. Agent works on its branch in its worktree
-2. User reviews changes
-3. User merges to main: `git merge claude-work` / `git merge codex-work` / `git merge gemini-work`
-4. User cleans up: `git worktree remove ../ws-log-analyzer-claude`
+2. Agent runs tests, commits, pushes, and opens a PR when requested
+3. Reviewer in `main` reviews the PR and calls out findings or approves it
+4. User merges to main: `git merge claude-work` / `git merge codex-work` / `git merge gemini-work`
+5. User cleans up: `git worktree remove ../ws-log-analyzer-claude`
 
 **Create worktrees** (run from main repo):
 ```bash
