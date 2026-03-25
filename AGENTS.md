@@ -121,6 +121,23 @@ git worktree add ../ws-log-analyzer-codex -b codex-work
 git worktree add ../ws-log-analyzer-gemini -b gemini-work
 ```
 
+## Milestones
+
+All agents share the same milestone numbering. **Check this section before starting work.**
+
+**Next available milestone: M68**
+
+| Milestone | Agent | Status | Description |
+|-----------|-------|--------|-------------|
+| M67 | Claude | Merged | Safety valve, LogEvent .get(), gzip leak, CRITICAL consistency |
+| M66 | — | Done | Audit fixes (pre-cleanup session) |
+
+**Rules:**
+- Before starting a milestone, check AGENTS.md for the next available number.
+- Claim it by telling the user: "I will work on M<number>: <description>"
+- The reviewer on main updates this table after merge.
+- Never reuse a milestone number.
+
 ## Commits
 
 - Commit messages in **English**
