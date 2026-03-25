@@ -14,6 +14,17 @@ _log = logging.getLogger(__name__)
 from .parser import WAS_CODE_RE
 from .event import LogEvent
 
+# --- Error sanitization (shared by CLI, GUI, and future FastAPI) ---
+
+def sanitize_error(msg: str) -> str:
+    """Remove API keys and tokens from error messages before displaying to users."""
+    msg = re.sub(r'(sk-(?:ant-|proj-)?)[A-Za-z0-9_-]{8,}', r'\1***', msg)
+    msg = re.sub(r'(AIza)[A-Za-z0-9_-]{8,}', r'\1***', msg)
+    msg = re.sub(r'(key provided: )[^\s.]+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'(api[_-]?key[=: ]+)[^\s,}"\']+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
+    return msg
+
+
 # --- Constants ---
 MAX_SKILLS = 5
 

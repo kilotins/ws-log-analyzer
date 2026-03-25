@@ -13,17 +13,8 @@ from .reports import render_json_report, render_markdown_report, render_html_rep
 from .ai import (
     build_incident_system_prompt, build_incident_user_prompt,
     select_skills, load_skill_content, _sanitize_prompt_input,
+    sanitize_error as _sanitize_ai_error,
 )
-
-import re
-
-def _sanitize_ai_error(msg: str) -> str:
-    """Remove API keys and tokens from error messages."""
-    msg = re.sub(r'(sk-(?:ant-|proj-)?)[A-Za-z0-9_-]{8,}', r'\1***', msg)
-    msg = re.sub(r'(AIza)[A-Za-z0-9_-]{8,}', r'\1***', msg)
-    msg = re.sub(r'(key provided: )[^\s.]+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
-    msg = re.sub(r'(api[_-]?key[=: ]+)[^\s,}"\']+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
-    return msg
 
 
 def _detect_formats(events: list[LogEvent]) -> tuple[str, list[str], bool]:
