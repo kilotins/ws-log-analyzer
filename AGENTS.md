@@ -67,6 +67,34 @@ These files are replaced in 2.0 (React + FastAPI). Fix bugs only, don't refactor
 - `app.py`, `app_ai.py`, `app_render.py`, `app_incident.py`, `app_audit.py`
 - `app_spend.py`, `app_realtime.py`, `app_jira.py`, `app_constants.py`
 
+## Worktrees (Parallel Agent Work)
+
+Each AI agent works in its own git worktree to avoid conflicts:
+
+```
+ws-log-analyzer/          ← main branch (Claude)
+ws-log-analyzer-codex/    ← codex-work branch (Codex)
+ws-log-analyzer-gemini/   ← gemini-work branch (Gemini)
+```
+
+**If you are running in a worktree:**
+- You are on your own branch. Commit freely.
+- Run tests before committing: all 1842+ tests must pass.
+- Do NOT merge to main — the user will merge your branch when ready.
+- Do NOT push to origin unless the user asks.
+
+**Workflow:**
+1. Agent works on its branch in its worktree
+2. User reviews changes
+3. User merges to main: `git merge codex-work` / `git merge gemini-work`
+4. User cleans up: `git worktree remove ../ws-log-analyzer-codex`
+
+**Create worktrees** (run from main repo):
+```bash
+git worktree add ../ws-log-analyzer-codex -b codex-work
+git worktree add ../ws-log-analyzer-gemini -b gemini-work
+```
+
 ## Commits
 
 - Commit messages in **English**
