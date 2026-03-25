@@ -417,8 +417,8 @@ def test_render_pdf_report_contains_summary_text():
     ]
     pdf_bytes = render_pdf_report(events, top_n=5, samples_n=5)
     pdf_text = _extract_pdf_text(pdf_bytes)
-    assert "Parsed events: 2" in pdf_text
-    assert "Top Levels" in pdf_text
+    assert "Events: 2" in pdf_text
+    assert "Severity Distribution" in pdf_text
     assert "ERROR" in pdf_text
     assert "INFO" in pdf_text
     assert "Sample Events" in pdf_text
