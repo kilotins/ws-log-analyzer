@@ -1,0 +1,125 @@
+2026-03-25 08:00:10.123 INFO 8901 --- [main] n.h.patient.PatientApplication           : Started PatientApplication in 4.231s (process running for 5.012s)
+2026-03-25 08:00:10.456 INFO 8901 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-03-25 08:00:10.789 INFO 8901 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed. Pool size: 10, active: 0, idle: 10, waiting: 0
+2026-03-25 08:00:15.100 INFO 8901 --- [http-nio-8443-exec-1] n.h.patient.controller.PatientController : GET /api/patients/P-10042 [req-a1b2c3d4] - 200 OK (42ms)
+2026-03-25 08:00:18.200 INFO 8901 --- [http-nio-8443-exec-2] n.h.patient.controller.PatientController : GET /api/patients/P-10043/medications [req-e5f6a7b8] - 200 OK (35ms)
+2026-03-25 08:01:30.300 INFO 8901 --- [http-nio-8443-exec-3] n.h.patient.controller.AppointmentCtrl   : POST /api/appointments [req-b3c4d5e6] - 201 Created (118ms)
+2026-03-25 08:02:05.400 INFO 8901 --- [http-nio-8443-exec-1] n.h.patient.controller.PatientController : GET /api/patients/P-10042/journal [req-d7e8f9a0] - 200 OK (85ms)
+2026-03-25 08:03:00.500 INFO 8901 --- [http-nio-8443-exec-4] n.h.patient.controller.PatientController : GET /api/patients/P-10099/lab-results [req-f1a2b3c4] - 200 OK (63ms)
+2026-03-25 08:04:22.600 INFO 8901 --- [http-nio-8443-exec-2] n.h.patient.controller.PrescriptionCtrl  : GET /api/prescriptions?patient=P-10042 [req-a5b6c7d8] - 200 OK (51ms)
+2026-03-25 08:06:45.700 INFO 8901 --- [http-nio-8443-exec-5] n.h.patient.controller.PatientController : PUT /api/patients/P-10043/diagnosis [req-e9f0a1b2] - 200 OK (130ms)
+2026-03-25 08:08:30.800 INFO 8901 --- [http-nio-8443-exec-1] n.h.patient.controller.PatientController : GET /api/patients/search?name=Olsen [req-c3d4e5f6] - 200 OK (197ms)
+2026-03-25 08:10:00.100 INFO 8901 --- [http-nio-8443-exec-3] n.h.patient.controller.AdminController   : GET /api/admin/stats - 200 OK (19ms)
+2026-03-25 08:12:15.200 INFO 8901 --- [http-nio-8443-exec-2] n.h.patient.controller.PatientController : GET /api/patients/P-10050/vitals - 200 OK (37ms)
+2026-03-25 08:14:30.300 INFO 8901 --- [http-nio-8443-exec-4] n.h.patient.controller.PatientController : POST /api/patients/P-10099/referral [req-c9d0e1f2] - 201 Created (152ms)
+2026-03-25 08:15:01.010 ERROR 8901 --- [http-nio-8443-exec-1] n.h.patient.service.NotificationClient   : Failed to send notification to notification-service [req-a1b2c3d4]: SSL handshake failed
+
+javax.net.ssl.SSLHandshakeException: PKIX path validation failed: java.security.cert.CertPathValidatorException: validity check failed
+	at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:131)
+	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:378)
+	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:321)
+	at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1357)
+	at no.health.patient.service.NotificationClient.sendNotification(NotificationClient.java:89)
+	at no.health.patient.controller.PatientController.getPatient(PatientController.java:142)
+Caused by: java.security.cert.CertificateExpiredException: NotAfter: Tue Mar 25 08:15:00 UTC 2026
+	at java.base/sun.security.x509.CertificateValidity.valid(CertificateValidity.java:277)
+	at java.base/sun.security.x509.X509CertImpl.checkValidity(X509CertImpl.java:675)
+	... 18 more
+
+2026-03-25 08:15:01.050 WARN 8901 --- [http-nio-8443-exec-1] n.h.patient.controller.PatientController : Notification failed for patient P-10042, continuing without notification [req-a1b2c3d4]
+2026-03-25 08:15:03.100 ERROR 8901 --- [http-nio-8443-exec-2] n.h.patient.service.NotificationClient   : Failed to send notification to notification-service [req-e5f6a7b8]: SSL handshake failed
+
+javax.net.ssl.SSLHandshakeException: PKIX path validation failed: java.security.cert.CertPathValidatorException: validity check failed
+	at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:131)
+	at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:378)
+	at no.health.patient.service.NotificationClient.sendNotification(NotificationClient.java:89)
+Caused by: java.security.cert.CertificateExpiredException: NotAfter: Tue Mar 25 08:15:00 UTC 2026
+	at java.base/sun.security.x509.CertificateValidity.valid(CertificateValidity.java:277)
+	... 12 more
+
+2026-03-25 08:15:05.200 WARN 8901 --- [http-nio-8443-exec-3] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Connection is not available, request timed out after 30000ms (total=30, active=30, idle=0, waiting=12)
+2026-03-25 08:15:05.201 ERROR 8901 --- [http-nio-8443-exec-3] n.h.patient.repository.PatientRepository : Failed to acquire database connection [req-c9d0e1f2]
+
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:82)
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.beginTransaction(HibernateJpaDialect.java:153)
+	at no.health.patient.repository.PatientRepository.findById(PatientRepository.java:45)
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
+	... 24 more
+
+2026-03-25 08:15:08.300 ERROR 8901 --- [http-nio-8443-exec-4] n.h.patient.controller.PatientController : GET /api/patients/P-10099 failed: Connection pool exhausted
+
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:82)
+	at no.health.patient.controller.PatientController.getPatient(PatientController.java:138)
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+	... 18 more
+
+2026-03-25 08:15:10.400 WARN 8901 --- [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=32s)
+2026-03-25 08:15:12.500 ERROR 8901 --- [http-nio-8443-exec-5] n.h.patient.controller.PrescriptionCtrl  : GET /api/prescriptions failed: pool exhaustion
+
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:82)
+	at no.health.patient.controller.PrescriptionCtrl.listPrescriptions(PrescriptionCtrl.java:67)
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+	... 16 more
+
+2026-03-25 08:15:15.600 ERROR 8901 --- [http-nio-8443-exec-6] n.h.patient.controller.AppointmentCtrl   : POST /api/appointments failed: pool exhaustion
+
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:82)
+	at no.health.patient.controller.AppointmentCtrl.createAppointment(AppointmentCtrl.java:53)
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+	... 14 more
+
+2026-03-25 08:15:20.700 WARN 8901 --- [http-nio-8443-exec-7] n.h.patient.filter.RequestTimeoutFilter  : Request timed out after 30s: GET /api/patients/P-10042 [req-a1b2c3d4] — thread http-nio-8443-exec-7 blocked for 30124ms
+2026-03-25 08:15:25.800 WARN 8901 --- [http-nio-8443-exec-8] n.h.patient.filter.RequestTimeoutFilter  : Request timed out after 30s: GET /api/patients/P-10043 [req-e5f6a7b8] — thread http-nio-8443-exec-8 blocked for 30089ms
+2026-03-25 08:15:30.100 ERROR 8901 --- [http-nio-8443-exec-9] n.h.patient.controller.PatientController : GET /api/patients/search failed: pool exhaustion
+
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at no.health.patient.controller.PatientController.searchPatients(PatientController.java:201)
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+	... 12 more
+
+2026-03-25 08:15:35.200 WARN 8901 --- [http-nio-8443-exec-10] n.h.patient.filter.RequestTimeoutFilter  : Request timed out after 30s: POST /api/appointments — thread http-nio-8443-exec-10 blocked for 30201ms
+2026-03-25 08:16:00.300 ERROR 8901 --- [http-nio-8443-exec-1] n.h.patient.service.NotificationClient   : Failed to send notification [req-c9d0e1f2]: Connection refused (Connection refused)
+
+java.net.ConnectException: Connection refused (Connection refused)
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at no.health.patient.service.NotificationClient.sendNotification(NotificationClient.java:89)
+
+2026-03-25 08:16:30.400 ERROR 8901 --- [scheduling-1] n.h.patient.job.HealthCheckJob            : Health check failed: Cannot connect to notification-service at 10.0.5.30:8443
+
+java.net.ConnectException: Connection refused (Connection refused)
+	at no.health.patient.job.HealthCheckJob.checkDownstreamServices(HealthCheckJob.java:34)
+
+2026-03-25 08:17:00.500 WARN 8901 --- [scheduling-1] n.h.patient.job.HealthCheckJob            : Downstream notification-service has been unreachable for 120s
+2026-03-25 08:17:30.600 ERROR 8901 --- [http-nio-8443-exec-2] n.h.patient.controller.PatientController : GET /api/patients/P-10042 failed [req-a1b2c3d4]
+
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at no.health.patient.controller.PatientController.getPatient(PatientController.java:138)
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+	... 10 more
+
+2026-03-25 08:18:00.700 ERROR 8901 --- [http-nio-8443-exec-3] n.h.patient.controller.PatientController : GET /api/patients/P-10043 failed [req-e5f6a7b8]
+
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at no.health.patient.controller.PatientController.getPatient(PatientController.java:138)
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+	... 10 more
+
+2026-03-25 08:20:00.100 ERROR 8901 --- [scheduling-1] n.h.patient.job.HealthCheckJob            : CRITICAL: All downstream services unreachable. Marking instance unhealthy.
+2026-03-25 08:25:00.200 WARN 8901 --- [http-nio-8443-exec-1] n.h.patient.controller.PatientController : Still failing: pool exhaustion continues
+2026-03-25 08:30:05.100 INFO 8901 --- [scheduling-1] n.h.patient.job.HealthCheckJob            : Downstream notification-service is reachable again (10.0.5.30:8443)
+2026-03-25 08:30:10.200 INFO 8901 --- [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Pool stats (total=30, active=5, idle=25, waiting=0)
+2026-03-25 08:30:30.300 INFO 8901 --- [http-nio-8443-exec-1] n.h.patient.controller.PatientController : GET /api/patients/P-10042 [req-a1b2c3d4] - 200 OK (85ms)
+2026-03-25 08:31:00.400 INFO 8901 --- [http-nio-8443-exec-2] n.h.patient.controller.PatientController : GET /api/patients/P-10043 [req-e5f6a7b8] - 200 OK (52ms)
+2026-03-25 08:31:30.500 INFO 8901 --- [scheduling-1] n.h.patient.job.HealthCheckJob            : All downstream services healthy. Resuming normal operations.
