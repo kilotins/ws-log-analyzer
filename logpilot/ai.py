@@ -85,11 +85,14 @@ CLAUDE_SYSTEM_PROMPT = build_system_prompt()
 _SKILLS_DIR = Path(__file__).parent.parent / "skills"
 
 _SKILL_TAG_MAP: dict[str, list[str]] = {
-    "OOM/GC":      ["stacktrace-analysis.md", "gc-performance.md"],
+    "OOM/GC":      ["gc-performance.md", "stacktrace-analysis.md", "docker-analysis.md"],
     "HungThreads": ["thread-correlation.md", "stacktrace-analysis.md"],
-    "DB/Pool":     ["message-codes.md", "jms-messaging.md"],
-    "SSL/TLS":     ["security-analysis.md"],
-    "HTTP":        ["servlet-errors.md", "message-codes.md"],
+    "DB/Pool":     ["database-errors.md", "postgresql-log-analysis.md", "message-codes.md"],
+    "SSL/TLS":     ["security-analysis.md", "datapower-analysis.md"],
+    "HTTP":        ["nginx-analysis.md", "servlet-errors.md", "message-codes.md"],
+    "K8s/Pod":     ["openshift-k8s-analysis.md", "docker-analysis.md"],
+    "Auth":        ["security-analysis.md", "datapower-analysis.md"],
+    "Upstream":    ["nginx-analysis.md"],
 }
 
 _SKILL_CODE_PREFIX_MAP: dict[str, list[str]] = {
@@ -214,6 +217,37 @@ _SKILL_QUERY_KEYWORDS: dict[str, list[str]] = {
     "correlation":  ["cross-system-analysis.md"],
     "multi-system": ["cross-system-analysis.md"],
     "request flow": ["cross-system-analysis.md"],
+    # Docker / containerd
+    "oomkilled":    ["docker-analysis.md"],
+    "crashloop":    ["docker-analysis.md", "openshift-k8s-analysis.md"],
+    "imagepull":    ["docker-analysis.md", "openshift-k8s-analysis.md"],
+    "containerd":   ["docker-analysis.md"],
+    "docker":       ["docker-analysis.md"],
+    # Tomcat
+    "catalina":     ["tomcat-analysis.md"],
+    "coyote":       ["tomcat-analysis.md"],
+    "dbcp":         ["tomcat-analysis.md", "database-errors.md"],
+    "http-nio":     ["tomcat-analysis.md"],
+    # PostgreSQL
+    "sqlstate":     ["postgresql-log-analysis.md", "database-errors.md"],
+    "postgres":     ["postgresql-log-analysis.md"],
+    "deadlock detected": ["postgresql-log-analysis.md"],
+    "vacuum":       ["postgresql-log-analysis.md"],
+    # DataPower
+    "mpgw":         ["datapower-analysis.md"],
+    "apiconnect":   ["datapower-analysis.md"],
+    "0x80e":        ["datapower-analysis.md"],
+    "datapower":    ["datapower-analysis.md"],
+    # OpenShift / Kubernetes
+    "pod":          ["openshift-k8s-analysis.md"],
+    "route":        ["openshift-k8s-analysis.md"],
+    "readiness":    ["openshift-k8s-analysis.md"],
+    "liveness":     ["openshift-k8s-analysis.md"],
+    "init container": ["openshift-k8s-analysis.md"],
+    # nginx
+    "upstream":     ["nginx-analysis.md"],
+    "proxy_pass":   ["nginx-analysis.md"],
+    "nginx":        ["nginx-analysis.md"],
 }
 
 
@@ -310,7 +344,7 @@ _SKILL_FORMAT_MAP: dict[str, list[str]] = {
     "datapower":  ["datapower-analysis.md"],
     "tomcat":     ["tomcat-analysis.md"],
     "postgresql": ["postgresql-log-analysis.md"],
-    "docker_json": ["json-structured-logs.md"],
+    "docker_json": ["docker-analysis.md", "json-structured-logs.md"],
 }
 
 
