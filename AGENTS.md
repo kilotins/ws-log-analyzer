@@ -85,6 +85,7 @@ Your role depends on which worktree you are in:
 - Read diffs and relevant files. List findings first.
 
 **Implementer rules (worktree branch):**
+- **Before starting any task**, sync with main: `git merge main`
 - Work only in your worktree. Don't assume other worktrees have the same state.
 - Do the full task: analyze, change code, run tests, summarize results.
 - Stay on task — no opportunistic side-refactors.
