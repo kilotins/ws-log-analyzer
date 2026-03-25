@@ -101,7 +101,7 @@ def render_html_report(
 
     # Pre-scan which sections will be rendered
     level_counts = dict(s["levels"])
-    error_count = sum(level_counts.get(l, 0) for l in ("ERROR", "SEVERE", "FATAL"))
+    error_count = sum(level_counts.get(l, 0) for l in ("ERROR", "SEVERE", "FATAL", "CRITICAL"))
     warn_count = level_counts.get("WARNING", 0) + level_counts.get("WARN", 0)
 
     # Section order: decision-driven (insights first, supporting data last)
@@ -482,7 +482,7 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
             h.append('<h3>Severity Distribution</h3>')
             h.append('<div class="table-wrap"><table><thead><tr><th>Level</th><th>Count</th></tr></thead><tbody>')
             for k, v in s["levels"]:
-                cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
+                cls = "level-error" if k in ("ERROR", "SEVERE", "FATAL", "CRITICAL") else "level-warning" if k in ("WARNING", "WARN") else "level-info"
                 h.append(f'<tr><td class="{cls}">{escape(k)}</td><td>{v:,}</td></tr>')
             h.append('</tbody></table></div>')
 
@@ -521,7 +521,7 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
             h.append('<h3>Sample Events</h3>')
             for idx, e in enumerate(samples, start=1):
                 lvl = e.level or "UNKNOWN"
-                cls = "level-error" if lvl in ("ERROR", "SEVERE", "FATAL") else "level-warning" if lvl in ("WARNING", "WARN") else ""
+                cls = "level-error" if lvl in ("ERROR", "SEVERE", "FATAL", "CRITICAL") else "level-warning" if lvl in ("WARNING", "WARN") else ""
                 header = f'{idx}. <span class="{cls}">{escape(lvl)}</span>'
                 if e.code:
                     header += f' <code class="inline">{escape(e.code)}</code>'

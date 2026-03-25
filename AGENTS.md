@@ -9,7 +9,7 @@ LogPilot is a multi-format log analyzer (Python 3.9+, stdlib-only core). Parses 
 
 - **Core package:** `logpilot/` — parser, analysis, heuristics, event, formats/, reports/, ai, cli
 - **GUI:** `app.py` + `app_*.py` (Streamlit) — will be replaced by React + FastAPI in 2.0
-- **Tests:** `tests/` — 1842+ unit tests (pytest), Playwright e2e
+- **Tests:** `tests/` — 1922+ unit tests (pytest), Playwright e2e
 - **Skills:** `skills/` — domain knowledge YAML/MD used in AI prompts
 - **Distribution:** Docker Hub (`kilotin/logpilot`), TestPyPI (`logpilot`)
 
@@ -96,25 +96,27 @@ Your role depends on which worktree you are in:
 Each AI agent works in its own git worktree to avoid conflicts:
 
 ```
-ws-log-analyzer/          ← main branch (Claude)
+ws-log-analyzer/          ← main branch (review)
+ws-log-analyzer-claude/   ← claude-work branch (Claude)
 ws-log-analyzer-codex/    ← codex-work branch (Codex)
 ws-log-analyzer-gemini/   ← gemini-work branch (Gemini)
 ```
 
 **If you are running in a worktree:**
 - You are on your own branch. Commit freely.
-- Run tests before committing: all 1842+ tests must pass.
+- Run tests before committing: all 1922+ tests must pass.
 - Do NOT merge to main — the user will merge your branch when ready.
 - Do NOT push to origin unless the user asks.
 
 **Workflow:**
 1. Agent works on its branch in its worktree
 2. User reviews changes
-3. User merges to main: `git merge codex-work` / `git merge gemini-work`
-4. User cleans up: `git worktree remove ../ws-log-analyzer-codex`
+3. User merges to main: `git merge claude-work` / `git merge codex-work` / `git merge gemini-work`
+4. User cleans up: `git worktree remove ../ws-log-analyzer-claude`
 
 **Create worktrees** (run from main repo):
 ```bash
+git worktree add ../ws-log-analyzer-claude -b claude-work
 git worktree add ../ws-log-analyzer-codex -b codex-work
 git worktree add ../ws-log-analyzer-gemini -b gemini-work
 ```
@@ -122,7 +124,10 @@ git worktree add ../ws-log-analyzer-gemini -b gemini-work
 ## Commits
 
 - Commit messages in **English**
-- End with: `Co-Authored-By: <agent name> <noreply@anthropic.com>` (or appropriate)
+- End with the appropriate co-author trailer:
+  - Claude: `Co-Authored-By: Claude <noreply@anthropic.com>`
+  - Codex: `Co-Authored-By: Codex <noreply@openai.com>`
+  - Gemini: `Co-Authored-By: Gemini <noreply@google.com>`
 - Don't commit `.env`, `cache/`, `*.log`, `.DS_Store`
 
 ## Reporting

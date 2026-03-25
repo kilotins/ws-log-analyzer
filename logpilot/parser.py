@@ -185,12 +185,15 @@ TZ_ABBREV_RE = re.compile(r'\b(UTC|GMT|[A-Z]{2,4}T|CEST|CET|BST|IST|JST|KST|AEST
 def open_text(path: Path) -> IO[str]:
     """Open a log file for reading, handling .gz transparently."""
     if path.suffix.lower() == ".gz":
+        f = None
         try:
             f = gzip.open(path, "rt", errors="ignore")
             f.read(1)  # probe for valid gzip
             f.seek(0)
             return f
         except (OSError, EOFError):
+            if f is not None:
+                f.close()
             _log.warning("open_text: %s has .gz suffix but is not valid gzip, falling back to plain text", path.name)
             return path.open("r", errors="ignore")
     return path.open("r", errors="ignore")
@@ -351,6 +354,8 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
     else:
         fmt = detect_format(path)
 
+    MAX_EVENT_LINES = 500  # Safety valve: force new event boundary if exceeded
+
     current: list[str] = []
     current_meta: dict[str, Any] = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
     has_stacktrace = False
@@ -410,6 +415,17 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
                 current_meta = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
                 has_stacktrace = False
                 continue
+
+            # Safety valve: force a new event boundary if current event is too large.
+            # Protects against format misdetection collapsing entire files into one event.
+            if len(current) >= MAX_EVENT_LINES and seen_first_ts:
+                _ev = _build_event()
+                _event_counter += 1
+                if _should_emit(_ev, sample_info, _event_counter):
+                    yield _ev
+                current = []
+                current_meta = {"file": str(path), "first_ts": None, "format": fmt.name, "tz_hint": None}
+                has_stacktrace = False
 
             current.append(line)
 
