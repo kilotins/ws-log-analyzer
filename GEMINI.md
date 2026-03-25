@@ -21,4 +21,5 @@ This converts any Markdown file to a self-contained, branded HTML page with:
 
 ## Project Context
 
-See CLAUDE.md for full project context (architecture, skills, structure). The same information applies here.
+See AGENTS.md for shared rules, tools, worktree setup, and release process.
+See CLAUDE.md for full project context (architecture, skills, structure).
