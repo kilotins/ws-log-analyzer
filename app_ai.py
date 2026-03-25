@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import streamlit as st
 from datetime import datetime
+
+# Lock for Gemini SDK global state (genai.configure sets API key globally)
+_gemini_lock = threading.Lock()
 
 from logpilot import (
     match_user_query, build_claude_prompt, claude_cache_key, triage_cache_key,
@@ -366,18 +370,19 @@ def _call_gemini_api_impl(api_key: str, model_id: str, prompt: dict, stream_plac
                 "The `google-generativeai` package is not installed. "
                 "Install with: pip install google-generativeai"
             )
-        genai.configure(api_key=key)
-        gen_model = genai.GenerativeModel(model_id, system_instruction=prompt["system"])
-        content_parts: list = []
-        for img in images:
-            content_parts.append({
-                "inline_data": {
-                    "mime_type": img["media_type"],
-                    "data": _base64.b64decode(img["data"]),
-                }
-            })
-        content_parts.append(prompt.get("user", ""))
-        response = gen_model.generate_content(content_parts, request_options={"timeout": timeout})
+        with _gemini_lock:
+            genai.configure(api_key=key)
+            gen_model = genai.GenerativeModel(model_id, system_instruction=prompt["system"])
+            content_parts: list = []
+            for img in images:
+                content_parts.append({
+                    "inline_data": {
+                        "mime_type": img["media_type"],
+                        "data": _base64.b64decode(img["data"]),
+                    }
+                })
+            content_parts.append(prompt.get("user", ""))
+            response = gen_model.generate_content(content_parts, request_options={"timeout": timeout})
         answer = response.text if response else None
     elif "messages" in prompt:
         # Pre-built multimodal messages dict (from _build_multimodal_messages)
@@ -391,25 +396,26 @@ def _call_gemini_api_impl(api_key: str, model_id: str, prompt: dict, stream_plac
                 "The `google-generativeai` package is not installed. "
                 "Install with: pip install google-generativeai"
             )
-        genai.configure(api_key=key)
-        gen_model = genai.GenerativeModel(model_id, system_instruction=prompt["system"])
-        msg = prompt["messages"][0]
-        parts = msg.get("parts", [])
-        content_parts = []
-        for p in parts:
-            if "inline_data" in p:
-                content_parts.append({
-                    "inline_data": {
-                        "mime_type": p["inline_data"]["mime_type"],
-                        "data": _base64.b64decode(p["inline_data"]["data"]),
-                    }
-                })
-            elif "text" in p:
-                content_parts.append(p["text"])
-        response = gen_model.generate_content(
-            content_parts or prompt.get("user", ""),
-            request_options={"timeout": timeout},
-        )
+        with _gemini_lock:
+            genai.configure(api_key=key)
+            gen_model = genai.GenerativeModel(model_id, system_instruction=prompt["system"])
+            msg = prompt["messages"][0]
+            parts = msg.get("parts", [])
+            content_parts = []
+            for p in parts:
+                if "inline_data" in p:
+                    content_parts.append({
+                        "inline_data": {
+                            "mime_type": p["inline_data"]["mime_type"],
+                            "data": _base64.b64decode(p["inline_data"]["data"]),
+                        }
+                    })
+                elif "text" in p:
+                    content_parts.append(p["text"])
+            response = gen_model.generate_content(
+                content_parts or prompt.get("user", ""),
+                request_options={"timeout": timeout},
+            )
         answer = response.text if response else None
     else:
         # Text-only path — use the logpilot wrapper
@@ -767,7 +773,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
         _log_probe("Ask AI", provider, model_id, _req_text, "", error=str(ex))
     except Exception as ex:
         if log:
-            log.error("%s %s API error: %s", provider, label, ex)
+            log.error("%s %s API error: %s", provider, label, _sanitize_error(str(ex)))
         _log_probe("Ask AI", provider, model_id, _req_text, "", error=str(ex))
         status.update(label=f"{label} API error: {ex}", state="error")
 
@@ -1179,7 +1185,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                     status.update(label="Triage failed", state="error")
                     st.error(f"AI call failed: {_sanitize_error(str(ex))}")
                     if log:
-                        log.error("triage Cross-system triage failed: %s", ex)
+                        log.error("triage Cross-system triage failed: %s", _sanitize_error(str(ex)))
                     return
 
     if _triage_answer:
