@@ -188,9 +188,10 @@ def render_markdown_report(
     # --- 4. Supporting Data ---
     if _sec(sections, "files") and len(file_summary) > 1:
         md.append("## Per-File Breakdown")
+        from pathlib import Path
         for fname, total, errors in file_summary:
             err_note = f" ({errors} errors)" if errors else ""
-            md.append(f"- `{fname}`: {total} events{err_note}")
+            md.append(f"- `{Path(fname).name}`: {total} events{err_note}")
         md.append("")
 
     if _sec(sections, "levels"):
