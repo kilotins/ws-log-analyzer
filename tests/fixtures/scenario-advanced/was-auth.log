@@ -1,14 +1,16 @@
-[3/25/26 08:00:01:123 UTC] 00000001 SimpleAuthSer I   SECJ0123I: Authentication initialized successfully.
+[3/25/26 08:00:01:123 UTC] 00000001 SimpleAuthSer I   SECJ0123I: Authentication initialized successfully on 10.0.5.40:9443.
 [3/25/26 08:00:15:456 UTC] 00000021 TokenService  I   SECJ0456I: Token validation successful for user dr.hansen (realm: health.no).
 [3/25/26 08:05:00:789 UTC] 00000022 TokenService  I   SECJ0456I: Token validation successful for user dr.berg (realm: health.no).
 [3/25/26 08:10:00:111 UTC] 00000023 TokenService  I   SECJ0456I: Token validation successful for user nurse.larsen (realm: health.no).
 [3/25/26 08:14:55:222 UTC] 00000024 TokenService  I   SECJ0456I: Token validation successful for user dr.nordahl (realm: health.no).
-[3/25/26 08:15:02:333 UTC] 00000025 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks
+[3/25/26 08:15:02:333 UTC] 00000025 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks req-a1b2c3d4
 [3/25/26 08:15:05:444 UTC] 00000026 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks req-f1a2b3c4
-[3/25/26 08:15:10:555 UTC] 00000027 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks
-[3/25/26 08:15:15:666 UTC] 00000028 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks
+[3/25/26 08:15:10:555 UTC] 00000027 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks req-e5f6a7b8
+[3/25/26 08:15:15:666 UTC] 00000028 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks req-c9d0e1f2
 [3/25/26 08:20:00:123 UTC] 00000029 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks
 [3/25/26 08:25:00:456 UTC] 00000030 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/jwks
+[3/25/26 10:15:08:789 CEST] 00000034 TokenService  E   SECJ0345E: Failed to validate OIDC token: delayed log entry from eu-west node with timezone mismatch
+[3/25/26 08:15:20:100 UTC] 00000035 TokenService  E   SECJ0345E: Failed to validate OIDC token: Internal TLS error during JWKS fetch from https://auth.health.internal/
 [3/25/26 08:30:05:789 UTC] 00000031 TokenService  I   SECJ0456I: Token validation successful for user admin.system (realm: health.no).
 [3/25/26 08:31:12:111 UTC] 00000032 TokenService  I   SECJ0456I: Token validation successful for user dr.hansen (realm: health.no).
 [3/25/26 08:35:00:222 UTC] 00000033 TokenService  I   SECJ0456I: Token validation successful for user nurse.larsen (realm: health.no).

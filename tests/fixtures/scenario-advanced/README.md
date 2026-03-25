@@ -67,8 +67,8 @@ TLS cert expiry
 
 ## Cross-System Correlation
 
-- **Trace IDs**: `req-a1b2c3d4`, `req-e5f6a7b8`, `req-c9d0e1f2`, `req-f1a2b3c4` appear in nginx, Patient API, was-auth, and Notification Service
-- **IP addresses**: `10.0.5.20` (patient-api), `10.0.5.30` (notification-svc), `10.0.5.10` (postgresql), `10.0.5.40` (auth-service)
+- **Trace IDs**: All four (`req-a1b2c3d4`, `req-e5f6a7b8`, `req-c9d0e1f2`, `req-f1a2b3c4`) appear in was-auth error lines. `req-a1b2c3d4`/`req-e5f6a7b8` also in nginx + Patient API. `req-c9d0e1f2` in Patient API + Notification Service. `req-f1a2b3c4` in nginx + Patient API + was-auth.
+- **IP addresses**: `10.0.5.10` (postgresql — in startup log), `10.0.5.20` (patient-api), `10.0.5.30` (notification-svc), `10.0.5.40` (auth-service — in WAS init log)
 - **Shared error pattern**: SSL/TLS errors propagate from nginx through all HTTPS-dependent services, including token validation failures in was-auth.
 - **Recovery Signals**: Health check recovery (200 OK) in nginx and Patient API after 08:30:00.
 
