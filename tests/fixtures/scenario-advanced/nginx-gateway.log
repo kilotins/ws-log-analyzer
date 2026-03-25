@@ -82,3 +82,6 @@
 2026/03/25 08:30:02 [notice] 1234#1234: renamed log file to /var/log/nginx/nginx-gateway.log.1
 2026/03/25 08:30:03 [error] 1234#1234: *50030 open() "/srv/portal/favicon.ico" failed (2: No such file or directory), client: 10.0.1.200, server: portal.health.no, request: "GET /favicon.ico HTTP/1.1", host: "portal.health.no"
 10.0.1.200 - - [25/Mar/2026:08:30:03 +0000] "GET /favicon.ico HTTP/1.1" 404 153 "-" "Mozilla/5.0" rt=0.001
+10.0.1.100 - dr.hansen [25/Mar/2026:08:15:12 +0000] "GET /api/patients/P-10042 HTTP/1.1" 401 166 "https://portal.health.no/dashboard" "Mozilla/5.0" rt=0.010 req-f1a2b3c4
+10.0.1.50 - - [25/Mar/2026:08:34:12 +0000] "GET /api/patients/health HTTP/1.1" 200 15 "-" "kube-probe/1.28" rt=0.001
+10.0.1.100 - dr.hansen [25/Mar/2026:08:35:05 +0000] "GET /api/patients/P-10042 HTTP/1.1" 200 4521 "https://portal.health.no/dashboard" "Mozilla/5.0" rt=0.045

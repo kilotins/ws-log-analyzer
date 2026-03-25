@@ -15,6 +15,7 @@ A wildcard TLS certificate (`*.health.internal`) expires at 08:15 UTC on the int
 | Container Runtime | `docker_json` | `docker-containers.log` | Docker JSON container logs |
 | Kubernetes | `crio` | `k8s-cluster.log` | CRI-O pod lifecycle + kube events |
 | Linux Host | `syslog` | `syslog-host.log` | systemd, OOM killer, kernel |
+| Auth Service | `was` | `was-auth.log` | IBM WAS OIDC/SAML token validation |
 
 ## Timeline (UTC 2026-03-25)
 
@@ -66,9 +67,10 @@ TLS cert expiry
 
 ## Cross-System Correlation
 
-- **Trace IDs**: `req-a1b2c3d4`, `req-e5f6a7b8`, `req-c9d0e1f2` appear in nginx, Patient API, and Notification Service
-- **IP addresses**: `10.0.5.20` (patient-api), `10.0.5.30` (notification-svc), `10.0.5.10` (postgresql)
-- **Shared error pattern**: SSL/TLS errors propagate from nginx through all HTTPS-dependent services
+- **Trace IDs**: `req-a1b2c3d4`, `req-e5f6a7b8`, `req-c9d0e1f2`, `req-f1a2b3c4` appear in nginx, Patient API, was-auth, and Notification Service
+- **IP addresses**: `10.0.5.20` (patient-api), `10.0.5.30` (notification-svc), `10.0.5.10` (postgresql), `10.0.5.40` (auth-service)
+- **Shared error pattern**: SSL/TLS errors propagate from nginx through all HTTPS-dependent services, including token validation failures in was-auth.
+- **Recovery Signals**: Health check recovery (200 OK) in nginx and Patient API after 08:30:00.
 
 ## Expected Heuristic Triggers
 
