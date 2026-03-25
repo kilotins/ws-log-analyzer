@@ -13,10 +13,17 @@ from datetime import datetime, timezone
 
 
 _UNICODE_MAP = {
-    "\u2192": "->", "\u2190": "<-", "\u2014": "--", "\u2013": "-",
-    "\u2011": "-", "\u2018": "'", "\u2019": "'", "\u201c": '"',
-    "\u201d": '"', "\u2026": "...", "\u2022": "-", "\u2212": "-",
-    "\u00a0": " ", "\u200b": "",
+    # Arrows
+    "\u2192": "->", "\u2190": "<-", "\u2193": "|", "\u2191": "^",
+    # Dashes & hyphens
+    "\u2014": "--", "\u2013": "-", "\u2011": "-", "\u2010": "-", "\u00ad": "-",
+    # Quotes
+    "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+    # Symbols
+    "\u2026": "...", "\u2022": "-", "\u2212": "-",
+    "\u2605": "*", "\u2b50": "*", "\u00b7": "-",
+    # Spaces
+    "\u00a0": " ", "\u200b": "", "\u2009": " ", "\u202f": " ", "\u200a": " ", "\u2007": " ",
 }
 
 
@@ -212,9 +219,8 @@ def _render_body(pdf, text: str, body_color: tuple, bold_color: tuple) -> None:
                 pdf.set_x(pdf.l_margin + 6)
                 pdf.set_font("Helvetica", "", 9)
                 pdf.set_text_color(*body_color)
-                _safe_text = line.encode("latin-1", errors="replace").decode("latin-1")
                 pdf.cell(4, 5, "-")  # bullet
-                pdf.multi_cell(0, 5, _safe_text)
+                pdf.multi_cell(0, 5, _safe(line))
             pdf.ln(2)
             continue
 
@@ -226,7 +232,7 @@ def _render_body(pdf, text: str, body_color: tuple, bold_color: tuple) -> None:
         # But we lose bold. Instead, render the full paragraph as text
         # and handle bold via a simple approach
         clean = re.sub(r'\*\*([^*]+)\*\*', r'\1', para)
-        _safe_text = clean.encode("latin-1", errors="replace").decode("latin-1")
+        _safe_text = _safe(clean)
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(*body_color)
         pdf.multi_cell(0, 5.5, _safe_text)
