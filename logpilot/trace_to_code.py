@@ -33,6 +33,15 @@ _PYTHON_FRAME_RE = re.compile(
     r'(?:,\s+in\s+(?P<func>[\w<>]+))?',
 )
 
+# ── Node.js/V8 stack frame ────────────────────────────────────────────
+# at async requestHandler (/app/server.js:42:5)
+# at /app/routes/index.js:15:21
+_NODE_FRAME_RE = re.compile(
+    r'^\s+at\s+'
+    r'(?:(?P<func>[\w.<> ]+?)\s+)?'
+    r'\(?(?P<path>.*?):(?P<line>\d+):(?P<col>\d+)\)?'
+)
+
 # ── Framework packages to skip (not user code) ───────────────────────
 _JAVA_SKIP_PREFIXES = (
     "sun.", "java.", "javax.", "jdk.",
@@ -47,6 +56,10 @@ _JAVA_SKIP_PREFIXES = (
 _PYTHON_SKIP_PATTERNS = (
     "/site-packages/", "/lib/python", "/usr/lib/",
     "/dist-packages/", "importlib/", "<frozen",
+)
+
+_NODE_SKIP_PATTERNS = (
+    "node:internal/", "node_modules/", " (node:",
 )
 
 
@@ -83,6 +96,10 @@ def _is_framework_java(fqcn: str) -> bool:
 
 def _is_framework_python(path: str) -> bool:
     return any(p in path for p in _PYTHON_SKIP_PATTERNS)
+
+
+def _is_framework_node(path: str) -> bool:
+    return any(p in path for p in _NODE_SKIP_PATTERNS)
 
 
 def extract_code_locations(events: list[LogEvent], max_locations: int = 100) -> list[CodeLocation]:
@@ -140,6 +157,23 @@ def _parse_line(line: str) -> CodeLocation | None:
             class_name=None,
             method=m.group("func"),
             language="python",
+            source_line=line.strip(),
+        )
+
+    # Node.js/V8 frame
+    m = _NODE_FRAME_RE.match(line)
+    if m:
+        path = m.group("path")
+        if _is_framework_node(path):
+            return None
+        from pathlib import PurePosixPath
+        file_hint = PurePosixPath(path).name
+        return CodeLocation(
+            file_hint=file_hint,
+            line=int(m.group("line")),
+            class_name=None,
+            method=m.group("func"),
+            language="javascript",
             source_line=line.strip(),
         )
 

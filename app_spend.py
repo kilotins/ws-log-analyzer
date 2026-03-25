@@ -25,7 +25,7 @@ _SEK_TO_USD = float(os.environ.get("LOGPILOT_SEK_TO_USD", "0.095"))
 
 def _estimate_cost(model_id: str, input_tokens: int, output_tokens: int,
                    cache_creation: int = 0, cache_read: int = 0) -> float:
-    from app_ai import TOKEN_COSTS, CACHE_TOKEN_COSTS
+    from app_constants import TOKEN_COSTS, CACHE_TOKEN_COSTS
     costs = TOKEN_COSTS.get(model_id, (0, 0))
     base = (input_tokens * costs[0] + output_tokens * costs[1]) / 1_000_000
     cache_costs = CACHE_TOKEN_COSTS.get(model_id)
