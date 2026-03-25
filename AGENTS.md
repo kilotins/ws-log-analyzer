@@ -67,6 +67,29 @@ These files are replaced in 2.0 (React + FastAPI). Fix bugs only, don't refactor
 - `app.py`, `app_ai.py`, `app_render.py`, `app_incident.py`, `app_audit.py`
 - `app_spend.py`, `app_realtime.py`, `app_jira.py`, `app_constants.py`
 
+## Agent Roles
+
+Your role depends on which worktree you are in:
+
+- **In `main` worktree:** You are a **reviewer**, not a code writer.
+- **In a separate worktree:** You are an **implementer** on your own branch.
+
+**Always start by stating:**
+1. Which directory you are in (`pwd`)
+2. Which branch you are on (`git branch --show-current`)
+3. Whether you are acting as reviewer or implementer
+
+**Reviewer rules (main):**
+- Never write code in main without explicit instruction.
+- Focus on: bugs, regression risks, edge cases, missing tests, unclear logic.
+- Read diffs and relevant files. List findings first.
+
+**Implementer rules (worktree branch):**
+- Work only in your worktree. Don't assume other worktrees have the same state.
+- Do the full task: analyze, change code, run tests, summarize results.
+- Stay on task — no opportunistic side-refactors.
+- All existing tests must pass before committing.
+
 ## Worktrees (Parallel Agent Work)
 
 Each AI agent works in its own git worktree to avoid conflicts:
