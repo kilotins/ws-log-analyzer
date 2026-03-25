@@ -1,0 +1,130 @@
+2026-03-25 08:00:08,100 INFO uvicorn.server: Starting worker [pid=4521] on 0.0.0.0:8443
+2026-03-25 08:00:08,200 INFO notification.main: FastAPI notification-service v2.1.0 started
+2026-03-25 08:00:15,300 INFO notification.routes: POST /api/notifications/send [req-a1b2c3d4] — appointment reminder for P-10042 — 200 OK (23ms)
+2026-03-25 08:01:30,400 INFO notification.routes: POST /api/notifications/send [req-b3c4d5e6] — appointment confirmation for P-10050 — 200 OK (31ms)
+2026-03-25 08:03:00,500 INFO celery.worker.strategy: Task notification.tasks.send_sms[task-001] received
+2026-03-25 08:03:00,800 INFO notification.tasks: Task send_sms[task-001] completed: SMS sent to +4790001234 (P-10099 lab results ready)
+2026-03-25 08:06:45,600 INFO notification.routes: POST /api/notifications/send [req-e9f0a1b2] — diagnosis update for P-10043 — 200 OK (18ms)
+2026-03-25 08:10:00,700 INFO celery.worker.strategy: Task notification.tasks.send_email_batch[task-002] received
+2026-03-25 08:10:01,200 INFO notification.tasks: Task send_email_batch[task-002] completed: 45 appointment reminders sent
+2026-03-25 08:14:30,800 INFO notification.routes: POST /api/notifications/send [req-c9d0e1f2] — referral notification for P-10099 — 200 OK (25ms)
+2026-03-25 08:15:02,100 ERROR notification.routes: POST /api/notifications/send failed: Cannot reach patient-api at 10.0.5.20:8443
+Traceback (most recent call last):
+  File "/app/notification/routes.py", line 45, in send_notification
+    patient = await client.get(f"https://10.0.5.20:8443/api/patients/{patient_id}")
+  File "/app/.venv/lib/python3.11/site-packages/httpx/_client.py", line 1574, in get
+    return await self.request("GET", url)
+  File "/app/.venv/lib/python3.11/site-packages/httpx/_client.py", line 1530, in request
+    return await self.send(request)
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1006)
+2026-03-25 08:15:05,200 ERROR notification.routes: POST /api/notifications/send failed: SSL certificate expired for 10.0.5.20:8443
+Traceback (most recent call last):
+  File "/app/notification/routes.py", line 45, in send_notification
+    patient = await client.get(f"https://10.0.5.20:8443/api/patients/{patient_id}")
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1006)
+2026-03-25 08:15:10,300 WARNING notification.health: Health check to patient-api failed: SSL error
+2026-03-25 08:15:15,400 INFO celery.worker.strategy: Task notification.tasks.send_sms[task-003] received
+2026-03-25 08:15:15,800 ERROR notification.tasks: Task send_sms[task-003] failed: Cannot verify patient P-10042 — upstream SSL error
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 67, in send_sms
+    patient = verify_patient(patient_id)
+  File "/app/notification/patient_client.py", line 23, in verify_patient
+    response = requests.get(f"https://10.0.5.20:8443/api/patients/{patient_id}")
+  File "/app/.venv/lib/python3.11/site-packages/requests/adapters.py", line 517, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='10.0.5.20', port=8443): Max retries exceeded with url: /api/patients/P-10042 (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1006)')))
+2026-03-25 08:15:20,500 INFO celery.worker.strategy: Task notification.tasks.send_sms[task-003] retry 1/3 in 30s
+2026-03-25 08:15:30,600 INFO celery.worker.strategy: Task notification.tasks.send_email_batch[task-004] received
+2026-03-25 08:15:31,100 ERROR notification.tasks: Task send_email_batch[task-004] failed: Cannot fetch patient list — SSL error
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 89, in send_email_batch
+    patients = fetch_patients_for_reminders()
+  File "/app/notification/patient_client.py", line 35, in fetch_patients_for_reminders
+    response = requests.get("https://10.0.5.20:8443/api/patients/upcoming-appointments")
+requests.exceptions.SSLError: HTTPSConnectionPool(host='10.0.5.20', port=8443): Max retries exceeded with url: /api/patients/upcoming-appointments (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1006)')))
+2026-03-25 08:15:50,700 INFO celery.worker.strategy: Task notification.tasks.send_sms[task-003] retry 1/3 — retrying now
+2026-03-25 08:15:51,200 ERROR notification.tasks: Task send_sms[task-003] retry 1 failed: SSL error persists
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 67, in send_sms
+    patient = verify_patient(patient_id)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='10.0.5.20', port=8443): Max retries exceeded
+2026-03-25 08:15:51,300 INFO celery.worker.strategy: Task notification.tasks.send_sms[task-003] retry 2/3 in 60s
+2026-03-25 08:16:00,800 ERROR notification.routes: POST /api/notifications/send failed: Connection refused to 10.0.5.20:8443
+Traceback (most recent call last):
+  File "/app/notification/routes.py", line 45, in send_notification
+    patient = await client.get(f"https://10.0.5.20:8443/api/patients/{patient_id}")
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:16:10,900 INFO celery.worker.strategy: Task notification.tasks.send_email_batch[task-004] retry 1/3 in 30s
+2026-03-25 08:16:30,100 WARNING notification.health: Health check failed 3 consecutive times — marking unhealthy
+2026-03-25 08:16:40,200 ERROR notification.tasks: Task send_email_batch[task-004] retry 1 failed: Connection refused
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 89, in send_email_batch
+    patients = fetch_patients_for_reminders()
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:16:40,300 INFO celery.worker.strategy: Task notification.tasks.send_email_batch[task-004] retry 2/3 in 60s
+2026-03-25 08:16:51,400 ERROR notification.tasks: Task send_sms[task-003] retry 2 failed: Connection refused
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 67, in send_sms
+    patient = verify_patient(patient_id)
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:16:51,500 INFO celery.worker.strategy: Task notification.tasks.send_sms[task-003] retry 3/3 in 120s
+2026-03-25 08:17:00,600 ERROR notification.routes: POST /api/notifications/send failed: Connection refused to 10.0.5.20:8443
+Traceback (most recent call last):
+  File "/app/notification/routes.py", line 45, in send_notification
+    patient = await client.get(f"https://10.0.5.20:8443/api/patients/{patient_id}")
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:17:10,700 INFO celery.worker.strategy: Task notification.tasks.send_sms[task-005] received
+2026-03-25 08:17:11,200 ERROR notification.tasks: Task send_sms[task-005] failed immediately: Connection refused
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 67, in send_sms
+    patient = verify_patient(patient_id)
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:17:40,300 ERROR notification.tasks: Task send_email_batch[task-004] retry 2 failed: Connection refused
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 89, in send_email_batch
+    patients = fetch_patients_for_reminders()
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:17:40,400 CRITICAL notification.tasks: Task send_email_batch[task-004] max retries exceeded — 45 appointment reminders NOT sent
+2026-03-25 08:18:51,500 ERROR notification.tasks: Task send_sms[task-003] final retry failed: Connection refused — SMS to +4790001234 NOT delivered
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 67, in send_sms
+    patient = verify_patient(patient_id)
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:18:51,600 CRITICAL notification.tasks: Task send_sms[task-003] max retries exceeded — patient P-10042 notification LOST
+2026-03-25 08:19:00,700 ERROR notification.memory: worker process consuming 512MB, limit is 256MB
+Traceback (most recent call last):
+  File "/app/notification/worker.py", line 112, in check_memory
+    raise MemoryError(f"Cannot allocate {size} bytes")
+MemoryError: Cannot allocate 134217728 bytes — retry queue backlog consuming all available memory
+2026-03-25 08:19:00,800 CRITICAL notification.worker: Worker pid=4521 killed by OOM: retry task backlog exceeded memory limit
+2026-03-25 08:20:00,100 INFO uvicorn.server: Starting worker [pid=4589] on 0.0.0.0:8443 (respawned after OOM kill)
+2026-03-25 08:20:00,200 ERROR notification.routes: POST /api/notifications/send failed: Connection refused to 10.0.5.20:8443
+Traceback (most recent call last):
+  File "/app/notification/routes.py", line 45, in send_notification
+    patient = await client.get(f"https://10.0.5.20:8443/api/patients/{patient_id}")
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:22:00,300 ERROR notification.routes: POST /api/notifications/send failed: Connection refused to 10.0.5.20:8443
+Traceback (most recent call last):
+  File "/app/notification/routes.py", line 45, in send_notification
+    patient = await client.get(f"https://10.0.5.20:8443/api/patients/{patient_id}")
+ConnectionRefusedError: [Errno 111] Connection refused
+2026-03-25 08:25:00,400 CRITICAL notification.worker: Worker pid=4589 killed by OOM: second OOM in 5 minutes
+2026-03-25 08:30:05,100 INFO uvicorn.server: Starting worker [pid=4621] on 0.0.0.0:8443 (respawned)
+2026-03-25 08:30:10,200 INFO notification.health: Health check to patient-api: OK (10.0.5.20:8443 reachable)
+2026-03-25 08:30:15,300 INFO notification.routes: POST /api/notifications/send [req-a1b2c3d4] — patient P-10042 appointment reminder — 200 OK (28ms)
+2026-03-25 08:30:30,400 INFO celery.worker.strategy: Task notification.tasks.send_email_batch[task-006] received
+2026-03-25 08:30:31,200 INFO notification.tasks: Task send_email_batch[task-006] completed: 12 pending reminders sent (33 previously lost)
+2026-03-25 08:31:00,500 INFO notification.health: All systems healthy — resuming normal operations
+2026-03-25 10:15:07,100 ERROR notification.routes: POST /api/notifications/send [req-z9y8x7w6] failed in eu-west log shard: certificate verify failed
+2026-03-25 08:14:58,900 INFO notification.cleanup: Replayed delayed housekeeping heartbeat after event-loop stall correction
+2026-03-25 08:15:14,100 WARNING notification.routes: POST /api/notifications/send [req-rh-003] client disconnected before response flush
+2026-03-25 08:15:16,900 ERROR notification.tasks: Task send_push[task-007] failed: UnicodeDecodeError while decoding upstream payload bytes='\\xff\\xfeSSL expired'
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 121, in send_push
+    payload = response.content.decode("utf-8")
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+2026-03-25 08:15:17,100 WARNING notification.audit: Simulated compliance check reported ERROR status for sandbox tenant; no action required
+2026-03-25 08:15:18,100 ERROR notification.tasks: Task send_email_batch[task-008] failed unexpectedly: Connection
+2026-03-25 08:15:18,200 INFO celery.worker.strategy: Task notification.tasks.send_email_batch[task-008] will be retried after partial-write recovery
+--- LOG ROTATED: notification-service.log.1 archived at 2026-03-25T08:20:00Z ---
+2026-03-25 08:20:00,050 INFO notification.logging: Reopened file handler after sidecar rotation event

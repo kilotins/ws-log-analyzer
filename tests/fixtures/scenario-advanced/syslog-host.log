@@ -1,0 +1,48 @@
+Mar 25 08:00:01 health-node-01 systemd[1]: Started Docker Application Container Engine.
+Mar 25 08:00:02 health-node-01 dockerd[1234]: time="2026-03-25T08:00:02.123Z" level=info msg="Docker daemon started"
+Mar 25 08:00:03 health-node-01 kubelet[2345]: I0325 08:00:03.456 2345 kubelet.go:1921] Kubelet started, node health-node-01 ready
+Mar 25 08:05:00 health-node-01 kernel: [42300.123] TCP: eth0: 10.0.5.20:8443 — 1234 active connections, 456 TIME_WAIT
+Mar 25 08:10:00 health-node-01 kernel: [42600.456] TCP: eth0: 10.0.5.20:8443 — 1289 active connections, 501 TIME_WAIT
+Mar 25 08:10:01 health-node-01 crond[3456]: (root) CMD (/usr/local/bin/health-check.sh)
+Mar 25 08:10:02 health-node-01 health-check.sh[3457]: All services healthy: patient-api=OK notification-svc=OK postgresql=OK
+Mar 25 08:15:00 health-node-01 kernel: [42900.789] TCP: eth0: 10.0.5.20:8443 — SSL handshake errors detected: 15 in last 10s
+Mar 25 08:15:05 health-node-01 kernel: [42905.012] TCP: eth0: connection backlog growing: 2341 active connections, 890 TIME_WAIT
+Mar 25 08:15:10 health-node-01 kernel: [42910.345] nf_conntrack: nf_conntrack: table full, dropping packet
+Mar 25 08:15:15 health-node-01 kernel: [42915.678] TCP: eth0: out of socket memory
+Mar 25 08:15:20 health-node-01 kubelet[2345]: W0325 08:15:20.123 2345 eviction_manager.go:348] eviction manager: attempting to reclaim memory
+Mar 25 08:15:30 health-node-01 kernel: [42930.901] TCP: eth0: 3456 active connections, 1201 TIME_WAIT — connection storm detected
+Mar 25 08:16:00 health-node-01 kubelet[2345]: W0325 08:16:00.456 2345 eviction_manager.go:356] eviction manager: must evict pod(s) to reclaim memory
+Mar 25 08:16:30 health-node-01 kernel: [42990.234] memory pressure: kswapd0 spending 85% of time in page reclaim
+Mar 25 08:17:00 health-node-01 kernel: [43020.567] TCP: eth0: 4012 active connections — approaching system limit (4096)
+Mar 25 08:17:30 health-node-01 kernel: [43050.890] SLUB: Unable to allocate memory on node -1, gfp=0xcc0(GFP_KERNEL)
+Mar 25 08:18:00 health-node-01 kernel: [43080.123] memory: total=8192MB used=7845MB free=89MB buffers=12MB cached=246MB
+Mar 25 08:19:00 health-node-01 kernel: [43140.456] Out of memory: Killed process 4521 (python3) total-vm:524288kB, anon-rss:267340kB, file-rss:12456kB, shmem-rss:0kB, UID=1000, score=812
+Mar 25 08:19:00 health-node-01 kernel: [43140.457] oom_reaper: reaped process 4521 (python3), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+Mar 25 08:19:01 health-node-01 systemd[1]: notification-svc.service: Main process exited, code=killed, status=9/KILL
+Mar 25 08:19:01 health-node-01 systemd[1]: notification-svc.service: Failed with result 'oom-kill'.
+Mar 25 08:20:00 health-node-01 systemd[1]: notification-svc.service: Scheduled restart job, restart counter is at 1.
+Mar 25 08:20:00 health-node-01 systemd[1]: Started notification-svc.service — Notification Service Worker.
+Mar 25 08:20:01 health-node-01 crond[3460]: (root) CMD (/usr/local/bin/health-check.sh)
+Mar 25 08:20:02 health-node-01 health-check.sh[3461]: ALERT: patient-api=DEGRADED notification-svc=RESTARTING postgresql=OK
+Mar 25 08:22:00 health-node-01 kernel: [43320.789] memory: total=8192MB used=7901MB free=45MB buffers=8MB cached=238MB
+Mar 25 08:25:00 health-node-01 kernel: [43500.012] Out of memory: Killed process 4589 (python3) total-vm:524288kB, anon-rss:271024kB, file-rss:11890kB, shmem-rss:0kB, UID=1000, score=825
+Mar 25 08:25:00 health-node-01 kernel: [43500.013] oom_reaper: reaped process 4589 (python3), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+Mar 25 08:25:01 health-node-01 systemd[1]: notification-svc.service: Main process exited, code=killed, status=9/KILL
+Mar 25 08:25:01 health-node-01 systemd[1]: notification-svc.service: Failed with result 'oom-kill'.
+Mar 25 08:25:02 health-node-01 systemd[1]: notification-svc.service: Scheduled restart job, restart counter is at 2.
+Mar 25 08:30:00 health-node-01 kernel: [43800.345] TCP: eth0: connection backlog clearing: 890 active connections, 234 TIME_WAIT
+Mar 25 08:30:01 health-node-01 systemd[1]: Started notification-svc.service — Notification Service Worker.
+Mar 25 08:30:05 health-node-01 kernel: [43805.678] memory: total=8192MB used=5634MB free=1890MB buffers=145MB cached=523MB
+Mar 25 08:30:10 health-node-01 crond[3465]: (root) CMD (/usr/local/bin/health-check.sh)
+Mar 25 08:30:11 health-node-01 health-check.sh[3466]: All services healthy: patient-api=OK notification-svc=OK postgresql=OK
+Mar 25 08:31:00 health-node-01 kernel: [43860.901] TCP: eth0: 456 active connections, 89 TIME_WAIT — nominal
+Mar 25 08:14:59 health-node-01 systemd[1]: Rotating logs for nginx-gateway.service and patient-api.service
+Mar 25 10:15:03 health-node-01 envoy[991]: upstream TLS verification failed for patient-api.health.svc.cluster.local: certificate has expired
+Mar 25 08:15:12 health-node-01 kernel: [42912.222] net_ratelimit: 24 callbacks suppressed
+Mar 25 08:15:13 health-node-01 kernel: [42913.333] audit: kauditd_printk_skb: 7 callbacks suppressed
+Mar 25 08:15:18 health-node-01 kubelet[2345]: E0325 08:15:18.444 2345 remote_runtime.go:616] ExecSync from runtime service failed: rpc error: code = DeadlineExceeded desc = command still running
+Mar 25 08:15:19 health-node-01 patient-api[8901]: UTF8 decode fallback applied to upstream payload bytes=fffe534c expiring-cert
+Mar 25 08:15:20 health-node-01 notification-svc[4521]: Connection refused while contacting patient-api after log rota
+Mar 25 08:15:21 health-node-01 systemd[1]: sandbox-canary.service: Main process exited, code=exited, status=1/FAILURE
+Mar 25 08:15:21 health-node-01 systemd[1]: sandbox-canary.service: Failed with result 'exit-code'.
+Mar 25 08:15:21 health-node-01 systemd[1]: sandbox-canary.service: Failure is expected during chaos drill window and does not affect production traffic.
