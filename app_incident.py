@@ -44,54 +44,54 @@ def _build_multimodal_messages(
     image_bytes: bytes | None,
     mime_type: str | None,
     provider: str,
+    *,
+    images: list[tuple[bytes, str]] | None = None,
 ) -> dict:
     """Build provider-specific message structures for multimodal calls.
 
+    Supports single image (image_bytes/mime_type) or multiple images (images list).
     Returns a dict with 'system' and 'messages' (or 'user' for text-only fallback).
     """
-    if not image_bytes:
-        # Text-only — use standard prompt dict
+    # Build image list from either single or multi input
+    img_list: list[tuple[bytes, str]] = []
+    if images:
+        img_list = images
+    elif image_bytes and mime_type:
+        img_list = [(image_bytes, mime_type)]
+
+    if not img_list:
         return {"system": system_prompt, "user": user_text}
 
-    b64 = base64.b64encode(image_bytes).decode("utf-8")
-
     if provider == "claude":
-        # Claude: content blocks with image + text
+        content = []
+        for img_data, img_mime in img_list:
+            b64 = base64.b64encode(img_data).decode("utf-8")
+            content.append({"type": "image", "source": {"type": "base64", "media_type": img_mime, "data": b64}})
+        content.append({"type": "text", "text": user_text})
         return {
             "system": system_prompt,
-            "messages": [{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": b64}},
-                    {"type": "text", "text": user_text},
-                ],
-            }],
+            "messages": [{"role": "user", "content": content}],
         }
     elif provider == "openai" or provider == "local":
-        # OpenAI / local: image_url content type
+        content = []
+        for img_data, img_mime in img_list:
+            b64 = base64.b64encode(img_data).decode("utf-8")
+            content.append({"type": "image_url", "image_url": {"url": f"data:{img_mime};base64,{b64}"}})
+        content.append({"type": "text", "text": user_text})
         return {
             "system": system_prompt,
-            "messages": [{
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}},
-                    {"type": "text", "text": user_text},
-                ],
-            }],
+            "messages": [{"role": "user", "content": content}],
         }
     elif provider == "gemini":
-        # Gemini: inline_data parts
+        parts = []
+        for img_data, img_mime in img_list:
+            b64 = base64.b64encode(img_data).decode("utf-8")
+            parts.append({"inline_data": {"mime_type": img_mime, "data": b64}})
+        parts.append({"text": user_text})
         return {
             "system": system_prompt,
-            "messages": [{
-                "role": "user",
-                "parts": [
-                    {"inline_data": {"mime_type": mime_type, "data": b64}},
-                    {"text": user_text},
-                ],
-            }],
+            "messages": [{"role": "user", "parts": parts}],
         }
-    # Fallback: text-only
     return {"system": system_prompt, "user": user_text}
 
 
@@ -307,28 +307,34 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         key="incident_description_input",
     )
 
-    screenshot_file = st.file_uploader(
-        "Upload screenshot (optional)",
+    screenshot_files = st.file_uploader(
+        "Upload screenshots (optional)",
         type=_SUPPORTED_IMAGE_TYPES,
         key="incident_screenshot_upload",
+        accept_multiple_files=True,
     )
 
-    # Validate screenshot size
-    image_bytes = None
+    # Validate and collect screenshots
+    images: list[tuple[bytes, str]] = []
+    image_bytes = None  # backwards compat: first image for cache/probe checks
     mime_type = None
-    if screenshot_file is not None:
-        image_bytes = screenshot_file.getvalue()
-        size_mb = len(image_bytes) / (1024 * 1024)
+    mime_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                "gif": "image/gif", "webp": "image/webp"}
+    for sf in (screenshot_files or []):
+        data = sf.getvalue()
+        size_mb = len(data) / (1024 * 1024)
         if size_mb > MAX_SCREENSHOT_MB:
-            st.warning(f"Screenshot is {size_mb:.1f} MB — max {MAX_SCREENSHOT_MB} MB. It will be ignored.")
-            image_bytes = None
-        else:
-            ext = screenshot_file.name.rsplit(".", 1)[-1].lower()
-            mime_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
-                        "gif": "image/gif", "webp": "image/webp"}
-            mime_type = mime_map.get(ext, "image/png")
-            st.image(image_bytes, caption="Uploaded screenshot", width=400)
-            st.caption("Note: screenshots are sent to the AI provider as-is. Ensure no passwords, PII, or secrets are visible.")
+            st.warning(f"Screenshot {sf.name} is {size_mb:.1f} MB — max {MAX_SCREENSHOT_MB} MB. Skipped.")
+            continue
+        ext = sf.name.rsplit(".", 1)[-1].lower()
+        mt = mime_map.get(ext, "image/png")
+        images.append((data, mt))
+        if image_bytes is None:
+            image_bytes = data
+            mime_type = mt
+        st.image(data, caption=f"Screenshot: {sf.name}", width=300)
+    if images:
+        st.caption(f"{len(images)} screenshot(s) will be sent to the AI provider as-is. Ensure no passwords, PII, or secrets are visible.")
 
     # Model selector + analyze button
     model_col, btn_col = st.columns([1, 1])
@@ -440,6 +446,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                     provider=provider, model_id=model_id, selected_model=selected_model,
                     previous_answer=previous_answer if not triage_clicked else None,
                     log=log, lookup_cache=lookup_cache, store_cache=store_cache,
+                    images=images,
                 )
                 if answer:
                     st.session_state._incident_answer = answer
@@ -504,7 +511,8 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
 def _run_analysis(events, description, summary, causes, itl, cascades,
                   detected_format, is_multi_source, is_triage,
                   image_bytes, mime_type, provider, model_id, selected_model,
-                  previous_answer, log, lookup_cache, store_cache):
+                  previous_answer, log, lookup_cache, store_cache,
+                  images=None):
     """Build prompt, check cache, call AI, save to history. Returns answer or None."""
 
     # --- Build per-source data (for multi-source) ---
@@ -614,7 +622,7 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
         return cached
 
     # --- Build message and call AI ---
-    msg_dict = _build_multimodal_messages(system_prompt, user_text, image_bytes, mime_type, provider)
+    msg_dict = _build_multimodal_messages(system_prompt, user_text, image_bytes, mime_type, provider, images=images if images and len(images) > 1 else None)
 
     answer = _run_ai_call(
         provider, model_id, selected_model, msg_dict, image_bytes,

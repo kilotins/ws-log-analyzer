@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PostgreSQL — Connection Monitor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }
+h1 { font-size: 16px; color: #94a3b8; margin-bottom: 4px; }
+h2 { font-size: 22px; color: #fff; margin-bottom: 20px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.stat { background: #1e293b; border-radius: 8px; padding: 16px; }
+.stat .label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.stat .value.danger { color: #ef4444; }
+.stat .value.warn { color: #f59e0b; }
+.stat .value.ok { color: #22c55e; }
+.bar-container { background: #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
+.bar-label .right { color: #ef4444; font-weight: 600; }
+.bar { height: 24px; background: #334155; border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.bar-fill.danger { background: linear-gradient(90deg, #ef4444, #dc2626); }
+.bar-fill.warn { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.log { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.8; max-height: 300px; overflow-y: auto; }
+.log .ts { color: #64748b; }
+.log .fatal { color: #ef4444; font-weight: 600; }
+.log .warn { color: #f59e0b; }
+.log .info { color: #22c55e; }
+.log .detail { color: #94a3b8; padding-left: 20px; }
+.timestamp { font-size: 12px; color: #475569; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<h1>patientdb.health.internal</h1>
+<h2>PostgreSQL 16.2 — Connection Monitor</h2>
+<p class="timestamp">Last updated: 2026-03-25 08:16:00 UTC — <span style="color:#ef4444">⚠ CRITICAL</span></p>
+
+<div class="stats">
+<div class="stat">
+<div class="label">Active Connections</div>
+<div class="value danger">100 / 100</div>
+</div>
+<div class="stat">
+<div class="label">Waiting Queries</div>
+<div class="value danger">23</div>
+</div>
+<div class="stat">
+<div class="label">Longest Query</div>
+<div class="value warn">18.4s</div>
+</div>
+<div class="stat">
+<div class="label">Transactions/s</div>
+<div class="value warn">2.1</div>
+</div>
+</div>
+
+<div class="bar-container">
+<div class="bar-label">
+<span>Connection Pool Usage</span>
+<span class="right">100% — MAX REACHED</span>
+</div>
+<div class="bar"><div class="bar-fill danger" style="width:100%"></div></div>
+</div>
+
+<div class="bar-container">
+<div class="bar-label">
+<span>HikariCP (patient-api) — 10.0.5.20</span>
+<span class="right">30/30 active — EXHAUSTED</span>
+</div>
+<div class="bar"><div class="bar-fill danger" style="width:100%"></div></div>
+</div>
+
+<div class="bar-container">
+<div class="bar-label">
+<span>Memory Usage</span>
+<span style="color:#f59e0b; font-weight:600">88% — 1.8 GB / 2.0 GB</span>
+</div>
+<div class="bar"><div class="bar-fill warn" style="width:88%"></div></div>
+</div>
+
+<div class="log">
+<div><span class="ts">08:15:12.300</span> <span class="fatal">FATAL</span>  remaining connection slots are reserved for non-replication superuser connections</div>
+<div class="detail">Current connections: 100 of 100 allowed</div>
+<div><span class="ts">08:15:12.400</span> <span class="fatal">FATAL</span>  too many connections for role "patient_app"</div>
+<div><span class="ts">08:15:13.100</span> <span class="fatal">FATAL</span>  remaining connection slots are reserved for non-replication superuser connections</div>
+<div><span class="ts">08:15:14.200</span> <span class="warn">WARNING</span>  could not send data to client: Broken pipe</div>
+<div><span class="ts">08:15:15.300</span> <span class="fatal">FATAL</span>  remaining connection slots are reserved for non-replication superuser connections</div>
+<div class="detail">Current connections: 100 of 100 allowed</div>
+<div><span class="ts">08:15:16.100</span> <span class="warn">WARNING</span>  terminating connection due to idle-in-transaction timeout</div>
+<div><span class="ts">08:15:18.450</span> <span class="info">LOG</span>    duration: 18450.778 ms  statement: SELECT p.* FROM patients p WHERE p.external_id = 'P-10051'</div>
+<div class="detail">planner chose nested loop due to stale statistics</div>
+</div>
+</body>
+</html>
