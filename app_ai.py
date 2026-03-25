@@ -11,7 +11,7 @@ from logpilot import (
     ask_gemini,
     estimate_tokens, TOKEN_LIMITS,
 )
-from logpilot.ai import _FORMAT_PLACEHOLDER
+from logpilot.ai import _FORMAT_PLACEHOLDER, sanitize_error as _sanitize_error_impl
 from app_constants import AI_RATE_LIMIT_SECONDS, AI_MAX_RETRIES
 
 _log = logging.getLogger(__name__)
@@ -25,13 +25,7 @@ _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 
 def _sanitize_error(msg: str) -> str:
     """Remove API keys and tokens from error messages before displaying to users."""
-    import re
-    # Mask anything that looks like an API key (long alphanumeric strings after key-related words)
-    msg = re.sub(r'(sk-(?:ant-|proj-)?)[A-Za-z0-9_-]{8,}', r'\1***', msg)
-    msg = re.sub(r'(AIza)[A-Za-z0-9_-]{8,}', r'\1***', msg)
-    msg = re.sub(r'(key provided: )[^\s.]+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
-    msg = re.sub(r'(api[_-]?key[=: ]+)[^\s,}"\']+', r'\1***REDACTED***', msg, flags=re.IGNORECASE)
-    return msg
+    return _sanitize_error_impl(msg)
 
 
 def _should_retry(exc: Exception) -> bool:
