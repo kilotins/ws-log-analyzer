@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogPilot Code Review — Claude Opus Deep Analysis</title>
+<style>*, *::before, *::after { box-sizing: border-box; }
+
+/* --- Light theme --- */
+:root, [data-theme="light"] {
+  --bg-primary: #F8FAFC; --bg-secondary: #FFFFFF; --bg-tertiary: #F1F5F9;
+  --bg-hover: #E2E8F0; --border: #E2E8F0; --border-strong: #CBD5E1;
+  --text-primary: #0F172A; --text-secondary: #334155; --text-muted: #64748B;
+  --text-heading: #0F172A; --accent: #7C3AED;
+  --green: #059669; --green-bg: #ECFDF5; --yellow: #D97706; --yellow-bg: #FFFBEB;
+  --red: #DC2626; --red-bg: #FEF2F2; --blue: #2563EB; --blue-bg: #EFF6FF;
+  --purple: #7C3AED; --purple-bg: #F5F3FF;
+}
+/* --- Dark theme (auto via OS preference) --- */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+}}
+/* --- Dark theme (explicit toggle) --- */
+[data-theme="dark"] {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+}
+.theme-toggle { background:var(--bg-tertiary); border:1px solid var(--border-strong);
+  border-radius:6px; padding:6px 10px; cursor:pointer; font-size:14px;
+  color:var(--text-muted); transition:all 0.15s; }
+.theme-toggle:hover { background:var(--border-strong); color:var(--text-primary); }
+
+body {
+  margin: 0; padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-primary); color: var(--text-secondary);
+  line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- Layout --- */
+.layout { display: flex; min-height: 100vh; }
+
+nav {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  width: 260px; min-width: 260px;
+  background: var(--bg-secondary); border-right: 1px solid var(--border);
+  padding: 20px 14px; font-size: 13px;
+  display: flex; flex-direction: column;
+}
+nav .nav-title {
+  font-weight: 700; font-size: 15px; color: var(--text-heading);
+  margin-bottom: 6px;
+}
+nav .nav-subtitle {
+  font-size: 11px; color: var(--text-muted);
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+nav .nav-links { flex: 1; }
+nav a.nav-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 6px;
+  color: var(--text-muted); transition: all 0.15s;
+  margin-bottom: 1px; line-height: 1.35;
+  font-size: 12.5px;
+}
+nav a.nav-link:hover { background: var(--bg-tertiary); color: var(--text-secondary); text-decoration: none; }
+nav a.nav-link.active { background: var(--bg-tertiary); color: var(--text-primary); font-weight: 500; }
+nav a.nav-link .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; border-radius: 4px;
+  background: var(--bg-tertiary); color: var(--text-muted);
+  font-size: 11px; font-weight: 600;
+}
+nav .nav-controls {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 6px;
+}
+nav .nav-controls button {
+  flex: 1; padding: 7px; background: var(--bg-tertiary);
+  color: var(--text-muted); border: 1px solid var(--border-strong);
+  border-radius: 6px; cursor: pointer; font-size: 11px;
+  transition: all 0.15s;
+}
+nav .nav-controls button:hover { background: var(--border-strong); color: var(--text-secondary); }
+
+/* --- Search --- */
+.search-box {
+  margin-bottom: 12px;
+}
+.search-box input {
+  width: 100%; padding: 7px 10px; font-size: 12px;
+  background: var(--bg-primary); color: var(--text-secondary);
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  outline: none; transition: border-color 0.15s;
+}
+.search-box input:focus { border-color: var(--accent); }
+.search-box input::placeholder { color: var(--text-muted); }
+.search-count { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: none; }
+
+main {
+  flex: 1; max-width: 980px; padding: 36px 48px 80px;
+}
+
+/* --- Typography --- */
+h1 { color: var(--text-heading); font-size: 26px; margin: 0 0 4px; }
+h2 { color: var(--text-heading); font-size: 21px; margin: 28px 0 10px; }
+h3 { color: var(--text-primary); font-size: 17px; margin: 22px 0 8px; }
+h4 { color: var(--text-secondary); font-size: 15px; font-weight: 600; margin: 18px 0 6px; }
+p  { margin: 8px 0; }
+hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+strong { color: var(--text-primary); }
+
+/* --- Header area --- */
+.report-header { margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+.report-meta { color: var(--text-muted); font-size: 13px; margin: 6px 0 16px; }
+.report-meta span { margin-right: 16px; }
+
+/* --- Severity grid --- */
+.severity-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px; margin-top: 12px;
+}
+.sev-card {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;
+}
+.sev-card .sev-label { color: var(--text-muted); font-size: 12px; }
+.sev-card .sev-grade { font-weight: 700; font-size: 15px; }
+.sev-card .sev-grade.good { color: var(--green); }
+.sev-card .sev-grade.warn { color: var(--yellow); }
+.sev-card .sev-grade.bad  { color: var(--red); }
+.sev-card .sev-grade.info { color: var(--blue); }
+
+/* --- Collapsible sections --- */
+details.section {
+  margin: 10px 0; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-primary); transition: background 0.15s;
+}
+details.section[open] { background: var(--bg-secondary); }
+details.section > summary {
+  padding: 14px 18px; cursor: pointer;
+  font-weight: 600; color: var(--text-heading); list-style: none;
+  border-radius: 8px; transition: background 0.15s;
+  display: flex; align-items: center; gap: 10px;
+  user-select: none;
+}
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary::before {
+  content: '\25B6'; font-size: 10px; color: var(--text-muted);
+  transition: transform 0.2s ease; display: inline-block; min-width: 14px;
+}
+details.section[open] > summary::before { transform: rotate(90deg); }
+details.section > summary:hover { background: var(--bg-tertiary); }
+.section-title { flex: 1; font-size: 17px; }
+.section-badge { margin-left: auto; font-size: 11px; }
+.section-body { padding: 4px 18px 18px; }
+
+/* --- Badges --- */
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+}
+.badge-good    { background: var(--green-bg);  color: var(--green); }
+.badge-warn    { background: var(--yellow-bg); color: var(--yellow); }
+.badge-bad     { background: var(--red-bg);    color: var(--red); }
+.badge-info    { background: var(--blue-bg);   color: var(--blue); }
+.badge-summary { background: var(--purple-bg); color: var(--purple); }
+
+/* --- Tables --- */
+.table-wrap { overflow-x: auto; margin: 12px 0; border-radius: 8px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead th {
+  background: var(--bg-tertiary); color: var(--text-primary); text-align: left;
+  padding: 10px 14px; font-weight: 600; white-space: nowrap;
+  border-bottom: 2px solid var(--border-strong);
+}
+tbody td { padding: 8px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--bg-tertiary); }
+
+/* --- Code blocks --- */
+pre.code-block {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0;
+  font-size: 13px; line-height: 1.55; position: relative;
+}
+pre.code-block code {
+  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+}
+pre.code-block[data-lang]::before {
+  content: attr(data-lang); position: absolute; top: 8px; right: 12px;
+  font-size: 10px; color: var(--text-muted); font-family: sans-serif;
+  text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7;
+}
+code.inline {
+  background: var(--bg-hover); padding: 2px 7px; border-radius: 4px;
+  font-size: 0.88em; color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+}
+.kw { color: #ff7b72; } .st { color: #a5d6ff; }
+.cm { color: #8b949e; font-style: italic; } .op { color: #79c0ff; }
+
+/* --- Lists --- */
+ul, ol { padding-left: 22px; margin: 8px 0; }
+li { margin: 3px 0; }
+
+/* --- Back to top --- */
+.back-to-top {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--bg-tertiary); border: 1px solid var(--border-strong);
+  color: var(--text-muted); cursor: pointer; font-size: 18px;
+  display: none; align-items: center; justify-content: center;
+  transition: all 0.2s; z-index: 100;
+}
+.back-to-top:hover { background: var(--border-strong); color: var(--text-primary); }
+.back-to-top.visible { display: flex; }
+
+/* --- Search highlights --- */
+mark.search-hit { background: var(--yellow-bg); color: var(--yellow); padding: 1px 2px; border-radius: 2px; }
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  nav { display: none; }
+  main { padding: 20px 16px; }
+}
+@media print {
+  nav, .back-to-top, .theme-toggle { display: none !important; }
+  details.section { border: none; break-inside: avoid; }
+  details.section > summary::before { content: ''; }
+  details.section .section-body { display: block !important; }
+  body { background: #fff; color: #000; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <div class="nav-logo" style="margin-bottom:10px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 28" fill="none" style="height:22px">
+      <path d="M4 14 L10 6 L13 6 L7 14 L13 22 L10 22 Z" fill="#7C3AED"/>
+      <path d="M11 14 L17 6 L20 6 L14 14 L20 22 L17 22 Z" fill="#34D399"/>
+      <text x="26" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="var(--text-heading)" letter-spacing="-0.3">Log</text>
+      <text x="53" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="#7C3AED" letter-spacing="-0.3">Pilot</text>
+    </svg>
+  </div>
+  <div class="nav-title">Audit Report</div>
+  <div class="nav-subtitle">2026-03-25 13:17</div>
+  <div class="search-box">
+    <input type="text" id="report-search" placeholder="Search report..." autocomplete="off">
+    <div class="search-count"></div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="#sect-executive-summary" title="Executive Summary"><span class="num">1</span> Executive Summary</a><a class="nav-link" href="#sect-p0-production-breakers" title="P0 — Production Breakers"><span class="num">2</span> P0 — Production Breakers</a><a class="nav-link" href="#sect-p1-likely-to-cause-issues" title="P1 — Likely to Cause Issues"><span class="num">3</span> P1 — Likely to Cause Issues</a><a class="nav-link" href="#sect-p2-edge-cases-and-code-quality" title="P2 — Edge Cases and Code Quality"><span class="num">4</span> P2 — Edge Cases and Code Quality</a><a class="nav-link" href="#sect-systemic-patterns" title="Systemic Patterns"><span class="num">5</span> Systemic Patterns</a>
+  </div>
+  <div class="nav-controls">
+    <button onclick="expandAll()">Expand all</button>
+    <button onclick="collapseAll()">Collapse all</button>
+  </div>
+  <div style="margin-top:8px;text-align:center">
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">&#9788;</button>
+  </div>
+</nav>
+<main>
+  <div class="report-header">
+    <h1>LogPilot Code Review — Claude Opus Deep Analysis</h1>
+    <div class="report-meta">
+      <span>Generated: 2026-03-25 13:17</span>
+      <span>5 sections</span>
+    </div>
+    
+  </div>
+  <h1 id="logpilot-code-review-claude-opus-deep-analysis">LogPilot Code Review — Claude Opus Deep Analysis</h1>
+<p><strong>Date:</strong> 2026-03-25 <strong>Reviewer:</strong> Claude Opus 4.6 (1M context) <strong>Branch:</strong> claude-work <strong>Scope:</strong> Full <code class="inline">logpilot/</code> package (36 Python files)</p>
+<hr>
+<details class="section" id="sect-executive-summary" open><summary><span class="section-title">Executive Summary</span><span class="badge badge-summary section-badge">1/5</span></summary><div class="section-body">
+<div class="table-wrap"><table><thead><tr><th>Severity</th><th>Count</th><th>Description</th></tr></thead><tbody>
+<tr><td><strong>P0</strong></td><td>3</td><td>Will break in production</td></tr>
+<tr><td><strong>P1</strong></td><td>18</td><td>Likely to cause issues with real-world data</td></tr>
+<tr><td><strong>P2</strong></td><td>46</td><td>Edge cases, code quality, minor risks</td></tr>
+</tbody></table></div>
+<p><strong>Top 5 most impactful findings:</strong></p>
+<ol><li><strong>P0-SYS:</strong> Seven format plugins treat &quot;no timestamp = continuation&quot; — format misdetection collapses entire files into one event</li><li><strong>P0-GUI:</strong> <code class="inline">gui.py</code> headless logic is inverted; pip-installed <code class="inline">logpilot-gui</code> crashes</li><li><strong>P1-AI:</strong> <code class="inline">build_incident_user_prompt</code> calls <code class="inline">.get()</code> on LogEvent objects (works in Streamlit, crashes in CLI)</li><li><strong>P1-CLI:</strong> <code class="inline">--exit-code</code> exits before writing the report file</li><li><strong>P1-PARSER:</strong> Gzip fallback leaks file handles on invalid <code class="inline">.gz</code> files</li></ol>
+<hr>
+</div></details><details class="section" id="sect-p0-production-breakers"><summary><span class="section-title">P0 — Production Breakers</span><span class="badge badge-info section-badge">2/5</span></summary><div class="section-body">
+<h3 id="p0-1-seven-plugins-collapse-files-on-format-misdetection">P0-1: Seven plugins collapse files on format misdetection</h3>
+<ul><li><strong>Files:</strong> <code class="inline">log4j.py:139</code>, <code class="inline">python_log.py:285</code>, <code class="inline">enonic.py:237</code>, <code class="inline">tomcat.py:118</code>, <code class="inline">datapower.py:135</code>, <code class="inline">docker_json.py:108</code>, <code class="inline">postgresql.py:155</code></li><li><strong>Category:</strong> logic-bug (systemic)</li><li><strong>Issue:</strong> Seven format plugins return <code class="inline">True</code> from <code class="inline">is_continuation()</code> for ANY line without a recognized timestamp. If a file is misdetected (e.g., a plain text file parsed as Log4j), every line after the first timestamp-bearing line becomes one massive event. Lines before the first timestamp are orphaned.</li><li><strong>Impact:</strong> Silent data corruption. No safety valve (max event size) exists.</li></ul>
+<h3 id="p0-2-gui-py-inverted-headless-logic-and-broken-pip-install-path">P0-2: <code class="inline">gui.py</code> inverted headless logic and broken pip install path</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/gui.py:26-29</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> When <code class="inline">app.py</code> does NOT exist (<code class="inline">not app_py.exists()</code> is True), Streamlit launches with <code class="inline">headless=True</code> — but the file is missing, so Streamlit crashes. When installed via pip, <code class="inline">Path(__file__).parent.parent / &quot;app.py&quot;</code> resolves to <code class="inline">site-packages/</code>, where <code class="inline">app.py</code> never exists. The <code class="inline">logpilot-gui</code> command always fails when pip-installed.</li><li><strong>Impact:</strong> Published PyPI package&#x27;s GUI entry point is broken.</li></ul>
+<h3 id="p0-3-log4j-python-is-continuation-treats-first-file-line-as-continuation">P0-3: Log4j/Python <code class="inline">is_continuation</code> treats first file line as continuation</h3>
+<ul><li><strong>Files:</strong> <code class="inline">log4j.py:133-141</code>, <code class="inline">python_log.py:264-287</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> Before any timestamp line is seen, the first line(s) are classified as continuations with no parent event. These are silently dropped or attached to nothing.</li><li><strong>Impact:</strong> First lines of log files may be lost.</li></ul>
+<hr>
+</div></details><details class="section" id="sect-p1-likely-to-cause-issues"><summary><span class="section-title">P1 — Likely to Cause Issues</span><span class="badge badge-info section-badge">3/5</span></summary><div class="section-body">
+<h3 id="p1-1-ai-py-calls-get-on-logevent-objects">P1-1: <code class="inline">ai.py</code> calls <code class="inline">.get()</code> on LogEvent objects</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/ai.py:936-943</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> <code class="inline">build_incident_user_prompt</code> calls <code class="inline">e.get(&quot;text&quot;, &quot;&quot;)</code> on items in <code class="inline">error_events</code>. CLI code passes <code class="inline">LogEvent</code> instances (which use <code class="inline">__getitem__</code>/<code class="inline">getattr</code>, not <code class="inline">.get()</code>). Streamlit passes dicts, masking the bug.</li><li><strong>Impact:</strong> <code class="inline">AttributeError</code> crash when using <code class="inline">--ai</code> with incident analysis from CLI.</li></ul>
+<h3 id="p1-2-cli-exit-code-exits-before-writing-report">P1-2: CLI <code class="inline">--exit-code</code> exits before writing report</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/cli.py:330-334</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> When <code class="inline">--exit-code</code> is used with <code class="inline">--format</code> or <code class="inline">--out</code>, the CLI exits with code 1 <em>before</em> generating the report. CI pipelines get the exit code but not the report they need.</li><li><strong>Impact:</strong> CI users lose their report output.</li></ul>
+<h3 id="p1-3-gzip-fallback-leaks-file-handle">P1-3: Gzip fallback leaks file handle</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/parser.py:189-195</code></li><li><strong>Category:</strong> error-handling</li><li><strong>Issue:</strong> When gzip probe fails (invalid <code class="inline">.gz</code> file), the gzip file handle <code class="inline">f</code> is never closed before falling through to plain text open. No <code class="inline">finally</code> clause.</li><li><strong>Impact:</strong> File descriptor leak per invalid <code class="inline">.gz</code> file. Can exhaust OS file descriptors on batch processing.</li></ul>
+<h3 id="p1-4-pick-samples-evicts-special-events">P1-4: <code class="inline">pick_samples</code> evicts special events</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/analysis.py:396-404</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> When multiple special events (first_error, most_frequent, cascade_trigger) need insertion and <code class="inline">len(selected) &gt;= n</code>, each replaces <code class="inline">selected[-1]</code>. The second special event evicts the first, the third evicts the second. Only the last special event survives.</li><li><strong>Impact:</strong> Triage reports may miss important first-error or cascade-trigger events in samples.</li></ul>
+<h3 id="p1-5-iban-regex-b-breaks-with-internal-spaces">P1-5: IBAN regex <code class="inline">\b</code> breaks with internal spaces</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/parser.py:137</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> <code class="inline">_IBAN_RE</code> uses <code class="inline">\b</code> anchors but allows <code class="inline">[\s]?</code> between digit groups. <code class="inline">\b</code> at the end fails when the last character before it is a space (non-word). IBANs with spaces won&#x27;t match; false positives on country-code+digit patterns like <code class="inline">US2024031200001</code>.</li><li><strong>Impact:</strong> PII redaction misses some IBANs, redacts some non-IBANs.</li></ul>
+<h3 id="p1-6-was-is-continuation-misses-non-stacktrace-multiline">P1-6: WAS <code class="inline">is_continuation</code> misses non-stacktrace multiline</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/formats/was.py:88-89</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> Only detects Java stacktrace continuations (<code class="inline">at ...</code>, <code class="inline">Caused by:</code>). Multiline WAS messages without stacktraces are split into separate events.</li><li><strong>Impact:</strong> WAS config dumps, long exception messages, and audit entries get fragmented.</li></ul>
+<h3 id="p1-7-nginx-is-continuation-always-returns-false">P1-7: nginx <code class="inline">is_continuation</code> always returns False</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/formats/nginx.py:166-168</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> nginx error logs can have multiline content (SSL errors, upstream details). These become orphan events with no timestamp.</li><li><strong>Impact:</strong> Multiline nginx errors get split and lose context.</li></ul>
+<h3 id="p1-8-cri-o-only-recognizes-java-continuations">P1-8: CRI-O only recognizes Java continuations</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/formats/crio.py:193-206</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> CRI-O wraps arbitrary container output, but <code class="inline">is_continuation</code> only handles CRI-O partial lines (P flag) and Java stacktraces. Python tracebacks, multi-line shell errors, Go panics are all split into separate events.</li><li><strong>Impact:</strong> Non-Java container logs lose multiline grouping.</li></ul>
+<h3 id="p1-9-postgresql-fatal-mapped-to-error">P1-9: PostgreSQL <code class="inline">FATAL</code> mapped to <code class="inline">ERROR</code></h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/formats/postgresql.py:35</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> PostgreSQL <code class="inline">FATAL</code> (session terminated — auth failure, too many connections) is mapped to <code class="inline">&#x27;ERROR&#x27;</code> instead of <code class="inline">&#x27;FATAL&#x27;</code>. This loses the critical severity distinction.</li><li><strong>Impact:</strong> Connection exhaustion and auth failures appear as regular errors, reducing triage urgency.</li></ul>
+<h3 id="p1-10-log4j-thread-extraction-matches-wrong-bracket-group">P1-10: Log4j thread extraction matches wrong bracket group</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/formats/log4j.py:36</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> <code class="inline">_THREAD_RE</code> matches the FIRST <code class="inline">[...]</code> bracket pair. In patterns with leading bracket groups (e.g., <code class="inline">[2025-03-11] [main] INFO</code>), it captures the date instead of the thread name.</li><li><strong>Impact:</strong> Incorrect thread attribution in Log4j reports.</li></ul>
+<h3 id="p1-11-missing-fpdf2-importerror-handling">P1-11: Missing fpdf2 ImportError handling</h3>
+<ul><li><strong>Files:</strong> <code class="inline">logpilot/reports/pdf.py:94</code>, <code class="inline">logpilot/reports/brief_pdf.py:42</code></li><li><strong>Category:</strong> error-handling</li><li><strong>Issue:</strong> <code class="inline">from fpdf import FPDF</code> with no try/except. Users without <code class="inline">fpdf2</code> get a confusing <code class="inline">ModuleNotFoundError</code> instead of a helpful message.</li><li><strong>Impact:</strong> Poor UX for PDF export without optional dep.</li></ul>
+<h3 id="p1-12-json-report-crashes-on-non-serializable-ai-content">P1-12: JSON report crashes on non-serializable ai_content</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/reports/json_report.py:78</code></li><li><strong>Category:</strong> error-handling</li><li><strong>Issue:</strong> <code class="inline">ai_content</code> is passed directly to <code class="inline">json.dumps</code>. If it contains datetime objects, sets, or custom objects, serialization crashes with <code class="inline">TypeError</code>.</li><li><strong>Impact:</strong> JSON export fails when AI analysis includes non-serializable data.</li></ul>
+<h3 id="p1-13-critical-severity-counted-inconsistently-across-renderers">P1-13: <code class="inline">CRITICAL</code> severity counted inconsistently across renderers</h3>
+<ul><li><strong>Files:</strong> <code class="inline">reports/pdf.py:191</code> vs <code class="inline">reports/html.py:104</code>, <code class="inline">reports/executive_summary.py:52</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> PDF renderer counts <code class="inline">(&quot;ERROR&quot;, &quot;SEVERE&quot;, &quot;FATAL&quot;, &quot;CRITICAL&quot;)</code> but HTML and executive summary count only <code class="inline">(&quot;ERROR&quot;, &quot;SEVERE&quot;, &quot;FATAL&quot;)</code>. Reports disagree on error counts.</li><li><strong>Impact:</strong> Error metrics differ between PDF and HTML for the same data.</li></ul>
+<h3 id="p1-14-html-nav-index-can-overflow">P1-14: HTML nav index can overflow</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/reports/html.py:326-331</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> <code class="inline">_nav_idx</code> is incremented in <code class="inline">_open_section</code>. If rendering calls it more/fewer times than sections were pre-registered, <code class="inline">IndexError</code> crashes the report.</li><li><strong>Impact:</strong> Report generation crash if section registration diverges from rendering.</li></ul>
+<h3 id="p1-15-detect-scores-exceed-1-0-contract">P1-15: Detect scores exceed 1.0 contract</h3>
+<ul><li><strong>Files:</strong> <code class="inline">logpilot/formats/enonic.py:194</code>, <code class="inline">logpilot/formats/nginx.py:128</code></li><li><strong>Category:</strong> logic-bug</li><li><strong>Issue:</strong> <code class="inline">detect()</code> returns values &gt; 1.0 (<code class="inline">1.0 + bonus</code>, <code class="inline">ratio * 1.5</code>). While <code class="inline">detect_format</code> picks the highest, any code that validates <code class="inline">score &lt;= 1.0</code> would break.</li><li><strong>Impact:</strong> Format detection contract violation; works by accident.</li></ul>
+<h3 id="p1-16-openai-streaming-empty-choices">P1-16: OpenAI streaming empty choices</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/cli.py:190-191</code></li><li><strong>Category:</strong> error-handling</li><li><strong>Issue:</strong> <code class="inline">chunk.choices[0]</code> raises <code class="inline">IndexError</code> if <code class="inline">choices</code> is empty. Some OpenAI-compatible APIs return chunks with empty <code class="inline">choices</code> arrays.</li><li><strong>Impact:</strong> CLI crash during AI streaming with certain providers.</li></ul>
+<h3 id="p1-17-code-search-py-grep-fallback-is-o-n-m">P1-17: <code class="inline">code_search.py</code> grep fallback is O(N*M)</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/code_search.py:200-229</code></li><li><strong>Category:</strong> performance</li><li><strong>Issue:</strong> For each unmatched <code class="inline">CodeLocation</code>, reads every file&#x27;s entire content. With many files and locations, this reads gigabytes without caching.</li><li><strong>Impact:</strong> Extreme slowness on large codebases.</li></ul>
+<h3 id="p1-18-heuristics-performance-o-heuristics-events">P1-18: Heuristics performance O(heuristics * events)</h3>
+<ul><li><strong>File:</strong> <code class="inline">logpilot/heuristics.py:772-782</code></li><li><strong>Category:</strong> performance</li><li><strong>Issue:</strong> For each of 68 heuristics, iterates all events. Then <code class="inline">extract_evidence</code> does another full pass. With 100K events: ~13.6M regex operations.</li><li><strong>Impact:</strong> Slow analysis on large log files.</li></ul>
+<hr>
+</div></details><details class="section" id="sect-p2-edge-cases-and-code-quality"><summary><span class="section-title">P2 — Edge Cases and Code Quality</span><span class="badge badge-info section-badge">4/5</span></summary><div class="section-body">
+<h3 id="parser-core">Parser &amp; Core</h3>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>File</th><th>Lines</th><th>Category</th><th>Description</th></tr></thead><tbody>
+<tr><td>P2-1</td><td><code class="inline">parser.py</code></td><td>107,110</td><td>edge-case</td><td>PII regex false positives: <code class="inline">_PERSONNR_RE</code> matches 11-digit numbers resembling dates; <code class="inline">_ORGNR_RE</code> matches 9-digit numbers starting with 8/9</td></tr>
+<tr><td>P2-2</td><td><code class="inline">parser.py</code></td><td>134</td><td>edge-case</td><td>Credit card regex matches 12-19 digit numbers without Luhn validation</td></tr>
+<tr><td>P2-3</td><td><code class="inline">parser.py</code></td><td>94</td><td>performance</td><td>PEM key regex <code class="inline">[\s\S]*?</code> scans entire input on missing <code class="inline">-----END</code></td></tr>
+<tr><td>P2-4</td><td><code class="inline">parser.py</code></td><td>362</td><td>performance</td><td><code class="inline">LOGPILOT_REDACTION_LEVEL</code> env var read per event instead of once</td></tr>
+<tr><td>P2-5</td><td><code class="inline">parser.py</code></td><td>500</td><td>edge-case</td><td><code class="inline">max_lines=0</code> silently converted to unlimited via <code class="inline">or None</code></td></tr>
+<tr><td>P2-6</td><td><code class="inline">parser.py</code></td><td>386-394</td><td>edge-case</td><td>Lines before first timestamp silently dropped</td></tr>
+<tr><td>P2-7</td><td><code class="inline">analysis.py</code></td><td>44-55</td><td>edge-case</td><td>Ambiguous timezone abbreviations (CST=US/-6 or China/+8, IST=India/+5.5 or Ireland/+1)</td></tr>
+<tr><td>P2-8</td><td><code class="inline">analysis.py</code></td><td>270-275</td><td>logic-bug</td><td>Histogram drops dateless events when mixed with dated events</td></tr>
+<tr><td>P2-9</td><td><code class="inline">analysis.py</code></td><td>461-476</td><td>performance</td><td><code class="inline">detect_cross_system_cascades</code> O(n<em>m</em>k) with thousands of error events</td></tr>
+<tr><td>P2-10</td><td><code class="inline">analysis.py</code></td><td>862-876</td><td>edge-case</td><td>Noise scoring checks only first 10 events for error proximity</td></tr>
+<tr><td>P2-11</td><td><code class="inline">heuristics.py</code></td><td>252-256</td><td>logic-bug</td><td><code class="inline">id(g)</code> for identity tracking — fragile if dicts are ever copied</td></tr>
+<tr><td>P2-12</td><td><code class="inline">heuristics.py</code></td><td>656</td><td>edge-case</td><td>Narrative <code class="inline">.format()</code> vulnerable to unexpected <code class="inline">{keys}</code> in YAML templates</td></tr>
+<tr><td>P2-13</td><td><code class="inline">heuristics.py</code></td><td>690-741</td><td>edge-case</td><td>Burst detection reports only first burst, may miss more severe later bursts</td></tr>
+<tr><td>P2-14</td><td><code class="inline">heuristics.py</code></td><td>396</td><td>logic-bug</td><td><code class="inline">_merge_evidence</code> timestamp comparison as strings fails for non-ISO formats</td></tr>
+<tr><td>P2-15</td><td><code class="inline">event.py</code></td><td>43-47</td><td>edge-case</td><td><code class="inline">__getitem__</code> exposes internal attributes (e.g., <code class="inline">event[&quot;__class__&quot;]</code>)</td></tr>
+<tr><td>P2-16</td><td><code class="inline">discovery.py</code></td><td>140-151</td><td>security</td><td><code class="inline">root.resolve()</code> follows symlinks at root level — potential path traversal</td></tr>
+<tr><td>P2-17</td><td><code class="inline">discovery.py</code></td><td>159-163</td><td>edge-case</td><td><code class="inline">.gz</code> without double extension (e.g., <code class="inline">backup.gz</code>) bypasses extension filtering</td></tr>
+</tbody></table></div>
+<h3 id="ai-cli">AI &amp; CLI</h3>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>File</th><th>Lines</th><th>Category</th><th>Description</th></tr></thead><tbody>
+<tr><td>P2-18</td><td><code class="inline">ai.py</code></td><td>601-603</td><td>logic-bug</td><td>Token truncation slices by chars, can break mid-XML-tag</td></tr>
+<tr><td>P2-19</td><td><code class="inline">ai.py</code></td><td>1032-1033</td><td>logic-bug</td><td>Same truncation issue in <code class="inline">build_incident_user_prompt</code></td></tr>
+<tr><td>P2-20</td><td><code class="inline">ai.py</code></td><td>323</td><td>security</td><td>Prompt sanitization could be bypassed with nested/encoded XML constructs</td></tr>
+<tr><td>P2-21</td><td><code class="inline">ai.py</code></td><td>85</td><td>edge-case</td><td>Skills dir path broken when pip-installed (<code class="inline">site-packages/skills/</code> doesn&#x27;t exist)</td></tr>
+<tr><td>P2-22</td><td><code class="inline">ai.py</code></td><td>562</td><td>error-handling</td><td>Potential <code class="inline">ZeroDivisionError</code> if <code class="inline">s[&#x27;total&#x27;]</code> is 0 (currently guarded but fragile)</td></tr>
+<tr><td>P2-23</td><td><code class="inline">cli.py</code></td><td>307</td><td>edge-case</td><td>Double-stem extraction inconsistent for multi-extension names like <code class="inline">app.2024-01-01.log.gz</code></td></tr>
+<tr><td>P2-24</td><td><code class="inline">cli.py</code></td><td>266-270</td><td>security</td><td><code class="inline">os.environ</code> mutation persists if CLI used as library</td></tr>
+<tr><td>P2-25</td><td><code class="inline">code_search.py</code></td><td>192</td><td>logic-bug</td><td><code class="inline">continue</code> skips grep fallback even when file-name strategy found no results</td></tr>
+<tr><td>P2-26</td><td><code class="inline">trace_to_code.py</code></td><td>135</td><td>edge-case</td><td><code class="inline">PurePosixPath</code> fails on Windows backslash paths in Python tracebacks</td></tr>
+<tr><td>P2-27</td><td><code class="inline">trace_to_code.py</code></td><td>17</td><td>edge-case</td><td>Java FQCN regex rejects Unicode class names</td></tr>
+<tr><td>P2-28</td><td><code class="inline">jira_tickets.py</code></td><td>56-60</td><td>logic-bug</td><td>Low confidence mapped to P1 Critical — counterintuitive priority mapping</td></tr>
+</tbody></table></div>
+<h3 id="format-plugins">Format Plugins</h3>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>File</th><th>Lines</th><th>Category</th><th>Description</th></tr></thead><tbody>
+<tr><td>P2-29</td><td><code class="inline">formats/__init__.py</code></td><td>49</td><td>edge-case</td><td>Default format is WAS — non-WAS files get WAS severity parsing</td></tr>
+<tr><td>P2-30</td><td><code class="inline">formats/__init__.py</code></td><td>126</td><td>edge-case</td><td><code class="inline">_read_head_lines</code> doesn&#x27;t strip <code class="inline">\r</code> — Windows line endings break regex</td></tr>
+<tr><td>P2-31</td><td><code class="inline">formats/base.py</code></td><td>52</td><td>edge-case</td><td><code class="inline">EXC_HEAD_RE</code> requires <code class="inline">.</code> in name — bare <code class="inline">NullPointerException</code> not matched</td></tr>
+<tr><td>P2-32</td><td><code class="inline">formats/base.py</code></td><td>53</td><td>edge-case</td><td><code class="inline">STACK_LINE_RE</code> requires <code class="inline">)$</code> — modular Java <code class="inline">[module.jar:1.0]</code> suffix not matched</td></tr>
+<tr><td>P2-33</td><td><code class="inline">formats/was.py</code></td><td>18</td><td>edge-case</td><td><code class="inline">TS_PATTERNS[1]</code> matches generic ISO timestamps — too broad for WAS-specific detection</td></tr>
+<tr><td>P2-34</td><td><code class="inline">formats/was.py</code></td><td>42</td><td>edge-case</td><td>HTTP status regex `\b(4\d\d</td><td>5\d\d)\b` matches any 400-599 number near &quot;HTTP&quot;</td></tr>
+<tr><td>P2-35</td><td><code class="inline">formats/json_log.py</code></td><td>97-104</td><td>logic-bug</td><td>Numeric level normalization silently drops values outside Bunyan/syslog ranges</td></tr>
+<tr><td>P2-36</td><td><code class="inline">formats/json_log.py</code></td><td>260</td><td>logic-bug</td><td>Trace ID lowercasing breaks case-sensitive tracing systems</td></tr>
+<tr><td>P2-37</td><td><code class="inline">formats/nginx.py</code></td><td>259-266</td><td>logic-bug</td><td>4xx and 5xx both tagged &quot;HTTP&quot; — no distinction between client/server errors</td></tr>
+<tr><td>P2-38</td><td><code class="inline">formats/syslog.py</code></td><td>219-224</td><td>edge-case</td><td>Bare `error</td><td>fail` regex catches informational messages mentioning these words</td></tr>
+<tr><td>P2-39</td><td><code class="inline">formats/syslog.py</code></td><td>82</td><td>logic-bug</td><td>Local <code class="inline">OOM_RE</code> diverges from <code class="inline">base.py</code> <code class="inline">OOM_RE</code> — maintenance risk</td></tr>
+<tr><td>P2-40</td><td><code class="inline">formats/syslog.py</code></td><td>11</td><td>edge-case</td><td>RFC 3164 requires title-case months — fails on all-caps <code class="inline">MAR</code></td></tr>
+<tr><td>P2-41</td><td><code class="inline">formats/crio.py</code></td><td>141</td><td>edge-case</td><td>klog timestamps lack year — Dec-Jan boundary causes order issues</td></tr>
+<tr><td>P2-42</td><td><code class="inline">formats/crio.py</code></td><td>312</td><td>performance</td><td>Inline <code class="inline">re.search()</code> compiled per call instead of pre-compiled</td></tr>
+<tr><td>P2-43</td><td><code class="inline">formats/docker_json.py</code></td><td>67</td><td>logic-bug</td><td>Inflated detect scoring out-competes generic JSON format</td></tr>
+<tr><td>P2-44</td><td><code class="inline">formats/docker_json.py</code></td><td>173-195</td><td>performance</td><td>Four inline regex compilations per <code class="inline">bucket_tags</code> call</td></tr>
+<tr><td>P2-45</td><td>Multiple</td><td>Various</td><td>edge-case</td><td><code class="inline">\b[45]\d{2}\b</code> HTTP pattern matches any 400-599 number regardless of context</td></tr>
+</tbody></table></div>
+<h3 id="reports">Reports</h3>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>File</th><th>Lines</th><th>Category</th><th>Description</th></tr></thead><tbody>
+<tr><td>P2-46</td><td><code class="inline">reports/html.py</code></td><td>538</td><td>security</td><td>Tag values escaped correctly but pattern is fragile for future changes</td></tr>
+<tr><td>P2-47</td><td><code class="inline">reports/pdf.py</code></td><td>282-293</td><td>edge-case</td><td>Long code blocks exceed page height — background rectangle only covers first 200mm</td></tr>
+<tr><td>P2-48</td><td><code class="inline">reports/pdf.py</code></td><td>77</td><td>performance</td><td><code class="inline">_UNICODE_MAP</code> dict rebuilt on every <code class="inline">_latin1_safe()</code> call</td></tr>
+<tr><td>P2-49</td><td><code class="inline">reports/pdf.py</code></td><td>541-545</td><td>edge-case</td><td>Footer accent at Y=-25 can overwrite last-page content</td></tr>
+<tr><td>P2-50</td><td><code class="inline">reports/brief_pdf.py</code></td><td>186-196</td><td>edge-case</td><td>Content before first <code class="inline">##</code> heading silently dropped</td></tr>
+<tr><td>P2-51</td><td><code class="inline">reports/brief_pdf.py</code></td><td>199-239</td><td>edge-case</td><td>Numbered lists not handled — rendered as plain paragraphs</td></tr>
+<tr><td>P2-52</td><td><code class="inline">reports/executive_summary.py</code></td><td>47</td><td>logic-bug</td><td>Uses <code class="inline">datetime.now()</code> without timezone (naive) — inconsistent with PDF renderer</td></tr>
+<tr><td>P2-53</td><td><code class="inline">reports/executive_summary.py</code></td><td>255</td><td>logic-bug</td><td>Bold lines <code class="inline"><strong>text</strong></code> misidentified as italic</td></tr>
+<tr><td>P2-54</td><td><code class="inline">reports/executive_summary.py</code></td><td>242-266</td><td>logic-bug</td><td><code class="inline"><strong>bold</strong></code> markers not converted to <code class="inline">&lt;strong&gt;</code> in paragraph text</td></tr>
+<tr><td>P2-55</td><td><code class="inline">reports/markdown.py</code></td><td>94</td><td>edge-case</td><td><code class="inline">len(ai_content.get(&quot;incident_query&quot;, &quot;&quot;))</code> crashes if value is explicitly <code class="inline">None</code></td></tr>
+<tr><td>P2-56</td><td><code class="inline">__init__.py</code></td><td>1-119</td><td>performance</td><td>Eager imports load entire package chain — slow for subset usage</td></tr>
+<tr><td>P2-57</td><td><code class="inline">_heuristics_fallback.py</code></td><td>511-516</td><td>edge-case</td><td><code class="inline">systemd-service-fail</code> heuristic matches non-systemd &quot;Failed to start&quot; messages</td></tr>
+<tr><td>P2-58</td><td><code class="inline">_heuristics_fallback.py</code></td><td>760-766</td><td>edge-case</td><td><code class="inline">timeout-generic</code> matches informational timeout mentions</td></tr>
+<tr><td>P2-59</td><td><code class="inline">_heuristics_fallback.py</code></td><td>810-820</td><td>edge-case</td><td><code class="inline">repeated-exception</code> overlaps with every other exception heuristic</td></tr>
+</tbody></table></div>
+<hr>
+</div></details><details class="section" id="sect-systemic-patterns"><summary><span class="section-title">Systemic Patterns</span><span class="badge badge-info section-badge">5/5</span></summary><div class="section-body">
+<h3 id="1-no-timestamp-continuation-7-plugins">1. &quot;No timestamp = continuation&quot; (7 plugins)</h3>
+<p>The most dangerous pattern. When format detection is wrong, this collapses entire files into single events. A max-event-lines safety valve in the parser would prevent this across all plugins.</p>
+<h3 id="2-http-status-false-positives-4-plugins">2. HTTP status false positives (4 plugins)</h3>
+<p><code class="inline">\b[45]\d{2}\b</code> matches any 3-digit number 400-599. Adding context requirements (e.g., <code class="inline">status[= :]?\s*[45]\d{2}</code> or proximity to HTTP keywords) would reduce false positives.</p>
+<h3 id="3-detect-score-1-0-2-plugins">3. Detect score &gt; 1.0 (2 plugins)</h3>
+<p>Enonic and nginx can return scores above the documented 0.0-1.0 range. Should be clamped with <code class="inline">min(score, 1.0)</code>.</p>
+<h3 id="4-pip-installed-paths-broken-2-files">4. Pip-installed paths broken (2 files)</h3>
+<p>Both <code class="inline">gui.py</code> and <code class="inline">ai.py</code> use <code class="inline">Path(__file__).parent.parent</code> to find project-root files (<code class="inline">app.py</code>, <code class="inline">skills/</code>). This fails when installed via pip.</p>
+<hr>
+<p><em>Generated by Claude Opus 4.6 — Phase 1 review, no code changes made.</em></p></div></details>
+</main>
+</div>
+<button class="back-to-top" title="Back to top">&#8593;</button>
+<script>// --- Theme toggle ---
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  if (current === 'dark') html.setAttribute('data-theme', 'light');
+  else if (current === 'light') html.setAttribute('data-theme', 'dark');
+  else {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  }
+}
+
+// --- Expand / Collapse ---
+function expandAll() {
+  document.querySelectorAll('details.section').forEach(d => d.open = true);
+}
+function collapseAll() {
+  document.querySelectorAll('details.section').forEach(d => d.open = false);
+}
+
+// --- Smooth scroll nav ---
+document.querySelectorAll('nav a.nav-link').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const id = a.getAttribute('href').slice(1);
+    const target = document.getElementById(id);
+    if (target) {
+      if (target.tagName === 'DETAILS') target.open = true;
+      // Scroll to the summary inside the details
+      const summary = target.querySelector('summary') || target;
+      summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+// --- Active nav tracking ---
+const sections = document.querySelectorAll('details.section');
+const navLinks = document.querySelectorAll('nav a.nav-link');
+const observerOpts = { threshold: 0, rootMargin: '-80px 0px -70% 0px' };
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, observerOpts);
+sections.forEach(s => observer.observe(s));
+
+// --- Back to top ---
+const btt = document.querySelector('.back-to-top');
+window.addEventListener('scroll', () => {
+  btt.classList.toggle('visible', window.scrollY > 400);
+});
+btt.addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// --- In-page search ---
+const searchInput = document.getElementById('report-search');
+const searchCount = document.querySelector('.search-count');
+let searchTimeout = null;
+
+function clearHighlights() {
+  document.querySelectorAll('mark.search-hit').forEach(m => {
+    const parent = m.parentNode;
+    parent.replaceChild(document.createTextNode(m.textContent), m);
+    parent.normalize();
+  });
+  searchCount.style.display = 'none';
+}
+
+function highlightText(query) {
+  clearHighlights();
+  if (!query || query.length < 2) return;
+  const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  let count = 0;
+  const walker = document.createTreeWalker(
+    document.querySelector('main'), NodeFilter.SHOW_TEXT, null
+  );
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node => {
+    if (node.parentElement.closest('pre, code, script, style, summary')) return;
+    if (!re.test(node.textContent)) return;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    node.textContent.replace(re, (match, _, offset) => {
+      frag.appendChild(document.createTextNode(node.textContent.slice(last, offset)));
+      const mark = document.createElement('mark');
+      mark.className = 'search-hit';
+      mark.textContent = match;
+      frag.appendChild(mark);
+      last = offset + match.length;
+      count++;
+    });
+    frag.appendChild(document.createTextNode(node.textContent.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  });
+  if (count > 0) {
+    searchCount.textContent = count + ' match' + (count === 1 ? '' : 'es');
+    searchCount.style.display = 'block';
+    // Open section containing first hit and scroll to it
+    const first = document.querySelector('mark.search-hit');
+    if (first) {
+      const details = first.closest('details.section');
+      if (details) details.open = true;
+      first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => highlightText(searchInput.value.trim()), 250);
+});
+</script>
+</body>
+</html>
