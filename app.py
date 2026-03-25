@@ -36,7 +36,7 @@ def _get_version() -> str:
     Returns e.g. '0.1.0+42.b00bc60' or '0.1.0' if git is unavailable.
     """
     # Base version from __init__.py (single source of truth), fallback to pyproject.toml
-    base = "1.1.2"
+    base = "1.1.3"
     try:
         from logpilot import __version__
         base = __version__
