@@ -102,17 +102,17 @@ class TestSekToUsd:
 class TestEstimateCost:
     """Tests for the internal _estimate_cost function.
 
-    _estimate_cost does a lazy 'from app_ai import TOKEN_COSTS, CACHE_TOKEN_COSTS'
-    inside the function body, so we patch app_ai in sys.modules before calling it.
+    _estimate_cost does a lazy 'from app_constants import TOKEN_COSTS, CACHE_TOKEN_COSTS'
+    inside the function body, so we patch app_constants in sys.modules before calling it.
     """
 
     @pytest.fixture(autouse=True)
-    def patch_app_ai(self):
-        """Inject a minimal app_ai stub with known pricing tables."""
-        _app_ai_stub = types.ModuleType("app_ai")
-        _app_ai_stub.TOKEN_COSTS = _MOCK_TOKEN_COSTS
-        _app_ai_stub.CACHE_TOKEN_COSTS = _MOCK_CACHE_TOKEN_COSTS
-        with patch.dict(sys.modules, {"app_ai": _app_ai_stub}):
+    def patch_app_constants(self):
+        """Inject a minimal app_constants stub with known pricing tables."""
+        _app_const_stub = types.ModuleType("app_constants")
+        _app_const_stub.TOKEN_COSTS = _MOCK_TOKEN_COSTS
+        _app_const_stub.CACHE_TOKEN_COSTS = _MOCK_CACHE_TOKEN_COSTS
+        with patch.dict(sys.modules, {"app_constants": _app_const_stub}):
             yield
 
     def test_known_model_sonnet(self):
@@ -418,11 +418,11 @@ class TestRecordSpend:
             del sys.modules["app_spend"]
         real_spend = _il.import_module("app_spend")
 
-        _app_ai_stub = types.ModuleType("app_ai")
-        _app_ai_stub.TOKEN_COSTS = _MOCK_TOKEN_COSTS
-        _app_ai_stub.CACHE_TOKEN_COSTS = _MOCK_CACHE_TOKEN_COSTS
+        _app_const_stub = types.ModuleType("app_constants")
+        _app_const_stub.TOKEN_COSTS = _MOCK_TOKEN_COSTS
+        _app_const_stub.CACHE_TOKEN_COSTS = _MOCK_CACHE_TOKEN_COSTS
 
-        with patch.dict(sys.modules, {"app_ai": _app_ai_stub}), \
+        with patch.dict(sys.modules, {"app_constants": _app_const_stub}), \
              patch.object(real_spend, "_SPEND_FILE", self._spend_file):
             self._spend = real_spend
             yield

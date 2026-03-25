@@ -16,7 +16,7 @@ from logpilot import (
     estimate_tokens, TOKEN_LIMITS,
 )
 from logpilot.ai import _FORMAT_PLACEHOLDER, sanitize_error as _sanitize_error_impl
-from app_constants import AI_RATE_LIMIT_SECONDS, AI_MAX_RETRIES
+from app_constants import AI_RATE_LIMIT_SECONDS, AI_MAX_RETRIES, TOKEN_COSTS, CACHE_TOKEN_COSTS
 
 _log = logging.getLogger(__name__)
 
@@ -173,28 +173,6 @@ def init_provider_config(save_history_funcs: dict):
     """
     for provider, func in save_history_funcs.items():
         PROVIDER_CONFIG[provider]["save_history"] = func
-
-
-# Approximate cost per 1M tokens (input, output) in USD
-TOKEN_COSTS = {
-    "claude-sonnet-4-6": (3.00, 15.00),
-    "claude-haiku-4-5-20251001": (0.80, 4.00),
-    "claude-opus-4-6": (15.00, 75.00),
-    "gemini-2.5-flash": (0.15, 0.60),
-    "gemini-2.5-pro": (1.25, 10.00),
-    "gpt-4o": (2.50, 10.00),
-    "gpt-4o-mini": (0.15, 0.60),
-    "o3": (10.00, 40.00),
-    "o4-mini": (1.10, 4.40),
-}
-
-# Cache token pricing per 1M tokens (cache_write, cache_read) in USD
-# cache_write = cost to create cached content, cache_read = cost to read from cache
-CACHE_TOKEN_COSTS = {
-    "claude-sonnet-4-6": (3.75, 0.30),
-    "claude-haiku-4-5-20251001": (1.00, 0.08),
-    "claude-opus-4-6": (18.75, 1.50),
-}
 
 
 AI_MODELS = {
