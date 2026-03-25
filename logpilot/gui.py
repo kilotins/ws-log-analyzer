@@ -6,29 +6,27 @@ import sys
 from pathlib import Path
 
 
+def _run_streamlit(app_py: Path, *, headless: bool = False) -> None:
+    """Launch Streamlit and propagate any non-zero exit code."""
+    cmd = [sys.executable, "-m", "streamlit", "run", str(app_py)]
+    if headless:
+        cmd.append("--server.headless=true")
+    cmd.append("--browser.gatherUsageStats=false")
+    try:
+        result = subprocess.run(cmd)
+    except FileNotFoundError:
+        print("Streamlit not installed. Run: pip install logpilot[gui]", file=sys.stderr)
+        sys.exit(1)
+    if result.returncode:
+        sys.exit(result.returncode)
+
+
 def main() -> None:
     """Launch the Streamlit GUI."""
     app_py = Path(__file__).parent.parent / "app.py"
     if not app_py.exists():
-        # Installed via pip — try to find app.py relative to site-packages
-        import importlib.resources
         print("Starting LogPilot GUI...", file=sys.stderr)
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "streamlit", "run", str(app_py),
-                 "--server.headless=true",
-                 "--browser.gatherUsageStats=false"],
-            )
-        except FileNotFoundError:
-            print("Streamlit not installed. Run: pip install logpilot[gui]", file=sys.stderr)
-            sys.exit(1)
+        _run_streamlit(app_py, headless=True)
     else:
         print("Starting LogPilot GUI...", file=sys.stderr)
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "streamlit", "run", str(app_py),
-                 "--browser.gatherUsageStats=false"],
-            )
-        except FileNotFoundError:
-            print("Streamlit not installed. Run: pip install logpilot[gui]", file=sys.stderr)
-            sys.exit(1)
+        _run_streamlit(app_py)
