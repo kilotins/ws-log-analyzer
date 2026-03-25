@@ -17,7 +17,7 @@ from .base import (
 # Container name may appear in attrs
 # {"log":"message\n","stream":"stderr","time":"...","attrs":{"tag":"myapp"}}
 
-DOCKER_JSON_KEYS = {"log", "stream", "time"}
+DOCKER_JSON_REQUIRED_KEYS = {"log", "time"}  # stream is optional (some drivers omit it)
 
 # Level patterns in the embedded log message
 DOCKER_LEVEL_RE = re.compile(
@@ -39,7 +39,7 @@ def _parse_docker_json(line: str) -> dict | None:
         return None
     try:
         obj = json.loads(stripped)
-        if isinstance(obj, dict) and DOCKER_JSON_KEYS.issubset(obj.keys()):
+        if isinstance(obj, dict) and DOCKER_JSON_REQUIRED_KEYS.issubset(obj.keys()):
             return obj
         return None
     except (json.JSONDecodeError, ValueError):

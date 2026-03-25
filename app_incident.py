@@ -328,6 +328,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                         "gif": "image/gif", "webp": "image/webp"}
             mime_type = mime_map.get(ext, "image/png")
             st.image(image_bytes, caption="Uploaded screenshot", width=400)
+            st.caption("Note: screenshots are sent to the AI provider as-is. Ensure no passwords, PII, or secrets are visible.")
 
     # Model selector + analyze button
     model_col, btn_col = st.columns([1, 1])
