@@ -33,24 +33,46 @@ AMBER_600 = (217, 119, 6)    # #D97706 — for warning highlights
 def _latin1_safe(text: str) -> str:
     """Replace common Unicode chars with ASCII equivalents, then encode to latin-1."""
     _UNICODE_MAP = {
+        # Arrows
         "\u2192": "->",   # →
         "\u2190": "<-",   # ←
-        "\u2014": "--",   # —
-        "\u2013": "-",    # –
+        "\u2193": "|",    # ↓ downwards arrow
+        "\u2191": "^",    # ↑ upwards arrow
+        # Dashes & hyphens
+        "\u2014": "--",   # — em dash
+        "\u2013": "-",    # – en dash
         "\u2011": "-",    # non-breaking hyphen
+        "\u2010": "-",    # ‐ Unicode hyphen
+        "\u00ad": "-",    # soft hyphen
+        # Quotes
         "\u2018": "'",    # '
         "\u2019": "'",    # '
         "\u201c": '"',    # "
         "\u201d": '"',    # "
+        # Punctuation & symbols
         "\u2026": "...",  # …
         "\u2022": "-",    # •
-        "\u2212": "-",    # −
+        "\u2212": "-",    # − minus sign
+        "\u2605": "*",    # ★ black star
+        "\u2b50": "*",    # ⭐ white star
+        "\u2713": "[x]",  # ✓ check mark
+        "\u2717": "[ ]",  # ✗ cross mark
+        "\u00b7": "-",    # · middle dot
+        # Spaces
         "\u00a0": " ",    # non-breaking space
         "\u200b": "",     # zero-width space
-        "\u2502": "|",    # │ box drawing
-        "\u2500": "-",    # ─ box drawing
+        "\u2009": " ",    # thin space
+        "\u202f": " ",    # narrow no-break space
+        "\u200a": " ",    # hair space
+        "\u2007": " ",    # figure space
+        # Box drawing
+        "\u2502": "|",    # │
+        "\u2500": "-",    # ─
         "\u251c": "|",    # ├
         "\u2514": "`",    # └
+        "\u2518": "'",    # ┘
+        "\u250c": ",",    # ┌
+        "\u2510": ".",    # ┐
     }
     for char, repl in _UNICODE_MAP.items():
         text = text.replace(char, repl)
@@ -606,6 +628,9 @@ def _render_ai_text(pdf, text: str) -> None:
                 tl = lines[i].strip()
                 # Skip separator rows (|---|---|)
                 if not re.match(r"^\|[-:\s|]+\|$", tl):
+                    # Strip bold/italic/code markers from table cells
+                    tl = re.sub(r'\*\*([^*]+)\*\*', r'\1', tl)
+                    tl = re.sub(r'`([^`]+)`', r'\1', tl)
                     table_lines.append(tl)
                 i += 1
             if table_lines:
