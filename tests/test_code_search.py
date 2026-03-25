@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import tempfile
 
 import pytest
 
@@ -146,6 +147,34 @@ class TestIterFiles:
 
     def test_empty_dir_returns_empty(self, tmp_path):
         assert _iter_files(tmp_path) == []
+
+    def test_skips_symlinked_directories_outside_repo(self, tmp_path):
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "Main.java").write_text("public class Main {}")
+        with tempfile.TemporaryDirectory() as td:
+            external = Path(td)
+            (external / "Leaked.java").write_text("public class Leaked {}")
+
+            (tmp_path / "link-out").symlink_to(external, target_is_directory=True)
+
+            files = _iter_files(tmp_path, extensions={".java"})
+            names = {f.name for f in files}
+
+            assert "Main.java" in names
+            assert "Leaked.java" not in names
+
+    def test_skips_symlinked_files(self, tmp_path):
+        src = tmp_path / "src"
+        src.mkdir()
+        target = tmp_path / "Target.java"
+        target.write_text("public class Target {}")
+        (src / "TargetLink.java").symlink_to(target)
+
+        files = _iter_files(tmp_path, extensions={".java"})
+        names = {f.name for f in files}
+
+        assert "TargetLink.java" not in names
 
 
 # ── _read_snippet ─────────────────────────────────────────────────────
@@ -398,6 +427,33 @@ class TestSearchCodebaseEdgeCases:
         priority = {"exact": 0, "file": 1, "grep": 2}
         for i in range(len(confidences) - 1):
             assert priority[confidences[i]] <= priority[confidences[i + 1]]
+
+    def test_search_codebase_does_not_return_matches_from_symlinked_directories(self, tmp_path):
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "OrderDAO.java").write_text(
+            "public class OrderDAO {\n"
+            "    public void save() {}\n"
+            "}\n"
+        )
+        with tempfile.TemporaryDirectory() as td:
+            external = Path(td)
+            (external / "LeakedService.java").write_text(
+                "public class LeakedService {\n"
+                "    public void processCharge() {}\n"
+                "}\n"
+            )
+            (tmp_path / "vendor-link").symlink_to(external, target_is_directory=True)
+
+            loc = CodeLocation(
+                file_hint="Missing.java",
+                line=None,
+                class_name="com.myapp.LeakedService",
+                method="processCharge",
+                language="java",
+            )
+            matches = search_codebase(tmp_path, [loc])
+            assert matches == []
 
 
 # ── CodeMatch.to_dict ─────────────────────────────────────────────────
