@@ -115,3 +115,16 @@ ConnectionRefusedError: [Errno 111] Connection refused
 2026-03-25 08:30:30,400 INFO celery.worker.strategy: Task notification.tasks.send_email_batch[task-006] received
 2026-03-25 08:30:31,200 INFO notification.tasks: Task send_email_batch[task-006] completed: 12 pending reminders sent (33 previously lost)
 2026-03-25 08:31:00,500 INFO notification.health: All systems healthy — resuming normal operations
+2026-03-25 10:15:07,100 ERROR notification.routes: POST /api/notifications/send [req-z9y8x7w6] failed in eu-west log shard: certificate verify failed
+2026-03-25 08:14:58,900 INFO notification.cleanup: Replayed delayed housekeeping heartbeat after event-loop stall correction
+2026-03-25 08:15:14,100 WARNING notification.routes: POST /api/notifications/send [req-rh-003] client disconnected before response flush
+2026-03-25 08:15:16,900 ERROR notification.tasks: Task send_push[task-007] failed: UnicodeDecodeError while decoding upstream payload bytes='\\xff\\xfeSSL expired'
+Traceback (most recent call last):
+  File "/app/notification/tasks.py", line 121, in send_push
+    payload = response.content.decode("utf-8")
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+2026-03-25 08:15:17,100 WARNING notification.audit: Simulated compliance check reported ERROR status for sandbox tenant; no action required
+2026-03-25 08:15:18,100 ERROR notification.tasks: Task send_email_batch[task-008] failed unexpectedly: Connection
+2026-03-25 08:15:18,200 INFO celery.worker.strategy: Task notification.tasks.send_email_batch[task-008] will be retried after partial-write recovery
+--- LOG ROTATED: notification-service.log.1 archived at 2026-03-25T08:20:00Z ---
+2026-03-25 08:20:00,050 INFO notification.logging: Reopened file handler after sidecar rotation event
