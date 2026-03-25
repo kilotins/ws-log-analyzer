@@ -4,10 +4,13 @@ Strictly READ-ONLY — never writes to files. Uses stdlib only (pathlib, re).
 """
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 from .trace_to_code import CodeLocation
 
@@ -85,6 +88,8 @@ def _iter_files(repo_path: Path, extensions: set[str] | None = None) -> list[Pat
                 count += 1
 
     _walk(repo_path)
+    if count >= _MAX_FILES_SCANNED:
+        _log.warning("code_search: hit %d file scan limit in %s — results may be incomplete", _MAX_FILES_SCANNED, repo_path)
     return files
 
 
