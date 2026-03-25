@@ -89,6 +89,41 @@ TLS cert expiry
 2. **Connection Pool / Database Saturation** (effect of upstream SSL)
 3. **Application Crash Loop** (effect of pool + timeout cascade)
 
+## M68b Edge Cases Added
+
+The scenario now includes additional parser and triage edge cases appended to the existing fixture files:
+
+- **Malformed log lines**
+  - truncated nginx error/access lines
+  - malformed PostgreSQL collector line
+  - malformed Docker JSON sidecar record with a missing closing brace
+- **Timezone mismatches**
+  - nginx access line written as `+0200`
+  - Docker and Kubernetes records emitted as `+02:00`
+  - PostgreSQL records emitted as `+0100`
+  - syslog sidecar/mesh line logged in local time style
+- **Partial writes**
+  - CRI-O partial `P` + `F` split event
+  - Docker split message across two adjacent records
+  - patient-api, notification-service, and syslog lines cut mid-message
+- **Interleaved / out-of-order timestamps**
+  - baseline and delayed telemetry lines appended after recovery data
+  - older `08:14:58-08:14:59` entries appended after later events
+- **Log rotation markers**
+  - explicit rotation markers in nginx, patient-api, notification-service, Docker, Kubernetes, PostgreSQL, and syslog streams
+- **Red herrings**
+  - harmless favicon 404 after recovery
+  - PostgreSQL WAL archive warning marked as expected in test env
+  - dry-run backfill failure in patient-api
+  - sandbox-only canary/operator failures that look severe but are operationally harmless
+
+These additions are intentionally noisy so the advanced scenario exercises:
+- parser resilience to broken lines
+- timestamp normalization across mixed zones
+- handling of partial / rotated logs
+- incident grouping despite out-of-order data
+- rejection of scary but non-causal red herrings
+
 ## Symptom Description (for AI input)
 
 "Patient portal has been returning 502 errors since 08:15 UTC. Doctors cannot access patient records. The notification system is also down — appointment reminders are not being sent. Multiple pods are restarting in Kubernetes."
