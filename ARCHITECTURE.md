@@ -11,7 +11,7 @@ ws-log-analyzer/
 │   ├── ai.py             # AI prompt building, skill selection, caching (~1042 lines)
 │   ├── cli.py            # CLI entry point (argparse) (~389 lines)
 │   ├── discovery.py      # Recursive folder scan, extension filtering, rotated log support (~237 lines)
-│   ├── trace_to_code.py  # Extract CodeLocation from Java/Python stacktraces (~146 lines)
+│   ├── trace_to_code.py  # Extract CodeLocation from Java/Python/Node.js stacktraces (~175 lines)
 │   ├── code_search.py    # Search local codebase for matched code locations, READ-ONLY (~217 lines)
 │   ├── jira_tickets.py   # Generate Jira ticket text from incident groups (~255 lines)
 │   ├── formats/          # 14 format plugins
@@ -207,8 +207,8 @@ Split across three modules:
 
 | Function / Class | Purpose |
 |------------------|---------|
-| `CodeLocation` | Dataclass: `fqcn`, `method`, `file`, `line`, `language`, `is_framework` |
-| `extract_code_locations()` | Extracts `CodeLocation` instances from Java/Python stacktraces in events |
+| `CodeLocation` | Dataclass: `fqcn`, `method`, `file`, `line`, `language` ("java"/"python"/"javascript"), `is_framework` |
+| `extract_code_locations()` | Extracts `CodeLocation` instances from Java/Python/Node.js stacktraces in events |
 
 **`code_search.py`** — Local codebase search (READ-ONLY):
 
@@ -290,7 +290,7 @@ UI layer that imports from `logpilot`. No analysis logic lives here. The GUI is 
 | `app_spend.py` | ~882 | Cost tracking, CSV import, per-provider analytics |
 | `app_realtime.py` | ~162 | Realtime log monitoring |
 | `app_jira.py` | ~519 | Jira/Confluence UI, REST API integration, ticket export |
-| `app_constants.py` | ~38 | Shared constants |
+| `app_constants.py` | ~60 | Shared constants, AI model pricing (`TOKEN_COSTS`) |
 | `report_renderer.py` | ~847 | Markdown → HTML with syntax highlighting (audit reports) |
 
 ### Key GUI Features

@@ -19,7 +19,7 @@ CLI tool and Streamlit web GUI that analyzes multi-format logs and generates tri
 - **Leadership Brief** — AI-generated 1-page executive summary for non-technical stakeholders
 - **AI analysis** — optional Claude, Gemini, OpenAI, and local LLM integration for root-cause suggestions (CLI streaming and GUI)
 - **Jira & Confluence Integration** — generate incident tickets (CSV export or REST API), publish reports to Confluence
-- **Trace to Code** — match stacktraces to local codebase, show code snippets, AI suggests fixes
+- **Trace to Code** — match Java, Python, or Node.js/V8 stacktraces to local codebase, show code snippets, AI suggests fixes
 - **Persistent API keys** — keyring with file-based fallback, keys survive app restarts
 - **API rate limiting** — configurable cooldown between AI calls to prevent budget exhaustion
 - **Prompt injection protection** — system/user prompt separation, XML delimiters, input sanitization
