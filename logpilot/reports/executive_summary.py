@@ -49,7 +49,7 @@ def render_executive_summary(
 
     # Metrics bar
     level_counts = dict(s.get("levels", []))
-    error_count = sum(level_counts.get(l, 0) for l in ("ERROR", "SEVERE", "FATAL"))
+    error_count = sum(level_counts.get(l, 0) for l in ("ERROR", "SEVERE", "FATAL", "CRITICAL"))
     warn_count = level_counts.get("WARNING", 0) + level_counts.get("WARN", 0)
     file_count = len(a.get("file_summary", []))
     md.append(f"| Events | Errors | Warnings | Files |")
