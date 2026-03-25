@@ -139,3 +139,6 @@ org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC
 2026-03-25 08:15:19.100 ERROR 8901 --- [http-nio-8443-exec-15] n.h.patient.controller.PatientController : GET /api/patients/P-10052 failed [req-partial-01] continuation lost after log rotation marker
 --- LOG ROTATED: patient-api.log.1 -> patient-api.log at 2026-03-25T08:20:00Z ---
 2026-03-25 08:20:00.050 INFO 8901 --- [main] n.h.patient.bootstrap.LogRotationMarker  : Reopened application log appenders after container filesystem rotation
+2026-03-25 08:15:11.444 WARN 8901 --- [http-nio-8443-exec-5] n.h.patient.security.TokenFilter : Invalid token for request [req-f1a2b3c4]: authentication service returned error
+2026-03-25 08:30:15.555 INFO 8901 --- [http-nio-8443-exec-1] n.h.patient.controller.PatientController : GET /api/patients/P-10042 [req-b1c2d3e4] - 200 OK (38ms)
+2026-03-25 08:31:12.666 INFO 8901 --- [http-nio-8443-exec-2] n.h.patient.controller.PatientController : GET /api/patients/health - 200 OK (2ms)
