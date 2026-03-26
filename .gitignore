@@ -20,7 +20,6 @@ demo/
 # Internal business documents
 docs/logpilot-*.html
 docs/chatgpt-*.txt
-AGENTS.md
 GEMINI.md
 SESSION_NOTES.md
 MILESTONES.md
