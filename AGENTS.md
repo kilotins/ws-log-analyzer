@@ -23,8 +23,9 @@ These Streamlit files are replaced in 2.0. Fix bugs only:
 
 - **Python:** 3.9+ (`.venv/` — always activate before running tests)
 - **Run tests:** `source .venv/bin/activate && python -m pytest tests/ --ignore=tests/test_app_e2e.py --ignore=tests/test_scenario_e2e.py --ignore=tests/test_e2e_full.py -q`
-- **Current version:** 1.2.0 (update in `pyproject.toml`, `logpilot/__init__.py`, `app.py`)
-- **Test count:** ~1850 unit tests + 25 Playwright e2e
+- **Current version:** 1.3.1 (update in `pyproject.toml`, `logpilot/__init__.py`, `app.py`)
+- **Versioning:** `x.Y.0` for milestones (new features), `x.y.Z` for bugfixes
+- **Test count:** ~1900 unit tests + 25 Playwright e2e
 - **Docker:** `docker build -t kilotin/logpilot:latest .`
 
 ## Multi-Agent Workflow
