@@ -29,6 +29,7 @@ from app_realtime import _rt_live_view, _RT_BUFFER_SIZE
 from app_audit import _AUDIT_MODELS, _AUDIT_LIGHT_CSS, _run_audit
 from app_spend import render_spend_tab
 from logpilot.discovery import discover_log_files
+from logpilot.license import require_license, validate_token, is_feature_licensed
 
 # --- Paths and directories ---
 _APP_DIR = Path(__file__).parent
@@ -436,6 +437,7 @@ _STATE_DEFAULTS = {
     "api_key": "",
     "gemini_api_key": "",
     "openai_api_key": "",
+    "license_key": "",
     "local_answer": None,
     "local_query_label": None,
     "local_cache": {},
@@ -834,6 +836,42 @@ with st.sidebar:
             }
         </style>""", unsafe_allow_html=True)
 
+    # --- License key (only when license checks are active) ---
+    if require_license():
+        st.markdown("---")
+        _LICENSE_FILE = CACHE_DIR / ".license_key"
+        if not st.session_state.license_key:
+            try:
+                if _LICENSE_FILE.exists():
+                    st.session_state.license_key = _LICENSE_FILE.read_text().strip()
+            except Exception:
+                pass
+        _license_input = st.text_input(
+            "License key",
+            value=st.session_state.license_key,
+            type="password",
+            placeholder="LP-1-...",
+            help="Required for cloud AI features. Contact eric@item.no for a license.",
+        )
+        if _license_input != st.session_state.license_key:
+            st.session_state.license_key = _license_input
+            try:
+                _LICENSE_FILE.parent.mkdir(parents=True, exist_ok=True)
+                _LICENSE_FILE.write_text(_license_input)
+                _LICENSE_FILE.chmod(0o600)
+            except Exception:
+                pass
+        _lic_info = validate_token(st.session_state.license_key)
+        if _lic_info and _lic_info.valid:
+            if _lic_info.days_left <= 30:
+                st.warning(f"**{_lic_info.name}** — expires in {_lic_info.days_left} days")
+            else:
+                st.success(f"**{_lic_info.name}** — {_lic_info.days_left} days remaining")
+        elif st.session_state.license_key:
+            st.error("Invalid or expired license key")
+        else:
+            st.caption("No license — cloud AI features disabled")
+
     st.markdown("---")
 
     # Count configured keys for the expander label
@@ -1057,6 +1095,22 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+
+# --- License expiry banner ---
+if require_license() and not st.session_state.get("_license_banner_shown"):
+    _lic = validate_token(st.session_state.get("license_key", ""))
+    if _lic and _lic.valid and _lic.days_left <= 30:
+        st.warning(
+            f"Your trial expires in **{_lic.days_left} days**. "
+            "Contact eric@item.no for a full license."
+        )
+        st.session_state._license_banner_shown = True
+    elif _lic and not _lic.valid:
+        st.error(
+            "Your license has expired. Cloud AI features are disabled. "
+            "Contact eric@item.no to renew."
+        )
+        st.session_state._license_banner_shown = True
 
 # --- Tabs ---
 _tab_names = ["Analyze", "Realtime Console", "Audit Report", "Cloud Spend"]

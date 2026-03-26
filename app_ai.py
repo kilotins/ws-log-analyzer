@@ -1175,6 +1175,12 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
 def call_ai_provider(provider: str, model_id: str, prompt: dict,
                      max_tokens: int = 4096) -> tuple[str | None, dict]:
     """Dispatch an AI call to the correct provider. Returns (text, usage)."""
+    # License gate — local provider always free, cloud providers require license
+    if provider != "local":
+        from logpilot.license import is_feature_licensed
+        if not is_feature_licensed(st.session_state.get("license_key", "")):
+            return ("AI analysis requires a valid license key. "
+                    "Enter one in the sidebar or contact eric@item.no.", {})
     if provider == "claude":
         return call_claude_api(
             st.session_state.get("api_key", ""), model_id, prompt, max_tokens=max_tokens)
