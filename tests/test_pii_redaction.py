@@ -52,9 +52,9 @@ class TestPIIStandard:
         assert "912" in result  # Keep first 3
 
     def test_email(self):
-        text = "Sendt til erik.hansen@klpbank.no"
+        text = "Sendt til test.user@example.com"
         result = redact(text, level="standard")
-        assert "erik.hansen@klpbank.no" not in result
+        assert "test.user@example.com" not in result
         assert "[EMAIL]" in result
 
     def test_phone_norwegian(self):
@@ -113,7 +113,7 @@ class TestPIIStandard:
 
     def test_log_with_mixed_pii(self):
         text = (
-            "User 15038812345 (erik@klpbank.no) logged in from 10.0.1.50, "
+            "User 15038812345 (test@example.com) logged in from 10.0.1.50, "
             "card 4532015112830366, phone +4791234567"
         )
         result = redact(text, level="standard")
@@ -140,15 +140,15 @@ class TestStrictLevel:
         assert "10.0.2.[x]" in result
 
     def test_username_in_path(self):
-        text = "File: /home/erik.hansen/logs/app.log"
+        text = "File: /home/test.user/logs/app.log"
         result = redact(text, level="strict")
-        assert "erik.hansen" not in result
+        assert "test.user" not in result
         assert "[USER]" in result
 
     def test_user_field(self):
-        text = "user=erik.hansen authenticated"
+        text = "user=test.user authenticated"
         result = redact(text, level="strict")
-        assert "erik.hansen" not in result
+        assert "test.user" not in result
 
     def test_strict_includes_all_lower_levels(self):
         text = (

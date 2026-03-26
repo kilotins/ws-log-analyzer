@@ -200,7 +200,7 @@ def render_jira_sidebar() -> None:
         if server_type == "Cloud":
             _email = st.text_input(
                 "Email", value=st.session_state.get("_jira_email", ""),
-                placeholder="user@company.no", key="_jira_email_input",
+                placeholder="user@example.com", key="_jira_email_input",
             )
             st.session_state["_jira_email"] = _email
 
