@@ -172,6 +172,53 @@ def days_remaining(token: str | None, secret: str | None = None) -> int | None:
     return info.days_left
 
 
+# ── Provider / Model Tier Gates ───────────────────────────────────────
+
+_TRIAL_PROVIDERS = ["claude", "local"]
+_PRO_PROVIDERS = ["claude", "gemini", "openai", "local"]
+
+# Trial tier: only Haiku models allowed. Pro: all models.
+_TRIAL_MODEL_PATTERNS = ["haiku"]
+
+
+def allowed_providers(token: str | None, secret: str | None = None) -> list[str]:
+    """Return list of allowed AI providers for the given token.
+
+    - License checks disabled (dev mode): all providers.
+    - Valid pro token: all providers.
+    - Valid trial token: claude + local only.
+    - Invalid/missing token: claude + local (UI shows trial view).
+    """
+    if not require_license():
+        return list(_PRO_PROVIDERS)
+    info = validate_token(token, secret)
+    if info and info.valid and info.tier == "pro":
+        return list(_PRO_PROVIDERS)
+    # Trial or invalid token — restrict to trial providers
+    return list(_TRIAL_PROVIDERS)
+
+
+def is_model_allowed(token: str | None, model_id: str,
+                     secret: str | None = None) -> bool:
+    """Return True if the given model_id is allowed for this license tier.
+
+    - License checks disabled (dev mode): all models allowed.
+    - Valid pro token: all models allowed.
+    - Trial token or no token: only Haiku models allowed.
+    - Empty model_id (local AI): always allowed.
+    """
+    if not model_id:
+        return True  # Local AI has no model_id restriction
+    if not require_license():
+        return True
+    info = validate_token(token, secret)
+    if info and info.valid and info.tier == "pro":
+        return True
+    # Trial: only allow models matching trial patterns
+    model_lower = model_id.lower()
+    return any(pat in model_lower for pat in _TRIAL_MODEL_PATTERNS)
+
+
 # ── Secret Generation ────────────────────────────────────────────────
 
 def generate_secret() -> str:

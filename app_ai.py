@@ -17,16 +17,23 @@ from logpilot import (
 )
 from logpilot.ai import _FORMAT_PLACEHOLDER, sanitize_error as _sanitize_error_impl
 from app_constants import AI_RATE_LIMIT_SECONDS, AI_MAX_RETRIES, TOKEN_COSTS, CACHE_TOKEN_COSTS
-from logpilot.license import is_feature_licensed
+from logpilot.license import is_feature_licensed, allowed_providers, is_model_allowed
 
 _LICENSE_MSG = ("AI analysis requires a valid license key. "
                "Enter one in the sidebar or contact eric@item.no.")
 
 
-def _check_ai_license() -> str | None:
+def _check_ai_license(provider: str = "", model: str = "") -> str | None:
     """Return error message if cloud AI is not licensed, else None."""
-    if not is_feature_licensed(st.session_state.get("license_key", "")):
+    token = st.session_state.get("license_key", "")
+    if not is_feature_licensed(token):
         return _LICENSE_MSG
+    if provider and provider != "local":
+        providers = allowed_providers(token)
+        if provider not in providers:
+            return f"Provider '{provider}' requires a Pro license. Contact eric@item.no to upgrade."
+    if model and not is_model_allowed(token, model):
+        return f"Model '{model}' requires a Pro license. Contact eric@item.no to upgrade."
     return None
 
 _log = logging.getLogger(__name__)
@@ -321,7 +328,7 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict).
     """
-    _lic_err = _check_ai_license()
+    _lic_err = _check_ai_license(provider="claude", model=model_id)
     if _lic_err:
         return (_lic_err, {})
     return _with_retries(
@@ -439,7 +446,7 @@ def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict). Streaming not supported.
     """
-    _lic_err = _check_ai_license()
+    _lic_err = _check_ai_license(provider="gemini", model=model_id)
     if _lic_err:
         return (_lic_err, {})
     return _with_retries(
@@ -532,7 +539,7 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict).
     """
-    _lic_err = _check_ai_license()
+    _lic_err = _check_ai_license(provider="openai", model=model_id)
     if _lic_err:
         return (_lic_err, {})
     return _with_retries(
