@@ -1,10 +1,13 @@
 """Streamlit GUI for LogPilot."""
 from __future__ import annotations
 
+import io
 import logging
 import logging.handlers
 import os
+import tempfile
 import streamlit as st
+import zipfile
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -25,6 +28,7 @@ from app_constants import CACHE_TTL_SECONDS, MAX_CACHE_ENTRIES as _MAX_CACHE_ENT
 from app_realtime import _rt_live_view, _RT_BUFFER_SIZE
 from app_audit import _AUDIT_MODELS, _AUDIT_LIGHT_CSS, _run_audit
 from app_spend import render_spend_tab
+from logpilot.discovery import discover_log_files
 
 # --- Paths and directories ---
 _APP_DIR = Path(__file__).parent
@@ -125,6 +129,21 @@ LOCAL_HISTORY_FILE = CACHE_DIR / "local_history.json"
 
 MAX_CACHE_ENTRIES = _MAX_CACHE_ENTRIES_DEFAULT
 MAX_HISTORY_ENTRIES = 50
+_ARCHIVE_JUNK_NAMES = frozenset({
+    ".ds_store",
+    "thumbs.db",
+    "desktop.ini",
+    "__pycache__",
+})
+
+
+class _InMemoryUpload(io.BytesIO):
+    """Minimal UploadedFile-like wrapper for extracted archive members."""
+
+    def __init__(self, content: bytes, name: str):
+        super().__init__(content)
+        self.name = name
+        self.size = len(content)
 
 
 # --- JSON helpers (shared by multiple modules) ---
@@ -215,6 +234,106 @@ def _save_file_cache(cache):
         for k in keys[:len(keys) - MAX_CACHE_ENTRIES]:
             del cache[k]
     _save_json_file(CACHE_FILE, cache)
+
+
+def _cleanup_temp_dir(path: Path | str | None) -> None:
+    """Best-effort recursive cleanup for temporary extraction directories."""
+    if not path:
+        return
+    root = Path(path)
+    if not root.exists():
+        return
+    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+        for filename in filenames:
+            try:
+                Path(dirpath, filename).unlink()
+            except OSError:
+                pass
+        for dirname in dirnames:
+            try:
+                Path(dirpath, dirname).rmdir()
+            except OSError:
+                pass
+    try:
+        root.rmdir()
+    except OSError:
+        pass
+
+
+def _is_zip_junk_member(member_name: str) -> bool:
+    """Return True for archive members that should be ignored."""
+    normalized = member_name.replace("\\", "/").strip("/")
+    if not normalized:
+        return True
+    parts = [part.lower() for part in normalized.split("/") if part not in ("", ".")]
+    if not parts:
+        return True
+    return any(part == "__macosx" or part in _ARCHIVE_JUNK_NAMES for part in parts)
+
+
+def _safe_zip_member_path(root: Path, member_name: str) -> Path | None:
+    """Resolve a zip member path under root, rejecting traversal attempts."""
+    normalized = os.path.normpath(member_name.replace("\\", "/"))
+    if normalized in ("", ".", ".."):
+        return None
+    if normalized.startswith("../") or normalized.startswith("/"):
+        return None
+    target = (root / normalized).resolve()
+    if not target.is_relative_to(root.resolve()):
+        return None
+    return target
+
+
+def _extract_archive_upload(uploaded) -> tuple[list[_InMemoryUpload], list[str]]:
+    """Extract one uploaded zip archive into in-memory uploads."""
+    temp_dir = Path(tempfile.mkdtemp(prefix="logpilot_zip_"))
+    extracted_files: list[_InMemoryUpload] = []
+    preview_paths: list[str] = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(uploaded.getvalue())) as archive:
+            for member in archive.infolist():
+                if member.is_dir():
+                    continue
+                if _is_zip_junk_member(member.filename):
+                    continue
+                target = _safe_zip_member_path(temp_dir, member.filename)
+                if target is None:
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(member) as src:
+                    target.write_bytes(src.read())
+
+        discovered = discover_log_files(temp_dir)
+        for discovered_file in discovered.accepted:
+            content = discovered_file.path.read_bytes()
+            extracted_files.append(_InMemoryUpload(content, discovered_file.relative_path))
+            preview_paths.append(discovered_file.relative_path)
+        return extracted_files, preview_paths
+    finally:
+        _cleanup_temp_dir(temp_dir)
+
+
+def _expand_uploaded_archives(uploaded_files: list) -> tuple[list, list[tuple[str, list[str]]]]:
+    """Replace uploaded zip archives with discovered log files."""
+    expanded_files: list = []
+    extracted_previews: list[tuple[str, list[str]]] = []
+
+    for uploaded in uploaded_files:
+        if not getattr(uploaded, "name", "").lower().endswith(".zip"):
+            expanded_files.append(uploaded)
+            continue
+        try:
+            extracted_files, preview_paths = _extract_archive_upload(uploaded)
+        except zipfile.BadZipFile:
+            st.warning(f"No files extracted from {uploaded.name}: invalid zip archive.")
+            continue
+        if extracted_files:
+            expanded_files.extend(extracted_files)
+            extracted_previews.append((uploaded.name, preview_paths))
+            st.info(f"Extracted {len(extracted_files)} log files from {uploaded.name}")
+        else:
+            st.warning(f"No supported log files found in {uploaded.name}.")
+    return expanded_files, extracted_previews
 
 
 def _load_provider_history(path: Path) -> list[dict]:
@@ -954,6 +1073,12 @@ with tab_analyze:
         accept_multiple_files=True,
         help="Application log files (.log or .gz compressed)",
     )
+    uploaded_files = list(uploaded_files) if uploaded_files else []
+    uploaded_files, _archive_previews = _expand_uploaded_archives(uploaded_files)
+    for _archive_name, _preview_paths in _archive_previews:
+        with st.expander(f"Extracted files from {_archive_name}", expanded=False):
+            for _preview_path in _preview_paths:
+                st.text(_preview_path)
 
     # --- Folder scan (local path) ---
     with st.expander("Or scan a local folder", expanded=False):
@@ -998,7 +1123,7 @@ with tab_analyze:
         # Discover files if path is set
         _folder_files = []
         if folder_path and folder_path.strip():
-            from logpilot.discovery import discover_log_files, _fmt_size
+            from logpilot.discovery import _fmt_size
             _fp = Path(folder_path.strip()).expanduser()
             if _fp.is_dir():
                 _disc = discover_log_files(_fp)
