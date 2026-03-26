@@ -33,6 +33,7 @@ from app_ai import (
     call_claude_api, call_gemini_api, call_openai_api, call_local_api,
 )
 from app_constants import AI_RATE_LIMIT_SECONDS, MAX_SCREENSHOT_MB
+from logpilot.license import require_license, allowed_providers, is_model_allowed
 
 
 _SUPPORTED_IMAGE_TYPES = ["png", "jpg", "jpeg", "gif", "webp"]
@@ -336,12 +337,22 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     if images:
         st.caption(f"{len(images)} screenshot(s) will be sent to the AI provider as-is. Ensure no passwords, PII, or secrets are visible.")
 
-    # Model selector + analyze button
+    # Model selector + analyze button — filter by license tier
+    if require_license():
+        _lic_token = st.session_state.get("license_key", "")
+        _lic_providers = allowed_providers(_lic_token)
+        _available_models = [
+            name for name, cfg in AI_MODELS.items()
+            if cfg["provider"] in _lic_providers
+            and is_model_allowed(_lic_token, cfg["model_id"])
+        ]
+    else:
+        _available_models = list(AI_MODELS.keys())
     model_col, btn_col = st.columns([1, 1])
     with model_col:
         selected_model = st.selectbox(
             "AI Model",
-            list(AI_MODELS.keys()),
+            _available_models,
             key="incident_model_select",
             label_visibility="collapsed",
         )

@@ -29,7 +29,7 @@ from app_realtime import _rt_live_view, _RT_BUFFER_SIZE
 from app_audit import _AUDIT_MODELS, _AUDIT_LIGHT_CSS, _run_audit
 from app_spend import render_spend_tab
 from logpilot.discovery import discover_log_files
-from logpilot.license import require_license, validate_token, is_feature_licensed
+from logpilot.license import require_license, validate_token, is_feature_licensed, allowed_providers, is_model_allowed
 
 # --- Paths and directories ---
 _APP_DIR = Path(__file__).parent
@@ -874,50 +874,65 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Count configured keys for the expander label
+    # Determine which providers are available for this license tier
+    if require_license():
+        _lic_providers = allowed_providers(st.session_state.get("license_key", ""))
+    else:
+        _lic_providers = ["claude", "gemini", "openai", "local"]
+
+    # Count configured keys for the expander label (only count allowed providers)
     _configured_keys = sum(1 for k in [
-        st.session_state.api_key,
-        st.session_state.gemini_api_key,
-        st.session_state.openai_api_key,
+        st.session_state.api_key if "claude" in _lic_providers else "",
+        st.session_state.gemini_api_key if "gemini" in _lic_providers else "",
+        st.session_state.openai_api_key if "openai" in _lic_providers else "",
     ] if k)
-    _keys_label = f"Cloud API Keys ({_configured_keys}/3 configured)" if _configured_keys else "Cloud API Keys (none configured)"
+    _max_keys = sum(1 for p in ["claude", "gemini", "openai"] if p in _lic_providers)
+    _keys_label = f"Cloud API Keys ({_configured_keys}/{_max_keys} configured)" if _configured_keys else "Cloud API Keys (none configured)"
     with st.expander(_keys_label, expanded=_configured_keys == 0):
-        api_key = st.text_input(
-            "Anthropic API Key",
-            value=st.session_state.api_key,
-            type="password",
-            placeholder="sk-ant-...",
-            help="Required for Ask Claude. Get a key at console.anthropic.com/settings/keys",
-        )
-        if api_key != st.session_state.api_key:
-            _save_api_key(api_key)
-        st.session_state.api_key = api_key
+        if "claude" in _lic_providers:
+            api_key = st.text_input(
+                "Anthropic API Key",
+                value=st.session_state.api_key,
+                type="password",
+                placeholder="sk-ant-...",
+                help="Required for Ask Claude. Get a key at console.anthropic.com/settings/keys",
+            )
+            if api_key != st.session_state.api_key:
+                _save_api_key(api_key)
+            st.session_state.api_key = api_key
+            if not st.session_state.api_key and "gemini" not in _lic_providers:
+                st.caption("Using included Haiku access (trial tier)")
 
-        if not st.session_state.gemini_api_key:
-            st.session_state.gemini_api_key = _load_saved_gemini_key()
-        gemini_key = st.text_input(
-            "Gemini API Key",
-            value=st.session_state.gemini_api_key,
-            type="password",
-            placeholder="AIza...",
-            help="Required for Ask Gemini. Get a key at aistudio.google.com/apikey",
-        )
-        if gemini_key != st.session_state.gemini_api_key:
-            _save_gemini_key(gemini_key)
-        st.session_state.gemini_api_key = gemini_key
+        if "gemini" in _lic_providers:
+            if not st.session_state.gemini_api_key:
+                st.session_state.gemini_api_key = _load_saved_gemini_key()
+            gemini_key = st.text_input(
+                "Gemini API Key",
+                value=st.session_state.gemini_api_key,
+                type="password",
+                placeholder="AIza...",
+                help="Required for Ask Gemini. Get a key at aistudio.google.com/apikey",
+            )
+            if gemini_key != st.session_state.gemini_api_key:
+                _save_gemini_key(gemini_key)
+            st.session_state.gemini_api_key = gemini_key
 
-        if not st.session_state.openai_api_key:
-            st.session_state.openai_api_key = _load_saved_openai_key()
-        openai_key = st.text_input(
-            "OpenAI API Key",
-            value=st.session_state.openai_api_key,
-            type="password",
-            placeholder="sk-...",
-            help="Required for OpenAI models. Get a key at platform.openai.com/api-keys",
-        )
-        if openai_key != st.session_state.openai_api_key:
-            _save_openai_key(openai_key)
-        st.session_state.openai_api_key = openai_key
+        if "openai" in _lic_providers:
+            if not st.session_state.openai_api_key:
+                st.session_state.openai_api_key = _load_saved_openai_key()
+            openai_key = st.text_input(
+                "OpenAI API Key",
+                value=st.session_state.openai_api_key,
+                type="password",
+                placeholder="sk-...",
+                help="Required for OpenAI models. Get a key at platform.openai.com/api-keys",
+            )
+            if openai_key != st.session_state.openai_api_key:
+                _save_openai_key(openai_key)
+            st.session_state.openai_api_key = openai_key
+
+        if "gemini" not in _lic_providers or "openai" not in _lic_providers:
+            st.caption("Upgrade to Pro to unlock all AI providers. Contact eric@item.no.")
 
     with st.expander("Local / Inhouse AI", expanded=False):
         from app_ai import discover_local_models
