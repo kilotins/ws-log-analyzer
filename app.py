@@ -864,6 +864,7 @@ with st.sidebar:
                 _LICENSE_FILE.chmod(0o600)
             except Exception:
                 pass
+            st.rerun()  # Refresh UI to update provider/model filtering
         _lic_info = validate_token(st.session_state.license_key)
         if _lic_info and _lic_info.valid:
             if _lic_info.days_left <= 30:
