@@ -5,7 +5,7 @@ Usage: ``from logpilot import parse_file, render_markdown_report``
 """
 from __future__ import annotations
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 # --- event ---
 from .event import LogEvent
