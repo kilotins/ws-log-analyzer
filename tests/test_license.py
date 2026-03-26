@@ -18,6 +18,8 @@ from logpilot.license import (
     days_remaining,
     generate_secret,
     require_license,
+    allowed_providers,
+    is_model_allowed,
     TOKEN_PREFIX,
 )
 
@@ -230,3 +232,149 @@ class TestGenerateSecret:
         s1 = generate_secret()
         s2 = generate_secret()
         assert s1 != s2
+
+
+# ── Provider Access ───────────────────────────────────────────────────
+
+class TestProviderAccess:
+    def test_trial_allows_claude_and_local(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("Test", days=90, tier="trial", secret=_TEST_SECRET)
+        providers = allowed_providers(token, secret=_TEST_SECRET)
+        assert "claude" in providers
+        assert "local" in providers
+
+    def test_trial_blocks_gemini(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("Test", days=90, tier="trial", secret=_TEST_SECRET)
+        providers = allowed_providers(token, secret=_TEST_SECRET)
+        assert "gemini" not in providers
+
+    def test_trial_blocks_openai(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("Test", days=90, tier="trial", secret=_TEST_SECRET)
+        providers = allowed_providers(token, secret=_TEST_SECRET)
+        assert "openai" not in providers
+
+    def test_pro_allows_all_providers(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("BigCorp", days=365, tier="pro", secret=_TEST_SECRET)
+        providers = allowed_providers(token, secret=_TEST_SECRET)
+        assert "claude" in providers
+        assert "gemini" in providers
+        assert "openai" in providers
+        assert "local" in providers
+
+    def test_no_license_allows_only_local(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        providers = allowed_providers(None, secret=_TEST_SECRET)
+        assert providers == ["local"]
+
+    def test_require_disabled_allows_all(self, monkeypatch):
+        monkeypatch.delenv("LOGPILOT_REQUIRE_LICENSE", raising=False)
+        providers = allowed_providers(None, secret=_TEST_SECRET)
+        assert "claude" in providers
+        assert "gemini" in providers
+        assert "openai" in providers
+        assert "local" in providers
+
+    def test_expired_allows_only_local(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        payload = {
+            "name": "Expired Corp",
+            "exp": int(time.time()) - 86400,
+            "feat": ["ai"],
+            "tier": "pro",
+            "providers": ["claude", "gemini", "openai"],
+            "models": ["all"],
+        }
+        payload_bytes = base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(",", ":")).encode()
+        )
+        sig = hmac.new(_TEST_SECRET.encode(), payload_bytes, hashlib.sha256).hexdigest()
+        token = f"{TOKEN_PREFIX}{payload_bytes.decode()}.{sig}"
+        providers = allowed_providers(token, secret=_TEST_SECRET)
+        assert providers == ["local"]
+
+
+# ── Model Access ──────────────────────────────────────────────────────
+
+class TestModelAccess:
+    def test_trial_allows_haiku(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("Test", days=90, tier="trial", secret=_TEST_SECRET)
+        assert is_model_allowed(token, "claude-3-haiku-20240307", secret=_TEST_SECRET) is True
+
+    def test_trial_blocks_sonnet(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("Test", days=90, tier="trial", secret=_TEST_SECRET)
+        assert is_model_allowed(token, "claude-3-5-sonnet-20241022", secret=_TEST_SECRET) is False
+
+    def test_trial_blocks_opus(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("Test", days=90, tier="trial", secret=_TEST_SECRET)
+        assert is_model_allowed(token, "claude-3-opus-20240229", secret=_TEST_SECRET) is False
+
+    def test_pro_allows_all_models(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("BigCorp", days=365, tier="pro", secret=_TEST_SECRET)
+        assert is_model_allowed(token, "claude-3-haiku-20240307", secret=_TEST_SECRET) is True
+        assert is_model_allowed(token, "claude-3-5-sonnet-20241022", secret=_TEST_SECRET) is True
+        assert is_model_allowed(token, "claude-3-opus-20240229", secret=_TEST_SECRET) is True
+        assert is_model_allowed(token, "gemini-1.5-pro", secret=_TEST_SECRET) is True
+        assert is_model_allowed(token, "gpt-4o", secret=_TEST_SECRET) is True
+
+    def test_model_match_is_substring(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        token = generate_token("Test", days=90, tier="trial", secret=_TEST_SECRET)
+        # "haiku" substring matches "claude-3-haiku-20240307"
+        assert is_model_allowed(token, "claude-3-haiku-20240307", secret=_TEST_SECRET) is True
+        # "haiku" does NOT match "claude-3-sonnet-20240229"
+        assert is_model_allowed(token, "claude-3-sonnet-20240229", secret=_TEST_SECRET) is False
+
+    def test_no_license_blocks_all(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        assert is_model_allowed(None, "claude-3-haiku-20240307", secret=_TEST_SECRET) is False
+
+    def test_require_disabled_allows_all(self, monkeypatch):
+        monkeypatch.delenv("LOGPILOT_REQUIRE_LICENSE", raising=False)
+        assert is_model_allowed(None, "claude-3-opus-20240229", secret=_TEST_SECRET) is True
+        assert is_model_allowed(None, "gpt-4o", secret=_TEST_SECRET) is True
+
+
+# ── Backwards Compatibility ───────────────────────────────────────────
+
+class TestBackwardsCompat:
+    def _make_old_token(self, payload: dict) -> str:
+        """Build a token from a raw payload dict (simulates old token format)."""
+        payload_bytes = base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(",", ":")).encode()
+        )
+        sig = hmac.new(_TEST_SECRET.encode(), payload_bytes, hashlib.sha256).hexdigest()
+        return f"{TOKEN_PREFIX}{payload_bytes.decode()}.{sig}"
+
+    def test_old_token_without_providers_defaults_to_claude(self):
+        # Old token has no "providers" key — should default to ["claude"]
+        token = self._make_old_token({
+            "name": "OldCustomer",
+            "exp": int(time.time()) + 86400,
+            "feat": ["ai"],
+            "tier": "trial",
+        })
+        info = validate_token(token, secret=_TEST_SECRET)
+        assert info is not None
+        assert info.valid is True
+        assert info.providers == ["claude"]
+
+    def test_old_token_without_models_defaults_to_haiku(self):
+        # Old token has no "models" key — should default to ["haiku"]
+        token = self._make_old_token({
+            "name": "OldCustomer",
+            "exp": int(time.time()) + 86400,
+            "feat": ["ai"],
+            "tier": "trial",
+        })
+        info = validate_token(token, secret=_TEST_SECRET)
+        assert info is not None
+        assert info.valid is True
+        assert info.models == ["haiku"]

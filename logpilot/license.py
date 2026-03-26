@@ -5,7 +5,8 @@ Local AI models are always free. All parsing, reports, and export
 work without a license.
 
 Token format: LP-1-<base64-payload>.<hmac-hex-signature>
-Payload JSON: {"name": "...", "exp": <unix-ts>, "feat": ["ai"], "tier": "trial"|"pro"}
+Payload JSON: {"name": "...", "exp": <unix-ts>, "feat": ["ai"], "tier": "trial"|"pro",
+               "providers": [...], "models": [...]}
 
 Activation: set LOGPILOT_REQUIRE_LICENSE=true to enable license checks.
 Without that env var, all features are unlocked (developer mode).
@@ -40,6 +41,8 @@ class LicenseInfo:
     tier: str
     valid: bool
     days_left: int
+    providers: list[str]  # ["claude"] for trial, ["claude", "gemini", "openai"] for pro
+    models: list[str]     # ["haiku"] for trial, ["all"] for pro
 
 
 # ── Secret ───────────────────────────────────────────────────────────
@@ -62,6 +65,8 @@ def generate_token(
     features: list[str] | None = None,
     tier: str = "trial",
     secret: str | None = None,
+    providers: list[str] | None = None,
+    models: list[str] | None = None,
 ) -> str:
     """Generate a signed license token.
 
@@ -71,6 +76,8 @@ def generate_token(
         features: Licensed features (default: ["ai"]).
         tier: License tier ("trial" or "pro").
         secret: Signing secret (default: from env var).
+        providers: Allowed AI providers (default: ["claude"] for trial, ["claude","gemini","openai"] for pro).
+        models: Allowed models (default: ["haiku"] for trial, ["all"] for pro).
 
     Returns:
         Token string in format LP-1-<payload>.<signature>.
@@ -80,12 +87,20 @@ def generate_token(
     if days < 1:
         raise ValueError("License must be valid for at least 1 day")
 
+    # Apply tier-based defaults when not explicitly provided
+    if providers is None:
+        providers = ["claude", "gemini", "openai"] if tier == "pro" else ["claude"]
+    if models is None:
+        models = ["all"] if tier == "pro" else ["haiku"]
+
     secret = secret or _get_secret()
     payload = {
         "name": name.strip(),
         "exp": int(time.time()) + (days * 86400),
         "feat": features or ["ai"],
         "tier": tier,
+        "providers": providers,
+        "models": models,
     }
     payload_bytes = base64.urlsafe_b64encode(
         json.dumps(payload, separators=(",", ":")).encode()
@@ -139,6 +154,9 @@ def validate_token(token: str | None, secret: str | None = None) -> LicenseInfo 
 
     features = payload.get("feat", [])
     tier = payload.get("tier", "trial")
+    # Backwards compat: old tokens without providers/models default to trial restrictions
+    providers = payload.get("providers", ["claude"])
+    models = payload.get("models", ["haiku"])
     now = time.time()
     days_left = max(0, int((exp - now) / 86400))
     valid = exp > now
@@ -150,6 +168,8 @@ def validate_token(token: str | None, secret: str | None = None) -> LicenseInfo 
         tier=str(tier),
         valid=valid,
         days_left=days_left,
+        providers=list(providers),
+        models=list(models),
     )
 
 
@@ -170,6 +190,33 @@ def days_remaining(token: str | None, secret: str | None = None) -> int | None:
     if not info:
         return None
     return info.days_left
+
+
+def allowed_providers(token: str | None, secret: str | None = None) -> list[str]:
+    """Return list of allowed provider names. Returns all if license not required.
+
+    Local AI is always free and always included in the result.
+    """
+    if not require_license():
+        return ["claude", "gemini", "openai", "local"]
+    info = validate_token(token, secret)
+    if not info or not info.valid:
+        return ["local"]  # local always free
+    return info.providers + ["local"]  # local always included
+
+
+def is_model_allowed(token: str | None, model: str, secret: str | None = None) -> bool:
+    """Check if a specific model is allowed by the license."""
+    if not require_license():
+        return True
+    info = validate_token(token, secret)
+    if not info or not info.valid:
+        return False
+    if "all" in info.models:
+        return True
+    # Check if model name contains any allowed model substring
+    model_lower = model.lower()
+    return any(m.lower() in model_lower for m in info.models)
 
 
 # ── Secret Generation ────────────────────────────────────────────────
