@@ -344,10 +344,12 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         _available_models = [
             name for name, cfg in AI_MODELS.items()
             if cfg["provider"] in _lic_providers
-            and is_model_allowed(_lic_token, cfg["model_id"])
+            and (cfg["provider"] == "local" or is_model_allowed(_lic_token, cfg["model_id"]))
         ]
     else:
         _available_models = list(AI_MODELS.keys())
+    if not _available_models:
+        _available_models = [name for name, cfg in AI_MODELS.items() if cfg["provider"] == "local"]
     model_col, btn_col = st.columns([1, 1])
     with model_col:
         selected_model = st.selectbox(
@@ -440,6 +442,9 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
             st.warning(f"Rate limit: wait {AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
         else:
             st.session_state.last_ai_call_ts = now
+            if not selected_model or selected_model not in AI_MODELS:
+                st.error("No AI model available. Check your license key.")
+                return
             model_info = AI_MODELS[selected_model]
             provider = model_info["provider"]
             model_id = model_info["model_id"]
