@@ -16,3 +16,33 @@ cache/
 .env
 logs/
 demo/
+
+# Internal business documents
+docs/logpilot-*.html
+docs/chatgpt-*.txt
+AGENTS.md
+GEMINI.md
+SESSION_NOTES.md
+MILESTONES.md
+MILESTONE_*.md
+
+# Code reviews and audit reports
+AUDIT_REPORT.*
+audit-report-*.html
+CLAUDE_CODE_REVIEW.*
+GEMINI_CODE_REVIEW.*
+SKILLS_AUDIT.*
+SKILLS_FORMAT_AUDIT.*
+SKILLS_REVIEW_FOR_CLAUDE.*
+
+# Generated HTML reports (root level)
+PROJECT_OVERVIEW.html
+SKILLS_AUDIT.html
+SKILLS_REVIEW_FOR_CLAUDE.html
+
+# OS files
+.DS_Store
+
+# Build artifacts
+dist/
+*.egg-info/
