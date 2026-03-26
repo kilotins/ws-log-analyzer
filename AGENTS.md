@@ -72,10 +72,11 @@ When generating a review, audit, or analysis report:
 
 All agents share milestone numbering. Check before starting work.
 
-**Next available: M71**
+**Next available: M72**
 
 | Milestone | Agent | Status | Description |
 |-----------|-------|--------|-------------|
+| M71 | — | Planned | Tiered AI Access (trial=Haiku, pro=all providers) |
 | M70 | Codex | Merged | Zip Upload for Docker/Remote |
 | M69 | Claude | Merged | Trial License System |
 | M68c | Gemini | Merged | Scenario: cross-system correlation |
