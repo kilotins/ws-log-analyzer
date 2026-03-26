@@ -702,6 +702,9 @@ def _save_openai_key(key):
 # Initialize from saved key on first load
 if not st.session_state.api_key:
     st.session_state.api_key = _load_saved_api_key()
+# Trial fallback: use baked-in API key from env var
+if not st.session_state.api_key:
+    st.session_state.api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
 with st.sidebar:
     st.header("Settings")

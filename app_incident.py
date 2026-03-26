@@ -246,6 +246,10 @@ def _check_api_key(provider):
     key_map = {"claude": "api_key", "gemini": "gemini_api_key", "openai": "openai_api_key",
                "local": "local_ai_api_key"}
     api_key = getattr(st.session_state, key_map.get(provider, "api_key"), "")
+    # Trial license: use baked-in API key from env var
+    if not api_key and provider == "claude":
+        import os
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key and provider != "local":
         st.error(f"No {provider} API key configured. Set it in the sidebar.")
         return None
