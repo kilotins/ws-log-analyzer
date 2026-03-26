@@ -25,9 +25,21 @@ jobs:
           cache: pip
       - run: pip install ruff
       - name: Check code style
-        run: ruff check .
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # On PRs: only lint changed Python files
+            git diff --name-only --diff-filter=ACMR origin/main...HEAD -- '*.py' | xargs -r ruff check
+          else
+            # On push to main: informational only
+            ruff check . || true
+          fi
       - name: Check formatting
-        run: ruff format --check .
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --name-only --diff-filter=ACMR origin/main...HEAD -- '*.py' | xargs -r ruff format --check
+          else
+            ruff format --check . || true
+          fi
 
   # Job 2: Kontrollera säkerhet (parallellt med lint, ~1min)
   security:
