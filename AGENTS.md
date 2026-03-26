@@ -76,8 +76,8 @@ All agents share milestone numbering. Check before starting work.
 
 | Milestone | Agent | Status | Description |
 |-----------|-------|--------|-------------|
-| M70 | — | Planned | Zip Upload for Docker/Remote |
-| M69 | — | Planned | Trial License System |
+| M70 | Codex | Merged | Zip Upload for Docker/Remote |
+| M69 | Claude | Merged | Trial License System |
 | M68c | Gemini | Merged | Scenario: cross-system correlation |
 | M68b | Codex | Merged | Scenario: edge cases, malformed lines |
 | M68a | Claude | Merged | Scenario: Healthcare TLS cert cascade |
