@@ -72,7 +72,7 @@ When generating a review, audit, or analysis report:
 
 All agents share milestone numbering. Check before starting work.
 
-**Next available: M71**
+**Next available: M70**
 
 | Milestone | Agent | Status | Description |
 |-----------|-------|--------|-------------|
