@@ -1102,6 +1102,7 @@ if require_license() and not st.session_state.get("_license_banner_shown"):
     if _lic and _lic.valid and _lic.days_left <= 30:
         st.warning(
             f"Your trial expires in **{_lic.days_left} days**. "
+            "We're building LogPilot Platform — tell us what you like and what's missing! "
             "Contact eric@item.no for a full license."
         )
         st.session_state._license_banner_shown = True
