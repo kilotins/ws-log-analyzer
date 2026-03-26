@@ -72,11 +72,12 @@ When generating a review, audit, or analysis report:
 
 All agents share milestone numbering. Check before starting work.
 
-**Next available: M70**
+**Next available: M71**
 
 | Milestone | Agent | Status | Description |
 |-----------|-------|--------|-------------|
-| M69 | — | Planned | AI-driven Jira ticket generation |
+| M70 | — | Planned | Zip Upload for Docker/Remote |
+| M69 | — | Planned | Trial License System |
 | M68c | Gemini | Merged | Scenario: cross-system correlation |
 | M68b | Codex | Merged | Scenario: edge cases, malformed lines |
 | M68a | Claude | Merged | Scenario: Healthcare TLS cert cascade |
