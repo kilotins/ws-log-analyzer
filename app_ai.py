@@ -17,6 +17,17 @@ from logpilot import (
 )
 from logpilot.ai import _FORMAT_PLACEHOLDER, sanitize_error as _sanitize_error_impl
 from app_constants import AI_RATE_LIMIT_SECONDS, AI_MAX_RETRIES, TOKEN_COSTS, CACHE_TOKEN_COSTS
+from logpilot.license import is_feature_licensed
+
+_LICENSE_MSG = ("AI analysis requires a valid license key. "
+               "Enter one in the sidebar or contact eric@item.no.")
+
+
+def _check_ai_license() -> str | None:
+    """Return error message if cloud AI is not licensed, else None."""
+    if not is_feature_licensed(st.session_state.get("license_key", "")):
+        return _LICENSE_MSG
+    return None
 
 _log = logging.getLogger(__name__)
 
@@ -310,6 +321,9 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict).
     """
+    _lic_err = _check_ai_license()
+    if _lic_err:
+        return (_lic_err, {})
     return _with_retries(
         _call_claude_api_impl, api_key, model_id, prompt,
         stream_placeholder=stream_placeholder, timeout=timeout,
@@ -425,6 +439,9 @@ def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict). Streaming not supported.
     """
+    _lic_err = _check_ai_license()
+    if _lic_err:
+        return (_lic_err, {})
     return _with_retries(
         _call_gemini_api_impl, api_key, model_id, prompt,
         stream_placeholder=stream_placeholder, timeout=timeout,
@@ -515,6 +532,9 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict).
     """
+    _lic_err = _check_ai_license()
+    if _lic_err:
+        return (_lic_err, {})
     return _with_retries(
         _call_openai_api_impl, api_key, model_id, prompt,
         stream_placeholder=stream_placeholder, timeout=timeout,
@@ -1175,12 +1195,6 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
 def call_ai_provider(provider: str, model_id: str, prompt: dict,
                      max_tokens: int = 4096) -> tuple[str | None, dict]:
     """Dispatch an AI call to the correct provider. Returns (text, usage)."""
-    # License gate — local provider always free, cloud providers require license
-    if provider != "local":
-        from logpilot.license import is_feature_licensed
-        if not is_feature_licensed(st.session_state.get("license_key", "")):
-            return ("AI analysis requires a valid license key. "
-                    "Enter one in the sidebar or contact eric@item.no.", {})
     if provider == "claude":
         return call_claude_api(
             st.session_state.get("api_key", ""), model_id, prompt, max_tokens=max_tokens)
