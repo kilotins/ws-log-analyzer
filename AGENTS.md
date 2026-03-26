@@ -83,3 +83,5 @@ All agents share milestone numbering. Check before starting work.
 | M68b | Codex | Merged | Scenario: edge cases, malformed lines |
 | M68a | Claude | Merged | Scenario: Healthcare TLS cert cascade |
 | M67 | Claude | Merged | Safety valve, LogEvent fixes, CRITICAL consistency |
+
+Note: Agent worktrees auto-sync on every push from main.
