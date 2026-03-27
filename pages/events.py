@@ -22,9 +22,8 @@ if a is None:
 
 st.title("Events")
 
-# ── Global filters (source + severity) ───────────────────────────────────────
+# ── Apply global filters from sidebar ───────────────────────────────────────
 
-render_global_filters(a["events"])
 _is_filtered, display_events = _apply_global_filters_from_state(a["events"])
 
 if _is_filtered:

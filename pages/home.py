@@ -40,14 +40,11 @@ for _archive_name, _preview_paths in _archive_previews:
 _screenshots = st.file_uploader(
     "Upload screenshots (optional, for AI context)",
     type=["png", "jpg", "jpeg", "gif", "webp"],
-    accept_multiple_files=False,
-    help="Attach a screenshot to give AI more context (e.g. error dialog, dashboard).",
+    accept_multiple_files=True,
+    help="Attach screenshots to give AI more context (e.g. error dialog, dashboard).",
     key="_screenshot_uploader",
 )
-if _screenshots is not None:
-    st.session_state._incident_screenshot = _screenshots
-elif "_incident_screenshot" not in st.session_state:
-    st.session_state._incident_screenshot = None
+st.session_state._incident_screenshots = list(_screenshots) if _screenshots else []
 
 # --- Show uploaded files list ---
 if uploaded_files:
@@ -59,6 +56,21 @@ if uploaded_files:
             else:
                 size_str = f"{size_kb:.1f} KB"
             st.text(f"{f.name}  ({size_str})")
+elif not uploaded_files and st.session_state.get("analysis"):
+    # Show previously uploaded files from disk when file_uploader resets after navigation
+    _existing = sorted(UPLOADS_DIR.iterdir()) if UPLOADS_DIR.exists() else []
+    _existing = [f for f in _existing if f.is_file() and not f.name.startswith(".")]
+    if _existing:
+        with st.expander(f"{len(_existing)} file(s) loaded (from previous upload)", expanded=False):
+            for f in _existing:
+                size_kb = f.stat().st_size / 1024
+                # Strip hash prefix (e.g. "abc1234567_server.log" → "server.log")
+                _display_name = f.name.split("_", 1)[1] if "_" in f.name else f.name
+                if size_kb >= 1024:
+                    size_str = f"{size_kb / 1024:.1f} MB"
+                else:
+                    size_str = f"{size_kb:.1f} KB"
+                st.text(f"{_display_name}  ({size_str})")
 
 # --- Folder scan ---
 with st.expander("Or scan a local folder", expanded=False):
@@ -167,21 +179,26 @@ st.session_state._incident_description = _symptoms
 # --- AI model selector ---
 if require_license():
     _lic_providers = allowed_providers(st.session_state.get("license_key", ""))
+    _available_models = [
+        name for name, cfg in AI_MODELS.items()
+        if cfg["provider"] in _lic_providers
+    ]
 else:
-    _lic_providers = ["claude", "gemini", "openai", "local"]
+    _available_models = list(AI_MODELS.keys())
+if not _available_models:
+    _available_models = [name for name, cfg in AI_MODELS.items() if cfg["provider"] == "local"]
 
-_model_options = {"Auto": "auto"}
-for _provider_key, _models in AI_MODELS.items():
-    if _provider_key in _lic_providers:
-        for _m in _models:
-            _model_options[_m["label"]] = _m["id"]
+# Restore previous selection if still available
+_prev_model = st.session_state.get("_selected_ai_model", "")
+_model_index = _available_models.index(_prev_model) if _prev_model in _available_models else 0
 
-_selected_model_label = st.selectbox(
+_selected_model = st.selectbox(
     "AI Model",
-    list(_model_options.keys()),
+    _available_models,
+    index=_model_index,
     help="Model used for AI analysis. Requires API key in Settings.",
 )
-_selected_model_id = _model_options[_selected_model_label]
+st.session_state._selected_ai_model = _selected_model
 
 # --- Analyze button ---
 _has_input = bool(uploaded_files) or bool(_folder_files)

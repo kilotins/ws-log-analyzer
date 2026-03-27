@@ -69,7 +69,8 @@ for g in groups:
     total = g["total_count"]
     rank = g.get("rank", "")
     cascade = g.get("cascade_order", "")
-    confidence = g.get("confidence", 0.0)
+    _conf_raw = g.get("confidence", 0.0)
+    confidence = _conf_raw.get("score", 0.5) if isinstance(_conf_raw, dict) else float(_conf_raw or 0)
     conf_pct = int(confidence * 100)
 
     if g.get("is_primary"):

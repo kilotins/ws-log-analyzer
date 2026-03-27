@@ -1,4 +1,4 @@
-"""LogPilot — Reports: Technical Report, Leadership Brief, Jira Tickets."""
+"""LogPilot — Reports: Technical Report, Leadership Brief."""
 from __future__ import annotations
 
 import hashlib
@@ -25,7 +25,6 @@ st.title("Reports")
 
 # ── Apply global filters ──────────────────────────────────────────────────────
 
-render_global_filters(a["events"])
 _is_filtered, display_events = _apply_global_filters_from_state(a["events"])
 
 if _is_filtered:
@@ -59,7 +58,7 @@ events_for_export = display_events
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 
-tab_tech, tab_brief, tab_jira = st.tabs(["Technical Report", "Leadership Brief", "Jira Tickets"])
+tab_tech, tab_brief = st.tabs(["Technical Report", "Leadership Brief"])
 
 # ── Tab 1: Technical Report ───────────────────────────────────────────────────
 
@@ -278,12 +277,3 @@ with tab_brief:
                 del st.session_state["_leadership_brief"]
                 st.rerun()
 
-# ── Tab 3: Jira Tickets ───────────────────────────────────────────────────────
-
-with tab_jira:
-    from app_jira import render_jira_tickets
-    display_causes = _pa.get("causes", [])
-    if display_causes:
-        render_jira_tickets(display_causes, _pa)
-    else:
-        st.info("No incident groups detected. Heuristic analysis needs to find causes before tickets can be generated.")

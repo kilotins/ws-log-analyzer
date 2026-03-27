@@ -57,39 +57,7 @@ if require_license():
 
     st.divider()
 
-# --- 2. Theme ---
-st.subheader("Theme")
-_theme_options = {"System default": "system", "Light": "light", "Dark": "dark"}
-_current_theme = st.session_state.get("_app_theme", "system")
-_theme_label = next((k for k, v in _theme_options.items() if v == _current_theme), "System default")
-_selected_theme = st.selectbox(
-    "Theme",
-    list(_theme_options.keys()),
-    index=list(_theme_options.keys()).index(_theme_label),
-    key="settings_theme_select",
-)
-if _theme_options[_selected_theme] != _current_theme:
-    st.session_state._app_theme = _theme_options[_selected_theme]
-    try:
-        _save_json_file(_THEME_FILE, {"theme": _theme_options[_selected_theme]})
-    except Exception:
-        pass
-    import streamlit.config as _stcfg
-    if _theme_options[_selected_theme] == "dark":
-        _stcfg.set_option("theme.base", "dark")
-        _stcfg.set_option("theme.backgroundColor", "#0d1117")
-        _stcfg.set_option("theme.secondaryBackgroundColor", "#161b22")
-        _stcfg.set_option("theme.textColor", "#e6edf3")
-    else:
-        _stcfg.set_option("theme.base", "light")
-        _stcfg.set_option("theme.backgroundColor", "#FFFFFF")
-        _stcfg.set_option("theme.secondaryBackgroundColor", "#F8FAFC")
-        _stcfg.set_option("theme.textColor", "#0F172A")
-    st.rerun()
-
-st.divider()
-
-# --- 3. Cloud API Keys ---
+# --- 2. Cloud API Keys ---
 st.subheader("Cloud API Keys")
 
 if require_license():
@@ -158,8 +126,8 @@ with st.expander(_keys_label, expanded=_configured_keys == 0):
 
 st.divider()
 
-# --- 4. Local / Inhouse AI ---
-st.subheader("Local / Inhouse AI")
+# --- 4. Local API Keys ---
+st.subheader("Local API Keys")
 with st.expander("Local AI settings", expanded=False):
     _prev_preset = st.session_state.get("_local_prev_preset", "")
     _preset_names = list(LOCAL_AI_PRESETS.keys())

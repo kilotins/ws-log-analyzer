@@ -175,6 +175,13 @@ def _run_ai_call(provider, model_id, selected_model, msg_dict, image_bytes,
             st.warning(f"Prompt is ~{est_tokens_val / token_limit * 100:.0f}% of context limit.")
 
         try:
+            # Check package availability before calling
+            from app_ai import _AVAILABLE_PROVIDERS
+            if provider not in ("local",) and provider not in _AVAILABLE_PROVIDERS:
+                _pkg = {"claude": "anthropic", "gemini": "google-generativeai", "openai": "openai"}.get(provider, provider)
+                st.error(f"Provider '{provider}' not available. Install with: `pip install {_pkg}`")
+                return None
+
             stream_placeholder = st.empty()
             if provider == "claude":
                 answer, usage = call_claude_api(
@@ -289,47 +296,34 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     cascades = analysis.get("cascades", [])
 
     detected_format = detect_dominant_format(events)
-    placeholder = _FORMAT_PLACEHOLDER.get(detected_format,
-        "e.g. CWWKZ0001E, NullPointerException, 502 errors since 14:30, why are threads hanging?")
 
     # Detect multi-source
     sources = set(e.system_label or "" for e in events)
     is_multi_source = len(sources) >= 2
 
-    # --- "Analyze All Logs" button (multi-source only) ---
-    triage_clicked = False
-    if is_multi_source:
-        st.caption(f"Multi-source: {len(sources)} systems detected — analyze all logs in one AI call.")
-        triage_clicked = st.button(
-            f"Analyze All Logs ({len(events)} events, {len(sources)} sources)",
-            type="primary", key="triage_all_btn", use_container_width=True)
+    # --- Read inputs from Home page (session state) ---
+    description = st.session_state.get("_incident_description", "")
+    selected_model = st.session_state.get("_selected_ai_model", "")
 
-    # --- Symptom / question input ---
-    description = st.text_area(
-        "Describe a symptom, paste an error code, or ask a question",
-        placeholder=placeholder,
-        height=100,
-        key="incident_description_input",
-    )
+    if not selected_model or selected_model not in AI_MODELS:
+        st.warning("Select an AI model on the **Home** page first.")
+        return
 
-    screenshot_files = st.file_uploader(
-        "Upload screenshots (optional)",
-        type=_SUPPORTED_IMAGE_TYPES,
-        key="incident_screenshot_upload",
-        accept_multiple_files=True,
-    )
+    # Show what we're working with
+    _model_info_label = f"**Model:** {selected_model}"
+    _desc_label = f" · **Symptoms:** {description[:60]}..." if description and len(description) > 60 else (f" · **Symptoms:** {description}" if description else "")
+    st.caption(_model_info_label + _desc_label)
 
-    # Validate and collect screenshots
+    # --- Collect screenshots from Home page ---
     images: list[tuple[bytes, str]] = []
-    image_bytes = None  # backwards compat: first image for cache/probe checks
+    image_bytes = None
     mime_type = None
     mime_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
                 "gif": "image/gif", "webp": "image/webp"}
-    for sf in (screenshot_files or []):
+    for sf in st.session_state.get("_incident_screenshots", []):
         data = sf.getvalue()
         size_mb = len(data) / (1024 * 1024)
         if size_mb > MAX_SCREENSHOT_MB:
-            st.warning(f"Screenshot {sf.name} is {size_mb:.1f} MB — max {MAX_SCREENSHOT_MB} MB. Skipped.")
             continue
         ext = sf.name.rsplit(".", 1)[-1].lower()
         mt = mime_map.get(ext, "image/png")
@@ -337,34 +331,16 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         if image_bytes is None:
             image_bytes = data
             mime_type = mt
-        st.image(data, caption=f"Screenshot: {sf.name}", width=300)
     if images:
-        st.caption(f"{len(images)} screenshot(s) will be sent to the AI provider as-is. Ensure no passwords, PII, or secrets are visible.")
+        st.caption(f"{len(images)} screenshot(s) from Home will be included in AI context.")
 
-    # Model selector + analyze button — filter by license tier
-    if require_license():
-        _lic_token = st.session_state.get("license_key", "")
-        _lic_providers = allowed_providers(_lic_token)
-        _available_models = [
-            name for name, cfg in AI_MODELS.items()
-            if cfg["provider"] in _lic_providers
-            and (cfg["provider"] == "local" or is_model_allowed(_lic_token, cfg["model_id"]))
-        ]
-    else:
-        _available_models = list(AI_MODELS.keys())
-    if not _available_models:
-        _available_models = [name for name, cfg in AI_MODELS.items() if cfg["provider"] == "local"]
-    model_col, btn_col = st.columns([1, 1])
-    with model_col:
-        selected_model = st.selectbox(
-            "AI Model",
-            _available_models,
-            key="incident_model_select",
-            label_visibility="collapsed",
-        )
-    with btn_col:
-        analyze_clicked = st.button("Analyze", type="primary", key="incident_analyze_btn",
-                                    use_container_width=True)
+    # --- Single analyze button ---
+    if is_multi_source:
+        st.caption(f"Multi-source: {len(sources)} systems detected — {len(events)} events, {len(sources)} sources.")
+
+    analyze_clicked = st.button("Start AI Analysis", type="primary", key="incident_analyze_btn",
+                                use_container_width=True)
+    triage_clicked = analyze_clicked and is_multi_source
 
     # --- Noise filter controls ---
     from logpilot.analysis import compute_noise_scores, filter_noise
@@ -433,10 +409,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     cached_answer = previous_answer
 
     # --- Handle button clicks ---
-    clicked = triage_clicked or (analyze_clicked and description.strip())
-
-    if analyze_clicked and not description.strip() and not triage_clicked:
-        st.warning("Enter an error code, question, or symptom description.")
+    clicked = triage_clicked or analyze_clicked
 
     if clicked:
         # Rate limiting

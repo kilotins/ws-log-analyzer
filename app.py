@@ -1,6 +1,8 @@
 """Streamlit GUI for LogPilot."""
 from __future__ import annotations
 
+import sys
+
 import io
 import logging
 import logging.handlers
@@ -607,7 +609,61 @@ st.markdown("""<style>
     .logpilot-header .title { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
     .logpilot-header .title span { color: #7C3AED; }
     .logpilot-header .subtitle { font-size: 0.7rem; letter-spacing: 0.05em; margin-top: -2px; }
+
+    /* Settings section — compact separator */
+    [data-testid="stSidebarNav"] > div:last-child {
+        border-top: 1px solid #E2E8F0;
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+    }
 </style>""", unsafe_allow_html=True)
+
+# --- Dark mode CSS injection ---
+_current_theme = st.session_state.get("_app_theme", "system")
+if _current_theme == "dark":
+    st.markdown("""<style>
+        /* Sidebar background */
+        [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
+            background-color: #161b22 !important;
+        }
+        [data-testid="stSidebar"] * { color: #c9d1d9 !important; }
+        [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3, [data-testid="stSidebar"] header {
+            color: #f0f6fc !important;
+        }
+        [data-testid="stSidebar"] a { color: #a78bfa !important; }
+        [data-testid="stSidebar"] details { border-color: #30363d !important; }
+        [data-testid="stSidebar"] input, [data-testid="stSidebar"] select,
+        [data-testid="stSidebar"] [data-baseweb="select"] {
+            background-color: #0d1117 !important; color: #e6edf3 !important;
+            border-color: #30363d !important;
+        }
+        [data-testid="stSidebar"] button {
+            background-color: #21262d !important; color: #c9d1d9 !important;
+            border-color: #30363d !important;
+        }
+        [data-testid="stSidebar"] hr { border-color: #30363d !important; }
+
+        /* Main content dark mode */
+        .stMainBlockContainer p, .stMainBlockContainer span,
+        .stMainBlockContainer label, .stMainBlockContainer div { color: #c9d1d9 !important; }
+        .stMainBlockContainer h1, .stMainBlockContainer h2,
+        .stMainBlockContainer h3, .stMainBlockContainer h4 { color: #f0f6fc !important; }
+        .stMainBlockContainer details summary span { color: #e6edf3 !important; }
+        .stMainBlockContainer details { border-color: #30363d !important; }
+        .stMainBlockContainer a { color: #a78bfa !important; }
+        .stMainBlockContainer [data-testid="stMetric"],
+        .stMainBlockContainer [data-testid="stMetricValue"],
+        .stMainBlockContainer [data-testid="stMetricLabel"] { background-color: transparent !important; }
+        .stMainBlockContainer [data-testid="stMetricValue"] { color: #e6edf3 !important; }
+        .stMainBlockContainer [data-testid="stMetricLabel"] { color: #8b949e !important; }
+        .stMainBlockContainer [data-baseweb="tab"] { color: #8b949e !important; }
+        .stMainBlockContainer [aria-selected="true"] { color: #a78bfa !important; }
+        .stMainBlockContainer .stAlert p { color: inherit !important; }
+        .stMainBlockContainer table, .stMainBlockContainer th,
+        .stMainBlockContainer td { color: #c9d1d9 !important; }
+        .stMainBlockContainer .stCaption, .stMainBlockContainer small { color: #8b949e !important; }
+    </style>""", unsafe_allow_html=True)
 
 # --- Compact header with inline logo ---
 st.markdown('''<div class="logpilot-header">
@@ -705,459 +761,47 @@ if not st.session_state.api_key:
 # Trial fallback: use baked-in API key from env var
 if not st.session_state.api_key:
     st.session_state.api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-
-with st.sidebar:
-    st.header("Settings")
-
-    # --- Theme selector (top of sidebar) ---
-    _theme_options = {"System default": "system", "Light": "light", "Dark": "dark"}
-    _current_theme = st.session_state.get("_app_theme", "system")
-    _theme_label = next((k for k, v in _theme_options.items() if v == _current_theme), "System default")
-    _selected = st.selectbox("Theme", list(_theme_options.keys()),
-                             index=list(_theme_options.keys()).index(_theme_label),
-                             key="theme_select")
-    if _theme_options[_selected] != _current_theme:
-        st.session_state._app_theme = _theme_options[_selected]
-        try:
-            _save_json_file(_THEME_FILE, {"theme": _theme_options[_selected]})
-        except Exception:
-            pass
-        import streamlit.config as _stcfg
-        if _theme_options[_selected] == "dark":
-            _stcfg.set_option("theme.base", "dark")
-            _stcfg.set_option("theme.backgroundColor", "#0d1117")
-            _stcfg.set_option("theme.secondaryBackgroundColor", "#161b22")
-            _stcfg.set_option("theme.textColor", "#e6edf3")
-        else:
-            _stcfg.set_option("theme.base", "light")
-            _stcfg.set_option("theme.backgroundColor", "#FFFFFF")
-            _stcfg.set_option("theme.secondaryBackgroundColor", "#F8FAFC")
-            _stcfg.set_option("theme.textColor", "#0F172A")
-        st.rerun()
-
-    # Inject CSS to force dark sidebar when dark theme is active
-    if _current_theme == "dark":
-        st.markdown("""<style>
-            /* Sidebar background */
-            [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
-                background-color: #161b22 !important;
-            }
-            /* All sidebar text */
-            [data-testid="stSidebar"] * {
-                color: #c9d1d9 !important;
-            }
-            /* Headings */
-            [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
-            [data-testid="stSidebar"] h3, [data-testid="stSidebar"] header {
-                color: #f0f6fc !important;
-            }
-            /* Links */
-            [data-testid="stSidebar"] a { color: #a78bfa !important; }
-            /* Expander borders */
-            [data-testid="stSidebar"] details {
-                border-color: #30363d !important;
-            }
-            /* Inputs & selects */
-            [data-testid="stSidebar"] input, [data-testid="stSidebar"] select,
-            [data-testid="stSidebar"] [data-baseweb="select"] {
-                background-color: #0d1117 !important;
-                color: #e6edf3 !important;
-                border-color: #30363d !important;
-            }
-            /* Buttons */
-            [data-testid="stSidebar"] button {
-                background-color: #21262d !important;
-                color: #c9d1d9 !important;
-                border-color: #30363d !important;
-            }
-            /* Dividers */
-            [data-testid="stSidebar"] hr {
-                border-color: #30363d !important;
-            }
-            /* Toggle track */
-            [data-testid="stSidebar"] [data-testid="stToggle"] span {
-                color: #c9d1d9 !important;
-            }
-
-            /* === Main content dark mode fixes === */
-
-            /* All main text */
-            .stMainBlockContainer p, .stMainBlockContainer span,
-            .stMainBlockContainer label, .stMainBlockContainer div {
-                color: #c9d1d9 !important;
-            }
-            /* Headings */
-            .stMainBlockContainer h1, .stMainBlockContainer h2,
-            .stMainBlockContainer h3, .stMainBlockContainer h4 {
-                color: #f0f6fc !important;
-            }
-            /* Expander summaries */
-            .stMainBlockContainer details summary span {
-                color: #e6edf3 !important;
-            }
-            /* Expander borders */
-            .stMainBlockContainer details {
-                border-color: #30363d !important;
-            }
-            /* Links */
-            .stMainBlockContainer a { color: #a78bfa !important; }
-            /* Metric cards */
-            .stMainBlockContainer [data-testid="stMetric"],
-            .stMainBlockContainer [data-testid="stMetricValue"],
-            .stMainBlockContainer [data-testid="stMetricLabel"] {
-                background-color: transparent !important;
-            }
-            .stMainBlockContainer [data-testid="stMetricValue"] {
-                color: #e6edf3 !important;
-            }
-            .stMainBlockContainer [data-testid="stMetricLabel"] {
-                color: #8b949e !important;
-            }
-            /* Tabs */
-            .stMainBlockContainer [data-baseweb="tab"] {
-                color: #8b949e !important;
-            }
-            .stMainBlockContainer [aria-selected="true"] {
-                color: #a78bfa !important;
-            }
-            /* Info/success/warning boxes */
-            .stMainBlockContainer .stAlert p {
-                color: inherit !important;
-            }
-            /* Table text */
-            .stMainBlockContainer table, .stMainBlockContainer th,
-            .stMainBlockContainer td {
-                color: #c9d1d9 !important;
-            }
-            /* Captions & small text */
-            .stMainBlockContainer .stCaption, .stMainBlockContainer small {
-                color: #8b949e !important;
-            }
-            /* Subheader */
-            .stMainBlockContainer .stSubheader {
-                color: #f0f6fc !important;
-            }
-        </style>""", unsafe_allow_html=True)
-
-    # --- License key (only when license checks are active) ---
-    if require_license():
-        st.markdown("---")
-        _LICENSE_FILE = CACHE_DIR / ".license_key"
-        if not st.session_state.license_key:
-            try:
-                if _LICENSE_FILE.exists():
-                    st.session_state.license_key = _LICENSE_FILE.read_text().strip()
-            except Exception:
-                pass
-        _license_input = st.text_input(
-            "License key",
-            value=st.session_state.license_key,
-            type="password",
-            placeholder="LP-1-...",
-            help="Required for cloud AI features. Contact eric@item.no for a license.",
-        )
-        if _license_input != st.session_state.license_key:
-            st.session_state.license_key = _license_input
-            try:
-                _LICENSE_FILE.parent.mkdir(parents=True, exist_ok=True)
-                _LICENSE_FILE.write_text(_license_input)
-                _LICENSE_FILE.chmod(0o600)
-            except Exception:
-                pass
-            st.rerun()  # Refresh UI to update provider/model filtering
-        _lic_info = validate_token(st.session_state.license_key)
-        if _lic_info and _lic_info.valid:
-            if _lic_info.days_left <= 30:
-                st.warning(f"**{_lic_info.name}** — expires in {_lic_info.days_left} days")
-            else:
-                st.success(f"**{_lic_info.name}** — {_lic_info.days_left} days remaining")
-        elif st.session_state.license_key:
-            st.error("Invalid or expired license key")
-        else:
-            st.caption("No license — cloud AI features disabled")
-
-    st.markdown("---")
-
-    # Determine which providers are available for this license tier
-    if require_license():
-        _lic_providers = allowed_providers(st.session_state.get("license_key", ""))
-    else:
-        _lic_providers = ["claude", "gemini", "openai", "local"]
-
-    # Count configured keys for the expander label (only count allowed providers)
-    _configured_keys = sum(1 for k in [
-        st.session_state.api_key if "claude" in _lic_providers else "",
-        st.session_state.gemini_api_key if "gemini" in _lic_providers else "",
-        st.session_state.openai_api_key if "openai" in _lic_providers else "",
-    ] if k)
-    _max_keys = sum(1 for p in ["claude", "gemini", "openai"] if p in _lic_providers)
-    _keys_label = f"Cloud API Keys ({_configured_keys}/{_max_keys} configured)" if _configured_keys else "Cloud API Keys (none configured)"
-    with st.expander(_keys_label, expanded=_configured_keys == 0):
-        if "claude" in _lic_providers:
-            api_key = st.text_input(
-                "Anthropic API Key",
-                value=st.session_state.api_key,
-                type="password",
-                placeholder="sk-ant-...",
-                help="Required for Ask Claude. Get a key at console.anthropic.com/settings/keys",
-            )
-            if api_key != st.session_state.api_key:
-                _save_api_key(api_key)
-            st.session_state.api_key = api_key
-            if not st.session_state.api_key and "gemini" not in _lic_providers:
-                st.caption("Using included Haiku access (trial tier)")
-
-        if "gemini" in _lic_providers:
-            if not st.session_state.gemini_api_key:
-                st.session_state.gemini_api_key = _load_saved_gemini_key()
-            gemini_key = st.text_input(
-                "Gemini API Key",
-                value=st.session_state.gemini_api_key,
-                type="password",
-                placeholder="AIza...",
-                help="Required for Ask Gemini. Get a key at aistudio.google.com/apikey",
-            )
-            if gemini_key != st.session_state.gemini_api_key:
-                _save_gemini_key(gemini_key)
-            st.session_state.gemini_api_key = gemini_key
-
-        if "openai" in _lic_providers:
-            if not st.session_state.openai_api_key:
-                st.session_state.openai_api_key = _load_saved_openai_key()
-            openai_key = st.text_input(
-                "OpenAI API Key",
-                value=st.session_state.openai_api_key,
-                type="password",
-                placeholder="sk-...",
-                help="Required for OpenAI models. Get a key at platform.openai.com/api-keys",
-            )
-            if openai_key != st.session_state.openai_api_key:
-                _save_openai_key(openai_key)
-            st.session_state.openai_api_key = openai_key
-
-        if "gemini" not in _lic_providers or "openai" not in _lic_providers:
-            st.caption("Upgrade to Pro to unlock all AI providers. Contact eric@item.no.")
-
-    with st.expander("Local / Inhouse AI", expanded=False):
-        from app_ai import discover_local_models
-
-        # --- Preset + Endpoint ---
-        _prev_preset = st.session_state.get("_local_prev_preset", "")
-        _preset_names = list(LOCAL_AI_PRESETS.keys())
-        _saved_preset = st.session_state.get("_local_saved_preset", "")
-        _preset_index = _preset_names.index(_saved_preset) if _saved_preset in _preset_names else 0
-        _preset = st.selectbox(
-            "Preset",
-            _preset_names,
-            index=_preset_index,
-            key="local_ai_preset",
-            help="Select your local AI server type",
-        )
-        _preset_cfg = LOCAL_AI_PRESETS[_preset]
-
-        # Only apply preset URL when user actively changes the preset
-        if _preset != _prev_preset and _prev_preset:
-            _preset_url = _preset_cfg["base_url"]
-            if _preset_url:
-                st.session_state.local_ai_endpoint = _preset_url
-                st.session_state._local_conn_status = "not_tested"
-                st.session_state._local_models = []
-        st.session_state._local_prev_preset = _preset
-
-        _local_endpoint = st.text_input(
-            "Endpoint URL",
-            value=st.session_state.local_ai_endpoint,
-            placeholder="http://localhost:1234/v1",
-            help="OpenAI-compatible API endpoint",
-        )
-        if _local_endpoint != st.session_state.local_ai_endpoint:
-            st.session_state.local_ai_endpoint = _local_endpoint
-            st.session_state._local_conn_status = "not_tested"
-            st.session_state._local_models = []
-            _save_local_ai_settings(_local_endpoint, st.session_state.local_ai_model,
-                                     st.session_state.local_ai_api_key, _preset)
-
-        # --- Test Connection + Refresh ---
-        _btn_col, _status_col = st.columns([1, 2])
-        with _btn_col:
-            _test_clicked = st.button("Test connection", key="local_test_conn",
-                                      use_container_width=True)
-        _endpoint = st.session_state.local_ai_endpoint
-        _api_key = st.session_state.local_ai_api_key
-
-        if _test_clicked and _endpoint:
-            with st.spinner("Connecting..."):
-                result = discover_local_models(_endpoint, _api_key)
-            st.session_state._local_conn_status = result["status"]
-            st.session_state._local_conn_error = result["error"]
-            st.session_state._local_models = result["models"]
-            if result["models"]:
-                if not st.session_state.local_ai_model or st.session_state.local_ai_model not in result["models"]:
-                    st.session_state.local_ai_model = result["models"][0]
-                _save_local_ai_settings(_endpoint, st.session_state.local_ai_model,
-                                         _api_key, _preset)
-                st.rerun()
-
-        with _status_col:
-            _conn = st.session_state._local_conn_status
-            if _conn == "connected":
-                n = len(st.session_state._local_models)
-                st.success(f"Connected — {n} model{'s' if n != 1 else ''} found")
-            elif _conn == "failed":
-                st.error(st.session_state._local_conn_error or "Connection failed")
-            elif _conn == "no_models":
-                st.warning(st.session_state._local_conn_error or "No models found")
-            else:
-                st.caption("Not tested")
-
-        # --- Model selection ---
-        _discovered = st.session_state._local_models
-        if _discovered:
-            _refresh_col, _model_col = st.columns([1, 3])
-            with _refresh_col:
-                if st.button("Refresh", key="local_refresh_models", use_container_width=True):
-                    result = discover_local_models(_endpoint, _api_key)
-                    st.session_state._local_conn_status = result["status"]
-                    st.session_state._local_conn_error = result["error"]
-                    st.session_state._local_models = result["models"]
-                    st.rerun()
-            with _model_col:
-                _current = st.session_state.local_ai_model
-                _idx = _discovered.index(_current) if _current in _discovered else 0
-                _selected_model = st.selectbox(
-                    "Model",
-                    _discovered,
-                    index=_idx,
-                    key="local_model_select",
-                    label_visibility="collapsed",
-                )
-                if _selected_model != st.session_state.local_ai_model:
-                    st.session_state.local_ai_model = _selected_model
-                    _save_local_ai_settings(_endpoint, _selected_model,
-                                             _api_key, _preset)
-        else:
-            _manual_model = st.text_input(
-                "Model name",
-                value=st.session_state.local_ai_model,
-                placeholder="e.g. llama-3.1-8b, mistral-7b, qwen2.5",
-                help="Model ID as shown in your local server",
-                key="local_model_input",
-            )
-            if _manual_model != st.session_state.local_ai_model:
-                st.session_state.local_ai_model = _manual_model
-                _save_local_ai_settings(_endpoint, _manual_model,
-                                         _api_key, _preset)
-
-        # --- Advanced (API key) ---
-        with st.expander("Advanced", expanded=False):
-            _local_key = st.text_input(
-                "API Key (optional)",
-                value=st.session_state.local_ai_api_key,
-                placeholder="not-needed",
-                help="Most local servers don't require an API key",
-                key="local_key_input",
-            )
-            if _local_key != st.session_state.local_ai_api_key:
-                st.session_state.local_ai_api_key = _local_key
-                _save_local_ai_settings(st.session_state.local_ai_endpoint,
-                                         st.session_state.local_ai_model,
-                                         _local_key, _preset)
-
-    with st.expander("Link Source Code (optional)", expanded=False):
-        _repo = st.text_input(
-            "Source code path",
-            value=st.session_state.get("_code_repo_path", ""),
-            placeholder="/path/to/your/project",
-            help="LogPilot will search this directory (READ-ONLY) for code matching stacktraces in your logs",
-            key="_code_repo_input",
-        )
-        st.session_state["_code_repo_path"] = _repo
-        if _repo:
-            from pathlib import Path as _P
-            if _P(_repo).is_dir():
-                st.success(f"Linked: {_repo}")
-            else:
-                st.warning("Directory not found")
-
-    from app_jira import render_jira_sidebar
-    render_jira_sidebar()
-
-    st.markdown("---")
-    st.session_state.debug_payload = st.toggle(
-        "Debug mode",
-        value=st.session_state.debug_payload,
-        help="Show Application Log and AI Probe tabs for debugging",
-    )
-    if st.session_state.get("_confirm_clear_cache"):
-        st.warning("Clear all AI caches and history?")
-        _cc1, _cc2 = st.columns(2)
-        with _cc1:
-            if st.button("Yes, clear", type="primary", use_container_width=True, key="confirm_clear_cache"):
-                st.session_state._confirm_clear_cache = False
-                from app_ai import clear_all_ai_history
-                clear_all_ai_history()
-                log.info("cache Cleared all AI caches and history")
-                st.success("AI cache and history cleared")
-        with _cc2:
-            if st.button("Cancel", use_container_width=True, key="cancel_clear_cache"):
-                st.session_state._confirm_clear_cache = False
-                st.rerun()
-    elif st.button("Clear AI cache & history", help="Clear all cached AI responses, answers, and conversation history"):
-        st.session_state._confirm_clear_cache = True
-        st.rerun()
-
-    # --- Sidebar footer ---
-    st.markdown(
-        f'<div class="sidebar-footer">'
-        f'v{_get_version()} &middot; <a href="https://item.no" target="_blank">Item Consulting</a>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-
-# --- License expiry banner ---
-if require_license() and not st.session_state.get("_license_banner_shown"):
-    _lic = validate_token(st.session_state.get("license_key", ""))
-    if _lic and _lic.valid and _lic.days_left <= 30:
-        st.warning(
-            f"Your trial expires in **{_lic.days_left} days**. "
-            "We're building LogPilot Platform — tell us what you like and what's missing! "
-            "Contact eric@item.no for a full license."
-        )
-        st.session_state._license_banner_shown = True
-    elif _lic and not _lic.valid:
-        st.error(
-            "Your license has expired. Cloud AI features are disabled. "
-            "Contact eric@item.no to renew."
-        )
-        st.session_state._license_banner_shown = True
-
+# ---------------------------------------------------------------------------
+# Register this module as 'app' so pages can `from app import ...`
+# Streamlit runs this file via exec() — pages need the module in sys.modules
+# ---------------------------------------------------------------------------
+import types as _types
+_app_module = _types.ModuleType("app")
+_app_module.__file__ = __file__
+_app_module.__dict__.update(
+    {k: v for k, v in globals().items() if not k.startswith("_DEFERRED")}
+)
+sys.modules["app"] = _app_module
 
 # ---------------------------------------------------------------------------
 # Navigation (replaces old tab layout)
 # ---------------------------------------------------------------------------
-_pages = {
-    "Main": [
-        st.Page("pages/home.py", title="Home", icon=":material/home:", default=True),
-        st.Page("pages/overview.py", title="Overview", icon=":material/dashboard:"),
-        st.Page("pages/causes.py", title="Causes & Fixes", icon=":material/search:"),
-        st.Page("pages/ai_analysis.py", title="AI Analysis", icon=":material/smart_toy:"),
-        st.Page("pages/timeline.py", title="Timeline", icon=":material/timeline:"),
-        st.Page("pages/events.py", title="Events", icon=":material/list_alt:"),
-        st.Page("pages/reports.py", title="Reports", icon=":material/description:"),
-    ],
-}
+_analysis_pages = [
+    st.Page("pages/home.py", title="Home", icon=":material/home:", default=True),
+    st.Page("pages/overview.py", title="Overview", icon=":material/dashboard:"),
+    st.Page("pages/causes.py", title="Causes & Fixes", icon=":material/search:"),
+    st.Page("pages/ai_analysis.py", title="AI Analysis", icon=":material/smart_toy:"),
+    st.Page("pages/timeline.py", title="Timeline", icon=":material/timeline:"),
+    st.Page("pages/events.py", title="Events", icon=":material/list_alt:"),
+    st.Page("pages/reports.py", title="Reports", icon=":material/description:"),
+]
 
 if st.session_state.get("debug_payload"):
-    _pages["Main"].append(
+    _analysis_pages.append(
         st.Page("pages/debug.py", title="Debug", icon=":material/bug_report:")
     )
 
-_pages[""] = [
-    st.Page("pages/settings.py", title="Settings", icon=":material/settings:"),
-]
+_settings_page = st.Page("pages/settings.py", title="Settings", icon=":material/settings:")
 
-pg = st.navigation(_pages)
+_pages = {
+    "Analysis": _analysis_pages,
+    "Integrations": [
+        st.Page("pages/jira.py", title="Jira & Confluence", icon=":material/confirmation_number:"),
+    ],
+    "Settings": [_settings_page],
+}
+
+pg = st.navigation(_pages, expanded=False)
 
 # --- Global severity/source filters in sidebar (below navigation) ---
 with st.sidebar:
@@ -1178,5 +822,35 @@ with st.sidebar:
                 "Source", options=_all_sources, default=[], key="filter_sources",
                 help="Filter all pages by log source",
             )
+
+    # --- Theme toggle + footer (compact) ---
+    _is_dark = st.session_state.get("_app_theme", "system") == "dark"
+    _icon = ":material/light_mode:" if _is_dark else ":material/dark_mode:"
+    if st.button(_icon, key="sidebar_theme_toggle", help="Toggle dark/light mode"):
+        _new_theme = "light" if _is_dark else "dark"
+        st.session_state._app_theme = _new_theme
+        try:
+            _save_json_file(_THEME_FILE, {"theme": _new_theme})
+        except Exception:
+            pass
+        try:
+            import streamlit.config as _stcfg
+            if _new_theme == "dark":
+                _stcfg.set_option("theme.base", "dark")
+                _stcfg.set_option("theme.backgroundColor", "#0d1117")
+                _stcfg.set_option("theme.secondaryBackgroundColor", "#161b22")
+                _stcfg.set_option("theme.textColor", "#e6edf3")
+            else:
+                _stcfg.set_option("theme.base", "light")
+                _stcfg.set_option("theme.backgroundColor", "#FFFFFF")
+                _stcfg.set_option("theme.secondaryBackgroundColor", "#F8FAFC")
+                _stcfg.set_option("theme.textColor", "#0F172A")
+        except Exception:
+            pass
+        st.rerun()
+    st.caption(
+        f'v{_get_version()} · <a href="https://item.no" target="_blank">Item Consulting</a>',
+        unsafe_allow_html=True,
+    )
 
 pg.run()

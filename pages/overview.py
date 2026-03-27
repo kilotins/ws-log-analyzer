@@ -152,7 +152,8 @@ st.subheader("Incidents Detected")
 groups = grouped.get("groups", [])
 if groups:
     for g in groups:
-        confidence = g.get("confidence", 0.0)
+        _conf_raw = g.get("confidence", 0.0)
+        confidence = _conf_raw.get("score", 0.5) if isinstance(_conf_raw, dict) else float(_conf_raw or 0)
         if confidence >= 0.75:
             badge_color = "#DC2626"
             badge_label = "HIGH"

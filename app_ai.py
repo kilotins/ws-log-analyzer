@@ -193,7 +193,7 @@ def init_provider_config(save_history_funcs: dict):
         PROVIDER_CONFIG[provider]["save_history"] = func
 
 
-AI_MODELS = {
+_ALL_AI_MODELS = {
     "Claude Sonnet 4.6": {"provider": "claude", "model_id": "claude-sonnet-4-6"},
     "Claude Haiku 4.5": {"provider": "claude", "model_id": "claude-haiku-4-5-20251001"},
     "Gemini 2.5 Flash": {"provider": "gemini", "model_id": "gemini-2.5-flash"},
@@ -201,6 +201,29 @@ AI_MODELS = {
     "GPT-4o": {"provider": "openai", "model_id": "gpt-4o"},
     "GPT-4o mini": {"provider": "openai", "model_id": "gpt-4o-mini"},
     "Local AI (custom)": {"provider": "local", "model_id": ""},
+}
+
+# Check which cloud provider packages are actually installed
+_AVAILABLE_PROVIDERS = {"local"}  # local always available (uses urllib)
+try:
+    import anthropic  # noqa: F401
+    _AVAILABLE_PROVIDERS.add("claude")
+except ImportError:
+    pass
+try:
+    import google.generativeai  # noqa: F401
+    _AVAILABLE_PROVIDERS.add("gemini")
+except ImportError:
+    pass
+try:
+    import openai  # noqa: F401
+    _AVAILABLE_PROVIDERS.add("openai")
+except ImportError:
+    pass
+
+AI_MODELS = {
+    name: cfg for name, cfg in _ALL_AI_MODELS.items()
+    if cfg["provider"] in _AVAILABLE_PROVIDERS
 }
 
 # Presets for local/inhouse AI servers
@@ -1202,6 +1225,9 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
 def call_ai_provider(provider: str, model_id: str, prompt: dict,
                      max_tokens: int = 4096) -> tuple[str | None, dict]:
     """Dispatch an AI call to the correct provider. Returns (text, usage)."""
+    if provider != "local" and provider not in _AVAILABLE_PROVIDERS:
+        _pkg = {"claude": "anthropic", "gemini": "google-generativeai", "openai": "openai"}.get(provider, provider)
+        raise ImportError(f"Provider '{provider}' requires `pip install {_pkg}`")
     if provider == "claude":
         return call_claude_api(
             st.session_state.get("api_key", ""), model_id, prompt, max_tokens=max_tokens)
