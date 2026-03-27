@@ -1132,472 +1132,51 @@ if require_license() and not st.session_state.get("_license_banner_shown"):
         )
         st.session_state._license_banner_shown = True
 
-# --- Tabs ---
-_tab_names = ["Analyze", "Realtime Console", "Audit Report", "Cloud Spend"]
-if st.session_state.debug_payload:
-    _tab_names.append("Debug")
-_tabs = st.tabs(_tab_names)
-tab_analyze, tab_realtime, tab_audit, tab_spend = _tabs[:4]
-tab_debug = _tabs[4] if len(_tabs) > 4 else None
 
-with tab_analyze:
-    uploaded_files = st.file_uploader(
-        "Upload log file(s)",
-        type=None,  # Accept any file — parser handles format detection
-        accept_multiple_files=True,
-        help="Application log files (.log or .gz compressed)",
+# ---------------------------------------------------------------------------
+# Navigation (replaces old tab layout)
+# ---------------------------------------------------------------------------
+_pages = {
+    "Main": [
+        st.Page("pages/home.py", title="Home", icon=":material/home:", default=True),
+        st.Page("pages/overview.py", title="Overview", icon=":material/dashboard:"),
+        st.Page("pages/causes.py", title="Causes & Fixes", icon=":material/search:"),
+        st.Page("pages/ai_analysis.py", title="AI Analysis", icon=":material/smart_toy:"),
+        st.Page("pages/timeline.py", title="Timeline", icon=":material/timeline:"),
+        st.Page("pages/events.py", title="Events", icon=":material/list_alt:"),
+        st.Page("pages/reports.py", title="Reports", icon=":material/description:"),
+    ],
+}
+
+if st.session_state.get("debug_payload"):
+    _pages["Main"].append(
+        st.Page("pages/debug.py", title="Debug", icon=":material/bug_report:")
     )
-    uploaded_files = list(uploaded_files) if uploaded_files else []
-    uploaded_files, _archive_previews = _expand_uploaded_archives(uploaded_files)
-    for _archive_name, _preview_paths in _archive_previews:
-        with st.expander(f"Extracted files from {_archive_name}", expanded=False):
-            for _preview_path in _preview_paths:
-                st.text(_preview_path)
 
-    # --- Folder scan (local path) ---
-    with st.expander("Or scan a local folder", expanded=False):
-        col_path, col_browse = st.columns([4, 1])
-        with col_path:
-            folder_path = st.text_input(
-                "Folder path",
-                value=st.session_state.get("folder_path", ""),
-                placeholder="/var/log/myapp",
-                help="Recursively scans for .log, .txt, .out, .gz files",
-                label_visibility="collapsed",
+_pages[""] = [
+    st.Page("pages/settings.py", title="Settings", icon=":material/settings:"),
+]
+
+pg = st.navigation(_pages)
+
+# --- Global severity/source filters in sidebar (below navigation) ---
+with st.sidebar:
+    a = st.session_state.get("analysis")
+    if a and a.get("events"):
+        st.markdown("---")
+        _filter_events = a["events"]
+        _all_levels = sorted({e.level for e in _filter_events if e.level})
+        _all_sources = sorted({e.system_label for e in _filter_events if e.system_label})
+
+        if _all_levels:
+            st.multiselect(
+                "Severity", options=_all_levels, default=[], key="filter_levels",
+                help="Filter all pages by severity level",
             )
-        with col_browse:
-            if st.button("Browse…", use_container_width=True):
-                _chosen = ""
-                try:
-                    # Try tkinter first (works when available)
-                    import tkinter as _tk
-                    from tkinter import filedialog as _fd
-                    _root = _tk.Tk()
-                    _root.withdraw()
-                    _root.attributes("-topmost", True)
-                    _chosen = _fd.askdirectory(title="Select log folder")
-                    _root.destroy()
-                except Exception:
-                    # Fallback: macOS native folder picker via osascript
-                    try:
-                        import subprocess as _sp
-                        _result = _sp.run(
-                            ["osascript", "-e",
-                             'POSIX path of (choose folder with prompt "Select log folder")'],
-                            capture_output=True, text=True, timeout=60,
-                        )
-                        if _result.returncode == 0 and _result.stdout.strip():
-                            _chosen = _result.stdout.strip().rstrip("/")
-                    except Exception as _os_err:
-                        st.warning(f"Folder picker not available: {_os_err}")
-                if _chosen:
-                    st.session_state["folder_path"] = _chosen
-                    st.rerun()
-
-        # Discover files if path is set
-        _folder_files = []
-        if folder_path and folder_path.strip():
-            from logpilot.discovery import _fmt_size
-            _fp = Path(folder_path.strip()).expanduser()
-            if _fp.is_dir():
-                _disc = discover_log_files(_fp)
-                if _disc.accepted:
-                    st.success(f"Found **{len(_disc.accepted)} files** ({_fmt_size(_disc.total_size)})")
-                    if _disc.truncated:
-                        st.warning(f"⚠ {_disc.truncation_reason}")
-                    with st.container(height=150):
-                        for _df in _disc.accepted:
-                            st.text(f"✓ {_df.relative_path}  ({_fmt_size(_df.size)})")
-                    if _disc.rejected:
-                        with st.expander(f"{len(_disc.rejected)} files skipped"):
-                            for _rf in _disc.rejected[:20]:
-                                st.text(f"✗ {_rf.relative_path} — {_rf.reason}")
-                    _folder_files = _disc.accepted
-                else:
-                    st.warning("No supported log files found in this folder.")
-                    if _disc.rejected:
-                        with st.expander(f"{len(_disc.rejected)} files skipped"):
-                            for _rf in _disc.rejected[:20]:
-                                st.text(f"✗ {_rf.relative_path} — {_rf.reason}")
-            elif folder_path.strip():
-                st.error("Path is not a valid directory.")
-
-    # Format plugins and parsing options
-    _formats = list_formats()
-    _format_names = ["Auto-detect"] + [f["name"] for f in _formats]
-    _format_help = "Auto-detect analyzes the first 50 lines. Force a format if detection fails.\n\n" + \
-                   "\n".join(f"**{f['name']}** — {f['description']}" for f in _formats)
-
-    col_fmt, col_lines = st.columns(2)
-    with col_fmt:
-        _selected_format = st.selectbox(
-            "Log format",
-            _format_names,
-            help=_format_help,
-        )
-    with col_lines:
-        max_lines = st.number_input(
-            "Max lines per file",
-            min_value=1_000, max_value=5_000_000, value=500_000, step=100_000,
-            help="Limit lines read per file. Lower = faster parsing, higher = more complete analysis.",
-        )
-
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        top_n = st.number_input("Top-N items", min_value=1, max_value=50, value=10,
-                                help="Number of top exceptions, message codes, and signal tags shown in the summary.")
-    with col2:
-        samples_n = st.number_input("Sample events", min_value=1, max_value=20, value=5,
-                                    help="Number of representative sample events shown per error category.")
-    with col3:
-        hist_minutes = st.number_input("Histogram bucket (min)", min_value=1, max_value=60, value=1,
-                                       help="Time resolution for the timeline histogram.")
-    with col4:
-        timeline_window = st.number_input("Timeline window (sec)", min_value=5, max_value=300, value=30,
-                                          help="Seconds before/after the first error to include in the incident timeline.")
-
-    sample_info_events = st.checkbox("Sample INFO events (large files)", value=False,
-                                     help="Keep 1 in 10 INFO events to reduce memory. Recommended for access logs >100K lines.")
-
-    _has_input = bool(uploaded_files) or bool(_folder_files)
-    if _has_input and st.button("Analyze", type="primary"):
-        # Size check for uploaded files
-        if uploaded_files:
-            total_size = sum(f.size for f in uploaded_files)
-            _over_limit = total_size > MAX_UPLOAD_MB * 1024 * 1024
-            if _over_limit:
-                st.error(f"Total upload size ({total_size / 1024 / 1024:.1f} MB) exceeds the {MAX_UPLOAD_MB} MB limit. Please upload smaller files.")
-                st.stop()
-            elif total_size > 50 * 1024 * 1024:
-                st.warning("Large files detected (>50MB). Parsing may take a while.")
-
-        all_events = []
-
-        # --- Parse uploaded files ---
-        import hashlib as _hl
-        _session_uploads: set[str] = set()
-        _upload_count = len(uploaded_files) if uploaded_files else 0
-        _total_files = _upload_count + len(_folder_files)
-        _progress = st.progress(0, text=f"Parsing 0/{_total_files} files...")
-
-        if uploaded_files:
-            for uploaded in uploaded_files:
-                safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
-                content = uploaded.getvalue()
-                _hash = _hl.md5(content).hexdigest()[:10]
-                upload_name = f"{_hash}_{safe_name}"
-                upload_path = UPLOADS_DIR / upload_name
-                if not upload_path.resolve().is_relative_to(UPLOADS_DIR.resolve()):
-                    st.error(f"Invalid filename: {uploaded.name}")
-                    continue
-                _session_uploads.add(upload_path.name)
-                if not upload_path.exists():
-                    upload_path.write_bytes(content)
-                    log.info("upload File saved: %s (%d bytes)", upload_name, len(content))
-                else:
-                    log.info("upload File reused (identical): %s", upload_name)
-
-            # Remove old uploads not in this batch
-            for old_file in UPLOADS_DIR.iterdir():
-                if old_file.name not in _session_uploads and old_file.is_file():
-                    old_file.unlink()
-                    log.info("upload Cleaned old upload: %s", old_file.name)
-
-            # Parse each uploaded file
-            for _file_idx, uploaded in enumerate(uploaded_files):
-                safe_name = "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100] or "upload.log"
-                _hash = _hl.md5(uploaded.getvalue()).hexdigest()[:10]
-                upload_path = UPLOADS_DIR / f"{_hash}_{safe_name}"
-
-                _progress.progress(_file_idx / _total_files,
-                                   text=f"Parsing {uploaded.name} ({_file_idx + 1}/{_total_files})...")
-                try:
-                    _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
-                    events = parse_file_cached(upload_path, content_hash=_hash,
-                                               cache_dir=UPLOADS_DIR / ".cache",
-                                               max_lines=max_lines, format_name=_fmt_name,
-                                               sample_info=10 if sample_info_events else 0)
-                    _stem = uploaded.name.rsplit(".", 1)[0] if "." in uploaded.name else uploaded.name
-                    for ev in events:
-                        ev.system_label = _stem
-                    all_events.extend(events)
-                    log.info("analysis Parsed %d events from %s", len(events), uploaded.name)
-                except Exception as ex:
-                    log.error("analysis Failed to parse %s: %s", uploaded.name, ex)
-                    st.error(f"Failed to parse {uploaded.name}: {ex}")
-
-        # --- Parse folder files (read directly from disk) ---
-        for _fi, _df in enumerate(_folder_files):
-            _idx = _upload_count + _fi
-            _progress.progress(_idx / _total_files,
-                               text=f"Parsing {_df.relative_path} ({_idx + 1}/{_total_files})...")
-            try:
-                _fmt_name = None if _selected_format == "Auto-detect" else _selected_format
-                events = parse_file(_df.path, max_lines=max_lines, format_name=_fmt_name)
-                _stem = _df.path.stem if _df.path.suffix.lower() != ".gz" else Path(_df.path.stem).stem
-                _label = f"{_df.group}/{_stem}" if _df.group else _stem
-                for ev in events:
-                    ev.system_label = _label
-                all_events.extend(events)
-                log.info("analysis Parsed %d events from %s", len(events), _df.relative_path)
-            except Exception as ex:
-                log.error("analysis Failed to parse %s: %s", _df.relative_path, ex)
-                st.error(f"Failed to parse {_df.relative_path}: {ex}")
-
-        _progress.progress(1.0, text=f"Parsed {_total_files} files ({len(all_events):,} events). Analyzing...")
-
-        # Sort all events chronologically across files
-        from logpilot.analysis import sort_events_chronologically
-        sort_events_chronologically(all_events)
-
-        if not all_events:
-            st.error("No log events found. Possible causes: files may be empty, contain no recognizable timestamps, or use an unsupported format.")
-        else:
-            def _analysis_progress(text: str, frac: float) -> None:
-                _progress.progress(frac, text=text)
-            pa = precompute_analysis(all_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes, progress_callback=_analysis_progress)
-            s = pa["summary"]
-            error_count = sum(1 for e in all_events if e.level in ("ERROR", "SEVERE", "FATAL"))
-            file_summary = pa["file_summary"]
-            causes = pa["causes"]
-            hist = pa["hist"]
-            hung = pa["hung"]
-            samples = pa["samples"]
-            report_md = render_markdown_report(all_events, _analysis=pa)
-            report_json = render_json_report(all_events, _analysis=pa)
-
-            log.info("analysis Analysis complete: %d events, %d errors, %d causes, %d hung threads",
-                     len(all_events), error_count, len(causes), len(hung))
-            if s["codes"]:
-                log.info("analysis Top codes: %s", ", ".join(f"{c}({n})" for c, n in s["codes"][:5]))
-            if s["exceptions"]:
-                log.info("analysis Top exceptions: %s", ", ".join(f"{e}({n})" for e, n in s["exceptions"][:5]))
-            log.info("analysis Analysis complete")
-
-            itl = incident_timeline(all_events, window_seconds=timeline_window)
-
-            st.session_state.analysis = {
-                "events": all_events,
-                "summary": s,
-                "error_count": error_count,
-                "file_count": _total_files,
-                "file_summary": file_summary,
-                "causes": causes,
-                "hist": hist,
-                "hung": hung,
-                "samples": samples,
-                "cascades": pa.get("cascades", []),
-                "grouped": pa.get("grouped"),
-                "failure_chain": pa.get("failure_chain", {}),
-                "incident_timeline": itl,
-                "total_events": len(all_events),
-                "report_md": report_md,
-                "report_json": report_json,
-                "top_n": top_n,
-                "samples_n": samples_n,
-                "hist_minutes": hist_minutes,
-            }
-            st.session_state.claude_answer = None
-            st.session_state.claude_query_label = None
-            st.session_state.claude_history = []
-            st.session_state.selected_code = None
-            st.session_state.selected_action = None
-            st.session_state._incident_answer = None
-            st.session_state._leadership_brief = None
-            provider_history_manager.save("claude", [])
-
-    a = st.session_state.analysis
-    if a is not None:
-        # Re-compute analysis if display parameters changed
-        _heavy_changed = (
-            a.get("top_n") != top_n
-            or a.get("hist_minutes") != hist_minutes
-        )
-        _samples_only = (not _heavy_changed and a.get("samples_n") != samples_n)
-        if _samples_only and a.get("events"):
-            # Only samples_n changed — cheap resample without full recomputation
-            from logpilot.analysis import pick_samples
-            _events = a["events"]
-            a["samples"] = pick_samples(_events, samples_n)
-            a["samples_n"] = samples_n
-        elif _heavy_changed and a.get("events"):
-            _events = a["events"]
-            _pa = precompute_analysis(_events, top_n=top_n, samples_n=samples_n, hist_minutes=hist_minutes)
-            _report_md = render_markdown_report(_events, _analysis=_pa)
-            _report_json = render_json_report(_events, _analysis=_pa)
-            a.update({
-                "summary": _pa["summary"],
-                "file_summary": _pa["file_summary"],
-                "causes": _pa["causes"],
-                "hist": _pa["hist"],
-                "hung": _pa["hung"],
-                "samples": _pa["samples"],
-                "grouped": _pa.get("grouped"),
-                "failure_chain": _pa.get("failure_chain", {}),
-                "report_md": _report_md,
-                "report_json": _report_json,
-                "top_n": top_n,
-                "samples_n": samples_n,
-                "hist_minutes": hist_minutes,
-            })
-        render_report_sections(a, log=log, lookup_cache=_lookup_cache, store_cache=_store_cache)
-    elif not uploaded_files:
-        st.info("Upload one or more log files (.log or .gz) above, then click **Analyze** to generate a triage report.")
-
-with tab_realtime:
-    st.session_state.rt_enabled = True
-
-    _scan_dirs = [
-        _APP_DIR, UPLOADS_DIR, Path.cwd(), Path.home(),
-        Path("/opt/IBM/WebSphere/AppServer/profiles"),
-        Path("/var/log"),
-    ]
-    _found_logs: list[str] = []
-    for _d in _scan_dirs:
-        try:
-            if _d.is_dir():
-                for _f in sorted(_d.glob("*.log"))[:10]:
-                    if _f.is_file() and str(_f) not in _found_logs:
-                        _found_logs.append(str(_f))
-        except (OSError, PermissionError):
-            continue
-
-    _col_path, _col_pick = st.columns(2)
-    with _col_path:
-        _rt_path = st.text_input(
-            "Log file path",
-            value=st.session_state.rt_file,
-            placeholder="/var/log/app/application.log",
-            key="rt_file_tab",
-        )
-        if _rt_path != st.session_state.rt_file:
-            st.session_state.rt_file = _rt_path
-    with _col_pick:
-        if _found_logs:
-            _pick = st.selectbox(
-                "Or pick a detected log file",
-                options=[""] + _found_logs,
-                format_func=lambda x: "— select —" if x == "" else Path(x).name + f"  ({x})",
-                key="rt_file_pick_tab",
-            )
-            if _pick and _pick != st.session_state.rt_file:
-                st.session_state.rt_file = _pick
-                st.rerun()
-
-    _rt_live_view(log)
-
-with tab_audit:
-    _audit_html_path = _APP_DIR / "AUDIT_REPORT.html"
-
-    col_model, col_run, col_dl = st.columns([2, 1, 1])
-    with col_model:
-        _audit_model = st.selectbox(
-            "Model",
-            list(_AUDIT_MODELS.keys()),
-            key="audit_model",
-            label_visibility="collapsed",
-        )
-    with col_run:
-        _run_clicked = st.button("Run Audit", type="primary",
-                                 help="Analyze the codebase and generate a fresh audit report")
-    with col_dl:
-        if _audit_html_path.is_file():
-            _existing_html = _audit_html_path.read_text(encoding="utf-8")
-            st.download_button(
-                label="Download HTML",
-                data=_existing_html,
-                file_name="AUDIT_REPORT.html",
-                mime="text/html",
-                key="dl_audit_report",
+        if len(_all_sources) > 1:
+            st.multiselect(
+                "Source", options=_all_sources, default=[], key="filter_sources",
+                help="Filter all pages by log source",
             )
 
-    if _run_clicked:
-        _provider = _AUDIT_MODELS[_audit_model]["provider"]
-        _model_id = _AUDIT_MODELS[_audit_model]["id"]
-        log.info("audit Running audit report with %s (%s)...", _audit_model, _model_id)
-        st.toast(f"Starting audit with {_audit_model}...", icon="⏳")
-        with st.status(f"Running audit with {_model_id}...", expanded=True) as _audit_status:
-            try:
-                _fresh_html = _run_audit(_audit_model, log, status=_audit_status)
-                _audit_status.update(label="Audit complete!", state="complete")
-                log.info("audit Audit report complete (%s)", _model_id)
-                st.toast("Audit report complete!", icon="✅")
-                st.rerun()
-            except Exception as ex:
-                log.error("audit Audit failed: %s", ex)
-                _audit_status.update(label="Audit failed", state="error")
-                st.error(f"Audit failed: {ex}")
-
-    if _audit_html_path.is_file():
-        _audit_html = _audit_html_path.read_text(encoding="utf-8")
-        # Inject theme override: force dark or light based on app setting
-        _app_theme = st.session_state.get("_app_theme", "system")
-        if _app_theme == "dark":
-            _theme_css = '<style>html { --bg-primary:#0d1117; --bg-secondary:#010409; --bg-tertiary:#161b22; --bg-hover:#1c2128; --border:#21262d; --border-strong:#30363d; --text-primary:#e6edf3; --text-secondary:#c9d1d9; --text-muted:#8b949e; --text-heading:#f0f6fc; --accent:#a78bfa; --green:#6fdd8b; --green-bg:#1b4332; --yellow:#f0c74f; --yellow-bg:#3d2e00; --red:#f47067; --red-bg:#4a1e1e; --blue:#58a6ff; --blue-bg:#1a2332; --purple:#bc8cff; --purple-bg:#272145; } nav { display:none !important; } .layout { display:block !important; } main { max-width:800px !important; margin:0 !important; padding:20px !important; }</style>'
-        else:
-            _theme_css = _AUDIT_LIGHT_CSS
-        _audit_styled = _audit_html.replace("</head>", _theme_css + "</head>")
-        st.components.v1.html(_audit_styled, height=2000, scrolling=True)
-    else:
-        st.info("No audit report yet. Select a model above and click **Run Audit** to analyze the codebase.")
-
-with tab_spend:
-    render_spend_tab()
-
-if tab_debug is not None:
-    with tab_debug:
-        _debug_sub_applog, _debug_sub_probe = st.tabs(["Application Log", "Probe"])
-
-        with _debug_sub_applog:
-            _log_level_filter = st.selectbox(
-                "Filter by level",
-                ["ALL", "INFO", "WARNING", "ERROR"],
-                key="log_level_filter",
-            )
-            if LOG_FILE.exists():
-                _raw_lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()
-                if _log_level_filter != "ALL":
-                    _raw_lines = [l for l in _raw_lines if f" {_log_level_filter:<5s}" in l
-                                  or f" {_log_level_filter} " in l]
-                _display_lines = _raw_lines[-100:]
-                if _display_lines:
-                    st.code("\n".join(_display_lines), language="log")
-                else:
-                    st.caption("No matching log entries.")
-            else:
-                st.info("No application log yet. The log will appear here as you use the app.")
-
-        with _debug_sub_probe:
-            _probe_log = st.session_state.get("_ai_probe_log", [])
-            if _probe_log:
-                if st.button("Clear Probe Log", key="clear_probe_log"):
-                    st.session_state._ai_probe_log = []
-                    st.rerun()
-                for _entry in reversed(_probe_log):
-                    _ts = _entry.get("ts", "")
-                    _type = _entry.get("type", "")
-                    _provider = _entry.get("provider", "")
-                    _model = _entry.get("model", "")
-                    _error = _entry.get("error")
-                    _icon = "!" if _error else ">"
-                    _header = f"[{_icon}] {_ts}  {_type}  ({_provider} / {_model})"
-                    if _error:
-                        _header += f"  ERROR: {_error[:80]}"
-                    with st.expander(_header, expanded=False):
-                        _req = _entry.get("request", "")
-                        _resp = _entry.get("response", "")
-                        if _req:
-                            st.markdown("**Request payload**")
-                            st.code(_req[:20000], language="text")
-                            st.button("Copy request", key=f"copy_req_{_entry['ts']}_{id(_entry)}",
-                                      on_click=lambda r=_req: st.session_state.update({"_clipboard": r}))
-                        if _resp:
-                            st.markdown("**Response payload**")
-                            st.code(_resp[:20000], language="markdown")
-                            st.button("Copy response", key=f"copy_resp_{_entry['ts']}_{id(_entry)}",
-                                      on_click=lambda r=_resp: st.session_state.update({"_clipboard": r}))
-                        if _error:
-                            st.markdown("**Error**")
-                            st.code(_error, language="text")
-            else:
-                st.info("No AI calls recorded yet. Use Ask AI, Cross-System Triage, or Audit Report to see payloads here.")
+pg.run()
