@@ -181,10 +181,10 @@ class TestCloudProvidersUnaffected:
         assert cfg["api_key_prefix"] == "sk-"
 
     def test_cloud_models_still_present(self):
-        from app_ai import AI_MODELS
-        assert "Claude Sonnet 4.6" in AI_MODELS
-        assert "Gemini 2.5 Flash" in AI_MODELS
-        assert "GPT-4o" in AI_MODELS
+        from app_ai import _ALL_AI_MODELS
+        assert "Claude Sonnet 4.6" in _ALL_AI_MODELS
+        assert "Gemini 2.5 Flash" in _ALL_AI_MODELS
+        assert "GPT-4o" in _ALL_AI_MODELS
 
     def test_token_costs_unchanged(self):
         from app_constants import TOKEN_COSTS
