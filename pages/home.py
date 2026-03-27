@@ -17,8 +17,6 @@ from logpilot import (
 from logpilot.formats import list_formats
 from logpilot.discovery import discover_log_files
 from logpilot.analysis import sort_events_chronologically
-from app_ai import AI_MODELS
-from logpilot.license import allowed_providers, require_license
 
 st.title("Analyze Logs")
 
@@ -176,29 +174,6 @@ _symptoms = st.text_area(
 )
 st.session_state._incident_description = _symptoms
 
-# --- AI model selector ---
-if require_license():
-    _lic_providers = allowed_providers(st.session_state.get("license_key", ""))
-    _available_models = [
-        name for name, cfg in AI_MODELS.items()
-        if cfg["provider"] in _lic_providers
-    ]
-else:
-    _available_models = list(AI_MODELS.keys())
-if not _available_models:
-    _available_models = [name for name, cfg in AI_MODELS.items() if cfg["provider"] == "local"]
-
-# Restore previous selection if still available
-_prev_model = st.session_state.get("_selected_ai_model", "")
-_model_index = _available_models.index(_prev_model) if _prev_model in _available_models else 0
-
-_selected_model = st.selectbox(
-    "AI Model",
-    _available_models,
-    index=_model_index,
-    help="Model used for AI analysis. Requires API key in Settings.",
-)
-st.session_state._selected_ai_model = _selected_model
 
 # --- Analyze button ---
 _has_input = bool(uploaded_files) or bool(_folder_files)

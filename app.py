@@ -805,6 +805,31 @@ pg = st.navigation(_pages, expanded=False)
 
 # --- Global severity/source filters in sidebar (below navigation) ---
 with st.sidebar:
+    # --- AI Model selector (global) ---
+    from app_ai import AI_MODELS
+    from logpilot.license import allowed_providers as _allowed_providers
+    if require_license():
+        _lic_providers = _allowed_providers(st.session_state.get("license_key", ""))
+        _available_models = [
+            name for name, cfg in AI_MODELS.items()
+            if cfg["provider"] in _lic_providers
+        ]
+    else:
+        _available_models = list(AI_MODELS.keys())
+    if not _available_models:
+        _available_models = [name for name, cfg in AI_MODELS.items() if cfg["provider"] == "local"]
+
+    _prev_model = st.session_state.get("_selected_ai_model", "")
+    _model_index = _available_models.index(_prev_model) if _prev_model in _available_models else 0
+    st.selectbox(
+        "AI Model",
+        _available_models,
+        index=_model_index,
+        key="_selected_ai_model",
+        help="Model used for AI analysis. Requires API key in Settings.",
+    )
+
+    # --- Severity / Source filters ---
     a = st.session_state.get("analysis")
     if a and a.get("events"):
         st.markdown("---")
