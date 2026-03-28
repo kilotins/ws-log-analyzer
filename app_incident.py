@@ -38,6 +38,94 @@ from logpilot.license import require_license, allowed_providers, is_model_allowe
 
 _SUPPORTED_IMAGE_TYPES = ["png", "jpg", "jpeg", "gif", "webp"]
 
+import re
+
+def _extract_exclude_hints(description: str) -> list[str]:
+    """Extract exclude keywords from symptom text.
+
+    Only matches explicit exclusion phrases followed by identifiers:
+    - "ignore X", "skip X", "exclude X", "disregard X"
+    - "don't focus on X", "do not focus on X"
+    - "not related to X", "not about X"
+    - "anything related to X"
+
+    X must look like an identifier: domain name, code, hyphenated term, or CamelCase.
+    Plain English phrases like "do not appear to be encrypted" are NOT matched.
+    """
+    if not description:
+        return []
+    # Match explicit exclusion verbs followed by identifiers
+    patterns = [
+        # "ignore/skip/exclude/disregard [anything related to] <identifier>"
+        r"(?:ignore|skip|exclude|disregard)\s+(?:anything\s+)?(?:related\s+to\s+|about\s+|regarding\s+)?([a-zA-Z0-9][\w.*-]*(?:\.[a-zA-Z0-9][\w-]*)+)",
+        r"(?:ignore|skip|exclude|disregard)\s+(?:anything\s+)?(?:related\s+to\s+|about\s+|regarding\s+)?([a-zA-Z][\w-]*(?:-[\w]+)+)",
+        r"(?:ignore|skip|exclude|disregard)\s+(?:anything\s+)?(?:related\s+to\s+|about\s+|regarding\s+)?([A-Z][a-z]+(?:[A-Z][a-z]+)+)",
+        # "don't/do not focus on [anything related to] <identifier>"
+        r"(?:do\s*n[o']?t|don't)\s+focus\s+on\s+(?:anything\s+)?(?:related\s+to\s+)?([a-zA-Z0-9][\w.*-]*(?:\.[a-zA-Z0-9][\w-]*)+)",
+        r"(?:do\s*n[o']?t|don't)\s+focus\s+on\s+(?:anything\s+)?(?:related\s+to\s+)?([a-zA-Z][\w-]*(?:-[\w]+)+)",
+        r"(?:do\s*n[o']?t|don't)\s+focus\s+on\s+(?:anything\s+)?(?:related\s+to\s+)?([A-Z][a-z]+(?:[A-Z][a-z]+)+)",
+        # "not related to <identifier>"
+        r"not\s+related\s+to\s+([a-zA-Z0-9][\w.*-]*(?:\.[a-zA-Z0-9][\w-]*)+)",
+        r"not\s+related\s+to\s+([a-zA-Z][\w-]*(?:-[\w]+)+)",
+        # Fallback: "ignore/skip <single-word>" but only if word has 4+ chars and isn't common English
+        r"(?:ignore|skip|exclude|disregard)\s+([a-zA-Z]\w{3,})",
+    ]
+    _common_english = {
+        "anything", "everything", "something", "nothing", "errors", "error",
+        "issues", "issue", "problems", "problem", "warnings", "messages",
+        "events", "logs", "that", "this", "those", "these", "them", "they",
+        "focus", "likely", "probably", "possibly", "also", "just", "only",
+        "encrypted", "properly", "appear", "related", "about",
+    }
+    hints = []
+    for pat in patterns:
+        for m in re.finditer(pat, description, re.IGNORECASE):
+            word = m.group(1).strip().rstrip(".")
+            if word.lower() not in _common_english:
+                hints.append(word.lower())
+    return list(set(hints))
+
+
+def _strip_exclude_sentences(description: str) -> str:
+    """Remove sentences containing exclude directives from symptom text.
+
+    Strips sentences like 'Do not focus on anything related to no.fiskeridir.'
+    so the AI only sees the actual symptom description.
+    """
+    if not description:
+        return description
+    # Split on sentence boundaries (. or — followed by space/newline)
+    sentences = re.split(r'(?<=[.!?])\s+|(?<=—)\s+', description)
+    _exclude_verbs = re.compile(
+        r'\b(?:do\s*n[o\']?t|don\'t)\s+focus\s+on\b'
+        r'|\b(?:ignore|skip|exclude|disregard)\s+(?:anything\s+)?(?:related\s+to\s+)?'
+        r'|\bnot\s+related\s+to\b',
+        re.IGNORECASE,
+    )
+    kept = [s for s in sentences if not _exclude_verbs.search(s)]
+    return " ".join(kept).strip()
+
+
+def _apply_exclude_filter(events, causes, exclude_patterns):
+    """Filter events and heuristic causes by exclude patterns. Returns (filtered_events, filtered_causes)."""
+    if not exclude_patterns:
+        return events, causes
+
+    def _matches(text):
+        text_lower = text.lower() if text else ""
+        return any(pat in text_lower for pat in exclude_patterns)
+
+    filtered_events = [
+        e for e in events
+        if not _matches(e.text) and not _matches(getattr(e, "exception", "") or "")
+    ]
+    filtered_causes = [
+        c for c in causes
+        if not _matches(c.get("label", "")) and not _matches(c.get("description", ""))
+           and not _matches(str(c.get("sample_events", [])))
+    ]
+    return filtered_events, filtered_causes
+
 
 def _build_multimodal_messages(
     system_prompt: str,
@@ -301,13 +389,41 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     sources = set(e.system_label or "" for e in events)
     is_multi_source = len(sources) >= 2
 
-    # --- Read inputs from Home page (session state) ---
-    description = st.session_state.get("_incident_description", "")
+    # --- AI model check ---
     selected_model = st.session_state.get("_selected_ai_model", "")
 
     if not selected_model or selected_model not in AI_MODELS:
         st.warning("Select an AI model on the **Home** page first.")
         return
+
+    # --- Symptoms / incident description ---
+    st.text_area(
+        "Describe symptoms (optional)",
+        placeholder="e.g. Users get 502 errors since 14:00, restart did not help...",
+        help="Give AI context about what you're investigating.",
+        key="_incident_description",
+    )
+    description = st.session_state.get("_incident_description", "")
+
+    # --- Exclude patterns (explicit + auto-extracted from symptoms) ---
+    st.text_input(
+        "Exclude from AI (comma-separated)",
+        placeholder="e.g. fiskeridir, legacy-module, WARN0042",
+        help="Events and heuristics matching these keywords are filtered out before AI analysis.",
+        key="_ai_exclude_patterns",
+    )
+    _explicit_excludes = [
+        p.strip().lower() for p in
+        st.session_state.get("_ai_exclude_patterns", "").split(",")
+        if p.strip()
+    ]
+    _auto_excludes = _extract_exclude_hints(description)
+    exclude_patterns = list(set(_explicit_excludes + _auto_excludes))
+    if exclude_patterns:
+        st.caption(f"Excluding: {', '.join(exclude_patterns)}")
+    if log:
+        log.info("ai exclude debug: explicit=%s auto=%s combined=%s desc_len=%d",
+                 _explicit_excludes, _auto_excludes, exclude_patterns, len(description))
 
     # Show what we're working with
     _model_info_label = f"**Model:** {selected_model}"
@@ -404,8 +520,14 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     else:
         st.caption(f"Est. ~{_est_input:,} input tokens · free (local model)")
 
-    # Previous AI answer for conversation context
+    # Previous AI answer for conversation context (filter out excluded patterns)
     previous_answer = st.session_state.get("_incident_answer")
+    if previous_answer and exclude_patterns:
+        # Remove previous analysis if it contains excluded terms — forces fresh analysis
+        _prev_lower = previous_answer.lower()
+        if any(pat in _prev_lower for pat in exclude_patterns):
+            previous_answer = None
+            st.caption("Previous analysis cleared (contained excluded terms)")
     cached_answer = previous_answer
 
     # --- Handle button clicks ---
@@ -431,13 +553,14 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
                 pass  # Error already shown
             else:
                 answer = _run_analysis(
-                    events=events, description=description if not triage_clicked else "",
+                    events=events, description=description,
                     summary=summary, causes=causes, itl=itl, cascades=cascades,
+                    exclude_patterns=exclude_patterns,
                     detected_format=detected_format, is_multi_source=is_multi_source,
                     is_triage=triage_clicked,
                     image_bytes=image_bytes, mime_type=mime_type,
                     provider=provider, model_id=model_id, selected_model=selected_model,
-                    previous_answer=previous_answer if not triage_clicked else None,
+                    previous_answer=previous_answer,
                     log=log, lookup_cache=lookup_cache, store_cache=store_cache,
                     images=images,
                 )
@@ -505,7 +628,7 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
                   detected_format, is_multi_source, is_triage,
                   image_bytes, mime_type, provider, model_id, selected_model,
                   previous_answer, log, lookup_cache, store_cache,
-                  images=None):
+                  images=None, exclude_patterns=None):
     """Build prompt, check cache, call AI, save to history. Returns answer or None."""
 
     # --- Build per-source data (for multi-source) ---
@@ -556,11 +679,18 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
     else:
         events_for_ai = events
 
+    # --- Exclude filter (keyword-based) ---
+    if exclude_patterns:
+        events_for_ai, causes = _apply_exclude_filter(events_for_ai, causes, exclude_patterns)
+        if log:
+            log.info("ai exclude: %d patterns, %d events after filter",
+                     len(exclude_patterns), len(events_for_ai))
+
     # --- Error events ---
     error_events = [e for e in events_for_ai if e.level in ERROR_LEVELS][:5]
 
-    # Use filtered events for AI prompt if noise filter is active
-    if noise_threshold > 0 and len(events_for_ai) < len(events):
+    # Use filtered events for AI prompt if noise or exclude filter is active
+    if len(events_for_ai) < len(events):
         from logpilot.analysis import summarize as _summarize_fn
         ai_summary = _summarize_fn(events_for_ai, 10)
     else:
@@ -579,9 +709,10 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
             code_matches_for_ai = [m.to_dict() for m in _cached_matches[:5]]
 
     # --- User prompt ---
-    query_label = description or "Cross-system analysis of all uploaded logs"
+    # Strip exclude sentences from description before sending to AI
+    prompt_description = _strip_exclude_sentences(description) if exclude_patterns else description
     user_text = build_incident_user_prompt(
-        description=query_label,
+        description=prompt_description,
         summary=ai_summary,
         causes=causes,
         itl=itl,
@@ -597,6 +728,7 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
     )
 
     # --- Cache ---
+    history_label = description or "Log analysis"
     if is_triage:
         cache_key = "triage:" + triage_cache_key(events, model_id)
     else:
@@ -607,10 +739,10 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
 
     cached = None
     if lookup_cache and provider != "local" and image_bytes is None:
-        cached = lookup_cache(cache_key, session_cache, f"ai/{provider}", query_label[:60])
+        cached = lookup_cache(cache_key, session_cache, f"ai/{provider}", history_label[:60])
 
     if cached:
-        _save_to_history(query_label, cached, provider, selected_model)
+        _save_to_history(history_label, cached, provider, selected_model)
         st.info("AI analysis loaded from cache.")
         return cached
 
@@ -619,10 +751,10 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
 
     answer = _run_ai_call(
         provider, model_id, selected_model, msg_dict, image_bytes,
-        query_label, cache_key, session_cache, log, store_cache,
+        history_label, cache_key, session_cache, log, store_cache,
     )
     if answer:
-        _save_to_history(query_label, answer, provider, selected_model)
+        _save_to_history(history_label, answer, provider, selected_model)
     return answer
 
 

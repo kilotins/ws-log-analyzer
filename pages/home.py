@@ -164,17 +164,6 @@ sample_info_events = st.checkbox(
     help="Keep 1 in 10 INFO events to reduce memory. Recommended for access logs >100K lines.",
 )
 
-# --- Symptoms / incident description ---
-_symptoms = st.text_area(
-    "Describe symptoms (optional)",
-    value=st.session_state.get("_incident_description", ""),
-    placeholder="e.g. Users get 502 errors since 14:00, restart did not help...",
-    help="Give AI context about what you're investigating.",
-    key="_symptoms_input",
-)
-st.session_state._incident_description = _symptoms
-
-
 # --- Analyze button ---
 _has_input = bool(uploaded_files) or bool(_folder_files)
 if _has_input and st.button("Analyze", type="primary", use_container_width=False):

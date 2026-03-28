@@ -476,6 +476,7 @@ _STATE_DEFAULTS = {
     "_local_settings_loaded": False,
     "local_ai_preset": "LM Studio",
     "_incident_description": "",
+    "_ai_exclude_patterns": "",
     "_incident_screenshot": None,
     "_incident_answer": None,
     "_incident_model": None,
@@ -532,6 +533,15 @@ if not st.session_state._local_settings_loaded:
         st.session_state._local_saved_preset = _saved_local.get("preset", "")
         st.session_state._local_prev_preset = _saved_local.get("preset", "")
     st.session_state._local_settings_loaded = True
+
+# Load persisted license key on fresh session
+if not st.session_state.license_key:
+    _LICENSE_FILE = CACHE_DIR / ".license_key"
+    try:
+        if _LICENSE_FILE.exists():
+            st.session_state.license_key = _LICENSE_FILE.read_text().strip()
+    except Exception:
+        pass
 
 # Load persisted theme on fresh session
 _THEME_FILE = CACHE_DIR / ".theme.json"

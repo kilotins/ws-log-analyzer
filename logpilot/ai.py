@@ -847,11 +847,12 @@ def build_incident_user_prompt(
         parts.append("</previous_analysis>")
         parts.append("")
 
-    # 1. User symptom
-    parts.append("<symptom_description>")
-    parts.append(_sanitize_prompt_input(description))
-    parts.append("</symptom_description>")
-    parts.append("")
+    # 1. User symptom (only if provided)
+    if description and description.strip():
+        parts.append("<symptom_description>")
+        parts.append(_sanitize_prompt_input(description))
+        parts.append("</symptom_description>")
+        parts.append("")
 
     if has_screenshot:
         parts.append("(A screenshot of the symptom is attached as an image above.)")

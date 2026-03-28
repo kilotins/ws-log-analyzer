@@ -18,6 +18,7 @@ COPY logpilot/ logpilot/
 COPY app.py app_ai.py app_render.py app_incident.py app_audit.py \
      app_spend.py app_realtime.py app_jira.py app_constants.py \
      report_renderer.py ./
+COPY pages/ pages/
 COPY skills/ skills/
 COPY assets/ assets/
 COPY .streamlit/ .streamlit/
