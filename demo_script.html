@@ -334,11 +334,12 @@ li { margin: 3px 0; }
     <a class="nav-link" href="#sect-05"><span class="num">5</span> AI Analysis</a>
     <a class="nav-link" href="#sect-06"><span class="num">6</span> Timeline</a>
     <a class="nav-link" href="#sect-07"><span class="num">7</span> Events Browser</a>
-    <a class="nav-link" href="#sect-08"><span class="num">8</span> Reports &amp; Export</a>
-    <a class="nav-link" href="#sect-09"><span class="num">9</span> Jira &amp; Confluence</a>
-    <a class="nav-link" href="#sect-10"><span class="num">10</span> Settings</a>
-    <a class="nav-link" href="#sect-11"><span class="num">11</span> Key Differentiators</a>
-    <a class="nav-link" href="#sect-12"><span class="num">12</span> Closing</a>
+    <a class="nav-link" href="#sect-08"><span class="num">8</span> Trace to Code</a>
+    <a class="nav-link" href="#sect-09"><span class="num">9</span> Reports &amp; Export</a>
+    <a class="nav-link" href="#sect-10"><span class="num">10</span> Jira &amp; Confluence</a>
+    <a class="nav-link" href="#sect-11"><span class="num">11</span> Settings</a>
+    <a class="nav-link" href="#sect-12"><span class="num">12</span> Key Differentiators</a>
+    <a class="nav-link" href="#sect-13"><span class="num">13</span> Closing</a>
   </div>
   <div class="nav-controls">
     <button onclick="expandAll()">Expand all</button>
@@ -827,13 +828,84 @@ li { margin: 3px 0; }
   </details>
 
   <!-- ======================================================
-       SECTION 8 — Reports & Export
+       SECTION 8 — Trace to Code
        ====================================================== -->
   <details class="section" id="sect-08">
     <summary>
       <span class="section-title">
         <span class="section-header">
-          8. Reports &amp; Export
+          8. Trace to Code
+          <span class="timing-pill">1.5 min</span>
+        </span>
+      </span>
+      <span class="badge badge-bad section-badge">NEW</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          Trace to Code connects the dots between your log errors and your actual source code.
+          When LogPilot finds stacktraces in your logs, it extracts the file names and line numbers,
+          then searches your linked source code repository to find the matching code.
+          You see the exact code that triggered each error — with syntax highlighting and context.
+        </p>
+        <p>
+          But here's where it gets powerful: when you run the AI Analysis, the matched source code
+          is included in the AI prompt. The AI doesn't just tell you what went wrong — it can see
+          your code and suggest specific fixes. Those suggestions appear right on the Trace to Code
+          page, next to each matched file. It's like having a senior developer reviewing your code
+          alongside the production logs.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Go to <strong>Settings</strong> → Source Code Path — link a repository</li>
+          <li>Show that <strong>Trace to Code</strong> appears in the navigation</li>
+          <li>Navigate to the page — show matched files with code snippets</li>
+          <li>Point out the confidence badges: green (exact), yellow (file), grey (grep)</li>
+          <li>Show "Run AI Analysis to get code fix suggestions"</li>
+          <li>Go to <strong>AI Analysis</strong> and run analysis</li>
+          <li>Return to <strong>Trace to Code</strong> — show the AI fix suggestions per file</li>
+          <li>Highlight the before/after code changes suggested by AI</li>
+        </ul>
+      </div>
+
+      <h4>Supported stacktrace formats</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Language</th><th>Format</th><th>Frameworks filtered</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Java</strong></td><td>Standard <code>at</code> frames</td><td>Spring, Hibernate, Tomcat, WAS, Enonic XP, Kafka, HikariCP + 30 more</td></tr>
+            <tr><td><strong>Nashorn/Enonic</strong></td><td>Script frames in Enonic XP</td><td>Enonic XP framework (<code>/lib/xp/</code>)</td></tr>
+            <tr><td><strong>Python</strong></td><td><code>File</code> traceback</td><td>Django, Flask, FastAPI, Celery, SQLAlchemy, Gunicorn</td></tr>
+            <tr><td><strong>Node.js</strong></td><td>V8 <code>at</code> frames</td><td>Express, Koa, Fastify, Next.js, Pino, Winston</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tip-block">
+        <div class="block-label">Key talking point</div>
+        <p>
+          No other log analyzer does this. You upload logs, link your repo, and the AI tells you
+          exactly which line of code to fix — with a before/after diff. From production error
+          to code fix in minutes, not hours.
+        </p>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 9 — Reports & Export
+       ====================================================== -->
+  <details class="section" id="sect-09">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          9. Reports &amp; Export
           <span class="timing-pill">1 min</span>
         </span>
       </span>
@@ -884,13 +956,13 @@ li { margin: 3px 0; }
   </details>
 
   <!-- ======================================================
-       SECTION 9 — Jira & Confluence Integration
+       SECTION 10 — Jira & Confluence Integration
        ====================================================== -->
-  <details class="section" id="sect-09">
+  <details class="section" id="sect-10">
     <summary>
       <span class="section-title">
         <span class="section-header">
-          9. Jira &amp; Confluence Integration
+          10. Jira &amp; Confluence Integration
           <span class="timing-pill">1 min</span>
         </span>
       </span>
@@ -937,13 +1009,13 @@ li { margin: 3px 0; }
   </details>
 
   <!-- ======================================================
-       SECTION 10 — Settings & Configuration
+       SECTION 11 — Settings & Configuration
        ====================================================== -->
-  <details class="section" id="sect-10">
+  <details class="section" id="sect-11">
     <summary>
       <span class="section-title">
         <span class="section-header">
-          10. Settings &amp; Configuration
+          11. Settings &amp; Configuration
           <span class="timing-pill">30 sec</span>
         </span>
       </span>
@@ -1000,13 +1072,13 @@ li { margin: 3px 0; }
   </details>
 
   <!-- ======================================================
-       SECTION 11 — Key Differentiators
+       SECTION 12 — Key Differentiators
        ====================================================== -->
-  <details class="section" id="sect-11">
+  <details class="section" id="sect-12">
     <summary>
       <span class="section-title">
         <span class="section-header">
-          11. Key Differentiators
+          12. Key Differentiators
           <span class="timing-pill">30 sec</span>
         </span>
       </span>
@@ -1072,13 +1144,13 @@ li { margin: 3px 0; }
   </details>
 
   <!-- ======================================================
-       SECTION 12 — Closing
+       SECTION 13 — Closing
        ====================================================== -->
-  <details class="section" id="sect-12">
+  <details class="section" id="sect-13">
     <summary>
       <span class="section-title">
         <span class="section-header">
-          12. Closing
+          13. Closing
           <span class="timing-pill">15 sec</span>
         </span>
       </span>

@@ -37,6 +37,7 @@ with st.expander("Pages Guide", expanded=False):
 | **Timeline** | Visual event histogram per day — spot bursts and quiet periods |
 | **Events** | Browse and filter every parsed event with full message text |
 | **Reports** | Export to PDF, HTML, or Leadership Brief (PDF/HTML) |
+| **Trace to Code** | Match stacktraces to your source code — appears when a repo is linked |
 | **Jira & Confluence** | Generate Jira tickets and publish analysis to Confluence |
 | **Settings** | API keys, license, local AI endpoint, source code path, theme |
 """)
@@ -224,11 +225,50 @@ Connect to a local model server using any OpenAI-compatible endpoint:
 
 **Trace to Code**
 Provide a path to your source code directory. LogPilot will match
-Java/Python/Node.js stacktrace frames to actual source files and show
-the relevant code inline in the AI analysis.
+stacktrace frames to actual source files. See the dedicated section below.
 
 **Theme**
 Dark/Light mode toggle is in the sidebar.
+""")
+
+# ---------------------------------------------------------------------------
+# Trace to Code
+# ---------------------------------------------------------------------------
+with st.expander("Trace to Code", expanded=False):
+    st.markdown("""
+Match stacktraces from your logs to actual source code in your repository.
+
+### How it works
+1. **Link a repo** in Settings → Source Code Path (e.g. `/app/source/my-project`)
+2. **Trace to Code page** appears in the nav — shows matched files with code snippets
+3. **AI Analysis** automatically includes matched code in the AI prompt
+4. **AI suggests fixes** — specific code changes shown per file on the Trace to Code page
+
+### Supported stacktrace formats
+| Language | Format | Example |
+|----------|--------|---------|
+| **Java** | Standard `at` frames | `at com.myapp.OrderDAO.save(OrderDAO.java:67)` |
+| **Nashorn/Enonic XP** | Script frames | `(no.seeds.ukom:/site/layouts/article.js:97)` |
+| **Python** | `File` traceback | `File "/app/tasks.py", line 45, in process` |
+| **Node.js** | V8 `at` frames | `at requestHandler (/app/server.js:42:5)` |
+
+### Confidence levels
+- **Exact** (green) — file + line number match
+- **File** (yellow) — file match, line approximate
+- **Grep** (grey) — text search match (method name found in file)
+
+### Framework filtering
+LogPilot automatically filters out framework/library code and prioritizes
+your application code. Supported frameworks: Spring, Hibernate, Enonic XP,
+Django, Flask, FastAPI, Express, and 30+ more.
+
+### Docker usage
+Mount your source code as a read-only volume:
+```yaml
+volumes:
+  - /path/to/your/code:/app/source:ro
+```
+Then set the path in Settings to `/app/source/your-project`.
 """)
 
 # ---------------------------------------------------------------------------
