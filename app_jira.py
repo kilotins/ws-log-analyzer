@@ -5,16 +5,37 @@ and optionally creates issues via Jira REST API / publishes to Confluence.
 """
 from __future__ import annotations
 
+import hashlib
+import ipaddress
 import json
 import logging
 import urllib.request
 import urllib.error
 from base64 import b64encode
 from typing import Any
+from urllib.parse import urlparse
 
 import streamlit as st
 
 _log = logging.getLogger(__name__)
+
+
+def _validate_url(url: str) -> None:
+    """Validate URL to prevent SSRF attacks."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("https", "http"):
+        raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
+    if parsed.scheme == "http" and parsed.hostname != "localhost":
+        raise ValueError("HTTP only allowed for localhost")
+    try:
+        ip = ipaddress.ip_address(parsed.hostname)
+        if ip.is_private or ip.is_reserved or ip.is_loopback or ip.is_link_local:
+            raise ValueError(f"URL resolves to private/reserved IP: {ip}")
+    except ValueError as exc:
+        # Re-raise only if it's our own ValueError (not "does not appear to be an IPv4 or IPv6")
+        if "URL resolves to" in str(exc) or "HTTP only" in str(exc) or "Unsupported URL" in str(exc):
+            raise
+        # hostname, not IP — OK
 
 
 # ── P1: Ticket preview & copy ─────────────────────────────────────────
@@ -33,7 +54,8 @@ def render_jira_tickets(causes: list[dict], analysis: dict) -> None:
 
     # Generate tickets (cached in session state)
     events = analysis.get("events")
-    cache_key = f"_jira_tickets_{len(causes)}_{len(events or [])}"
+    _cache_hash = hashlib.md5(str(sorted(set(e.exception or "" for e in (events or [])[:100]))).encode()).hexdigest()[:12]
+    cache_key = f"_jira_tickets_{len(causes)}_{len(events or [])}_{_cache_hash}"
 
     if st.session_state.get("_jira_cache_key") != cache_key:
         from logpilot.jira_tickets import generate_all_tickets
@@ -276,6 +298,7 @@ def _test_jira_connection() -> dict[str, Any]:
     url = st.session_state.get("_jira_url", "")
     api_ver = _jira_api_version()
     try:
+        _validate_url(url)
         req = urllib.request.Request(
             f"{url}/rest/api/{api_ver}/project?maxResults=10",
             headers=_get_jira_auth(),
@@ -344,6 +367,7 @@ def _create_jira_issues(tickets: list[dict]) -> None:
         payload = json.dumps({"fields": fields}).encode()
 
         try:
+            _validate_url(url)
             req = urllib.request.Request(
                 f"{url}/rest/api/{api_ver}/issue",
                 data=payload, headers=headers, method="POST",
@@ -385,6 +409,7 @@ def _link_jira_issues(keys: list[str], url: str, api_ver: str, headers: dict) ->
             "outwardIssue": {"key": downstream_key},
         }).encode()
         try:
+            _validate_url(url)
             req = urllib.request.Request(
                 f"{url}/rest/api/{api_ver}/issueLink",
                 data=payload, headers=headers, method="POST",
@@ -498,6 +523,7 @@ def _publish_confluence_report(analysis: dict) -> None:
         api_base = f"{url}/wiki/rest/api/content" if "atlassian.net" in url else f"{url}/rest/api/content"
 
         try:
+            _validate_url(api_base)
             req = urllib.request.Request(
                 api_base, data=json.dumps(page_data).encode(),
                 headers=headers, method="POST",

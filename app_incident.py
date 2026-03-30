@@ -393,7 +393,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
     selected_model = st.session_state.get("_selected_ai_model", "")
 
     if not selected_model or selected_model not in AI_MODELS:
-        st.warning("Select an AI model on the **Home** page first.")
+        st.warning("Select an AI model in the **sidebar** first.")
         return
 
     # --- Symptoms / incident description ---
@@ -440,6 +440,7 @@ def render_incident_assistant(events, analysis, log=None, lookup_cache=None, sto
         data = sf.getvalue()
         size_mb = len(data) / (1024 * 1024)
         if size_mb > MAX_SCREENSHOT_MB:
+            st.warning(f"Screenshot '{sf.name}' skipped ({size_mb:.1f} MB > {MAX_SCREENSHOT_MB} MB limit)")
             continue
         ext = sf.name.rsplit(".", 1)[-1].lower()
         mt = mime_map.get(ext, "image/png")

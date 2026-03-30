@@ -49,7 +49,14 @@ class LicenseInfo:
 
 def _get_secret() -> str:
     """Read the signing secret from env var, fall back to dev secret."""
-    return os.environ.get(_ENV_SECRET, _DEV_SECRET)
+    secret = os.environ.get(_ENV_SECRET, "").strip()
+    if secret:
+        return secret
+    if require_license():
+        raise RuntimeError(
+            f"{_ENV_SECRET} must be set when {_ENV_REQUIRE}=true"
+        )
+    return _DEV_SECRET
 
 
 def require_license() -> bool:

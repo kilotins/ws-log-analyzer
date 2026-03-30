@@ -206,9 +206,11 @@ if _has_input and st.button("Analyze", type="primary", use_container_width=False
             else:
                 log.info("upload File reused (identical): %s", upload_name)
 
-        # Remove old uploads not in this batch
+        # Remove old uploads not in this batch (scoped to this session's files only)
+        import hashlib
+        _session_prefix = hashlib.md5(st.session_state.get("_upload_session_id", "default").encode()).hexdigest()[:8]
         for old_file in UPLOADS_DIR.iterdir():
-            if old_file.name not in _session_uploads and old_file.is_file():
+            if old_file.name.startswith(_session_prefix) and old_file.name not in _session_uploads and old_file.is_file():
                 old_file.unlink()
                 log.info("upload Cleaned old upload: %s", old_file.name)
 

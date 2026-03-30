@@ -33,7 +33,22 @@ def _inline(text: str) -> str:
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
     text = re.sub(r"\*(.+?)\*", r"<em>\1</em>", text)
     text = re.sub(r"`([^`]+)`", r'<code class="inline">\1</code>', text)
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
+
+    def _safe_link(m: re.Match) -> str:
+        label, href = m.group(1), m.group(2)
+        # Only allow safe schemes: https, http, mailto, and fragment (#)
+        lower = href.lower().lstrip()
+        if (
+            lower.startswith("https://")
+            or lower.startswith("http://")
+            or lower.startswith("mailto:")
+            or lower.startswith("#")
+        ):
+            return f'<a href="{href}">{label}</a>'
+        # Reject everything else (javascript:, data:, etc.)
+        return label
+
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", _safe_link, text)
     return text
 
 

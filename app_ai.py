@@ -665,6 +665,8 @@ def build_ai_request_context(user_query: str, events: list[dict], provider: str 
         cache_key = "openai:" + cache_key
     elif provider == "local":
         cache_key = "local:" + cache_key
+    else:
+        cache_key = "claude:" + cache_key
     detected_format = detect_dominant_format(events)
     prompt = build_claude_prompt(user_query, match, detected_format=detected_format)
     skills = prompt.get("skills", [])

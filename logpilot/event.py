@@ -47,6 +47,8 @@ class LogEvent:
             raise KeyError(key)
 
     def __setitem__(self, key: str, value: Any) -> None:
+        if key not in {f.name for f in fields(self)}:
+            raise KeyError(f"LogEvent has no field '{key}'")
         setattr(self, key, value)
 
     def __contains__(self, key: str) -> bool:

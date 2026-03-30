@@ -43,16 +43,17 @@ def _get_version() -> str:
     Returns e.g. '0.1.0+42.b00bc60' or '0.1.0' if git is unavailable.
     """
     # Base version from __init__.py (single source of truth), fallback to pyproject.toml
-    base = "1.3.1"
     try:
         from logpilot import __version__
         base = __version__
+    except ImportError:
+        base = "unknown"
     except Exception:
         try:
             import tomllib
             base = tomllib.loads((_APP_DIR / "pyproject.toml").read_text())["project"]["version"]
         except Exception:
-            pass
+            base = "unknown"
     # Git commit count + short hash
     try:
         import subprocess
@@ -193,19 +194,15 @@ def _load_local_ai_settings() -> dict:
     data = _load_json_file(_LOCAL_SETTINGS_FILE, {})
     if not isinstance(data, dict):
         return {}
-    # Reject corrupted values (e.g. MagicMock from test runs)
+    # Reject corrupted values
     for v in data.values():
-        if not isinstance(v, str) or "MagicMock" in v:
+        if not isinstance(v, str):
             return {}
     return data
 
 def _save_local_ai_settings(endpoint: str, model: str, api_key: str, preset: str) -> None:
     """Persist local AI settings to disk."""
     try:
-        # Guard against mock objects from test environments
-        vals = [endpoint, model, api_key, preset]
-        if any("MagicMock" in repr(v) for v in vals):
-            return
         data = {"endpoint": str(endpoint), "model": str(model),
                 "api_key": str(api_key), "preset": str(preset)}
         _save_json_file(_LOCAL_SETTINGS_FILE, data)
@@ -287,6 +284,10 @@ def _safe_zip_member_path(root: Path, member_name: str) -> Path | None:
     return target
 
 
+_ZIP_MAX_MEMBER_BYTES = 100 * 1024 * 1024   # 100 MB per member
+_ZIP_MAX_TOTAL_BYTES  = 500 * 1024 * 1024   # 500 MB total uncompressed
+
+
 def _extract_archive_upload(uploaded) -> tuple[list[_InMemoryUpload], list[str]]:
     """Extract one uploaded zip archive into in-memory uploads."""
     temp_dir = Path(tempfile.mkdtemp(prefix="logpilot_zip_"))
@@ -294,11 +295,26 @@ def _extract_archive_upload(uploaded) -> tuple[list[_InMemoryUpload], list[str]]
     preview_paths: list[str] = []
     try:
         with zipfile.ZipFile(io.BytesIO(uploaded.getvalue())) as archive:
+            total_uncompressed = 0
             for member in archive.infolist():
                 if member.is_dir():
                     continue
                 if _is_zip_junk_member(member.filename):
                     continue
+                # ZIP bomb check — member size
+                if member.file_size > _ZIP_MAX_MEMBER_BYTES:
+                    st.warning(
+                        f"Skipped {member.filename}: member too large "
+                        f"({member.file_size // (1024*1024)} MB > 100 MB limit)."
+                    )
+                    continue
+                total_uncompressed += member.file_size
+                if total_uncompressed > _ZIP_MAX_TOTAL_BYTES:
+                    st.warning(
+                        f"Stopped extracting {uploaded.name}: total uncompressed size "
+                        f"exceeds 500 MB limit."
+                    )
+                    break
                 target = _safe_zip_member_path(temp_dir, member.filename)
                 if target is None:
                     continue
@@ -486,6 +502,7 @@ _STATE_DEFAULTS = {
     # Jira / Confluence integration
     # Trace to Code
     "_code_repo_path": "",
+    "_upload_session_id": "",
     "_code_matches": None,
     # Jira / Confluence integration
     "_jira_tickets": None,
@@ -509,6 +526,9 @@ for key, default in _STATE_DEFAULTS.items():
         st.session_state[key] = default
 if st.session_state.rt_buffer is None:
     st.session_state.rt_buffer = deque(maxlen=_RT_BUFFER_SIZE)
+if not st.session_state._upload_session_id:
+    import secrets as _secrets
+    st.session_state._upload_session_id = _secrets.token_hex(8)
 
 # Session state schema validation — warn on unexpected keys in debug mode
 if st.session_state.get("debug_payload"):
