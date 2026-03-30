@@ -22,9 +22,14 @@ def _collect_ai_content() -> dict | None:
 
     # Symptoms and exclude patterns (for report context)
     _symptoms = st.session_state.get("_incident_description", "")
-    if _symptoms:
-        ai["incident_query"] = _symptoms
     _exclude = st.session_state.get("_ai_exclude_patterns", "")
+    if _symptoms:
+        # Strip exclude sentences from symptoms for clean display
+        if _exclude:
+            from app_incident import _strip_exclude_sentences
+            ai["incident_query"] = _strip_exclude_sentences(_symptoms)
+        else:
+            ai["incident_query"] = _symptoms
     if _exclude:
         ai["exclude_patterns"] = _exclude
 
