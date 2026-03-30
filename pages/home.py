@@ -186,6 +186,11 @@ if _has_input and st.button("Analyze", type="primary", use_container_width=False
     _progress = st.progress(0, text=f"Parsing 0/{_total_files} files...")
 
     # --- Save uploaded files to disk ---
+    import hashlib as _hashlib_session
+    _session_prefix = _hashlib_session.md5(
+        st.session_state.get("_upload_session_id", "default").encode()
+    ).hexdigest()[:8]
+
     if uploaded_files:
         for uploaded in uploaded_files:
             safe_name = (
@@ -194,7 +199,7 @@ if _has_input and st.button("Analyze", type="primary", use_container_width=False
             )
             content = uploaded.getvalue()
             _hash = _hl.md5(content).hexdigest()[:10]
-            upload_name = f"{_hash}_{safe_name}"
+            upload_name = f"{_session_prefix}_{_hash}_{safe_name}"
             upload_path = UPLOADS_DIR / upload_name
             if not upload_path.resolve().is_relative_to(UPLOADS_DIR.resolve()):
                 st.error(f"Invalid filename: {uploaded.name}")
@@ -207,8 +212,6 @@ if _has_input and st.button("Analyze", type="primary", use_container_width=False
                 log.info("upload File reused (identical): %s", upload_name)
 
         # Remove old uploads not in this batch (scoped to this session's files only)
-        import hashlib
-        _session_prefix = hashlib.md5(st.session_state.get("_upload_session_id", "default").encode()).hexdigest()[:8]
         for old_file in UPLOADS_DIR.iterdir():
             if old_file.name.startswith(_session_prefix) and old_file.name not in _session_uploads and old_file.is_file():
                 old_file.unlink()
@@ -221,7 +224,7 @@ if _has_input and st.button("Analyze", type="primary", use_container_width=False
                 or "upload.log"
             )
             _hash = _hl.md5(uploaded.getvalue()).hexdigest()[:10]
-            upload_path = UPLOADS_DIR / f"{_hash}_{safe_name}"
+            upload_path = UPLOADS_DIR / f"{_session_prefix}_{_hash}_{safe_name}"
 
             _progress.progress(
                 _file_idx / _total_files,
