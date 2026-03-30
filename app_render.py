@@ -20,6 +20,14 @@ def _collect_ai_content() -> dict | None:
         ai["incident"] = incident
         ai["incident_model"] = st.session_state.get("_incident_model", "AI")
 
+    # Symptoms and exclude patterns (for report context)
+    _symptoms = st.session_state.get("_incident_description", "")
+    if _symptoms:
+        ai["incident_query"] = _symptoms
+    _exclude = st.session_state.get("_ai_exclude_patterns", "")
+    if _exclude:
+        ai["exclude_patterns"] = _exclude
+
     # Conversation history (all providers), excluding the current answer to avoid duplicates
     ask_ai = []
     for provider, hist_key, label in [

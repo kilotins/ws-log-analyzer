@@ -400,7 +400,13 @@ code.inline { background:var(--bg-hover); padding:2px 6px; border-radius:4px;
                 _q = ai_content.get("incident_query", "")
                 if _q:
                     h.append(f'<h3>Q: {escape(_q[:120])}</h3>')
-                h.append(f'<div class="sample-meta">Model: {escape(model)}</div>')
+                _exclude = ai_content.get("exclude_patterns", "")
+                _meta_parts = [f"Model: {escape(model)}"]
+                if _q:
+                    _meta_parts.append(f"Symptoms: {escape(_q[:200])}")
+                if _exclude:
+                    _meta_parts.append(f"Excluded: {escape(_exclude)}")
+                h.append(f'<div class="sample-meta">{" · ".join(_meta_parts)}</div>')
                 # Convert markdown code blocks to <pre> for proper rendering
                 _ai_html = _render_ai_markdown(escape(incident))
                 h.append(f'<div class="ai-answer">{_ai_html}</div>')

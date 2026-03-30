@@ -42,6 +42,14 @@ _NODE_FRAME_RE = re.compile(
     r'\(?(?P<path>.*?):(?P<line>\d+):(?P<col>\d+)\)?'
 )
 
+# ── Nashorn / Enonic XP script frame ─────────────────────────────────
+# at org.openjdk.nashorn.scripts/...Script$...$portal.L:1#processHtml(no.seeds.ukom:/lib/xp/portal.js:219)
+# Extracts the app path (no.seeds.ukom:/site/layouts/article/article.js) and line number
+_NASHORN_FRAME_RE = re.compile(
+    r'^\s+at\s+org\.openjdk\.nashorn\..*?'
+    r'\((?P<app>[a-zA-Z0-9._-]+):(?P<path>/[^:]+\.(?:js|ts)):(?P<line>\d+)\)',
+)
+
 # ── Framework packages to skip (not user code) ───────────────────────
 _JAVA_SKIP_PREFIXES = (
     # JDK / JVM
@@ -295,6 +303,31 @@ def _parse_line(line: str) -> CodeLocation | None:
             line=int(m.group("line")),
             class_name=None,
             method=m.group("func"),
+            language="javascript",
+            source_line=line.strip(),
+        )
+
+    # Nashorn / Enonic XP script frame
+    m = _NASHORN_FRAME_RE.match(line)
+    if m:
+        app = m.group("app")       # e.g. "no.seeds.ukom"
+        path = m.group("path")     # e.g. "/site/layouts/article/article.js"
+        line_num = int(m.group("line"))
+        # Skip Enonic XP framework scripts (lib/xp/)
+        if "/lib/xp/" in path:
+            return None
+        from pathlib import PurePosixPath
+        file_hint = PurePosixPath(path).name
+        # Extract method from the Nashorn mangled name (e.g. ...#processHtml or ...#getSimpleChapter)
+        method = None
+        hash_match = re.search(r'#(\w+?)(?:-\d+)?(?:\(|$)', line)
+        if hash_match:
+            method = hash_match.group(1)
+        return CodeLocation(
+            file_hint=file_hint,
+            line=line_num,
+            class_name=app,  # Use app name as "class" for prioritization
+            method=method,
             language="javascript",
             source_line=line.strip(),
         )

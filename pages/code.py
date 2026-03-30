@@ -63,12 +63,76 @@ st.markdown(
 
 st.divider()
 
+# --- Parse AI code fix suggestions (if available) ---
+import re as _re
+
+def _parse_ai_code_fixes(ai_answer: str) -> dict[str, str]:
+    """Extract per-file code fix suggestions from AI analysis.
+
+    Looks for the '## Code Fix Suggestions' section and splits by file references.
+    Returns {filename_fragment: suggestion_text}.
+    """
+    if not ai_answer:
+        return {}
+
+    # Extract Code Fix Suggestions section
+    pattern = r'##\s*Code Fix Suggestions\s*\n(.*?)(?=\n##\s|\Z)'
+    m = _re.search(pattern, ai_answer, _re.DOTALL)
+    if not m:
+        return {}
+
+    section = m.group(1).strip()
+    if not section or "skip this section" in section.lower() or "no source code" in section.lower():
+        return {}
+
+    # Try to split by file references (e.g., "**PdfExporter.java**" or "`BouncyCastleBeanImpl.java`")
+    file_pattern = r'(?:\*\*|`)([\w/]+\.(?:java|py|js|ts|kt|go|rs|rb|cs))(?:\*\*|`)'
+    file_refs = list(_re.finditer(file_pattern, section))
+
+    if not file_refs:
+        # No file references found — return as general suggestion
+        return {"_general": section}
+
+    fixes: dict[str, str] = {}
+    for i, fm in enumerate(file_refs):
+        filename = fm.group(1)
+        start = fm.start()
+        end = file_refs[i + 1].start() if i + 1 < len(file_refs) else len(section)
+        fixes[filename] = section[start:end].strip()
+
+    return fixes
+
+
+_ai_answer = st.session_state.get("_incident_answer", "")
+_ai_fixes = _parse_ai_code_fixes(_ai_answer)
+_has_ai_fixes = bool(_ai_fixes)
+
+if _has_ai_fixes:
+    st.success("AI code fix suggestions available — shown below each matching file.")
+elif _ai_answer:
+    st.caption("AI analysis completed but no code fix suggestions were generated.")
+else:
+    st.info("Run **AI Analysis** to get code fix suggestions for matched files.")
+
 # --- Code matches grouped by file ---
 conf_badge = {"exact": ":green_circle:", "file": ":yellow_circle:", "grep": ":white_circle:"}
 
 for rel_path, file_matches in by_file.items():
     lang = file_matches[0].location.language or "text"
-    with st.expander(f"{rel_path} ({len(file_matches)} match{'es' if len(file_matches) != 1 else ''})", expanded=True):
+    # Check if AI has suggestions for this file
+    _file_fix = None
+    if _has_ai_fixes:
+        filename = rel_path.rsplit("/", 1)[-1]  # e.g. "BouncyCastleBeanImpl.java"
+        for fix_key, fix_text in _ai_fixes.items():
+            if fix_key == "_general" or filename in fix_key or fix_key in rel_path:
+                _file_fix = fix_text
+                break
+
+    _label = rel_path
+    if _file_fix:
+        _label += " — AI fix available"
+
+    with st.expander(f"{_label} ({len(file_matches)} match{'es' if len(file_matches) != 1 else ''})", expanded=True):
         for m in file_matches:
             badge = conf_badge.get(m.confidence, ":white_circle:")
             method_str = f" — `{m.location.method}()`" if m.location.method else ""
@@ -78,3 +142,15 @@ for rel_path, file_matches in by_file.items():
             # Show which stacktrace line matched
             source_hint = m.location.source_line or m.location.file_hint
             st.caption(f"Matched from stacktrace: `{source_hint}` [{m.confidence}]")
+
+        # Show AI fix suggestion for this file
+        if _file_fix:
+            st.markdown("---")
+            st.markdown("**AI Fix Suggestion**")
+            st.markdown(_file_fix)
+
+# Show general AI suggestions (not tied to a specific file)
+if _ai_fixes.get("_general"):
+    st.divider()
+    st.markdown("### AI Code Fix Suggestions")
+    st.markdown(_ai_fixes["_general"])

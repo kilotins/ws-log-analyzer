@@ -518,6 +518,9 @@ def render_pdf_report(
             pdf.set_font("Helvetica", "", 8)
             pdf.set_text_color(*SLATE_500)
             pdf.cell(0, 5, _latin1_safe(f"Model: {model}"), new_x="LMARGIN", new_y="NEXT")
+            _exclude = ai_content.get("exclude_patterns", "")
+            if _exclude:
+                pdf.cell(0, 5, _latin1_safe(f"Excluded: {_exclude}"), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)
 
             # Render AI response with basic markdown support

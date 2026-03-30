@@ -704,6 +704,18 @@ def _run_analysis(events, description, summary, causes, itl, cascades,
     code_matches_for_ai = None
     _repo_path = st.session_state.get("_code_repo_path", "")
     if _repo_path and _repo_path.strip():
+        # Compute if not already cached
+        _code_cache_key = f"_code_{len(events_for_ai)}_{_repo_path}"
+        if st.session_state.get("_code_cache_key") != _code_cache_key:
+            from logpilot.trace_to_code import extract_code_locations
+            from logpilot.code_search import search_codebase
+            _locations = extract_code_locations(events_for_ai)
+            if _locations:
+                st.session_state["_code_matches"] = search_codebase(
+                    _repo_path, _locations, max_results=30)
+            else:
+                st.session_state["_code_matches"] = []
+            st.session_state["_code_cache_key"] = _code_cache_key
         _cached_matches = st.session_state.get("_code_matches")
         if _cached_matches:
             code_matches_for_ai = [m.to_dict() for m in _cached_matches[:5]]
