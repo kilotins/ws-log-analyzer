@@ -796,6 +796,11 @@ _analysis_pages = [
     st.Page("pages/reports.py", title="Reports", icon=":material/description:"),
 ]
 
+if st.session_state.get("_code_repo_path"):
+    _analysis_pages.append(
+        st.Page("pages/code.py", title="Trace to Code", icon=":material/code:")
+    )
+
 if st.session_state.get("debug_payload"):
     _analysis_pages.append(
         st.Page("pages/debug.py", title="Debug", icon=":material/bug_report:")
@@ -808,7 +813,10 @@ _pages = {
     "Integrations": [
         st.Page("pages/jira.py", title="Jira & Confluence", icon=":material/confirmation_number:"),
     ],
-    "Settings": [_settings_page],
+    "Settings": [
+        st.Page("pages/help.py", title="Help", icon=":material/help:"),
+        _settings_page,
+    ],
 }
 
 pg = st.navigation(_pages, expanded=False)

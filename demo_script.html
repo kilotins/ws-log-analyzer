@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogPilot — Demo Script</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+/* --- Light theme --- */
+:root, [data-theme="light"] {
+  --bg-primary: #F8FAFC; --bg-secondary: #FFFFFF; --bg-tertiary: #F1F5F9;
+  --bg-hover: #E2E8F0; --border: #E2E8F0; --border-strong: #CBD5E1;
+  --text-primary: #0F172A; --text-secondary: #334155; --text-muted: #64748B;
+  --text-heading: #0F172A; --accent: #7C3AED;
+  --green: #059669; --green-bg: #ECFDF5; --yellow: #D97706; --yellow-bg: #FFFBEB;
+  --red: #DC2626; --red-bg: #FEF2F2; --blue: #2563EB; --blue-bg: #EFF6FF;
+  --purple: #7C3AED; --purple-bg: #F5F3FF;
+}
+/* --- Dark theme (auto via OS preference) --- */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+}}
+/* --- Dark theme (explicit toggle) --- */
+[data-theme="dark"] {
+  --bg-primary: #0d1117; --bg-secondary: #010409; --bg-tertiary: #161b22;
+  --bg-hover: #1c2128; --border: #21262d; --border-strong: #30363d;
+  --text-primary: #e6edf3; --text-secondary: #c9d1d9; --text-muted: #8b949e;
+  --text-heading: #f0f6fc; --accent: #a78bfa;
+  --green: #6fdd8b; --green-bg: #1b4332; --yellow: #f0c74f; --yellow-bg: #3d2e00;
+  --red: #f47067; --red-bg: #4a1e1e; --blue: #58a6ff; --blue-bg: #1a2332;
+  --purple: #bc8cff; --purple-bg: #272145;
+}
+
+.theme-toggle {
+  background: var(--bg-tertiary); border: 1px solid var(--border-strong);
+  border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 14px;
+  color: var(--text-muted); transition: all 0.15s;
+}
+.theme-toggle:hover { background: var(--border-strong); color: var(--text-primary); }
+
+body {
+  margin: 0; padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-primary); color: var(--text-secondary);
+  line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- Layout --- */
+.layout { display: flex; min-height: 100vh; }
+
+nav {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  width: 260px; min-width: 260px;
+  background: var(--bg-secondary); border-right: 1px solid var(--border);
+  padding: 20px 14px; font-size: 13px;
+  display: flex; flex-direction: column;
+}
+nav .nav-title {
+  font-weight: 700; font-size: 15px; color: var(--text-heading);
+  margin-bottom: 6px;
+}
+nav .nav-subtitle {
+  font-size: 11px; color: var(--text-muted);
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+nav .nav-links { flex: 1; }
+nav a.nav-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 6px;
+  color: var(--text-muted); transition: all 0.15s;
+  margin-bottom: 1px; line-height: 1.35;
+  font-size: 12.5px;
+}
+nav a.nav-link:hover { background: var(--bg-tertiary); color: var(--text-secondary); text-decoration: none; }
+nav a.nav-link.active { background: var(--bg-tertiary); color: var(--text-primary); font-weight: 500; }
+nav a.nav-link .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; border-radius: 4px;
+  background: var(--bg-tertiary); color: var(--text-muted);
+  font-size: 11px; font-weight: 600;
+}
+nav .nav-controls {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 6px;
+}
+nav .nav-controls button {
+  flex: 1; padding: 7px; background: var(--bg-tertiary);
+  color: var(--text-muted); border: 1px solid var(--border-strong);
+  border-radius: 6px; cursor: pointer; font-size: 11px;
+  transition: all 0.15s;
+}
+nav .nav-controls button:hover { background: var(--border-strong); color: var(--text-secondary); }
+
+main {
+  flex: 1; max-width: 980px; padding: 36px 48px 80px;
+}
+
+/* --- Typography --- */
+h1 { color: var(--text-heading); font-size: 26px; margin: 0 0 4px; }
+h2 { color: var(--text-heading); font-size: 21px; margin: 28px 0 10px; }
+h3 { color: var(--text-primary); font-size: 17px; margin: 22px 0 8px; }
+h4 { color: var(--text-secondary); font-size: 15px; font-weight: 600; margin: 18px 0 6px; }
+p  { margin: 8px 0; }
+hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+strong { color: var(--text-primary); }
+
+/* --- Header area --- */
+.report-header { margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+.report-meta { color: var(--text-muted); font-size: 13px; margin: 6px 0 16px; }
+.report-meta span { margin-right: 16px; }
+
+/* --- Metric cards (repurposed as section stats) --- */
+.metric-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px; margin: 16px 0;
+}
+.metric-card {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 16px; display: flex; flex-direction: column; gap: 4px;
+}
+.metric-card .metric-label { color: var(--text-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+.metric-card .metric-value { font-weight: 700; font-size: 22px; color: var(--text-heading); }
+.metric-card .metric-sub { font-size: 11px; color: var(--text-muted); }
+.metric-card.green .metric-value { color: var(--green); }
+.metric-card.yellow .metric-value { color: var(--yellow); }
+.metric-card.red .metric-value { color: var(--red); }
+.metric-card.purple .metric-value { color: var(--purple); }
+.metric-card.blue .metric-value { color: var(--blue); }
+
+/* --- Collapsible sections --- */
+details.section {
+  margin: 10px 0; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-primary); transition: background 0.15s;
+}
+details.section[open] { background: var(--bg-secondary); }
+details.section > summary {
+  padding: 14px 18px; cursor: pointer;
+  font-weight: 600; color: var(--text-heading); list-style: none;
+  border-radius: 8px; transition: background 0.15s;
+  display: flex; align-items: center; gap: 10px;
+  user-select: none;
+}
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary::before {
+  content: '\25B6'; font-size: 10px; color: var(--text-muted);
+  transition: transform 0.2s ease; display: inline-block; min-width: 14px;
+}
+details.section[open] > summary::before { transform: rotate(90deg); }
+details.section > summary:hover { background: var(--bg-tertiary); }
+.section-title { flex: 1; font-size: 17px; }
+.section-badge { margin-left: auto; font-size: 11px; }
+.section-body { padding: 4px 18px 18px; }
+
+/* --- Badges --- */
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+}
+.badge-good    { background: var(--green-bg);  color: var(--green); }
+.badge-warn    { background: var(--yellow-bg); color: var(--yellow); }
+.badge-bad     { background: var(--red-bg);    color: var(--red); }
+.badge-info    { background: var(--blue-bg);   color: var(--blue); }
+.badge-summary { background: var(--purple-bg); color: var(--purple); }
+.badge-neutral { background: var(--bg-hover); color: var(--text-muted); }
+
+/* --- Pill timing badges --- */
+.timing-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  background: var(--purple-bg); color: var(--purple);
+  letter-spacing: 0.2px;
+}
+.timing-pill::before { content: '\23F1'; font-size: 10px; }
+
+/* --- Narration block --- */
+.narration {
+  background: var(--green-bg); border: 1px solid var(--green);
+  border-left: 4px solid var(--green);
+  border-radius: 8px; padding: 14px 18px; margin: 14px 0;
+}
+.narration .block-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--green); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+.narration .block-label::before { content: '\1F3A4'; font-size: 12px; }
+.narration p { margin: 4px 0; color: var(--text-primary); font-style: italic; line-height: 1.65; }
+
+/* --- Show block --- */
+.show-block {
+  background: var(--blue-bg); border: 1px solid var(--blue);
+  border-left: 4px solid var(--blue);
+  border-radius: 8px; padding: 14px 18px; margin: 14px 0;
+}
+.show-block .block-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--blue); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+.show-block .block-label::before { content: '\1F5A5'; font-size: 12px; }
+.show-block ul { margin: 4px 0; padding-left: 18px; }
+.show-block li { color: var(--text-primary); margin: 4px 0; line-height: 1.55; }
+.show-block p { margin: 4px 0; color: var(--text-primary); }
+
+/* --- Tip block --- */
+.tip-block {
+  background: var(--yellow-bg); border: 1px solid var(--yellow);
+  border-left: 4px solid var(--yellow);
+  border-radius: 8px; padding: 12px 16px; margin: 12px 0;
+}
+.tip-block .block-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--yellow); margin-bottom: 5px;
+}
+.tip-block p { margin: 2px 0; font-size: 13.5px; color: var(--text-primary); }
+
+/* --- Feature list --- */
+.feature-list {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px; margin: 12px 0;
+}
+.feature-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 7px; padding: 10px 12px;
+}
+.feature-item .fi-icon { font-size: 16px; line-height: 1.4; flex-shrink: 0; }
+.feature-item .fi-text { font-size: 13px; color: var(--text-primary); line-height: 1.45; }
+.feature-item .fi-text strong { display: block; font-size: 12.5px; margin-bottom: 1px; color: var(--text-heading); }
+
+/* --- Tables --- */
+.table-wrap { overflow-x: auto; margin: 12px 0; border-radius: 8px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead th {
+  background: var(--bg-tertiary); color: var(--text-primary); text-align: left;
+  padding: 10px 14px; font-weight: 600; white-space: nowrap;
+  border-bottom: 2px solid var(--border-strong);
+}
+tbody td { padding: 8px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--bg-tertiary); }
+
+/* --- Code blocks --- */
+pre.code-block {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0;
+  font-size: 13px; line-height: 1.55;
+}
+pre.code-block code {
+  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+  color: var(--text-primary);
+}
+code.inline {
+  background: var(--bg-hover); padding: 2px 7px; border-radius: 4px;
+  font-size: 0.88em; color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+}
+
+/* --- Lists --- */
+ul, ol { padding-left: 22px; margin: 8px 0; }
+li { margin: 3px 0; }
+
+/* --- Section header with timing --- */
+.section-header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.section-header .section-title { flex: 1; }
+
+/* --- Back to top --- */
+.back-to-top {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--bg-tertiary); border: 1px solid var(--border-strong);
+  color: var(--text-muted); cursor: pointer; font-size: 18px;
+  display: none; align-items: center; justify-content: center;
+  transition: all 0.2s; z-index: 100;
+}
+.back-to-top:hover { background: var(--border-strong); color: var(--text-primary); }
+.back-to-top.visible { display: flex; }
+
+/* --- Total time bar --- */
+.total-time-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--purple-bg); border: 1px solid var(--purple);
+  border-radius: 8px; padding: 12px 18px; margin: 16px 0;
+}
+.total-time-bar .ttb-label { color: var(--purple); font-weight: 700; font-size: 13px; }
+.total-time-bar .ttb-value { color: var(--text-heading); font-weight: 700; font-size: 20px; }
+.total-time-bar .ttb-sections { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  nav { display: none; }
+  main { padding: 20px 16px; }
+}
+@media print {
+  nav, .back-to-top, .theme-toggle { display: none !important; }
+  details.section { border: none; break-inside: avoid; }
+  details.section > summary::before { content: ''; }
+  details.section .section-body { display: block !important; }
+  body { background: #fff; color: #000; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ===================== SIDEBAR NAV ===================== -->
+<nav>
+  <div class="nav-logo" style="margin-bottom:10px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 28" fill="none" style="height:22px">
+      <path d="M4 14 L10 6 L13 6 L7 14 L13 22 L10 22 Z" fill="#7C3AED"/>
+      <path d="M11 14 L17 6 L20 6 L14 14 L20 22 L17 22 Z" fill="#34D399"/>
+      <text x="26" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="var(--text-heading)" letter-spacing="-0.3">Log</text>
+      <text x="53" y="19" font-family="system-ui,-apple-system,sans-serif" font-size="15" font-weight="700" fill="#7C3AED" letter-spacing="-0.3">Pilot</text>
+    </svg>
+  </div>
+  <div class="nav-title">Demo Script</div>
+  <div class="nav-subtitle">Screen Recording Walkthrough &bull; ~10 min</div>
+  <div class="nav-links">
+    <a class="nav-link" href="#sect-01"><span class="num">1</span> Introduction</a>
+    <a class="nav-link" href="#sect-02"><span class="num">2</span> Getting Started</a>
+    <a class="nav-link" href="#sect-03"><span class="num">3</span> Overview Dashboard</a>
+    <a class="nav-link" href="#sect-04"><span class="num">4</span> Causes &amp; Fixes</a>
+    <a class="nav-link" href="#sect-05"><span class="num">5</span> AI Analysis</a>
+    <a class="nav-link" href="#sect-06"><span class="num">6</span> Timeline</a>
+    <a class="nav-link" href="#sect-07"><span class="num">7</span> Events Browser</a>
+    <a class="nav-link" href="#sect-08"><span class="num">8</span> Reports &amp; Export</a>
+    <a class="nav-link" href="#sect-09"><span class="num">9</span> Jira &amp; Confluence</a>
+    <a class="nav-link" href="#sect-10"><span class="num">10</span> Settings</a>
+    <a class="nav-link" href="#sect-11"><span class="num">11</span> Key Differentiators</a>
+    <a class="nav-link" href="#sect-12"><span class="num">12</span> Closing</a>
+  </div>
+  <div class="nav-controls">
+    <button onclick="expandAll()">Expand all</button>
+    <button onclick="collapseAll()">Collapse all</button>
+  </div>
+  <div style="margin-top:8px;text-align:center">
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">&#9788;</button>
+  </div>
+</nav>
+
+<!-- ===================== MAIN CONTENT ===================== -->
+<main>
+  <div class="report-header">
+    <h1>LogPilot — Demo Script</h1>
+    <div class="report-meta">
+      <span>by Item Consulting &bull; item.no</span>
+      <span>Screen recording walkthrough</span>
+      <span>12 sections</span>
+    </div>
+
+    <div class="total-time-bar">
+      <span class="ttb-label">Total demo time</span>
+      <span class="ttb-value">~10 minutes</span>
+      <span class="ttb-sections">12 sections &nbsp;&bull;&nbsp; read aloud or use as screen-share guide</span>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric-card blue">
+        <span class="metric-label">Log Formats</span>
+        <span class="metric-value">14</span>
+        <span class="metric-sub">auto-detected</span>
+      </div>
+      <div class="metric-card purple">
+        <span class="metric-label">Heuristics</span>
+        <span class="metric-value">68</span>
+        <span class="metric-sub">offline patterns</span>
+      </div>
+      <div class="metric-card green">
+        <span class="metric-label">AI Providers</span>
+        <span class="metric-value">4+</span>
+        <span class="metric-sub">Claude, Gemini, OpenAI, local</span>
+      </div>
+      <div class="metric-card yellow">
+        <span class="metric-label">Export Formats</span>
+        <span class="metric-value">6</span>
+        <span class="metric-sub">PDF, HTML</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       SECTION 1 — Introduction
+       ====================================================== -->
+  <details class="section" id="sect-01" open>
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          1. Introduction
+          <span class="timing-pill">30 sec</span>
+        </span>
+      </span>
+      <span class="badge badge-summary section-badge">INTRO</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          Welcome to LogPilot — a multi-format log analyzer built by Item Consulting.
+          LogPilot is designed for operations engineers, DevOps teams, and developers who need to diagnose
+          production incidents fast. You upload your log files, and within minutes you get a structured
+          root-cause analysis, a prioritized list of fixes, and — if you want — a full AI-powered
+          incident report that correlates events across every system involved.
+          No special setup, no required dependencies. It just works.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Open LogPilot in the browser — show the landing page / Home tab</li>
+          <li>Point to the LogPilot logo in the top-left (purple + green chevrons)</li>
+          <li>Show the sidebar navigation: Home, AI Analysis, Timeline, Events, Reports, Jira, Settings</li>
+          <li>Call out the Item Consulting branding</li>
+        </ul>
+      </div>
+
+      <div class="feature-list">
+        <div class="feature-item">
+          <span class="fi-icon">&#128269;</span>
+          <span class="fi-text"><strong>Multi-format parsing</strong>14 log formats auto-detected</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#129302;</span>
+          <span class="fi-text"><strong>AI root cause</strong>Claude, Gemini, OpenAI or local models</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128202;</span>
+          <span class="fi-text"><strong>Instant triage</strong>68 offline heuristics, zero deps</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128196;</span>
+          <span class="fi-text"><strong>Professional reports</strong>PDF, HTML + Leadership Brief</span>
+        </div>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 2 — Getting Started
+       ====================================================== -->
+  <details class="section" id="sect-02">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          2. Getting Started
+          <span class="timing-pill">1 min</span>
+        </span>
+      </span>
+      <span class="badge badge-info section-badge">UPLOAD</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          Getting started is simple. On the Home page you have a drag-and-drop file upload area.
+          LogPilot accepts plain <code class="inline">.log</code> files, gzipped logs, and ZIP archives
+          containing multiple files. You can upload logs from multiple systems at once — for example,
+          an nginx access log, a Java app server log, and a database log all together.
+          LogPilot automatically detects the format of each file.
+          Supported formats include WAS, nginx, Log4j, JSON structured logs, Python logging,
+          syslog, Enonic XP, Kubernetes CRI-O, Docker JSON, DataPower, Tomcat, and PostgreSQL.
+          Once you have your files selected, just click Analyze.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Drag one or more log files onto the upload drop zone</li>
+          <li>Show that multiple files from different systems are accepted simultaneously</li>
+          <li>Optionally drag in a screenshot (e.g., a 502 error page) for AI context</li>
+          <li>Point out the "Add screenshots for AI context" area below the main upload</li>
+          <li>Describe symptoms in the text box: <em>"Getting 502 errors, database connections timing out"</em></li>
+          <li>Click the <strong>Analyze</strong> button — watch the spinner</li>
+        </ul>
+      </div>
+
+      <div class="tip-block">
+        <div class="block-label">Pro tip</div>
+        <p>You can also point LogPilot at a folder — it will recursively scan and find all log files, including rotated and gzipped logs. Useful for analyzing a full <code class="inline">/var/log</code> directory.</p>
+      </div>
+
+      <h4>Supported input formats</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Format</th><th>Auto-detected by</th><th>Common use</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-info">WAS</span></td><td>Timestamp + single-letter severity prefix</td><td>IBM WebSphere Application Server</td></tr>
+            <tr><td><span class="badge badge-info">nginx</span></td><td>Combined log format pattern</td><td>Web proxy, API gateway, load balancer</td></tr>
+            <tr><td><span class="badge badge-info">Log4j</span></td><td>Date/level/logger pattern</td><td>Java apps, Spring Boot, Kafka</td></tr>
+            <tr><td><span class="badge badge-info">JSON</span></td><td>JSON lines with level/msg fields</td><td>Node.js, microservices, cloud-native</td></tr>
+            <tr><td><span class="badge badge-info">Python</span></td><td>Python logging format</td><td>Django, Flask, FastAPI, Celery</td></tr>
+            <tr><td><span class="badge badge-info">syslog</span></td><td>RFC 3164 / RFC 5424</td><td>Linux system logs, journald</td></tr>
+            <tr><td><span class="badge badge-info">CRI-O</span></td><td>Kubernetes container runtime format</td><td>K8s pod logs, OpenShift</td></tr>
+            <tr><td><span class="badge badge-info">Docker JSON</span></td><td>Docker JSON log driver</td><td>Docker containers</td></tr>
+            <tr><td><span class="badge badge-info">Enonic XP</span></td><td>Enonic server.log pattern</td><td>Enonic XP CMS</td></tr>
+            <tr><td><span class="badge badge-info">DataPower</span></td><td>IBM DataPower gateway format</td><td>API security gateway</td></tr>
+            <tr><td><span class="badge badge-info">Tomcat</span></td><td>Catalina JUL format</td><td>Apache Tomcat, JBoss</td></tr>
+            <tr><td><span class="badge badge-info">PostgreSQL</span></td><td>PG log format with DETAIL/HINT</td><td>PostgreSQL database</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 3 — Overview Dashboard
+       ====================================================== -->
+  <details class="section" id="sect-03">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          3. Overview Dashboard
+          <span class="timing-pill">1 min</span>
+        </span>
+      </span>
+      <span class="badge badge-info section-badge">OVERVIEW</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          After analysis, the Overview Dashboard gives you an immediate picture of what's in your logs.
+          At the top you see the severity distribution — how many INFO, WARNING, ERROR, and CRITICAL
+          events were found. Below that, the top message codes: HTTP status codes, WAS message prefixes,
+          exception class names — ranked by frequency.
+          Signal tags highlight the major problem categories: things like HTTP errors, database connection
+          pool exhaustion, SSL/TLS failures, out-of-memory events, and Kubernetes pod issues.
+          And at the bottom, a per-file breakdown so you can immediately see which system is generating
+          the most noise.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Point to the severity distribution bar chart or metric cards at the top</li>
+          <li>Scroll down to the "Top Message Codes" table — highlight the highest-count codes</li>
+          <li>Show the "Top Exceptions" section — e.g., <code class="inline">java.sql.SQLException</code> with count</li>
+          <li>Point to the signal tag pills: <span class="badge badge-bad">DB/Pool</span> <span class="badge badge-warn">HTTP</span> <span class="badge badge-bad">OOM</span> <span class="badge badge-warn">SSL/TLS</span></li>
+          <li>Show the per-file breakdown table at the bottom of the page</li>
+        </ul>
+      </div>
+
+      <h4>Signal Tags — what LogPilot detects automatically</h4>
+      <div class="feature-list">
+        <div class="feature-item">
+          <span class="fi-icon">&#128308;</span>
+          <span class="fi-text"><strong>HTTP</strong>4xx/5xx error spikes, upstream failures</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128308;</span>
+          <span class="fi-text"><strong>DB/Pool</strong>Connection pool exhaustion, timeouts</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128993;</span>
+          <span class="fi-text"><strong>SSL/TLS</strong>Certificate errors, handshake failures</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128308;</span>
+          <span class="fi-text"><strong>OOM</strong>Out of memory, heap pressure, GC storms</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128993;</span>
+          <span class="fi-text"><strong>K8s/Pod</strong>Pod restarts, evictions, scheduling failures</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128312;</span>
+          <span class="fi-text"><strong>HungThreads</strong>Thread pool saturation, deadlocks</span>
+        </div>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 4 — Causes & Fixes
+       ====================================================== -->
+  <details class="section" id="sect-04">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          4. Causes &amp; Fixes
+          <span class="timing-pill">1.5 min</span>
+        </span>
+      </span>
+      <span class="badge badge-warn section-badge">HEURISTICS</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          The Causes and Fixes page is where LogPilot's offline intelligence shines.
+          Without any AI and without a network connection, LogPilot runs 68 built-in heuristic patterns
+          against your events. These patterns cover everything from database connection pool exhaustion
+          and SSL certificate expiry, to OOM killer events, hung thread detection, and HTTP upstream
+          failures. Each finding is grouped into incident groups — for example, a root-cause event
+          linked to its downstream cascading failures and any concurrent issues happening at the same time.
+          Every finding comes with a specific fix suggestion, a confidence score, and the exact log lines
+          that triggered it. This alone can cut your triage time dramatically, even before you involve AI.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Navigate to the <strong>Causes &amp; Fixes</strong> page in the sidebar</li>
+          <li>Show an incident group — point out the <span class="badge badge-bad">ROOT CAUSE</span> label on the primary finding</li>
+          <li>Expand a finding to show the <span class="badge badge-warn">DOWNSTREAM</span> events caused by it</li>
+          <li>Point to the <span class="badge badge-info">CONCURRENT</span> label on unrelated simultaneous events</li>
+          <li>Show the fix suggestion text under a finding — concrete, actionable steps</li>
+          <li>Highlight the confidence score (e.g., <code class="inline">0.87</code>) next to the finding</li>
+          <li>Scroll to show 3–4 incident groups — emphasize this runs 100% offline</li>
+        </ul>
+      </div>
+
+      <div class="tip-block">
+        <div class="block-label">Key talking point</div>
+        <p>
+          This works with zero dependencies — no AI API key required. LogPilot can run completely airgapped.
+          The 68 heuristics encode years of WebSphere, nginx, Java, and infrastructure operational knowledge.
+        </p>
+      </div>
+
+      <h4>Example incident group structure</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Label</th><th>Meaning</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-bad">ROOT CAUSE</span></td>
+              <td>The originating failure that started the incident</td>
+              <td>Database connection pool exhausted at 14:32</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warn">DOWNSTREAM</span></td>
+              <td>Failures caused by the root cause event</td>
+              <td>Application timeouts, 503 responses from nginx</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">CONCURRENT</span></td>
+              <td>Separate issues happening simultaneously</td>
+              <td>SSL certificate warning on a different service</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 5 — AI Analysis (MAIN FEATURE)
+       ====================================================== -->
+  <details class="section" id="sect-05">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          5. AI Analysis
+          <span class="timing-pill">2 min</span>
+          <span class="badge badge-summary" style="font-size:10px;margin-left:4px">MAIN FEATURE</span>
+        </span>
+      </span>
+      <span class="badge badge-summary section-badge">AI</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          Now for the main event — AI Analysis. This is where LogPilot goes from triage tool to
+          incident analyst. On the AI Analysis page, you first describe the symptoms you're seeing
+          in plain language. Something like: "We're getting 502 errors from nginx, the app is timing
+          out on database calls, and we had an OOM event around 2 PM."
+          LogPilot reads that description and automatically extracts noise exclusions — if you say
+          "don't focus on the SSL warnings", those get filtered out before the AI sees anything.
+          Then you choose your AI model. LogPilot supports Claude from Anthropic, Gemini from Google,
+          OpenAI's GPT models, and local models through Ollama or LM Studio — so you can run it
+          entirely on-premises if you need to.
+          There's a noise filter slider to strip out repetitive low-value events before they consume
+          tokens. Hit Analyze and within seconds the AI produces a full incident report: what happened,
+          a unified error timeline correlating events across all your systems, the root cause, a cascade
+          analysis showing how one failure triggered the next, which systems were affected, and a
+          prioritized action plan of what to do right now.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Navigate to the <strong>AI Analysis</strong> page</li>
+          <li>Type symptoms into the text area: <em>"502 errors from nginx, DB connection timeouts, OOM at 14:00"</em></li>
+          <li>Show the "Exclude from AI" filter area — demonstrate how auto-hints are extracted from the symptoms text</li>
+          <li>Show the AI model selector in the sidebar — switch between Claude / Gemini / OpenAI</li>
+          <li>Drag the noise filter slider to filter repetitive INFO events</li>
+          <li>Click <strong>Analyze with AI</strong> — show the streaming response appearing in real-time</li>
+          <li>Scroll through the AI output: <strong>What Happened</strong>, <strong>Unified Error Timeline</strong>, <strong>Root Cause</strong>, <strong>Cascade Analysis</strong>, <strong>Affected Systems</strong>, <strong>What To Do Now</strong></li>
+          <li>Show the <strong>Leadership Brief</strong> button — click it and show the non-technical rewrite</li>
+          <li>Show the screenshot thumbnails if any were uploaded — "the AI can see these too"</li>
+          <li>Demonstrate the follow-up chat: type <em>"Which fix should we apply first?"</em></li>
+        </ul>
+      </div>
+
+      <h4>AI output sections</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Section</th><th>What it contains</th></tr></thead>
+          <tbody>
+            <tr><td><strong>What Happened</strong></td><td>Executive summary of the incident in plain language</td></tr>
+            <tr><td><strong>Unified Error Timeline</strong></td><td>Chronological sequence of events across all log sources, correlated by time</td></tr>
+            <tr><td><strong>Root Cause</strong></td><td>The single originating failure, with evidence from the logs</td></tr>
+            <tr><td><strong>Cascade Analysis</strong></td><td>How the root cause propagated — which systems failed as a result</td></tr>
+            <tr><td><strong>Affected Systems</strong></td><td>List of all impacted services, components, and infrastructure</td></tr>
+            <tr><td><strong>What To Do Now</strong></td><td>Prioritized, concrete remediation steps for immediate action</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tip-block">
+        <div class="block-label">Key talking point</div>
+        <p>
+          The AI sees events from all your log files simultaneously — nginx, database, app server, Kubernetes.
+          It can correlate a certificate expiry in syslog with a connection failure in the app log and an
+          upstream timeout in nginx, and explain the full chain in one coherent narrative. No manual log
+          correlation required.
+        </p>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 6 — Timeline
+       ====================================================== -->
+  <details class="section" id="sect-06">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          6. Timeline
+          <span class="timing-pill">30 sec</span>
+        </span>
+      </span>
+      <span class="badge badge-info section-badge">VISUAL</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          The Timeline page shows a visual histogram of log events bucketed by time.
+          Error spikes are immediately visible — you can see exactly when problems started,
+          how long they lasted, and whether they were a single burst or a recurring pattern.
+          This is especially useful when you're handed a log file with no initial context
+          and need to orient yourself before diving into individual events.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Navigate to the <strong>Timeline</strong> page in the sidebar</li>
+          <li>Point to the histogram bars — highlight a spike in ERROR events</li>
+          <li>Show how different severity levels are color-coded on the timeline</li>
+          <li>Point out the date/time axis — show the period where the incident occurred</li>
+        </ul>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 7 — Events Browser
+       ====================================================== -->
+  <details class="section" id="sect-07">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          7. Events Browser
+          <span class="timing-pill">30 sec</span>
+        </span>
+      </span>
+      <span class="badge badge-info section-badge">BROWSE</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          The Events Browser lets you browse all parsed log events with filtering by severity and source file.
+          Each event shows its full text — including multi-line stacktraces that are correctly grouped with
+          their parent event. You can filter down to just CRITICAL and ERROR events across a specific log
+          file, or look at all events from a particular time window.
+          This is the raw material that everything else is built on — useful when you want to verify
+          what the AI or heuristics found.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Navigate to the <strong>Events</strong> page in the sidebar</li>
+          <li>Show the severity filter — select CRITICAL and ERROR only</li>
+          <li>Show the source file filter — filter to a single log file</li>
+          <li>Expand an event with a Java stacktrace to show full multi-line grouping</li>
+          <li>Point out that stacktraces are kept with their parent event, not split into fragments</li>
+        </ul>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 8 — Reports & Export
+       ====================================================== -->
+  <details class="section" id="sect-08">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          8. Reports &amp; Export
+          <span class="timing-pill">1 min</span>
+        </span>
+      </span>
+      <span class="badge badge-good section-badge">EXPORT</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          When you're ready to share your findings, LogPilot offers two professional export formats.
+          The PDF report is fully branded with Item Consulting styling — numbered sections,
+          a professional cover, code blocks with syntax highlighting, and a complete incident summary.
+          The HTML report is interactive — collapsible sections,
+          dark and light mode, a sidebar navigation. It's completely self-contained
+          as a single HTML file you can share via email or attach to a ticket.
+          And for stakeholders who don't read technical reports, there's a separate Leadership Brief —
+          a concise one-page PDF that explains the business impact without the technical detail.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Navigate to the <strong>Reports</strong> page in the sidebar</li>
+          <li>Click <strong>Export PDF</strong> — open the resulting PDF, show the branded layout</li>
+          <li>Click <strong>Export HTML</strong> — open the HTML report, show the sidebar nav and collapsible sections</li>
+          <li>Toggle dark/light mode in the HTML report</li>
+          <li>Show the <strong>Leadership Brief</strong> as a separate export option</li>
+          <li>Point out that all reports include AI analysis results if AI was run</li>
+        </ul>
+      </div>
+
+      <h4>Export format comparison</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Format</th><th>Best for</th><th>Contains AI?</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-bad">PDF</span></td><td>Formal reports, stakeholder presentations, email attachments</td><td>Yes</td></tr>
+            <tr><td><span class="badge badge-warn">HTML</span></td><td>Sharing via browser, wiki embed, self-contained interactive report</td><td>Yes</td></tr>
+            <tr><td><span class="badge badge-neutral">Leadership Brief PDF</span></td><td>Non-technical stakeholders, management updates</td><td>Yes (plain language)</td></tr>
+            <tr><td><span class="badge badge-neutral">Leadership Brief HTML</span></td><td>Quick share via email or chat</td><td>Yes (plain language)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 9 — Jira & Confluence Integration
+       ====================================================== -->
+  <details class="section" id="sect-09">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          9. Jira &amp; Confluence Integration
+          <span class="timing-pill">1 min</span>
+        </span>
+      </span>
+      <span class="badge badge-warn section-badge">JIRA</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          Once you have your incident analysis, the next step is usually creating work items.
+          The Jira integration lets you auto-generate Jira tickets directly from the incident groups
+          found by the heuristics. Each ticket is pre-filled with the finding, the affected system,
+          the fix suggestion, and the relevant log evidence. LogPilot supports eight team mappings —
+          so it routes tickets to the right team automatically based on the system involved:
+          infrastructure tickets to the infra team, database findings to the DBA team, and so on.
+          If you don't have a live Jira connection, you can export the tickets as CSV for bulk import.
+          And for documentation, you can publish the full analysis report directly to Confluence
+          using the REST API.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Navigate to the <strong>Jira</strong> page via the Integrations section in the sidebar</li>
+          <li>Show the auto-generated ticket list — one ticket per incident group</li>
+          <li>Click into a ticket to show the pre-filled title, description, priority, and team assignment</li>
+          <li>Show the team mapping configuration — 8 teams (Infra, DBA, App, Security, etc.)</li>
+          <li>Show the <strong>Export CSV</strong> button for bulk Jira import</li>
+          <li>Show the Confluence publishing section — enter a space key and click Publish</li>
+        </ul>
+      </div>
+
+      <div class="tip-block">
+        <div class="block-label">Key talking point</div>
+        <p>
+          This closes the loop from log analysis to actionable work items without copy-pasting a single line.
+          From upload to Jira tickets in under five minutes.
+        </p>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 10 — Settings & Configuration
+       ====================================================== -->
+  <details class="section" id="sect-10">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          10. Settings &amp; Configuration
+          <span class="timing-pill">30 sec</span>
+        </span>
+      </span>
+      <span class="badge badge-info section-badge">SETTINGS</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          The Settings page covers everything you need to configure for your environment.
+          You enter API keys for whichever AI providers you want to use — Anthropic, Google, or OpenAI.
+          Or if you prefer to run everything locally, LogPilot integrates with Ollama, LM Studio, and
+          vLLM — just point it at your local endpoint. There's a Trace to Code feature where you link
+          a local source code repository so LogPilot can match Java or Python stacktraces to the actual
+          source files. You can toggle between dark and light mode, and there's a cloud spend tracker
+          that shows you how many tokens you've consumed across all AI calls this session.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Navigate to the <strong>Settings</strong> page in the sidebar</li>
+          <li>Show the API key entry fields — Anthropic, Google, OpenAI</li>
+          <li>Show the local AI endpoint configuration — Ollama URL, model name</li>
+          <li>Point to the <strong>Trace to Code</strong> section — show the repo path field</li>
+          <li>Show the dark/light mode toggle</li>
+          <li>Show the token usage / cost tracker at the bottom of the page</li>
+        </ul>
+      </div>
+
+      <h4>Supported AI providers</h4>
+      <div class="feature-list">
+        <div class="feature-item">
+          <span class="fi-icon">&#129302;</span>
+          <span class="fi-text"><strong>Anthropic Claude</strong>claude-3-5-sonnet, claude-opus-4</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128200;</span>
+          <span class="fi-text"><strong>Google Gemini</strong>gemini-2.0-flash, gemini-1.5-pro</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#127744;</span>
+          <span class="fi-text"><strong>OpenAI</strong>gpt-4o, gpt-4-turbo, gpt-4o-mini</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#127968;</span>
+          <span class="fi-text"><strong>Local / Offline</strong>Ollama, LM Studio, vLLM — any OpenAI-compatible endpoint</span>
+        </div>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 11 — Key Differentiators
+       ====================================================== -->
+  <details class="section" id="sect-11">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          11. Key Differentiators
+          <span class="timing-pill">30 sec</span>
+        </span>
+      </span>
+      <span class="badge badge-good section-badge">WHY LOGPILOT</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          Let me close the feature tour with what sets LogPilot apart.
+          First — zero required dependencies. The entire core runs on Python's standard library.
+          No pip install required for basic analysis. It ships as a single package.
+          Second — 14 log format plugins with automatic detection. You don't configure anything.
+          Third — it works completely offline. The heuristic engine runs without any network access
+          or API keys. AI is additive, not required.
+          Fourth — secret redaction is built in. API keys, passwords, and bearer tokens are
+          automatically stripped from all event text before they appear in any report or get sent to an AI.
+          And fifth — it's built to be extended. Adding a new log format plugin is a matter of implementing
+          a small Python protocol class. The architecture is documented and the plugin interface is clean.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Show the terminal / installation: <code class="inline">pip install logpilot[gui] &amp;&amp; logpilot-gui</code></li>
+          <li>Or Docker: <code class="inline">docker run -p 8501:8501 kilotin/logpilot</code></li>
+          <li>Point back to the format plugin list from Section 2</li>
+          <li>Mention that the heuristic analysis ran in seconds with no API call</li>
+        </ul>
+      </div>
+
+      <h4>At a glance</h4>
+      <div class="feature-list">
+        <div class="feature-item">
+          <span class="fi-icon">&#9889;</span>
+          <span class="fi-text"><strong>Zero required deps</strong>Core runs on Python stdlib — no pip install needed for analysis</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128274;</span>
+          <span class="fi-text"><strong>Works airgapped</strong>68 heuristics run fully offline, no API key needed</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128373;</span>
+          <span class="fi-text"><strong>Secret redaction</strong>Tokens, passwords, API keys stripped before any output</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128268;</span>
+          <span class="fi-text"><strong>14 format plugins</strong>Auto-detected — no configuration required</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128663;</span>
+          <span class="fi-text"><strong>Docker &amp; PyPI</strong>Ship once, run anywhere — Docker Hub or pip install</span>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#128736;</span>
+          <span class="fi-text"><strong>Extensible</strong>New log format plugins: implement a small Python protocol class</span>
+        </div>
+      </div>
+
+    </div>
+  </details>
+
+  <!-- ======================================================
+       SECTION 12 — Closing
+       ====================================================== -->
+  <details class="section" id="sect-12">
+    <summary>
+      <span class="section-title">
+        <span class="section-header">
+          12. Closing
+          <span class="timing-pill">15 sec</span>
+        </span>
+      </span>
+      <span class="badge badge-summary section-badge">CLOSE</span>
+    </summary>
+    <div class="section-body">
+
+      <div class="narration">
+        <div class="block-label">Narration</div>
+        <p>
+          That's LogPilot. Built by Item Consulting to make log triage fast, thorough, and shareable.
+          You can get it right now from Docker Hub or PyPI.
+          If you have questions or want to talk about how LogPilot fits into your incident response workflow,
+          reach out to us at eric@item.no. Thanks for watching.
+        </p>
+      </div>
+
+      <div class="show-block">
+        <div class="block-label">Show on screen</div>
+        <ul>
+          <li>Show the LogPilot logo one more time in the app</li>
+          <li>Open a terminal and show: <code class="inline">docker pull kilotin/logpilot</code></li>
+          <li>Or: <code class="inline">pip install logpilot[gui]</code></li>
+          <li>End on a clean view of the Overview Dashboard with a loaded scenario</li>
+        </ul>
+      </div>
+
+      <hr>
+
+      <h4>Distribution &amp; Contact</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Channel</th><th>Command / URL</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Docker Hub</strong></td>
+              <td><code class="inline">docker run -p 8501:8501 kilotin/logpilot</code></td>
+            </tr>
+            <tr>
+              <td><strong>PyPI</strong></td>
+              <td><code class="inline">pip install logpilot[gui] &amp;&amp; logpilot-gui</code></td>
+            </tr>
+            <tr>
+              <td><strong>GitHub</strong></td>
+              <td><a href="https://github.com/kilotins/ws-log-analyzer">github.com/kilotins/ws-log-analyzer</a></td>
+            </tr>
+            <tr>
+              <td><strong>Contact</strong></td>
+              <td><a href="mailto:eric@item.no">eric@item.no</a> &bull; <a href="https://item.no">item.no</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:24px;text-align:center;padding:20px;background:var(--bg-tertiary);border-radius:10px;border:1px solid var(--border)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none" style="height:32px;display:block;margin:0 auto 8px">
+          <path d="M6 20 L14 8 L18 8 L10 20 L18 32 L14 32 Z" fill="#7C3AED"/>
+          <path d="M15 20 L23 8 L27 8 L19 20 L27 32 L23 32 Z" fill="#34D399"/>
+          <text x="36" y="27" font-family="system-ui,-apple-system,sans-serif" font-size="20" font-weight="700" fill="var(--text-heading)" letter-spacing="-0.5">Log</text>
+          <text x="73" y="27" font-family="system-ui,-apple-system,sans-serif" font-size="20" font-weight="700" fill="#7C3AED" letter-spacing="-0.5">Pilot</text>
+        </svg>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">
+          by <strong style="color:var(--text-secondary)">Item Consulting</strong> &bull; item.no
+        </div>
+      </div>
+
+    </div>
+  </details>
+
+</main>
+</div>
+
+<button class="back-to-top" title="Back to top">&#8593;</button>
+
+<script>
+// --- Theme toggle ---
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  if (current === 'dark') html.setAttribute('data-theme', 'light');
+  else if (current === 'light') html.setAttribute('data-theme', 'dark');
+  else {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  }
+}
+
+// --- Expand / Collapse ---
+function expandAll() {
+  document.querySelectorAll('details.section').forEach(d => d.open = true);
+}
+function collapseAll() {
+  document.querySelectorAll('details.section').forEach(d => d.open = false);
+}
+
+// --- Smooth scroll nav ---
+document.querySelectorAll('nav a.nav-link').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const id = a.getAttribute('href').slice(1);
+    const target = document.getElementById(id);
+    if (target) {
+      if (target.tagName === 'DETAILS') target.open = true;
+      const summary = target.querySelector('summary') || target;
+      summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+// --- Active nav tracking ---
+const sections = document.querySelectorAll('details.section');
+const navLinks = document.querySelectorAll('nav a.nav-link');
+const observerOpts = { threshold: 0, rootMargin: '-80px 0px -70% 0px' };
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, observerOpts);
+sections.forEach(s => observer.observe(s));
+
+// --- Back to top ---
+const btt = document.querySelector('.back-to-top');
+window.addEventListener('scroll', () => {
+  btt.classList.toggle('visible', window.scrollY > 400);
+});
+btt.addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+</script>
+</body>
+</html>

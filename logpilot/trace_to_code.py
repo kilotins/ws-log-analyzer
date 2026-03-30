@@ -44,22 +44,73 @@ _NODE_FRAME_RE = re.compile(
 
 # ── Framework packages to skip (not user code) ───────────────────────
 _JAVA_SKIP_PREFIXES = (
-    "sun.", "java.", "javax.", "jdk.",
-    "org.apache.commons.", "org.apache.catalina.", "org.apache.coyote.",
-    "org.apache.tomcat.", "org.apache.jasper.",
-    "com.ibm.ws.", "com.ibm.io.", "com.ibm.ejs.",
-    "org.eclipse.jetty.", "io.netty.",
-    "org.springframework.cglib.", "org.springframework.aop.",
-    "com.sun.", "org.jboss.",
+    # JDK / JVM
+    "sun.", "java.", "javax.", "jdk.", "com.sun.",
+    # IBM WebSphere / Liberty
+    "com.ibm.ws.", "com.ibm.io.", "com.ibm.ejs.", "com.ibm.wsspi.",
+    "com.ibm.websphere.", "com.ibm.tx.", "com.ibm.oti.",
+    # IBM DataPower
+    "com.ibm.datapower.", "com.ibm.dp.",
+    # Apache commons / HTTP
+    "org.apache.commons.", "org.apache.http.", "org.apache.hc.",
+    # Apache Tomcat / Catalina
+    "org.apache.catalina.", "org.apache.coyote.",
+    "org.apache.tomcat.", "org.apache.jasper.", "org.apache.juli.",
+    # Jetty / JBoss / Undertow
+    "org.eclipse.jetty.", "org.jboss.", "io.undertow.", "org.wildfly.",
+    # Enonic XP framework
+    "com.enonic.xp.", "com.enonic.app.booster.", "com.enonic.app.rewrite.",
+    # Spring framework
+    "org.springframework.",
+    # Networking / IO / reactive
+    "io.netty.", "reactor.", "rx.", "io.grpc.",
+    # Logging frameworks
+    "org.slf4j.", "org.apache.logging.", "ch.qos.logback.",
+    "org.apache.log4j.", "org.jboss.logging.",
+    # ORM / persistence / JDBC
+    "org.hibernate.", "org.eclipse.persistence.", "com.zaxxer.hikari.",
+    "org.postgresql.", "com.mysql.", "oracle.jdbc.",
+    # Kafka / messaging
+    "org.apache.kafka.", "org.apache.activemq.", "com.rabbitmq.",
+    # Build / bytecode / proxy
+    "org.gradle.", "org.codehaus.", "net.bytebuddy.",
+    "com.google.common.", "com.google.gson.", "com.google.protobuf.",
+    # OSGi
+    "org.osgi.", "org.ops4j.",
+    # Scripting engines
+    "jdk.nashorn.", "org.mozilla.javascript.",
+    # Template engines (internals)
+    "freemarker.core.", "freemarker.template.",
+    "org.thymeleaf.", "org.apache.velocity.",
+    # Kubernetes / container runtime (Java clients)
+    "io.kubernetes.", "io.fabric8.",
+    # Jackson / serialization
+    "com.fasterxml.jackson.",
+    # Test frameworks (should not appear in prod, but filter anyway)
+    "org.junit.", "org.mockito.", "org.testng.",
 )
 
 _PYTHON_SKIP_PATTERNS = (
     "/site-packages/", "/lib/python", "/usr/lib/",
     "/dist-packages/", "importlib/", "<frozen",
+    # Django framework
+    "/django/", "/rest_framework/",
+    # Flask / Werkzeug / Gunicorn
+    "/flask/", "/werkzeug/", "/gunicorn/",
+    # FastAPI / Starlette / Uvicorn
+    "/fastapi/", "/starlette/", "/uvicorn/",
+    # Celery
+    "/celery/", "/kombu/", "/billiard/",
+    # SQLAlchemy / DB
+    "/sqlalchemy/", "/psycopg2/",
 )
 
 _NODE_SKIP_PATTERNS = (
     "node:internal/", "node_modules/", " (node:",
+    # Common Node.js frameworks
+    "/express/", "/koa/", "/fastify/", "/hapi/",
+    "/next/dist/", "/nuxt/",
+    "/pino/", "/winston/", "/bunyan/",
 )
 
 
@@ -77,11 +128,26 @@ class CodeLocation:
         """Dedup key."""
         return (self.file_hint, self.line, self.method)
 
+    # Generic method names that match too many things in grep
+    _GENERIC_METHODS = frozenset({
+        "<init>", "<module>", "__init__", "run", "call", "invoke", "execute",
+        "apply", "accept", "handle", "process", "doFilter", "service",
+        "get", "set", "put", "create", "build", "render", "init", "start",
+        "stop", "close", "open", "read", "write", "parse", "map", "filter",
+        "doGet", "doPost", "doPut", "doDelete", "lambda$",
+    })
+
     def search_terms(self) -> list[str]:
-        """Return search terms for grep-based fallback."""
+        """Return search terms for grep-based fallback.
+
+        Skips generic method names (create, build, render, etc.) that produce
+        too many false positives across any codebase.
+        """
         terms: list[str] = []
-        if self.method and self.method not in ("<init>", "<module>", "__init__"):
-            terms.append(self.method)
+        if self.method and self.method not in self._GENERIC_METHODS:
+            # Also skip lambda methods like lambda$run$0
+            if not self.method.startswith("lambda$"):
+                terms.append(self.method)
         if self.class_name:
             # Short class name (last part)
             short = self.class_name.rsplit(".", 1)[-1]
@@ -105,7 +171,11 @@ def _is_framework_node(path: str) -> bool:
 def extract_code_locations(events: list[LogEvent], max_locations: int = 100) -> list[CodeLocation]:
     """Extract code locations from stacktraces across all events.
 
-    Returns deduplicated locations in chronological order, limited to max_locations.
+    Returns deduplicated locations prioritized by relevance:
+    1. Frames from application code (most frequent non-framework package)
+    2. Frames from less common packages
+    3. Limited to max_locations
+
     Framework/library frames are filtered out.
     """
     seen: set[tuple] = set()
@@ -119,10 +189,62 @@ def extract_code_locations(events: list[LogEvent], max_locations: int = 100) -> 
             if loc and loc.key() not in seen:
                 seen.add(loc.key())
                 locations.append(loc)
-                if len(locations) >= max_locations:
-                    return locations
 
-    return locations
+    # Prioritize application code: rank by package frequency
+    # The most common non-framework package is likely the app's own code
+    if locations:
+        locations = _prioritize_app_code(locations)
+
+    return locations[:max_locations]
+
+
+def _prioritize_app_code(locations: list[CodeLocation]) -> list[CodeLocation]:
+    """Sort locations so application code comes first.
+
+    Detects the app's package by finding the most frequent top-level package
+    among extracted frames. Frames from that package are ranked higher.
+    """
+    from collections import Counter
+
+    # Count top-level packages (e.g., "no.ukom" from "no.ukom.pdf.PdfExporter")
+    pkg_counter: Counter[str] = Counter()
+    for loc in locations:
+        if loc.class_name and loc.language == "java":
+            parts = loc.class_name.split(".")
+            if len(parts) >= 2:
+                # Use first 2 segments as package identifier
+                pkg = ".".join(parts[:2])
+                pkg_counter[pkg] += 1
+        elif loc.language in ("python", "javascript"):
+            # For Python/Node, use file_hint directory
+            pkg_counter[loc.file_hint] += 1
+
+    if not pkg_counter:
+        return locations
+
+    # The most frequent package is likely the app's code
+    app_packages = {pkg for pkg, _ in pkg_counter.most_common(3)}
+
+    def _sort_key(loc: CodeLocation) -> tuple:
+        # Priority: 0 = app code with line number, 1 = app code, 2 = other with line, 3 = other
+        is_app = False
+        if loc.class_name and loc.language == "java":
+            parts = loc.class_name.split(".")
+            if len(parts) >= 2:
+                pkg = ".".join(parts[:2])
+                is_app = pkg in app_packages
+        has_line = loc.line is not None
+        has_specific_method = loc.method and loc.method not in CodeLocation._GENERIC_METHODS
+
+        if is_app and has_line:
+            return (0, not has_specific_method)
+        if is_app:
+            return (1, not has_specific_method)
+        if has_line:
+            return (2, not has_specific_method)
+        return (3, not has_specific_method)
+
+    return sorted(locations, key=_sort_key)
 
 
 def _parse_line(line: str) -> CodeLocation | None:
