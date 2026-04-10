@@ -7,7 +7,7 @@ import time
 import streamlit as st
 from datetime import datetime
 
-# Lock for Gemini SDK global state (genai.configure sets API key globally)
+# Lock kept for backward compat — new google-genai SDK is client-based
 _gemini_lock = threading.Lock()
 
 from logpilot import (
@@ -211,7 +211,7 @@ try:
 except ImportError:
     pass
 try:
-    import google.generativeai  # noqa: F401
+    from google import genai as _genai_check  # noqa: F401
     _AVAILABLE_PROVIDERS.add("gemini")
 except ImportError:
     pass
@@ -380,64 +380,50 @@ def _call_gemini_api_impl(api_key: str, model_id: str, prompt: dict, stream_plac
     import os
     key = api_key or os.environ.get("GEMINI_API_KEY", "")
 
-    if images:
+    if images or "messages" in prompt:
         # Multimodal path — use native Gemini SDK with inline_data
         if not key:
             raise ValueError("GEMINI_API_KEY is not set.")
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types as genai_types
             import base64 as _base64
         except ImportError:
             raise ImportError(
-                "The `google-generativeai` package is not installed. "
-                "Install with: pip install google-generativeai"
+                "The `google-genai` package is not installed. "
+                "Install with: pip install google-genai"
             )
-        with _gemini_lock:
-            genai.configure(api_key=key)
-            gen_model = genai.GenerativeModel(model_id, system_instruction=prompt["system"])
-            content_parts: list = []
+        client = genai.Client(api_key=key)
+        content_parts: list = []
+        if images:
             for img in images:
-                content_parts.append({
-                    "inline_data": {
-                        "mime_type": img["media_type"],
-                        "data": _base64.b64decode(img["data"]),
-                    }
-                })
+                content_parts.append(genai_types.Part(
+                    inline_data=genai_types.Blob(
+                        mime_type=img["media_type"],
+                        data=_base64.b64decode(img["data"]),
+                    )
+                ))
             content_parts.append(prompt.get("user", ""))
-            response = gen_model.generate_content(content_parts, request_options={"timeout": timeout})
-        answer = response.text if response else None
-    elif "messages" in prompt:
-        # Pre-built multimodal messages dict (from _build_multimodal_messages)
-        if not key:
-            raise ValueError("GEMINI_API_KEY is not set.")
-        try:
-            import google.generativeai as genai
-            import base64 as _base64
-        except ImportError:
-            raise ImportError(
-                "The `google-generativeai` package is not installed. "
-                "Install with: pip install google-generativeai"
-            )
-        with _gemini_lock:
-            genai.configure(api_key=key)
-            gen_model = genai.GenerativeModel(model_id, system_instruction=prompt["system"])
+        else:
             msg = prompt["messages"][0]
-            parts = msg.get("parts", [])
-            content_parts = []
-            for p in parts:
+            for p in msg.get("parts", []):
                 if "inline_data" in p:
-                    content_parts.append({
-                        "inline_data": {
-                            "mime_type": p["inline_data"]["mime_type"],
-                            "data": _base64.b64decode(p["inline_data"]["data"]),
-                        }
-                    })
+                    content_parts.append(genai_types.Part(
+                        inline_data=genai_types.Blob(
+                            mime_type=p["inline_data"]["mime_type"],
+                            data=_base64.b64decode(p["inline_data"]["data"]),
+                        )
+                    ))
                 elif "text" in p:
                     content_parts.append(p["text"])
-            response = gen_model.generate_content(
-                content_parts or prompt.get("user", ""),
-                request_options={"timeout": timeout},
-            )
+        config = genai_types.GenerateContentConfig(
+            system_instruction=prompt.get("system"),
+            http_options=genai_types.HttpOptions(timeout=int(timeout * 1000)),
+        )
+        response = client.models.generate_content(
+            model=model_id, contents=content_parts or prompt.get("user", ""),
+            config=config,
+        )
         answer = response.text if response else None
     else:
         # Text-only path — use the logpilot wrapper

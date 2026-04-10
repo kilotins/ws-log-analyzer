@@ -642,82 +642,100 @@ def test_ask_gemini_raises_import_error(monkeypatch):
     import builtins
     real_import = builtins.__import__
     def mock_import(name, *args, **kwargs):
-        if name == "google.generativeai":
+        if name == "google.genai" or (name == "google" and args and "genai" in str(args)):
             raise ImportError("mock")
         return real_import(name, *args, **kwargs)
     monkeypatch.setattr(builtins, "__import__", mock_import)
     from logpilot import ask_gemini
-    with pytest.raises(ImportError, match="google-generativeai"):
+    with pytest.raises(ImportError, match="google-genai"):
         ask_gemini("test", api_key="fake-key")
 
 
 def test_ask_gemini_calls_api_correctly(monkeypatch):
-    """Mock google.generativeai to verify correct API usage."""
+    """Mock google.genai to verify correct API usage."""
     import types
     import sys
 
-    mock_genai = types.ModuleType("google.generativeai")
-    mock_google = types.ModuleType("google")
-    mock_google.generativeai = mock_genai
-
     calls = {}
-    class MockModel:
-        def __init__(self, name, **kwargs):
-            calls["model_name"] = name
-            calls["model_kwargs"] = kwargs
-        def generate_content(self, prompt, **kwargs):
-            calls["prompt"] = prompt
-            resp = types.SimpleNamespace(text="mock response")
-            return resp
 
-    mock_genai.GenerativeModel = MockModel
-    mock_genai.configure = lambda **kw: calls.update({"configure_kwargs": kw})
+    class MockModels:
+        def generate_content(self, model, contents, config=None):
+            calls["model"] = model
+            calls["contents"] = contents
+            calls["config"] = config
+            return types.SimpleNamespace(text="mock response")
+
+    class MockClient:
+        def __init__(self, api_key=None):
+            calls["api_key"] = api_key
+            self.models = MockModels()
+
+    mock_genai = types.ModuleType("google.genai")
+    mock_genai_types = types.ModuleType("google.genai.types")
+    mock_genai_types.GenerateContentConfig = lambda **kw: types.SimpleNamespace(**kw)
+    mock_genai_types.HttpOptions = lambda **kw: types.SimpleNamespace(**kw)
+    mock_genai.Client = MockClient
+    mock_genai.types = mock_genai_types
+
+    mock_google = types.ModuleType("google")
+    mock_google.genai = mock_genai
 
     monkeypatch.setitem(sys.modules, "google", mock_google)
-    monkeypatch.setitem(sys.modules, "google.generativeai", mock_genai)
+    monkeypatch.setitem(sys.modules, "google.genai", mock_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", mock_genai_types)
 
     from logpilot import ask_gemini
     result = ask_gemini("hello world", api_key="test-key", system="be helpful")
 
     assert result == "mock response"
-    assert calls["configure_kwargs"]["api_key"] == "test-key"
-    assert calls["model_kwargs"]["system_instruction"] == "be helpful"
-    assert calls["prompt"] == "hello world"
+    assert calls["api_key"] == "test-key"
+    assert calls["contents"] == "hello world"
+    assert calls["config"].system_instruction == "be helpful"
 
     # Clean up
     monkeypatch.delitem(sys.modules, "google", raising=False)
-    monkeypatch.delitem(sys.modules, "google.generativeai", raising=False)
+    monkeypatch.delitem(sys.modules, "google.genai", raising=False)
+    monkeypatch.delitem(sys.modules, "google.genai.types", raising=False)
 
 
 def test_ask_gemini_no_system_instruction(monkeypatch):
-    """Verify system_instruction is omitted when system is empty."""
+    """Verify system_instruction is None when system is empty."""
     import types
     import sys
 
-    mock_genai = types.ModuleType("google.generativeai")
-    mock_google = types.ModuleType("google")
-    mock_google.generativeai = mock_genai
-
     calls = {}
-    class MockModel:
-        def __init__(self, name, **kwargs):
-            calls["model_kwargs"] = kwargs
-        def generate_content(self, prompt, **kwargs):
+
+    class MockModels:
+        def generate_content(self, model, contents, config=None):
+            calls["config"] = config
             return types.SimpleNamespace(text="ok")
 
-    mock_genai.GenerativeModel = MockModel
-    mock_genai.configure = lambda **kw: None
+    class MockClient:
+        def __init__(self, api_key=None):
+            self.models = MockModels()
+
+    mock_genai = types.ModuleType("google.genai")
+    mock_genai_types = types.ModuleType("google.genai.types")
+    mock_genai_types.GenerateContentConfig = lambda **kw: types.SimpleNamespace(**kw)
+    mock_genai_types.HttpOptions = lambda **kw: types.SimpleNamespace(**kw)
+    mock_genai.Client = MockClient
+    mock_genai.types = mock_genai_types
+
+    mock_google = types.ModuleType("google")
+    mock_google.genai = mock_genai
 
     monkeypatch.setitem(sys.modules, "google", mock_google)
-    monkeypatch.setitem(sys.modules, "google.generativeai", mock_genai)
+    monkeypatch.setitem(sys.modules, "google.genai", mock_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", mock_genai_types)
 
     from logpilot import ask_gemini
     ask_gemini("test", api_key="key", system="")
 
-    assert "system_instruction" not in calls["model_kwargs"]
+    assert calls["config"].system_instruction is None
 
     monkeypatch.delitem(sys.modules, "google", raising=False)
-    monkeypatch.delitem(sys.modules, "google.generativeai", raising=False)
+    monkeypatch.delitem(sys.modules, "google.genai", raising=False)
+    monkeypatch.delitem(sys.modules, "google.genai.types", raising=False)
 
 
 def test_ask_gemini_missing_key(monkeypatch):
@@ -729,18 +747,18 @@ def test_ask_gemini_missing_key(monkeypatch):
 
 
 def test_ask_gemini_import_error(monkeypatch):
-    """ask_gemini raises ImportError with helpful message when google-generativeai is missing."""
+    """ask_gemini raises ImportError with helpful message when google-genai is missing."""
     import builtins
     real_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):
-        if name == "google.generativeai":
-            raise ImportError("No module named 'google.generativeai'")
+        if name == "google.genai" or (name == "google" and args and "genai" in str(args)):
+            raise ImportError("No module named 'google.genai'")
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", mock_import)
     from logpilot import ask_gemini
-    with pytest.raises(ImportError, match="google-generativeai"):
+    with pytest.raises(ImportError, match="google-genai"):
         ask_gemini("test", api_key="fake-key", system="")
 
 

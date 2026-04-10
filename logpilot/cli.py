@@ -141,20 +141,25 @@ def _call_ai(provider: str, model: str, endpoint: str, prompt: dict,
 
     elif provider == "gemini":
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types as genai_types
         except ImportError:
-            print("google-generativeai not installed. Install with: pip install google-generativeai", file=sys.stderr)
+            print("google-genai not installed. Install with: pip install google-genai", file=sys.stderr)
             sys.exit(1)
         try:
             api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY", "")
             if not api_key:
                 print("Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable.", file=sys.stderr)
                 sys.exit(1)
-            genai.configure(api_key=api_key)
-            gen_model = genai.GenerativeModel(model, system_instruction=prompt["system"])
+            client = genai.Client(api_key=api_key)
+            config = genai_types.GenerateContentConfig(
+                system_instruction=prompt["system"],
+            )
             if not quiet:
                 print(f"[AI] Calling {model}...", file=sys.stderr)
-            response = gen_model.generate_content(prompt["user"])
+            response = client.models.generate_content(
+                model=model, contents=prompt["user"], config=config,
+            )
             text = response.text
             if not quiet:
                 print(text, file=sys.stderr)

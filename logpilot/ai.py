@@ -1061,7 +1061,7 @@ def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "g
 
     Note: This function lives in the core ``logpilot/`` package because it is
     part of the public API and must remain importable without Streamlit.  The
-    ``google-generativeai`` SDK import is deferred so the core still works with
+    ``google-genai`` SDK import is deferred so the core still works with
     zero required dependencies when Gemini is not used.
     """
     import os
@@ -1069,18 +1069,21 @@ def ask_gemini(prompt: str, api_key: str = "", system: str = "", model: str = "g
     if not key:
         raise ValueError("GEMINI_API_KEY environment variable is not set.")
     try:
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
     except ImportError:
         raise ImportError(
-            "The `google-generativeai` package is not installed. "
-            "Install with: pip install google-generativeai"
+            "The `google-genai` package is not installed. "
+            "Install with: pip install google-genai"
         )
-    genai.configure(api_key=key)
-    model_kwargs: dict[str, str] = {}
-    if system:
-        model_kwargs["system_instruction"] = system
-    gen_model = genai.GenerativeModel(model, **model_kwargs)
-    response = gen_model.generate_content(prompt, request_options={"timeout": timeout})
+    client = genai.Client(api_key=key)
+    config = types.GenerateContentConfig(
+        system_instruction=system or None,
+        http_options=types.HttpOptions(timeout=int(timeout * 1000)),
+    )
+    response = client.models.generate_content(
+        model=model, contents=prompt, config=config,
+    )
     # Handle safety-blocked responses — response.text raises ValueError if blocked
     try:
         return response.text
