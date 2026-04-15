@@ -50,6 +50,28 @@ def _sanitize_error(msg: str) -> str:
     return _sanitize_error_impl(msg)
 
 
+def _friendly_local_ai_error(ex: Exception) -> str | None:
+    """Return a user-friendly message for common local AI server errors, or None."""
+    status = getattr(ex, "status_code", None) or getattr(ex, "status", None)
+    if status is None:
+        resp = getattr(ex, "response", None)
+        if resp is not None:
+            status = getattr(resp, "status_code", None)
+    msg = str(ex).lower()
+    if status == 401 or "401" in msg:
+        if "malformed" in msg or "invalid_api_key" in msg or "invalid api key" in msg:
+            return ("**Authentication failed:** Your local AI server rejected the API key as invalid. "
+                    "Go to **Settings → Local AI → Advanced** and either clear the API Key field "
+                    "(if your server doesn't require auth) or paste a valid token from your server's settings.")
+        return ("**Authentication failed (401):** Your local AI server requires a valid API key. "
+                "Check your server's settings and paste the correct token under "
+                "**Settings → Local AI → Advanced → API Key**.")
+    if status == 403 or "403" in msg:
+        return ("**Access denied (403):** Your local AI server rejected the request. "
+                "Check that the API key is correct in **Settings → Local AI → Advanced**.")
+    return None
+
+
 def _should_retry(exc: Exception) -> bool:
     """Return True if *exc* represents a transient error worth retrying."""
     import socket
@@ -247,6 +269,14 @@ def discover_local_models(endpoint: str, api_key: str = "not-needed", timeout: f
     if not url.endswith("/models"):
         url += "/models"
 
+    # Sanitize API key — strip whitespace and reject non-ASCII characters
+    api_key = api_key.strip()
+    try:
+        api_key.encode("ascii")
+    except UnicodeEncodeError:
+        return {"status": "failed", "models": [],
+                "error": "API key contains invalid characters (non-ASCII). Re-copy the key from your server settings."}
+
     try:
         req = urllib.request.Request(url, method="GET")
         req.add_header("Authorization", f"Bearer {api_key}")
@@ -268,6 +298,11 @@ def discover_local_models(endpoint: str, api_key: str = "not-needed", timeout: f
             if models:
                 return {"status": "connected", "models": sorted(models), "error": None}
             return {"status": "no_models", "models": [], "error": "Endpoint responded but returned no models."}
+    except urllib.error.HTTPError as ex:
+        if ex.code in (401, 403):
+            return {"status": "failed", "models": [],
+                    "error": "Authentication failed - check your API key or disable auth in your server."}
+        return {"status": "failed", "models": [], "error": f"HTTP {ex.code}: {ex.reason}"}
     except urllib.error.URLError as ex:
         return {"status": "failed", "models": [], "error": f"Cannot reach endpoint: {ex.reason}"}
     except (ValueError, OSError) as ex:
@@ -585,6 +620,16 @@ def _call_local_api_impl(api_key: str, model_id: str, prompt: dict, stream_place
             import os
             model_id = os.environ.get("LOGPILOT_AI_MODEL", "default")
 
+    # Sanitize API key — strip whitespace and validate ASCII
+    if api_key:
+        api_key = api_key.strip()
+        try:
+            api_key.encode("ascii")
+        except UnicodeEncodeError:
+            raise ValueError(
+                "API key contains invalid characters (non-ASCII). "
+                "Re-copy the key from your server settings."
+            )
     return _call_openai_api_impl(
         api_key=api_key or "not-needed",
         model_id=model_id,
@@ -791,7 +836,12 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
         if log:
             log.error("%s %s API error: %s", provider, label, _sanitize_error(str(ex)))
         _log_probe("Ask AI", provider, model_id, _req_text, "", error=str(ex))
-        status.update(label=f"{label} API error: {ex}", state="error")
+        friendly = _friendly_local_ai_error(ex) if provider == "local" else None
+        if friendly:
+            status.update(label="Local AI authentication failed", state="error")
+            st.error(friendly)
+        else:
+            status.update(label=f"{label} API error: {_sanitize_error(str(ex))}", state="error")
 
 
 def run_claude_analysis(user_query, events, processing_container, model_id="claude-sonnet-4-6",
@@ -1198,8 +1248,13 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
                         log.info("triage Cross-system triage complete (%s)", model_id)
                 except Exception as ex:
                     _log_probe("Triage", provider, model_id, _triage_req, "", error=str(ex))
-                    status.update(label="Triage failed", state="error")
-                    st.error(f"AI call failed: {_sanitize_error(str(ex))}")
+                    friendly = _friendly_local_ai_error(ex) if provider == "local" else None
+                    if friendly:
+                        status.update(label="Local AI authentication failed", state="error")
+                        st.error(friendly)
+                    else:
+                        status.update(label="Triage failed", state="error")
+                        st.error(f"AI call failed: {_sanitize_error(str(ex))}")
                     if log:
                         log.error("triage Cross-system triage failed: %s", _sanitize_error(str(ex)))
                     return
