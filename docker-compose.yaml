@@ -5,6 +5,8 @@ services:
       - SERVICE_FQDN_LOGPILOT_8501
     env_file:
       - .env
+    labels:
+      - "traefik.http.services.logpilot.loadbalancer.server.port=8501"
     volumes:
       - uploads:/app/uploads
       - reports:/app/reports
