@@ -156,8 +156,11 @@ volumes:
 ## Build & Run Commands
 
 ```bash
-# Build
+# Build (local architecture)
 docker build -t logpilot-app .
+
+# Build for amd64 (required when building on Apple Silicon for amd64 servers)
+docker buildx build --platform linux/amd64 -t kilotin/logpilot:latest --push .
 
 # Run (basic)
 docker run -p 8501:8501 logpilot-app
@@ -174,6 +177,26 @@ docker run -d --name logpilot \
 # Compose
 docker compose up -d
 ```
+
+## Coolify Deployment (Docker Image)
+
+Instead of docker-compose, Coolify can deploy a pre-built image directly from Docker Hub:
+
+1. **Create new resource** → Docker Image
+2. **Image Name**: `kilotin/logpilot:latest`
+3. **Ports Exposes**: `8501` (tells Traefik which port the container listens on)
+4. **Port Mappings**: leave empty (Traefik handles routing)
+5. **Domain**: set in Coolify UI (e.g. `http://logpilot.item.intern`)
+6. **Environment variables**: add API keys via Coolify UI
+
+**Deploy workflow:**
+```bash
+# 1. Build for amd64 and push
+docker buildx build --platform linux/amd64 -t kilotin/logpilot:latest --push .
+# 2. Redeploy in Coolify UI
+```
+
+**Gotcha**: If building on Apple Silicon (M1/M2/M3), you MUST use `--platform linux/amd64` or the image will fail on amd64 servers with "no matching manifest for linux/amd64".
 
 ## Streamlit Config in Container
 
