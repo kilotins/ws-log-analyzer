@@ -10,8 +10,8 @@ services:
       - reports:/app/reports
       - cache:/app/cache
     restart: unless-stopped
-    expose:
-      - "8501"
+    labels:
+      - "traefik.http.services.http-0-tkwc0hbbubaobperbq682q9k-logpilot.loadbalancer.server.port=8501"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s
