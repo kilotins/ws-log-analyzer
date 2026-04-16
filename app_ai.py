@@ -135,11 +135,15 @@ def _with_retries(func, *args, max_retries: int = AI_MAX_RETRIES, **kwargs):
     raise last_exc
 
 
-def _log_probe(call_type: str, provider: str, model: str, request: str, response: str, error: str | None = None):
+def _log_probe(call_type: str, provider: str, model: str, request: str, response: str,
+               error: str | None = None, endpoint: str | None = None):
     """Record an AI call in the probe log (visible in Debug > Probe tab)."""
     try:
         if not st.session_state.get("debug_payload"):
             return
+        # For local AI, auto-populate endpoint from session state if not provided
+        if provider == "local" and not endpoint:
+            endpoint = getattr(st.session_state, "local_ai_endpoint", None)
         entry = {
             "ts": datetime.now().strftime("%H:%M:%S"),
             "type": call_type,
@@ -149,6 +153,8 @@ def _log_probe(call_type: str, provider: str, model: str, request: str, response
             "response": response,
             "error": error,
         }
+        if endpoint:
+            entry["endpoint"] = endpoint
         if "_ai_probe_log" not in st.session_state:
             st.session_state._ai_probe_log = []
         st.session_state._ai_probe_log.append(entry)
@@ -1282,7 +1288,8 @@ def call_ai_provider(provider: str, model_id: str, prompt: dict,
             st.session_state.get("openai_api_key", "") or "not-needed",
             model_id, prompt, max_tokens=max_tokens)
     elif provider == "local":
+        _local_key = st.session_state.get("local_ai_api_key", "") or "not-needed"
         _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
         return call_local_api(
-            "not-needed", model_id, prompt, max_tokens=max_tokens, base_url=_local_url)
+            _local_key, model_id, prompt, max_tokens=max_tokens, base_url=_local_url)
     return (None, {})

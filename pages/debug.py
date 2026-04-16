@@ -44,7 +44,9 @@ with _debug_sub_probe:
             _model = _entry.get("model", "")
             _error = _entry.get("error")
             _icon = "!" if _error else ">"
-            _header = f"[{_icon}] {_ts}  {_type}  ({_provider} / {_model})"
+            _endpoint = _entry.get("endpoint", "")
+            _ep_label = f" @ {_endpoint}" if _endpoint else ""
+            _header = f"[{_icon}] {_ts}  {_type}  ({_provider} / {_model}{_ep_label})"
             if _error:
                 _header += f"  ERROR: {_error[:80]}"
             with st.expander(_header, expanded=False):
