@@ -18,9 +18,13 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import time
 from dataclasses import dataclass
+
+_log = logging.getLogger(__name__)
+_logged_secret_error = False  # module-level: log the misconfiguration only once per process
 
 # ── Constants ────────────────────────────────────────────────────────
 
@@ -125,6 +129,8 @@ def validate_token(token: str | None, secret: str | None = None) -> LicenseInfo 
 
     Never raises exceptions — returns None on any failure.
     """
+    global _logged_secret_error
+
     if not token or not isinstance(token, str):
         return None
 
@@ -139,7 +145,13 @@ def validate_token(token: str | None, secret: str | None = None) -> LicenseInfo 
     payload_b64, provided_sig = body.rsplit(".", 1)
 
     # Verify signature (constant-time comparison)
-    secret = secret or _get_secret()
+    try:
+        secret = secret or _get_secret()
+    except RuntimeError as ex:
+        if not _logged_secret_error:
+            _log.error("License check failed (env misconfigured): %s", ex)
+            _logged_secret_error = True
+        return None
     expected_sig = hmac.new(
         secret.encode(), payload_b64.encode(), hashlib.sha256
     ).hexdigest()
@@ -183,9 +195,17 @@ def validate_token(token: str | None, secret: str | None = None) -> LicenseInfo 
 def is_feature_licensed(token: str | None, feature: str = "ai",
                         secret: str | None = None) -> bool:
     """Check if a specific feature is licensed. Returns False on any error."""
+    global _logged_secret_error
+
     if not require_license():
         return True  # License checks disabled — all features unlocked
-    info = validate_token(token, secret)
+    try:
+        info = validate_token(token, secret)
+    except RuntimeError as ex:
+        if not _logged_secret_error:
+            _log.error("License check failed (env misconfigured): %s", ex)
+            _logged_secret_error = True
+        return False
     if not info or not info.valid:
         return False
     return feature in info.features

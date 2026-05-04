@@ -342,6 +342,27 @@ class TestModelAccess:
         assert is_model_allowed(None, "gpt-4o", secret=_TEST_SECRET) is True
 
 
+# ── Missing Secret (P0-2 regression) ─────────────────────────────────
+
+class TestMissingSecret:
+    def test_validate_token_returns_none_on_missing_secret(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        monkeypatch.delenv("LOGPILOT_LICENSE_SECRET", raising=False)
+        import importlib
+        import logpilot.license as lic_mod
+        importlib.reload(lic_mod)
+        result = lic_mod.validate_token("fake-token")
+        assert result is None  # Must not crash
+
+    def test_is_feature_licensed_returns_false_on_missing_secret(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        monkeypatch.delenv("LOGPILOT_LICENSE_SECRET", raising=False)
+        import importlib
+        import logpilot.license as lic_mod
+        importlib.reload(lic_mod)
+        assert lic_mod.is_feature_licensed("fake-token", "ai_analysis") is False
+
+
 # ── Backwards Compatibility ───────────────────────────────────────────
 
 class TestBackwardsCompat:
