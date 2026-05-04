@@ -34,6 +34,10 @@ from logpilot.discovery import discover_log_files
 from logpilot.license import require_license, validate_token, is_feature_licensed, allowed_providers, is_model_allowed
 
 # --- Paths and directories ---
+from logpilot.config import DEFAULT_CONFIG as _CONFIG
+
+# _APP_DIR kept for backward-compat (git ops, pyproject.toml lookup, favicon path).
+# It always points to the repo root regardless of env-var overrides.
 _APP_DIR = Path(__file__).parent
 
 
@@ -72,14 +76,11 @@ def _get_version() -> str:
     except Exception:
         pass
     return base
-UPLOADS_DIR = _APP_DIR / "uploads"
-REPORTS_DIR = _APP_DIR / "reports"
-CACHE_DIR = _APP_DIR / "cache"
-LOGS_DIR = _APP_DIR / "logs"
-UPLOADS_DIR.mkdir(exist_ok=True)
-REPORTS_DIR.mkdir(exist_ok=True)
-CACHE_DIR.mkdir(exist_ok=True)
-LOGS_DIR.mkdir(exist_ok=True)
+UPLOADS_DIR = _CONFIG.uploads_dir
+REPORTS_DIR = _CONFIG.reports_dir
+CACHE_DIR = _CONFIG.cache_dir
+LOGS_DIR = _CONFIG.logs_dir
+_CONFIG.ensure_dirs()
 
 LOG_FILE = LOGS_DIR / "app.log"
 
@@ -187,7 +188,7 @@ def _save_json_file(path: Path, data: object) -> None:
         raise
 
 
-_LOCAL_SETTINGS_FILE = CACHE_DIR / ".local_ai_settings.json"
+_LOCAL_SETTINGS_FILE = _CONFIG.local_ai_settings_file
 
 def _load_local_ai_settings() -> dict:
     """Load saved local AI settings from disk."""
@@ -574,7 +575,7 @@ if not st.session_state._local_settings_loaded:
 
 # Load persisted license key on fresh session
 if not st.session_state.license_key:
-    _LICENSE_FILE = CACHE_DIR / ".license_key"
+    _LICENSE_FILE = _CONFIG.license_key_file
     try:
         if _LICENSE_FILE.exists():
             st.session_state.license_key = _LICENSE_FILE.read_text().strip()
@@ -582,7 +583,7 @@ if not st.session_state.license_key:
         pass
 
 # Load persisted theme on fresh session (override default "system" if a theme file exists)
-_THEME_FILE = CACHE_DIR / ".theme.json"
+_THEME_FILE = _CONFIG.theme_file
 if st.session_state._app_theme == "system":
     _saved_theme = _load_json_file(_THEME_FILE, {})
     if isinstance(_saved_theme, dict) and _saved_theme.get("theme"):
@@ -748,7 +749,7 @@ _KEYRING_USERNAME = "anthropic_api_key"
 _KEYRING_GEMINI_USERNAME = "gemini_api_key"
 _KEYRING_OPENAI_USERNAME = "openai_api_key"
 
-_KEYS_FILE = CACHE_DIR / ".api_keys.json"
+_KEYS_FILE = _CONFIG.api_keys_file
 
 
 def _load_keychain(username: str, env_var: str) -> str:
