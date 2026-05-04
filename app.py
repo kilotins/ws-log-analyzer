@@ -188,6 +188,41 @@ def _save_json_file(path: Path, data: object) -> None:
         raise
 
 
+try:
+    import fcntl as _fcntl
+    _HAS_FCNTL = True
+except ImportError:
+    _HAS_FCNTL = False
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def _file_lock(path: Path):
+    """Exclusive advisory lock on *path*.lock. Falls through silently on Windows."""
+    lock_path = str(path) + ".lock"
+    if not _HAS_FCNTL:
+        yield  # Best-effort on Windows — no perfect equivalent
+        return
+
+    fd = None
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        _fcntl.flock(fd, _fcntl.LOCK_EX)
+        yield
+    finally:
+        if fd is not None:
+            try:
+                _fcntl.flock(fd, _fcntl.LOCK_UN)
+            except OSError:
+                pass
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
 _LOCAL_SETTINGS_FILE = _CONFIG.local_ai_settings_file
 
 def _load_local_ai_settings() -> dict:
@@ -215,26 +250,65 @@ def _save_local_ai_settings(endpoint: str, model: str, api_key: str, preset: str
 _CACHE_TTL_SECONDS = CACHE_TTL_SECONDS
 
 
-def _load_file_cache():
+def _cache_mod():
+    """Return the live 'app' module from sys.modules.
+
+    Using sys.modules ensures that monkeypatch.setattr(app, 'CACHE_FILE', ...)
+    in tests is always visible, even when cache functions were imported under a
+    different module namespace (double-import scenario in pytest).
+    """
+    import sys
+    return sys.modules.get(__name__)
+
+
+def _load_file_cache_raw() -> dict:
+    """Load and TTL-filter the cache file. No locking — internal use only."""
     import time
-    raw = _load_json_file(CACHE_FILE, {})
+    mod = _cache_mod()
+    cache_file = mod.CACHE_FILE if mod is not None else CACHE_FILE
+    ttl = mod._CACHE_TTL_SECONDS if mod is not None else _CACHE_TTL_SECONDS
+    raw = _load_json_file(cache_file, {})
     now = time.time()
-    cleaned = {}
+    cleaned: dict = {}
     for k, v in raw.items():
         if isinstance(v, dict) and "ts" in v:
-            if now - v["ts"] <= _CACHE_TTL_SECONDS:
+            if now - v["ts"] <= ttl:
                 cleaned[k] = v
         else:
             cleaned[k] = {"text": v, "ts": now}
     return cleaned
 
 
-def _save_file_cache(cache):
-    if len(cache) > MAX_CACHE_ENTRIES:
-        keys = list(cache.keys())
-        for k in keys[:len(keys) - MAX_CACHE_ENTRIES]:
-            del cache[k]
-    _save_json_file(CACHE_FILE, cache)
+def _load_file_cache() -> dict:
+    """Read the file cache under an exclusive lock."""
+    mod = _cache_mod()
+    cache_file = mod.CACHE_FILE if mod is not None else CACHE_FILE
+    with _file_lock(cache_file):
+        return _load_file_cache_raw()
+
+
+def _save_file_cache(key: str, value: object) -> None:
+    """Write a single key/value into the file cache under an exclusive lock.
+
+    Re-reads the file inside the lock (read-modify-write) so concurrent
+    writers don't clobber each other's entries.  Evicts oldest entries when
+    the cache exceeds MAX_CACHE_ENTRIES.
+    """
+    mod = _cache_mod()
+    cache_file = mod.CACHE_FILE if mod is not None else CACHE_FILE
+    max_entries = mod.MAX_CACHE_ENTRIES if mod is not None else MAX_CACHE_ENTRIES
+    try:
+        with _file_lock(cache_file):
+            cache = _load_file_cache_raw()
+            cache[key] = value
+            if len(cache) > max_entries:
+                keys = list(cache.keys())
+                for k in keys[:len(keys) - max_entries]:
+                    del cache[k]
+            _save_json_file(cache_file, cache)
+    except OSError as exc:
+        log.warning("cache _save_file_cache failed: %s", exc)
+
 
 
 def _cleanup_temp_dir(path: Path | str | None) -> None:
@@ -439,9 +513,7 @@ def _store_cache(cache_key, answer, session_cache):
     """Store answer in both session and file cache."""
     import time
     session_cache[cache_key] = answer
-    file_cache = _load_file_cache()
-    file_cache[cache_key] = {"text": answer, "ts": time.time()}
-    _save_file_cache(file_cache)
+    _save_file_cache(cache_key, {"text": answer, "ts": time.time()})
 
 
 # --- Session state defaults ---
