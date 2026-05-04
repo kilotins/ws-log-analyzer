@@ -718,7 +718,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
     """Common AI analysis orchestrator. Handles caching, history, and error display."""
     import time as _time
     now = _time.time()
-    elapsed = now - st.session_state.last_ai_call_ts
+    elapsed = now - st.session_state.get("last_ai_call_ts", 0.0)
     if elapsed < AI_RATE_LIMIT_SECONDS:
         st.warning(f"Rate limit: wait {AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
         return
@@ -733,7 +733,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
         status = st.status(f"Analyzing with {label}...", expanded=True)
 
     match, cache_key, prompt = build_ai_request_context(user_query, events, provider, log=log)
-    session_cache = getattr(st.session_state, cfg["cache_key"])
+    session_cache = st.session_state.get(cfg["cache_key"], {})
 
     cached = None
     if lookup_cache and provider != "local":
@@ -747,7 +747,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
             "answer": answer,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
         }
-        hist = getattr(st.session_state, cfg["history_key"])
+        hist = st.session_state.get(cfg["history_key"], [])
         if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
             hist.append(entry)
             cfg["save_history"](hist)
@@ -952,9 +952,9 @@ def _render_claude_response(text):
 
 def render_current_ai_analyses():
     """Render expanders for current Claude, Gemini, GPT, and Local AI results."""
-    _has_claude = bool(st.session_state.claude_answer)
-    _has_gemini = bool(st.session_state.gemini_answer)
-    _has_openai = bool(st.session_state.openai_answer)
+    _has_claude = bool(st.session_state.get("claude_answer", ""))
+    _has_gemini = bool(st.session_state.get("gemini_answer", ""))
+    _has_openai = bool(st.session_state.get("openai_answer", ""))
     _has_local = bool(st.session_state.get("local_answer"))
     if not _has_claude and not _has_gemini and not _has_openai and not _has_local:
         return
@@ -966,29 +966,29 @@ def render_current_ai_analyses():
     st.subheader("Current AI analyses")
 
     if _has_claude:
-        label = st.session_state.claude_query_label or "query"
+        label = st.session_state.get("claude_query_label", "") or "query"
         with st.expander(f"Claude analysis \u2014 {label}", expanded=_expand_last and _has_claude):
-            _render_claude_response(st.session_state.claude_answer)
+            _render_claude_response(st.session_state.get("claude_answer", ""))
 
     if _has_gemini:
-        label = st.session_state.gemini_query_label or "query"
+        label = st.session_state.get("gemini_query_label", "") or "query"
         with st.expander(f"Gemini analysis \u2014 {label}", expanded=_expand_last and _has_gemini):
-            st.markdown(st.session_state.gemini_answer)
+            st.markdown(st.session_state.get("gemini_answer", ""))
 
     if _has_openai:
-        label = st.session_state.openai_query_label or "query"
+        label = st.session_state.get("openai_query_label", "") or "query"
         with st.expander(f"GPT analysis \u2014 {label}", expanded=_expand_last and _has_openai):
-            st.markdown(st.session_state.openai_answer)
+            st.markdown(st.session_state.get("openai_answer", ""))
 
     if _has_local:
         label = st.session_state.get("local_query_label") or "query"
         with st.expander(f"Local AI analysis \u2014 {label}", expanded=_expand_last and _has_local):
-            st.markdown(st.session_state.local_answer)
+            st.markdown(st.session_state.get("local_answer", ""))
 
 
 def render_ai_history():
     """Render previous query history for Claude, Gemini, and GPT."""
-    claude_history = st.session_state.claude_history
+    claude_history = st.session_state.get("claude_history", [])
     if len(claude_history) > 1:
         st.markdown("---")
         st.subheader("Previous Claude queries")
@@ -997,7 +997,7 @@ def render_ai_history():
             with st.expander(hist_label):
                 _render_claude_response(entry["answer"])
 
-    gemini_history = st.session_state.gemini_history
+    gemini_history = st.session_state.get("gemini_history", [])
     if len(gemini_history) > 1:
         st.markdown("---")
         st.subheader("Previous Gemini queries")
@@ -1006,7 +1006,7 @@ def render_ai_history():
             with st.expander(hist_label):
                 st.markdown(entry["answer"])
 
-    openai_history = st.session_state.openai_history
+    openai_history = st.session_state.get("openai_history", [])
     if len(openai_history) > 1:
         st.markdown("---")
         st.subheader("Previous GPT queries")
@@ -1176,7 +1176,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
     if _triage_clicked:
         import time as _time
         now = _time.time()
-        elapsed = now - st.session_state.last_ai_call_ts
+        elapsed = now - st.session_state.get("last_ai_call_ts", 0.0)
         if elapsed < AI_RATE_LIMIT_SECONDS:
             st.warning(f"Rate limit: wait {AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
             return
