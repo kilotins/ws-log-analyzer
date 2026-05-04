@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "logpilot"
-version = "1.5.2"
+version = "1.5.3"
 description = "Multi-format log analyzer with AI-powered root cause analysis"
 readme = "README.md"
 license = {text = "MIT"}
