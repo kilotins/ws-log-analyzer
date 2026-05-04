@@ -498,11 +498,21 @@ def _cache_dict_to_event(d: dict) -> LogEvent:
 
 def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = None,
                       max_lines: int = 0, format_name: str | None = None,
-                      sample_info: int = 0) -> list[LogEvent]:
-    """Parse with file-level caching. Falls back to parse_file on cache miss."""
+                      sample_info: int = 0,
+                      redaction_level: str | None = None) -> list[LogEvent]:
+    """Parse with file-level caching. Falls back to parse_file on cache miss.
+
+    ``redaction_level`` is included in the cache key so that runs with different
+    redaction settings never share cached event text.  When *None* (the default)
+    the value is read from the ``LOGPILOT_REDACTION_LEVEL`` environment variable
+    (defaulting to ``"secrets"``), preserving existing behaviour for all callers
+    that do not pass the parameter explicitly.
+    """
+    if redaction_level is None:
+        redaction_level = os.environ.get("LOGPILOT_REDACTION_LEVEL", "secrets")
     cache_path = None
     if cache_dir:
-        cache_key = f"parsed_{content_hash}_{format_name or 'auto'}_{max_lines}_{sample_info}"
+        cache_key = f"parsed_{content_hash}_{format_name or 'auto'}_{max_lines}_{sample_info}_{redaction_level}"
         cache_path = cache_dir / f"{cache_key}.json.gz"
         if cache_path.exists():
             try:

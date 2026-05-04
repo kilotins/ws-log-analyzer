@@ -479,6 +479,57 @@ class TestParseFileCache:
         cache_files = list(cache_dir.glob("*.json.gz"))
         assert len(cache_files) == 2
 
+    def test_parse_file_cached_includes_redaction_in_cache_key(self, tmp_path):
+        """Different LOGPILOT_REDACTION_LEVEL must produce different cache files."""
+        import os
+        log_file = tmp_path / "test.log"
+        log_file.write_text("2024-01-01 INFO Bearer abc123def456\n")
+        cache_dir = tmp_path / "cache"
+
+        saved = os.environ.get("LOGPILOT_REDACTION_LEVEL")
+        try:
+            os.environ["LOGPILOT_REDACTION_LEVEL"] = "none"
+            parse_file_cached(log_file, content_hash="hash1", cache_dir=cache_dir)
+            cache_files_none = set(f.name for f in cache_dir.glob("parsed_*.json.gz"))
+
+            os.environ["LOGPILOT_REDACTION_LEVEL"] = "secrets"
+            parse_file_cached(log_file, content_hash="hash1", cache_dir=cache_dir)
+            cache_files_secrets = set(f.name for f in cache_dir.glob("parsed_*.json.gz"))
+        finally:
+            if saved is None:
+                os.environ.pop("LOGPILOT_REDACTION_LEVEL", None)
+            else:
+                os.environ["LOGPILOT_REDACTION_LEVEL"] = saved
+
+        # Should have created a NEW cache file, not reused the "none" one
+        assert len(cache_files_secrets) > len(cache_files_none)
+        # The two sets must differ (different file names)
+        assert cache_files_secrets != cache_files_none
+
+    def test_parse_file_cached_explicit_redaction_level_overrides_env(self, tmp_path):
+        """Explicit redaction_level param must override env variable."""
+        import os
+        log_file = tmp_path / "test.log"
+        log_file.write_text("2024-01-01 INFO Bearer abc123def456\n")
+        cache_dir = tmp_path / "cache"
+
+        saved = os.environ.get("LOGPILOT_REDACTION_LEVEL")
+        try:
+            os.environ["LOGPILOT_REDACTION_LEVEL"] = "none"
+            # Pass explicit level — should use "secrets" regardless of env
+            parse_file_cached(log_file, content_hash="hash2", cache_dir=cache_dir,
+                              redaction_level="secrets")
+            cache_files = list(cache_dir.glob("parsed_*.json.gz"))
+        finally:
+            if saved is None:
+                os.environ.pop("LOGPILOT_REDACTION_LEVEL", None)
+            else:
+                os.environ["LOGPILOT_REDACTION_LEVEL"] = saved
+
+        assert len(cache_files) == 1
+        # File name must contain the explicit level, not the env "none"
+        assert "_secrets" in cache_files[0].name
+
 
 # ── M44: Progress callback ────────────────────────────────────────────
 
