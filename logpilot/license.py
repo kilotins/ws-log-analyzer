@@ -252,3 +252,57 @@ def generate_secret() -> str:
     """Generate a cryptographically secure secret for license signing."""
     import secrets
     return secrets.token_urlsafe(32)
+
+
+# ── Pure AI License Check (Framework-agnostic) ───────────────────────
+
+_LICENSE_MSG = (
+    "AI analysis requires a valid license key. "
+    "Enter one in the sidebar or contact eric@item.no."
+)
+
+
+def _check_ai_license(
+    token: str | None,
+    provider: str = "",
+    model: str = "",
+) -> tuple[bool, str | None]:
+    """Pure license check for AI features — no Streamlit dependency.
+
+    Suitable for use in FastAPI handlers (pass token from Authorization header)
+    or any context where ``st.session_state`` is not available.
+
+    Args:
+        token: License token string (or None / empty string when absent).
+        provider: AI provider name (e.g. ``"claude"``, ``"gemini"``).
+                  Pass ``""`` to skip provider check.
+        model: Model identifier (e.g. ``"claude-sonnet-4-6"``).
+               Pass ``""`` to skip model check.
+
+    Returns:
+        ``(True, None)`` when the action is permitted.
+        ``(False, error_message)`` when it is blocked.
+    """
+    if not token:
+        return (False, "No license key provided")
+
+    if not is_feature_licensed(token):
+        return (False, _LICENSE_MSG)
+
+    if provider and provider != "local":
+        providers = allowed_providers(token)
+        if provider not in providers:
+            return (
+                False,
+                f"Provider '{provider}' requires a Pro license. "
+                "Contact eric@item.no to upgrade.",
+            )
+
+    if model and not is_model_allowed(token, model):
+        return (
+            False,
+            f"Model '{model}' requires a Pro license. "
+            "Contact eric@item.no to upgrade.",
+        )
+
+    return (True, None)
