@@ -16,32 +16,34 @@ from logpilot import (
     estimate_tokens, TOKEN_LIMITS,
 )
 from logpilot.ai import _FORMAT_PLACEHOLDER, sanitize_error as _sanitize_error_impl
+from logpilot.providers import (
+    ProviderResult,
+    call_claude_pure, call_gemini_pure, call_openai_pure, call_local_pure,
+    call_provider_pure,
+    _call_claude_impl, _call_gemini_impl, _call_openai_impl,
+    _extract_claude_usage, _should_retry as _providers_should_retry,
+    _with_retries as _providers_with_retries,
+)
 from app_constants import AI_RATE_LIMIT_SECONDS, AI_MAX_RETRIES, TOKEN_COSTS, CACHE_TOKEN_COSTS
-from logpilot.license import is_feature_licensed, allowed_providers, is_model_allowed
+from logpilot.license import (
+    is_feature_licensed, allowed_providers, is_model_allowed,
+    _check_ai_license,
+)
 
-_LICENSE_MSG = ("AI analysis requires a valid license key. "
-               "Enter one in the sidebar or contact eric@item.no.")
 
+def _check_ai_license_streamlit(provider: str = "", model: str = "") -> str | None:
+    """Streamlit wrapper — reads token from session_state, calls the pure version.
 
-def _check_ai_license(provider: str = "", model: str = "") -> str | None:
-    """Return error message if cloud AI is not licensed, else None."""
+    Returns an error message string if the action is blocked, else None.
+    """
     token = st.session_state.get("license_key", "")
-    if not is_feature_licensed(token):
-        return _LICENSE_MSG
-    if provider and provider != "local":
-        providers = allowed_providers(token)
-        if provider not in providers:
-            return f"Provider '{provider}' requires a Pro license. Contact eric@item.no to upgrade."
-    if model and not is_model_allowed(token, model):
-        return f"Model '{model}' requires a Pro license. Contact eric@item.no to upgrade."
-    return None
+    allowed, err = _check_ai_license(token, provider, model)
+    return err
 
 _log = logging.getLogger(__name__)
 
-# HTTP status codes that should NOT be retried (auth/client errors)
+# Kept for backward compatibility — logic lives in logpilot.providers
 _NO_RETRY_STATUS = frozenset({400, 401, 403, 404})
-
-# Transient HTTP status codes that warrant a retry
 _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
@@ -73,66 +75,20 @@ def _friendly_local_ai_error(ex: Exception) -> str | None:
 
 
 def _should_retry(exc: Exception) -> bool:
-    """Return True if *exc* represents a transient error worth retrying."""
-    import socket
-    # Connection-level errors
-    if isinstance(exc, (TimeoutError, ConnectionError, OSError, socket.timeout)):
-        return True
-    # urllib timeout/connection errors
-    try:
-        import urllib.error
-        if isinstance(exc, urllib.error.URLError):
-            return True
-    except ImportError:
-        pass
-    # Check for HTTP status codes embedded in the exception
-    status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
-    if status is None:
-        # Anthropic SDK wraps status in .response
-        resp = getattr(exc, "response", None)
-        if resp is not None:
-            status = getattr(resp, "status_code", None)
-    if status in _NO_RETRY_STATUS:
-        return False
-    if status in _RETRY_STATUS:
-        return True
-    # Anthropic/OpenAI SDK exception class names
-    cls_name = type(exc).__name__
-    if any(k in cls_name for k in ("Timeout", "Connection", "RateLimit", "APIStatusError", "ServiceUnavailable")):
-        # Still skip 401/403 even by name
-        if status in _NO_RETRY_STATUS:
-            return False
-        return True
-    return False
+    """Return True if *exc* represents a transient error worth retrying.
+
+    Delegates to the pure implementation in logpilot.providers.
+    """
+    return _providers_should_retry(exc)
 
 
 def _with_retries(func, *args, max_retries: int = AI_MAX_RETRIES, **kwargs):
     """Call *func* with exponential backoff on transient errors.
 
     Retries up to *max_retries* times (default from AI_MAX_RETRIES).
-    Backoff delays: 1s, 2s, 4s, ...
-    Auth errors (401/403) and client errors (400) are re-raised immediately.
+    Delegates to the pure implementation in logpilot.providers.
     """
-    last_exc: Exception | None = None
-    for attempt in range(1, max_retries + 1):
-        try:
-            return func(*args, **kwargs)
-        except Exception as exc:
-            if not _should_retry(exc):
-                raise
-            last_exc = exc
-            if attempt < max_retries:
-                delay = 2 ** (attempt - 1)  # 1s, 2s, 4s
-                _log.warning(
-                    "AI API transient error (attempt %d/%d), retrying in %ds: %s",
-                    attempt, max_retries, delay, exc,
-                )
-                time.sleep(delay)
-            else:
-                _log.error(
-                    "AI API call failed after %d attempts: %s", max_retries, exc
-                )
-    raise last_exc
+    return _providers_with_retries(func, *args, max_retries=max_retries, **kwargs)
 
 
 def _log_probe(call_type: str, provider: str, model: str, request: str, response: str,
@@ -326,55 +282,12 @@ def estimate_cost(model_id: str, input_tokens: int, output_tokens: int) -> float
 def _call_claude_api_impl(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
                           timeout: float = 120.0, max_tokens: int = 2048,
                           images: list[dict] | None = None) -> tuple[str, dict]:
-    """Internal implementation — use call_claude_api (which adds retry logic)."""
-    try:
-        from anthropic import Anthropic
-    except ImportError:
-        raise ImportError("The `anthropic` package is not installed. Install with: `pip install anthropic`")
-    client = Anthropic(api_key=api_key, timeout=timeout)
-
-    # Build user message content — multimodal when images are provided
-    if images:
-        user_content: list[dict] = []
-        for img in images:
-            user_content.append({
-                "type": "image",
-                "source": {"type": "base64", "media_type": img["media_type"], "data": img["data"]},
-            })
-        user_content.append({"type": "text", "text": prompt.get("user", "")})
-    else:
-        user_content = prompt.get("user", "")
-
-    # Support pre-built messages list (multimodal path from _build_multimodal_messages)
-    if "messages" in prompt:
-        messages = prompt["messages"]
-    else:
-        messages = [{"role": "user", "content": user_content}]
-
-    if stream_placeholder:
-        chunks = []
-        with client.messages.stream(
-            model=model_id, max_tokens=max_tokens,
-            system=[{"type": "text", "text": prompt["system"], "cache_control": {"type": "ephemeral"}}],
-            messages=messages,
-        ) as stream:
-            for text in stream.text_stream:
-                chunks.append(text)
-                stream_placeholder.markdown("".join(chunks) + "\n\n*Streaming...*")
-            final = stream.get_final_message()
-        answer = "".join(chunks)
-        usage = _extract_claude_usage(final.usage if final else None)
-        return (answer or None, usage)
-
-    message = client.messages.create(
-        model=model_id, max_tokens=max_tokens,
-        system=[{"type": "text", "text": prompt["system"], "cache_control": {"type": "ephemeral"}}],
-        messages=messages,
+    """Internal implementation — delegates to logpilot.providers._call_claude_impl."""
+    return _call_claude_impl(
+        api_key=api_key, model=model_id, prompt=prompt,
+        stream_placeholder=stream_placeholder, timeout=timeout,
+        max_tokens=max_tokens, images=images,
     )
-    if not message.content:
-        return (None, {})
-    usage = _extract_claude_usage(message.usage)
-    return (message.content[0].text, usage)
 
 
 def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
@@ -392,7 +305,7 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict).
     """
-    _lic_err = _check_ai_license(provider="claude", model=model_id)
+    _lic_err = _check_ai_license_streamlit(provider="claude", model=model_id)
     if _lic_err:
         return (_lic_err, {})
     return _with_retries(
@@ -402,83 +315,15 @@ def call_claude_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
     )
 
 
-def _extract_claude_usage(usage) -> dict:
-    """Extract token usage from Claude API response, including cache tokens."""
-    if not usage:
-        return {}
-    return {
-        "input": getattr(usage, "input_tokens", 0) or 0,
-        "output": getattr(usage, "output_tokens", 0) or 0,
-        "cache_creation": getattr(usage, "cache_creation_input_tokens", 0) or 0,
-        "cache_read": getattr(usage, "cache_read_input_tokens", 0) or 0,
-    }
-
-
 def _call_gemini_api_impl(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
                           timeout: float = 120.0, max_tokens: int = 2048,
                           images: list[dict] | None = None) -> tuple[str, dict]:
-    """Internal implementation — use call_gemini_api (which adds retry logic)."""
-    import os
-    key = api_key or os.environ.get("GEMINI_API_KEY", "")
-
-    if images or "messages" in prompt:
-        # Multimodal path — use native Gemini SDK with inline_data
-        if not key:
-            raise ValueError("GEMINI_API_KEY is not set.")
-        try:
-            from google import genai
-            from google.genai import types as genai_types
-            import base64 as _base64
-        except ImportError:
-            raise ImportError(
-                "The `google-genai` package is not installed. "
-                "Install with: pip install google-genai"
-            )
-        client = genai.Client(api_key=key)
-        content_parts: list = []
-        if images:
-            for img in images:
-                content_parts.append(genai_types.Part(
-                    inline_data=genai_types.Blob(
-                        mime_type=img["media_type"],
-                        data=_base64.b64decode(img["data"]),
-                    )
-                ))
-            content_parts.append(prompt.get("user", ""))
-        else:
-            msg = prompt["messages"][0]
-            for p in msg.get("parts", []):
-                if "inline_data" in p:
-                    content_parts.append(genai_types.Part(
-                        inline_data=genai_types.Blob(
-                            mime_type=p["inline_data"]["mime_type"],
-                            data=_base64.b64decode(p["inline_data"]["data"]),
-                        )
-                    ))
-                elif "text" in p:
-                    content_parts.append(p["text"])
-        config = genai_types.GenerateContentConfig(
-            system_instruction=prompt.get("system"),
-            http_options=genai_types.HttpOptions(timeout=int(timeout * 1000)),
-        )
-        response = client.models.generate_content(
-            model=model_id, contents=content_parts or prompt.get("user", ""),
-            config=config,
-        )
-        answer = response.text if response else None
-    else:
-        # Text-only path — use the logpilot wrapper
-        answer = ask_gemini(prompt["user"], api_key=api_key, system=prompt["system"], model=model_id, timeout=timeout)
-
-    # Gemini SDK doesn't return token usage, so estimate from prompt/response text
-    usage = {}
-    if answer:
-        input_text = (prompt.get("system") or "") + (prompt.get("user") or "")
-        usage = {
-            "input": estimate_tokens(input_text),
-            "output": estimate_tokens(answer),
-        }
-    return (answer or None, usage)
+    """Internal implementation — delegates to logpilot.providers._call_gemini_impl."""
+    return _call_gemini_impl(
+        api_key=api_key, model=model_id, prompt=prompt,
+        stream_placeholder=stream_placeholder, timeout=timeout,
+        max_tokens=max_tokens, images=images,
+    )
 
 
 def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
@@ -496,7 +341,7 @@ def call_gemini_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict). Streaming not supported.
     """
-    _lic_err = _check_ai_license(provider="gemini", model=model_id)
+    _lic_err = _check_ai_license_streamlit(provider="gemini", model=model_id)
     if _lic_err:
         return (_lic_err, {})
     return _with_retries(
@@ -510,66 +355,12 @@ def _call_openai_api_impl(api_key: str, model_id: str, prompt: dict, stream_plac
                           timeout: float = 120.0, max_tokens: int = 2048,
                           images: list[dict] | None = None,
                           base_url: str | None = None) -> tuple[str, dict]:
-    """Internal implementation — use call_openai_api (which adds retry logic)."""
-    try:
-        from openai import OpenAI
-    except ImportError:
-        raise ImportError("The `openai` package is not installed. Install with: `pip install openai`")
-
-    client_kwargs: dict = {"api_key": api_key or "not-needed", "timeout": timeout}
-    if base_url:
-        client_kwargs["base_url"] = base_url
-    client = OpenAI(**client_kwargs)
-
-    # Build messages list — multimodal when images or pre-built messages are present
-    if "messages" in prompt:
-        # Pre-built multimodal messages dict (from _build_multimodal_messages)
-        messages_list = [{"role": "system", "content": prompt["system"]}]
-        messages_list.extend(prompt["messages"])
-    elif images:
-        user_content: list[dict] = []
-        for img in images:
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:{img['media_type']};base64,{img['data']}"},
-            })
-        user_content.append({"type": "text", "text": prompt.get("user", "")})
-        messages_list = [
-            {"role": "system", "content": prompt["system"]},
-            {"role": "user", "content": user_content},
-        ]
-    else:
-        messages_list = [
-            {"role": "system", "content": prompt["system"]},
-            {"role": "user", "content": prompt.get("user", "")},
-        ]
-
-    if stream_placeholder:
-        chunks = []
-        response = client.chat.completions.create(
-            model=model_id, max_completion_tokens=max_tokens, stream=True,
-            stream_options={"include_usage": True},
-            messages=messages_list,
-        )
-        usage = {}
-        for chunk in response:
-            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                chunks.append(chunk.choices[0].delta.content)
-                stream_placeholder.markdown("".join(chunks) + "\n\n*Streaming...*")
-            if chunk.usage:
-                usage = {"input": chunk.usage.prompt_tokens, "output": chunk.usage.completion_tokens}
-        answer = "".join(chunks)
-        return (answer or None, usage)
-
-    response = client.chat.completions.create(
-        model=model_id, max_completion_tokens=max_tokens,
-        messages=messages_list,
+    """Internal implementation — delegates to logpilot.providers._call_openai_impl."""
+    return _call_openai_impl(
+        api_key=api_key, model=model_id, prompt=prompt,
+        stream_placeholder=stream_placeholder, timeout=timeout,
+        max_tokens=max_tokens, images=images, base_url=base_url,
     )
-    answer = response.choices[0].message.content
-    usage = {}
-    if response.usage:
-        usage = {"input": response.usage.prompt_tokens, "output": response.usage.completion_tokens}
-    return (answer or None, usage)
 
 
 def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
@@ -589,7 +380,7 @@ def call_openai_api(api_key: str, model_id: str, prompt: dict, stream_placeholde
 
     Returns (answer, usage_dict).
     """
-    _lic_err = _check_ai_license(provider="openai", model=model_id)
+    _lic_err = _check_ai_license_streamlit(provider="openai", model=model_id)
     if _lic_err:
         return (_lic_err, {})
     return _with_retries(
@@ -603,49 +394,42 @@ def _call_local_api_impl(api_key: str, model_id: str, prompt: dict, stream_place
                          timeout: float = 120.0, max_tokens: int = 2048,
                          base_url: str | None = None,
                          images: list[dict] | None = None) -> tuple[str, dict]:
-    """Internal implementation — use call_local_api (which adds retry logic)."""
-    # Delegate to the OpenAI impl directly (not the retry wrapper) to avoid double retry
+    """Streamlit-aware local API impl — resolves endpoint/model from session_state.
+
+    Reads base_url and model_id from st.session_state when not provided,
+    then delegates to the pure call_local_pure (which falls back to env vars).
+    """
+    # Resolve endpoint from Streamlit session state when not explicitly provided
     if not base_url:
-        # Read from session state or env
         try:
-            import streamlit as _st
-            base_url = getattr(_st.session_state, "local_ai_endpoint", "") or ""
+            base_url = getattr(st.session_state, "local_ai_endpoint", "") or ""
         except Exception:
             pass
-        if not base_url:
-            import os
-            base_url = os.environ.get("LOGPILOT_AI_ENDPOINT", "http://localhost:1234/v1")
 
+    # Resolve model from Streamlit session state when not explicitly provided
     if not model_id:
         try:
-            import streamlit as _st
-            model_id = getattr(_st.session_state, "local_ai_model", "") or ""
+            model_id = getattr(st.session_state, "local_ai_model", "") or ""
         except Exception:
             pass
-        if not model_id:
-            import os
-            model_id = os.environ.get("LOGPILOT_AI_MODEL", "default")
 
-    # Sanitize API key — strip whitespace and validate ASCII
-    if api_key:
-        api_key = api_key.strip()
-        try:
-            api_key.encode("ascii")
-        except UnicodeEncodeError:
-            raise ValueError(
-                "API key contains invalid characters (non-ASCII). "
-                "Re-copy the key from your server settings."
-            )
-    return _call_openai_api_impl(
-        api_key=api_key or "not-needed",
-        model_id=model_id,
+    result = call_local_pure(
+        endpoint=base_url or "",
+        model=model_id or "",
         prompt=prompt,
+        api_key=api_key or "not-needed",
         stream_placeholder=stream_placeholder,
         timeout=timeout,
         max_tokens=max_tokens,
         images=images,
-        base_url=base_url,
+        max_retries=1,  # retries handled by call_local_api wrapper
     )
+    if result.error:
+        raise ValueError(result.error)
+    usage = {}
+    if result.input_tokens or result.output_tokens:
+        usage = {"input": result.input_tokens, "output": result.output_tokens}
+    return (result.answer or None, usage)
 
 
 def call_local_api(api_key: str, model_id: str, prompt: dict, stream_placeholder=None,
@@ -718,7 +502,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
     """Common AI analysis orchestrator. Handles caching, history, and error display."""
     import time as _time
     now = _time.time()
-    elapsed = now - st.session_state.last_ai_call_ts
+    elapsed = now - st.session_state.get("last_ai_call_ts", 0.0)
     if elapsed < AI_RATE_LIMIT_SECONDS:
         st.warning(f"Rate limit: wait {AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
         return
@@ -733,7 +517,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
         status = st.status(f"Analyzing with {label}...", expanded=True)
 
     match, cache_key, prompt = build_ai_request_context(user_query, events, provider, log=log)
-    session_cache = getattr(st.session_state, cfg["cache_key"])
+    session_cache = st.session_state.get(cfg["cache_key"], {})
 
     cached = None
     if lookup_cache and provider != "local":
@@ -747,7 +531,7 @@ def _run_ai_analysis(provider: str, model_id: str, user_query: str, events: list
             "answer": answer,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
         }
-        hist = getattr(st.session_state, cfg["history_key"])
+        hist = st.session_state.get(cfg["history_key"], [])
         if not any(h["query"] == user_query and h["answer"] == answer for h in hist):
             hist.append(entry)
             cfg["save_history"](hist)
@@ -952,9 +736,9 @@ def _render_claude_response(text):
 
 def render_current_ai_analyses():
     """Render expanders for current Claude, Gemini, GPT, and Local AI results."""
-    _has_claude = bool(st.session_state.claude_answer)
-    _has_gemini = bool(st.session_state.gemini_answer)
-    _has_openai = bool(st.session_state.openai_answer)
+    _has_claude = bool(st.session_state.get("claude_answer", ""))
+    _has_gemini = bool(st.session_state.get("gemini_answer", ""))
+    _has_openai = bool(st.session_state.get("openai_answer", ""))
     _has_local = bool(st.session_state.get("local_answer"))
     if not _has_claude and not _has_gemini and not _has_openai and not _has_local:
         return
@@ -966,29 +750,29 @@ def render_current_ai_analyses():
     st.subheader("Current AI analyses")
 
     if _has_claude:
-        label = st.session_state.claude_query_label or "query"
+        label = st.session_state.get("claude_query_label", "") or "query"
         with st.expander(f"Claude analysis \u2014 {label}", expanded=_expand_last and _has_claude):
-            _render_claude_response(st.session_state.claude_answer)
+            _render_claude_response(st.session_state.get("claude_answer", ""))
 
     if _has_gemini:
-        label = st.session_state.gemini_query_label or "query"
+        label = st.session_state.get("gemini_query_label", "") or "query"
         with st.expander(f"Gemini analysis \u2014 {label}", expanded=_expand_last and _has_gemini):
-            st.markdown(st.session_state.gemini_answer)
+            st.markdown(st.session_state.get("gemini_answer", ""))
 
     if _has_openai:
-        label = st.session_state.openai_query_label or "query"
+        label = st.session_state.get("openai_query_label", "") or "query"
         with st.expander(f"GPT analysis \u2014 {label}", expanded=_expand_last and _has_openai):
-            st.markdown(st.session_state.openai_answer)
+            st.markdown(st.session_state.get("openai_answer", ""))
 
     if _has_local:
         label = st.session_state.get("local_query_label") or "query"
         with st.expander(f"Local AI analysis \u2014 {label}", expanded=_expand_last and _has_local):
-            st.markdown(st.session_state.local_answer)
+            st.markdown(st.session_state.get("local_answer", ""))
 
 
 def render_ai_history():
     """Render previous query history for Claude, Gemini, and GPT."""
-    claude_history = st.session_state.claude_history
+    claude_history = st.session_state.get("claude_history", [])
     if len(claude_history) > 1:
         st.markdown("---")
         st.subheader("Previous Claude queries")
@@ -997,7 +781,7 @@ def render_ai_history():
             with st.expander(hist_label):
                 _render_claude_response(entry["answer"])
 
-    gemini_history = st.session_state.gemini_history
+    gemini_history = st.session_state.get("gemini_history", [])
     if len(gemini_history) > 1:
         st.markdown("---")
         st.subheader("Previous Gemini queries")
@@ -1006,7 +790,7 @@ def render_ai_history():
             with st.expander(hist_label):
                 st.markdown(entry["answer"])
 
-    openai_history = st.session_state.openai_history
+    openai_history = st.session_state.get("openai_history", [])
     if len(openai_history) > 1:
         st.markdown("---")
         st.subheader("Previous GPT queries")
@@ -1176,7 +960,7 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
     if _triage_clicked:
         import time as _time
         now = _time.time()
-        elapsed = now - st.session_state.last_ai_call_ts
+        elapsed = now - st.session_state.get("last_ai_call_ts", 0.0)
         if elapsed < AI_RATE_LIMIT_SECONDS:
             st.warning(f"Rate limit: wait {AI_RATE_LIMIT_SECONDS - elapsed:.0f}s before next AI call.")
             return
@@ -1273,23 +1057,41 @@ def render_analyze_all_button(a: dict, log=None, lookup_cache=None, store_cache=
 
 def call_ai_provider(provider: str, model_id: str, prompt: dict,
                      max_tokens: int = 4096) -> tuple[str | None, dict]:
-    """Dispatch an AI call to the correct provider. Returns (text, usage)."""
+    """Dispatch an AI call to the correct provider. Returns (text, usage).
+
+    Reads API keys from st.session_state, then delegates to the pure
+    call_provider_pure() in logpilot.providers (no Streamlit).
+    """
     if provider != "local" and provider not in _AVAILABLE_PROVIDERS:
         _pkg = {"claude": "anthropic", "gemini": "google-generativeai", "openai": "openai"}.get(provider, provider)
         raise ImportError(f"Provider '{provider}' requires `pip install {_pkg}`")
+
+    # Resolve credentials from Streamlit session state
     if provider == "claude":
-        return call_claude_api(
-            st.session_state.get("api_key", ""), model_id, prompt, max_tokens=max_tokens)
+        api_key = st.session_state.get("api_key", "")
+        result = call_claude_pure(api_key, model_id, prompt, max_tokens=max_tokens)
     elif provider == "gemini":
-        return call_gemini_api(
-            st.session_state.get("gemini_api_key", ""), model_id, prompt, max_tokens=max_tokens)
+        api_key = st.session_state.get("gemini_api_key", "")
+        result = call_gemini_pure(api_key, model_id, prompt, max_tokens=max_tokens)
     elif provider == "openai":
-        return call_openai_api(
-            st.session_state.get("openai_api_key", "") or "not-needed",
-            model_id, prompt, max_tokens=max_tokens)
+        api_key = st.session_state.get("openai_api_key", "") or "not-needed"
+        result = call_openai_pure(api_key, model_id, prompt, max_tokens=max_tokens)
     elif provider == "local":
-        _local_key = st.session_state.get("local_ai_api_key", "") or "not-needed"
-        _local_url = getattr(st.session_state, "local_ai_endpoint", "") or None
-        return call_local_api(
-            _local_key, model_id, prompt, max_tokens=max_tokens, base_url=_local_url)
-    return (None, {})
+        api_key = st.session_state.get("local_ai_api_key", "") or "not-needed"
+        endpoint = getattr(st.session_state, "local_ai_endpoint", "") or ""
+        result = call_local_pure(endpoint=endpoint, model=model_id, prompt=prompt,
+                                 api_key=api_key, max_tokens=max_tokens)
+    else:
+        return (None, {})
+
+    if result.error:
+        raise ValueError(result.error)
+    usage = {}
+    if result.input_tokens or result.output_tokens:
+        usage = {
+            "input": result.input_tokens,
+            "output": result.output_tokens,
+            "cache_creation": result.cache_creation_tokens,
+            "cache_read": result.cache_read_tokens,
+        }
+    return (result.answer or None, usage)

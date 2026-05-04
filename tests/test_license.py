@@ -21,6 +21,7 @@ from logpilot.license import (
     allowed_providers,
     is_model_allowed,
     TOKEN_PREFIX,
+    _check_ai_license,
 )
 
 _TEST_SECRET = "test-secret-for-unit-tests"
@@ -340,6 +341,92 @@ class TestModelAccess:
         monkeypatch.delenv("LOGPILOT_REQUIRE_LICENSE", raising=False)
         assert is_model_allowed(None, "claude-3-opus-20240229", secret=_TEST_SECRET) is True
         assert is_model_allowed(None, "gpt-4o", secret=_TEST_SECRET) is True
+
+
+# ── Missing Secret (P0-2 regression) ─────────────────────────────────
+
+class TestMissingSecret:
+    def test_validate_token_returns_none_on_missing_secret(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        monkeypatch.delenv("LOGPILOT_LICENSE_SECRET", raising=False)
+        import importlib
+        import logpilot.license as lic_mod
+        importlib.reload(lic_mod)
+        result = lic_mod.validate_token("fake-token")
+        assert result is None  # Must not crash
+
+    def test_is_feature_licensed_returns_false_on_missing_secret(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        monkeypatch.delenv("LOGPILOT_LICENSE_SECRET", raising=False)
+        import importlib
+        import logpilot.license as lic_mod
+        importlib.reload(lic_mod)
+        assert lic_mod.is_feature_licensed("fake-token", "ai_analysis") is False
+
+
+# ── Pure AI License Check ─────────────────────────────────────────────
+
+class TestCheckAiLicense:
+    """_check_ai_license must work without any Streamlit context."""
+
+    def test_none_token_blocked(self, monkeypatch):
+        """Pure function should not require any Streamlit context."""
+        monkeypatch.setenv("LOGPILOT_LICENSE_SECRET", "test-secret")
+        allowed, err = _check_ai_license(None, "claude", "claude-sonnet-4-6")
+        assert allowed is False
+        assert err is not None
+
+    def test_empty_token_blocked(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_LICENSE_SECRET", "test-secret")
+        allowed, err = _check_ai_license("", "claude", "claude-sonnet-4-6")
+        assert allowed is False
+        assert err is not None
+
+    def test_invalid_token_blocked(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        monkeypatch.setenv("LOGPILOT_LICENSE_SECRET", "test-secret")
+        allowed, err = _check_ai_license("invalid", "claude", "claude-sonnet-4-6")
+        assert allowed is False
+
+    def test_valid_pro_token_allowed(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        monkeypatch.setenv("LOGPILOT_LICENSE_SECRET", "test-secret")
+        token = generate_token("Test", days=90, tier="pro", secret="test-secret")
+        allowed, err = _check_ai_license(token, "claude", "claude-sonnet-4-6")
+        assert allowed is True
+        assert err is None
+
+    def test_trial_token_blocked_for_gemini(self, monkeypatch):
+        monkeypatch.setenv("LOGPILOT_REQUIRE_LICENSE", "true")
+        monkeypatch.setenv("LOGPILOT_LICENSE_SECRET", "test-secret")
+        token = generate_token("Test", days=90, tier="trial", secret="test-secret")
+        allowed, err = _check_ai_license(token, "gemini", "gemini-2.5-flash")
+        assert allowed is False
+        assert err is not None
+
+    def test_local_provider_always_allowed_without_license(self, monkeypatch):
+        monkeypatch.delenv("LOGPILOT_REQUIRE_LICENSE", raising=False)
+        allowed, err = _check_ai_license(None, "local", "llama3")
+        # local is not blocked by provider check — but empty token blocks first
+        # (this verifies the short-circuit on empty token regardless of provider)
+        assert allowed is False  # token=None always blocks first
+
+    def test_require_disabled_allows_with_valid_token(self, monkeypatch):
+        """When license checks are disabled, a valid token should pass."""
+        monkeypatch.delenv("LOGPILOT_REQUIRE_LICENSE", raising=False)
+        token = generate_token("Test", days=90, tier="trial", secret=_TEST_SECRET)
+        # is_feature_licensed returns True when REQUIRE_LICENSE not set
+        allowed, err = _check_ai_license(token, "gemini", "gemini-2.5-flash")
+        assert allowed is True
+        assert err is None
+
+    def test_returns_tuple_not_string(self, monkeypatch):
+        """Return type must be (bool, str|None) — not a bare string."""
+        monkeypatch.setenv("LOGPILOT_LICENSE_SECRET", "test-secret")
+        result = _check_ai_license(None, "claude", "")
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], bool)
 
 
 # ── Backwards Compatibility ───────────────────────────────────────────

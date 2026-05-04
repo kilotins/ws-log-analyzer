@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib as _hl
+import json
 from pathlib import Path
 
 import streamlit as st
@@ -157,6 +158,70 @@ with col_lines:
         help="Limit lines read per file. Lower = faster parsing, higher = more complete analysis.",
     )
 
+# ---------------------------------------------------------------------------
+# Upload lifecycle helpers (session-scoped manifest — concurrency-safe)
+# ---------------------------------------------------------------------------
+
+def _safe_filename(name: str) -> str:
+    return ("".join(c for c in name if c.isalnum() or c in "._-")[:100]) or "upload.log"
+
+
+def _hash_file(content: bytes) -> str:
+    return _hl.md5(content).hexdigest()[:10]
+
+
+def _persist_uploaded_files(uploaded_list: list, session_prefix: str) -> list[Path]:
+    """Write uploaded files to UPLOADS_DIR and update the session manifest.
+
+    Returns the list of Path objects that were written (or already existed).
+    The manifest is written atomically after all files are on disk, so a
+    concurrent cleanup that reads the manifest sees either the old set or the
+    new set — never a partial one.
+    """
+    manifest_path = UPLOADS_DIR / f".manifest_{session_prefix}.json"
+    written: list[Path] = []
+
+    for uf in uploaded_list:
+        content = uf.getvalue()
+        safe = _safe_filename(uf.name)
+        h = _hash_file(content)
+        target = UPLOADS_DIR / f"{session_prefix}_{h}_{safe}"
+        if not target.resolve().is_relative_to(UPLOADS_DIR.resolve()):
+            log.warning("upload Skipping unsafe filename: %s", uf.name)
+            continue
+        if not target.exists():
+            target.write_bytes(content)
+            log.info("upload File saved: %s (%d bytes)", target.name, len(content))
+        else:
+            log.info("upload File reused (identical): %s", target.name)
+        written.append(target)
+
+    # Atomic manifest write — lists every file this session currently owns.
+    manifest = {"session_prefix": session_prefix, "files": [p.name for p in written]}
+    manifest_path.write_text(json.dumps(manifest))
+    return written
+
+
+def _cleanup_session_uploads(session_prefix: str, current_batch_names: set[str]) -> None:
+    """Remove files owned by this session that are no longer in the current batch.
+
+    Only touches files recorded in this session's manifest — never files that
+    belong to other sessions (prevents cross-session deletion under concurrency).
+    """
+    manifest_path = UPLOADS_DIR / f".manifest_{session_prefix}.json"
+    if not manifest_path.exists():
+        return
+    try:
+        manifest = json.loads(manifest_path.read_text())
+        for fname in manifest.get("files", []):
+            if fname not in current_batch_names:
+                fpath = UPLOADS_DIR / fname
+                fpath.unlink(missing_ok=True)
+                log.info("upload Cleaned old upload: %s", fname)
+    except (OSError, json.JSONDecodeError):
+        pass  # corrupted / missing manifest — skip cleanup silently
+
+
 # --- Sample INFO events ---
 sample_info_events = st.checkbox(
     "Sample INFO events (large files)",
@@ -180,42 +245,19 @@ if _has_input and st.button("Analyze", type="primary", use_container_width=False
             st.warning("Large files detected (>50MB). Parsing may take a while.")
 
     all_events = []
-    _session_uploads: set[str] = set()
     _upload_count = len(uploaded_files) if uploaded_files else 0
     _total_files = _upload_count + len(_folder_files)
     _progress = st.progress(0, text=f"Parsing 0/{_total_files} files...")
 
-    # --- Save uploaded files to disk ---
-    import hashlib as _hashlib_session
-    _session_prefix = _hashlib_session.md5(
+    # --- Save uploaded files to disk (manifest-backed, concurrency-safe) ---
+    _session_prefix = _hl.md5(
         st.session_state.get("_upload_session_id", "default").encode()
     ).hexdigest()[:8]
 
     if uploaded_files:
-        for uploaded in uploaded_files:
-            safe_name = (
-                "".join(c for c in uploaded.name if c.isalnum() or c in "._-")[:100]
-                or "upload.log"
-            )
-            content = uploaded.getvalue()
-            _hash = _hl.md5(content).hexdigest()[:10]
-            upload_name = f"{_session_prefix}_{_hash}_{safe_name}"
-            upload_path = UPLOADS_DIR / upload_name
-            if not upload_path.resolve().is_relative_to(UPLOADS_DIR.resolve()):
-                st.error(f"Invalid filename: {uploaded.name}")
-                continue
-            _session_uploads.add(upload_path.name)
-            if not upload_path.exists():
-                upload_path.write_bytes(content)
-                log.info("upload File saved: %s (%d bytes)", upload_name, len(content))
-            else:
-                log.info("upload File reused (identical): %s", upload_name)
-
-        # Remove old uploads not in this batch (scoped to this session's files only)
-        for old_file in UPLOADS_DIR.iterdir():
-            if old_file.name.startswith(_session_prefix) and old_file.name not in _session_uploads and old_file.is_file():
-                old_file.unlink()
-                log.info("upload Cleaned old upload: %s", old_file.name)
+        _written = _persist_uploaded_files(uploaded_files, _session_prefix)
+        _current_batch: set[str] = {p.name for p in _written}
+        _cleanup_session_uploads(_session_prefix, _current_batch)
 
         # Parse each uploaded file
         for _file_idx, uploaded in enumerate(uploaded_files):

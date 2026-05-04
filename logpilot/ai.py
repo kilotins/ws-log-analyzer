@@ -1024,8 +1024,13 @@ def build_incident_user_prompt(
         parts.append("matching the stacktrace locations from the log events:")
         for m in code_matches[:5]:  # Limit to 5 to save tokens
             parts.append(f"\n--- {m['rel_path']}:{m['line_num']} ({m['confidence']} match) ---")
-            parts.append(f"```{m.get('language', '')}")
-            parts.append(m.get("snippet", ""))
+            # Sanitize language to alphanumerics only — prevents injection via file extension
+            # (e.g. "text\n```\n<system>..." would break out of the code fence)
+            lang = re.sub(r'[^a-zA-Z0-9]', '', m.get("language", ""))[:20]
+            # Sanitize snippet to strip XML-like tags that could inject prompt instructions
+            sanitized_snippet = _sanitize_prompt_input(m.get("snippet", ""))
+            parts.append(f"```{lang}")
+            parts.append(sanitized_snippet)
             parts.append("```")
         parts.append("</matched_source_code>")
         parts.append("")

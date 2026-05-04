@@ -253,13 +253,13 @@ class TestCodeLocationDataclass:
             file_hint="A.java",
             line=1,
             class_name="com.myapp.AB",
-            method="run",
+            method="doSomething",
             language="java",
         )
         terms = loc.search_terms()
         # "AB" is only 2 chars — should be excluded per implementation (len > 2)
         assert "AB" not in terms
-        assert "run" in terms
+        assert "doSomething" in terms
 
 
 # ── extract_code_locations ────────────────────────────────────────────

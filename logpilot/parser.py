@@ -7,6 +7,8 @@ import logging
 import os
 import re
 import sys
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import IO, Any, Generator
 
@@ -329,7 +331,7 @@ def _should_emit(ev: LogEvent, sample_info: int, counter: int) -> bool:
     return counter % sample_info == 0
 
 
-def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0) -> Generator[LogEvent, None, None]:
+def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0, redaction_level: str | None = None) -> Generator[LogEvent, None, None]:
     """Generator-based parser that yields event dicts one at a time.
 
     Args:
@@ -338,6 +340,9 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
         format_name: Explicit format name (e.g. "was", "json"). If None, auto-detects.
         sample_info: When > 0, keep only every Nth plain INFO event (no exception/tags/code).
             Deterministic: based on line counter modulo. 0 means no sampling (default).
+        redaction_level: Redaction level ("none", "secrets", "standard", "strict").
+            When None (default), falls back to LOGPILOT_REDACTION_LEVEL env var, then "secrets".
+            Pass explicitly to avoid per-event env reads and to support per-request policies.
 
     Uses format plugins for timestamp extraction, level detection, and
     continuation line detection. Falls back to WAS format if no format
@@ -345,6 +350,11 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
     """
     if max_lines is not None and max_lines < 0:
         raise ValueError(f"max_lines must be non-negative, got {max_lines}")
+
+    # Resolve redaction level once at function entry — NOT inside the hot loop.
+    # This avoids repeated os.environ reads and allows per-request policies (FastAPI 2.0).
+    if redaction_level is None:
+        redaction_level = os.environ.get("LOGPILOT_REDACTION_LEVEL", "secrets")
 
     from .formats import detect_format, get_format
 
@@ -364,7 +374,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
 
     def _build_event() -> LogEvent:
         text = "\n".join(current)
-        text = redact(text, level=os.environ.get("LOGPILOT_REDACTION_LEVEL", "secrets"))
+        text = redact(text, level=redaction_level)
         meta = fmt.classify_event(text)
         return LogEvent(
             text=text,
@@ -439,7 +449,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
             yield _ev
 
 
-def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0) -> list[LogEvent]:
+def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0, redaction_level: str | None = None) -> list[LogEvent]:
     """Parse a log file and return a list of event dicts.
 
     Args:
@@ -448,8 +458,10 @@ def parse_file(path: Path, max_lines: int | None = None, format_name: str | None
         format_name: Explicit format name (e.g. "was", "json"). If None, auto-detects.
         sample_info: When > 0, keep only every Nth plain INFO event (no exception/tags/code).
             Deterministic: based on event counter modulo. 0 means no sampling (default).
+        redaction_level: Redaction level ("none", "secrets", "standard", "strict").
+            When None (default), falls back to LOGPILOT_REDACTION_LEVEL env var, then "secrets".
     """
-    return list(parse_file_iter(path, max_lines=max_lines, format_name=format_name, sample_info=sample_info))
+    return list(parse_file_iter(path, max_lines=max_lines, format_name=format_name, sample_info=sample_info, redaction_level=redaction_level))
 
 
 # ---------------------------------------------------------------------------
@@ -498,11 +510,21 @@ def _cache_dict_to_event(d: dict) -> LogEvent:
 
 def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = None,
                       max_lines: int = 0, format_name: str | None = None,
-                      sample_info: int = 0) -> list[LogEvent]:
-    """Parse with file-level caching. Falls back to parse_file on cache miss."""
+                      sample_info: int = 0,
+                      redaction_level: str | None = None) -> list[LogEvent]:
+    """Parse with file-level caching. Falls back to parse_file on cache miss.
+
+    ``redaction_level`` is included in the cache key so that runs with different
+    redaction settings never share cached event text.  When *None* (the default)
+    the value is read from the ``LOGPILOT_REDACTION_LEVEL`` environment variable
+    (defaulting to ``"secrets"``), preserving existing behaviour for all callers
+    that do not pass the parameter explicitly.
+    """
+    if redaction_level is None:
+        redaction_level = os.environ.get("LOGPILOT_REDACTION_LEVEL", "secrets")
     cache_path = None
     if cache_dir:
-        cache_key = f"parsed_{content_hash}_{format_name or 'auto'}_{max_lines}_{sample_info}"
+        cache_key = f"parsed_{content_hash}_{format_name or 'auto'}_{max_lines}_{sample_info}_{redaction_level}"
         cache_path = cache_dir / f"{cache_key}.json.gz"
         if cache_path.exists():
             try:
@@ -516,7 +538,7 @@ def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = No
             except (OSError, json.JSONDecodeError, KeyError, TypeError):
                 _log.warning("Cache read failed for %s, re-parsing", path.name)
 
-    events = parse_file(path, max_lines=max_lines or None, format_name=format_name, sample_info=sample_info)
+    events = parse_file(path, max_lines=max_lines or None, format_name=format_name, sample_info=sample_info, redaction_level=redaction_level)
 
     if cache_path:
         try:
@@ -533,14 +555,60 @@ def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = No
     return events
 
 
-def _evict_parse_cache(cache_dir: Path, max_files: int = 50) -> None:
-    """Remove oldest parse cache files if count exceeds max_files."""
+@contextmanager
+def _cache_dir_lock(cache_dir: Path, timeout: float = 5.0):
+    """Atomic lock for cache eviction using mkdir as the atomic primitive."""
+    lock_dir = cache_dir / ".eviction.lock"
+    deadline = time.monotonic() + timeout
+    acquired = False
+    while time.monotonic() < deadline:
+        try:
+            lock_dir.mkdir()
+            acquired = True
+            break
+        except FileExistsError:
+            # Check if lock is stale (>30 s old)
+            try:
+                age = time.time() - lock_dir.stat().st_mtime
+                if age > 30:
+                    try:
+                        lock_dir.rmdir()
+                        continue  # retry acquisition
+                    except OSError:
+                        pass
+            except FileNotFoundError:
+                continue  # lock vanished between exists-check and stat
+            time.sleep(0.05)
+    if not acquired:
+        # Another worker holds the lock; skip eviction — it will happen eventually
+        yield False
+        return
     try:
-        cache_files = sorted(cache_dir.glob("parsed_*.json.gz"),
-                             key=lambda f: f.stat().st_mtime)
-        if len(cache_files) > max_files:
-            for old in cache_files[:len(cache_files) - max_files]:
-                old.unlink(missing_ok=True)
-                _log.debug("Evicted parse cache: %s", old.name)
+        yield True
+    finally:
+        try:
+            lock_dir.rmdir()
+        except OSError:
+            pass
+
+
+def _evict_parse_cache(cache_dir: Path, max_files: int = 50) -> None:
+    """Remove oldest parse cache files if count exceeds max_files.
+
+    Uses a mkdir-based lock so concurrent FastAPI workers do not race on the
+    same eviction pass.  ``missing_ok=True`` is kept as a secondary safety net.
+    """
+    try:
+        with _cache_dir_lock(cache_dir) as acquired:
+            if not acquired:
+                return  # Another worker is evicting; skip
+            cache_files = sorted(
+                cache_dir.glob("parsed_*.json.gz"),
+                key=lambda f: f.stat().st_mtime,
+            )
+            if len(cache_files) > max_files:
+                for old in cache_files[: len(cache_files) - max_files]:
+                    old.unlink(missing_ok=True)
+                    _log.debug("Evicted parse cache: %s", old.name)
     except OSError:
         pass

@@ -34,6 +34,10 @@ from logpilot.discovery import discover_log_files
 from logpilot.license import require_license, validate_token, is_feature_licensed, allowed_providers, is_model_allowed
 
 # --- Paths and directories ---
+from logpilot.config import DEFAULT_CONFIG as _CONFIG
+
+# _APP_DIR kept for backward-compat (git ops, pyproject.toml lookup, favicon path).
+# It always points to the repo root regardless of env-var overrides.
 _APP_DIR = Path(__file__).parent
 
 
@@ -72,14 +76,11 @@ def _get_version() -> str:
     except Exception:
         pass
     return base
-UPLOADS_DIR = _APP_DIR / "uploads"
-REPORTS_DIR = _APP_DIR / "reports"
-CACHE_DIR = _APP_DIR / "cache"
-LOGS_DIR = _APP_DIR / "logs"
-UPLOADS_DIR.mkdir(exist_ok=True)
-REPORTS_DIR.mkdir(exist_ok=True)
-CACHE_DIR.mkdir(exist_ok=True)
-LOGS_DIR.mkdir(exist_ok=True)
+UPLOADS_DIR = _CONFIG.uploads_dir
+REPORTS_DIR = _CONFIG.reports_dir
+CACHE_DIR = _CONFIG.cache_dir
+LOGS_DIR = _CONFIG.logs_dir
+_CONFIG.ensure_dirs()
 
 LOG_FILE = LOGS_DIR / "app.log"
 
@@ -187,7 +188,42 @@ def _save_json_file(path: Path, data: object) -> None:
         raise
 
 
-_LOCAL_SETTINGS_FILE = CACHE_DIR / ".local_ai_settings.json"
+try:
+    import fcntl as _fcntl
+    _HAS_FCNTL = True
+except ImportError:
+    _HAS_FCNTL = False
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def _file_lock(path: Path):
+    """Exclusive advisory lock on *path*.lock. Falls through silently on Windows."""
+    lock_path = str(path) + ".lock"
+    if not _HAS_FCNTL:
+        yield  # Best-effort on Windows — no perfect equivalent
+        return
+
+    fd = None
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        _fcntl.flock(fd, _fcntl.LOCK_EX)
+        yield
+    finally:
+        if fd is not None:
+            try:
+                _fcntl.flock(fd, _fcntl.LOCK_UN)
+            except OSError:
+                pass
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
+_LOCAL_SETTINGS_FILE = _CONFIG.local_ai_settings_file
 
 def _load_local_ai_settings() -> dict:
     """Load saved local AI settings from disk."""
@@ -214,26 +250,65 @@ def _save_local_ai_settings(endpoint: str, model: str, api_key: str, preset: str
 _CACHE_TTL_SECONDS = CACHE_TTL_SECONDS
 
 
-def _load_file_cache():
+def _cache_mod():
+    """Return the live 'app' module from sys.modules.
+
+    Using sys.modules ensures that monkeypatch.setattr(app, 'CACHE_FILE', ...)
+    in tests is always visible, even when cache functions were imported under a
+    different module namespace (double-import scenario in pytest).
+    """
+    import sys
+    return sys.modules.get(__name__)
+
+
+def _load_file_cache_raw() -> dict:
+    """Load and TTL-filter the cache file. No locking — internal use only."""
     import time
-    raw = _load_json_file(CACHE_FILE, {})
+    mod = _cache_mod()
+    cache_file = mod.CACHE_FILE if mod is not None else CACHE_FILE
+    ttl = mod._CACHE_TTL_SECONDS if mod is not None else _CACHE_TTL_SECONDS
+    raw = _load_json_file(cache_file, {})
     now = time.time()
-    cleaned = {}
+    cleaned: dict = {}
     for k, v in raw.items():
         if isinstance(v, dict) and "ts" in v:
-            if now - v["ts"] <= _CACHE_TTL_SECONDS:
+            if now - v["ts"] <= ttl:
                 cleaned[k] = v
         else:
             cleaned[k] = {"text": v, "ts": now}
     return cleaned
 
 
-def _save_file_cache(cache):
-    if len(cache) > MAX_CACHE_ENTRIES:
-        keys = list(cache.keys())
-        for k in keys[:len(keys) - MAX_CACHE_ENTRIES]:
-            del cache[k]
-    _save_json_file(CACHE_FILE, cache)
+def _load_file_cache() -> dict:
+    """Read the file cache under an exclusive lock."""
+    mod = _cache_mod()
+    cache_file = mod.CACHE_FILE if mod is not None else CACHE_FILE
+    with _file_lock(cache_file):
+        return _load_file_cache_raw()
+
+
+def _save_file_cache(key: str, value: object) -> None:
+    """Write a single key/value into the file cache under an exclusive lock.
+
+    Re-reads the file inside the lock (read-modify-write) so concurrent
+    writers don't clobber each other's entries.  Evicts oldest entries when
+    the cache exceeds MAX_CACHE_ENTRIES.
+    """
+    mod = _cache_mod()
+    cache_file = mod.CACHE_FILE if mod is not None else CACHE_FILE
+    max_entries = mod.MAX_CACHE_ENTRIES if mod is not None else MAX_CACHE_ENTRIES
+    try:
+        with _file_lock(cache_file):
+            cache = _load_file_cache_raw()
+            cache[key] = value
+            if len(cache) > max_entries:
+                keys = list(cache.keys())
+                for k in keys[:len(keys) - max_entries]:
+                    del cache[k]
+            _save_json_file(cache_file, cache)
+    except OSError as exc:
+        log.warning("cache _save_file_cache failed: %s", exc)
+
 
 
 def _cleanup_temp_dir(path: Path | str | None) -> None:
@@ -438,9 +513,7 @@ def _store_cache(cache_key, answer, session_cache):
     """Store answer in both session and file cache."""
     import time
     session_cache[cache_key] = answer
-    file_cache = _load_file_cache()
-    file_cache[cache_key] = {"text": answer, "ts": time.time()}
-    _save_file_cache(file_cache)
+    _save_file_cache(cache_key, {"text": answer, "ts": time.time()})
 
 
 # --- Session state defaults ---
@@ -493,17 +566,35 @@ _STATE_DEFAULTS = {
     "local_ai_preset": "LM Studio",
     "_incident_description": "",
     "_ai_exclude_patterns": "",
-    "_incident_screenshot": None,
+    "_incident_screenshots": [],   # plural — list of uploaded screenshot files
     "_incident_answer": None,
     "_incident_model": None,
     "_incident_provider": "claude",
     "_incident_model_id": "claude-sonnet-4-6",
     "_leadership_brief": None,
-    # Jira / Confluence integration
+    # Incident history
+    "incident_history": [],
+    "_pending_hist_delete": None,
+    # Global AI model selector (sidebar selectbox widget key)
+    "_selected_ai_model": "",
+    # Cross-system triage
+    "_triage_answer": None,
+    "_triage_model": None,
+    "triage_model": None,          # widget key for triage model selectbox
+    # Noise filter slider widget key
+    "noise_threshold_slider": 0.5,
+    # Global event filters (sidebar multiselect widget keys)
+    "filter_levels": [],
+    "filter_sources": [],
+    # App theme ("system" | "light" | "dark")
+    "_app_theme": "system",
+    # Folder path for folder-scan input
+    "folder_path": "",
     # Trace to Code
     "_code_repo_path": "",
     "_upload_session_id": "",
     "_code_matches": None,
+    "_code_cache_key": "",
     # Jira / Confluence integration
     "_jira_tickets": None,
     "_jira_cache_key": "",
@@ -556,16 +647,16 @@ if not st.session_state._local_settings_loaded:
 
 # Load persisted license key on fresh session
 if not st.session_state.license_key:
-    _LICENSE_FILE = CACHE_DIR / ".license_key"
+    _LICENSE_FILE = _CONFIG.license_key_file
     try:
         if _LICENSE_FILE.exists():
             st.session_state.license_key = _LICENSE_FILE.read_text().strip()
     except Exception:
         pass
 
-# Load persisted theme on fresh session
-_THEME_FILE = CACHE_DIR / ".theme.json"
-if "_app_theme" not in st.session_state:
+# Load persisted theme on fresh session (override default "system" if a theme file exists)
+_THEME_FILE = _CONFIG.theme_file
+if st.session_state._app_theme == "system":
     _saved_theme = _load_json_file(_THEME_FILE, {})
     if isinstance(_saved_theme, dict) and _saved_theme.get("theme"):
         st.session_state._app_theme = _saved_theme["theme"]
@@ -579,6 +670,19 @@ if "_app_theme" not in st.session_state:
                 _stcfg_init.set_option("theme.textColor", "#e6edf3")
         except (ImportError, AttributeError):
             pass
+
+# --- License config check ---
+def _check_license_config() -> str | None:
+    """Returns error message string if license env is misconfigured, else None."""
+    if os.environ.get("LOGPILOT_REQUIRE_LICENSE", "false").lower() == "true":
+        if not os.environ.get("LOGPILOT_LICENSE_SECRET"):
+            return (
+                "LOGPILOT_REQUIRE_LICENSE=true men LOGPILOT_LICENSE_SECRET saknas. "
+                "License-funktioner kommer vara avaktiverade. "
+                "Sätt secret eller LOGPILOT_REQUIRE_LICENSE=false."
+            )
+    return None
+
 
 # --- Streamlit UI ---
 _FAVICON = str(_APP_DIR / "assets" / "favicon.svg")
@@ -707,13 +811,17 @@ st.markdown('''<div class="logpilot-header">
     </div>
 </div>''', unsafe_allow_html=True)
 
+_license_error = _check_license_config()
+if _license_error:
+    st.error(_license_error, icon="🔑")
+
 # --- Sidebar: API key ---
 _KEYRING_SERVICE = "logpilot"
 _KEYRING_USERNAME = "anthropic_api_key"
 _KEYRING_GEMINI_USERNAME = "gemini_api_key"
 _KEYRING_OPENAI_USERNAME = "openai_api_key"
 
-_KEYS_FILE = CACHE_DIR / ".api_keys.json"
+_KEYS_FILE = _CONFIG.api_keys_file
 
 
 def _load_keychain(username: str, env_var: str) -> str:
