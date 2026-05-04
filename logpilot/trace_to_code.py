@@ -68,8 +68,11 @@ _JAVA_SKIP_PREFIXES = (
     "org.eclipse.jetty.", "org.jboss.", "io.undertow.", "org.wildfly.",
     # Enonic XP framework
     "com.enonic.xp.", "com.enonic.app.booster.", "com.enonic.app.rewrite.",
-    # Spring framework
-    "org.springframework.",
+    # Spring framework (internals only — not user-facing Spring web/data/security classes)
+    "org.springframework.cglib.",
+    "org.springframework.aop.",
+    "org.springframework.asm.",
+    "org.springframework.objenesis.",
     # Networking / IO / reactive
     "io.netty.", "reactor.", "rx.", "io.grpc.",
     # Logging frameworks
