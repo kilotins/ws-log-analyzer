@@ -329,7 +329,7 @@ def _should_emit(ev: LogEvent, sample_info: int, counter: int) -> bool:
     return counter % sample_info == 0
 
 
-def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0) -> Generator[LogEvent, None, None]:
+def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0, redaction_level: str | None = None) -> Generator[LogEvent, None, None]:
     """Generator-based parser that yields event dicts one at a time.
 
     Args:
@@ -338,6 +338,9 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
         format_name: Explicit format name (e.g. "was", "json"). If None, auto-detects.
         sample_info: When > 0, keep only every Nth plain INFO event (no exception/tags/code).
             Deterministic: based on line counter modulo. 0 means no sampling (default).
+        redaction_level: Redaction level ("none", "secrets", "standard", "strict").
+            When None (default), falls back to LOGPILOT_REDACTION_LEVEL env var, then "secrets".
+            Pass explicitly to avoid per-event env reads and to support per-request policies.
 
     Uses format plugins for timestamp extraction, level detection, and
     continuation line detection. Falls back to WAS format if no format
@@ -345,6 +348,11 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
     """
     if max_lines is not None and max_lines < 0:
         raise ValueError(f"max_lines must be non-negative, got {max_lines}")
+
+    # Resolve redaction level once at function entry — NOT inside the hot loop.
+    # This avoids repeated os.environ reads and allows per-request policies (FastAPI 2.0).
+    if redaction_level is None:
+        redaction_level = os.environ.get("LOGPILOT_REDACTION_LEVEL", "secrets")
 
     from .formats import detect_format, get_format
 
@@ -364,7 +372,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
 
     def _build_event() -> LogEvent:
         text = "\n".join(current)
-        text = redact(text, level=os.environ.get("LOGPILOT_REDACTION_LEVEL", "secrets"))
+        text = redact(text, level=redaction_level)
         meta = fmt.classify_event(text)
         return LogEvent(
             text=text,
@@ -439,7 +447,7 @@ def parse_file_iter(path: Path, max_lines: int | None = None, format_name: str |
             yield _ev
 
 
-def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0) -> list[LogEvent]:
+def parse_file(path: Path, max_lines: int | None = None, format_name: str | None = None, sample_info: int = 0, redaction_level: str | None = None) -> list[LogEvent]:
     """Parse a log file and return a list of event dicts.
 
     Args:
@@ -448,8 +456,10 @@ def parse_file(path: Path, max_lines: int | None = None, format_name: str | None
         format_name: Explicit format name (e.g. "was", "json"). If None, auto-detects.
         sample_info: When > 0, keep only every Nth plain INFO event (no exception/tags/code).
             Deterministic: based on event counter modulo. 0 means no sampling (default).
+        redaction_level: Redaction level ("none", "secrets", "standard", "strict").
+            When None (default), falls back to LOGPILOT_REDACTION_LEVEL env var, then "secrets".
     """
-    return list(parse_file_iter(path, max_lines=max_lines, format_name=format_name, sample_info=sample_info))
+    return list(parse_file_iter(path, max_lines=max_lines, format_name=format_name, sample_info=sample_info, redaction_level=redaction_level))
 
 
 # ---------------------------------------------------------------------------
@@ -526,7 +536,7 @@ def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = No
             except (OSError, json.JSONDecodeError, KeyError, TypeError):
                 _log.warning("Cache read failed for %s, re-parsing", path.name)
 
-    events = parse_file(path, max_lines=max_lines or None, format_name=format_name, sample_info=sample_info)
+    events = parse_file(path, max_lines=max_lines or None, format_name=format_name, sample_info=sample_info, redaction_level=redaction_level)
 
     if cache_path:
         try:

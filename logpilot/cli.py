@@ -271,8 +271,9 @@ def main() -> None:
     if args.log_format == "json":
         os.environ["WSLOG_LOG_FORMAT"] = "json"
 
-    if args.redaction_level != "secrets":
-        os.environ["LOGPILOT_REDACTION_LEVEL"] = args.redaction_level
+    # Pass redaction_level as a parameter instead of mutating os.environ.
+    # This avoids a process-global side effect that breaks concurrent workers.
+    redaction_level: str = args.redaction_level
 
     if args.list_formats:
         from .formats import list_formats
@@ -307,7 +308,7 @@ def main() -> None:
         if not path.exists():
             print(f"Skip (not found): {path}", file=sys.stderr)
             continue
-        file_events = parse_file(path, args.max_lines, format_name=args.log_type)
+        file_events = parse_file(path, args.max_lines, format_name=args.log_type, redaction_level=redaction_level)
         # Set system_label from filename stem
         stem = path.stem if path.suffix.lower() != ".gz" else Path(path.stem).stem
         for ev in file_events:

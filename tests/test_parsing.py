@@ -787,3 +787,32 @@ def test_open_text_logs_warning_on_fake_gz(tmp_path, caplog):
         f.close()
     assert "this is not gzip data" in content
     assert any("not valid gzip" in r.message for r in caplog.records)
+
+
+# ── Redaction level parameter decoupled from env (audit fix 2.0-1) ───────────
+
+_BEARER_LOG_LINE = "[10/12/15 21:22:04:257 CEST] 00000001 SomeComp I INFO Authorization: Bearer abc123\n"
+
+
+def test_parse_file_iter_accepts_redaction_level_param(tmp_path, monkeypatch):
+    """Explicit redaction_level should override env var."""
+    monkeypatch.setenv("LOGPILOT_REDACTION_LEVEL", "none")
+    test_log = tmp_path / "test.log"
+    test_log.write_text(_BEARER_LOG_LINE)
+
+    # With explicit "secrets", the bearer token should be redacted even though env says none
+    events = list(parse_file_iter(test_log, redaction_level="secrets"))
+    assert len(events) == 1
+    assert "abc123" not in events[0].text
+    assert "[REDACTED]" in events[0].text
+
+
+def test_parse_file_iter_falls_back_to_env(tmp_path, monkeypatch):
+    """When redaction_level is not passed, the function should read from env."""
+    monkeypatch.setenv("LOGPILOT_REDACTION_LEVEL", "none")
+    test_log = tmp_path / "test.log"
+    test_log.write_text(_BEARER_LOG_LINE)
+
+    events = list(parse_file_iter(test_log))  # no redaction_level param
+    assert len(events) == 1
+    assert "abc123" in events[0].text  # NOT redacted because env says none
