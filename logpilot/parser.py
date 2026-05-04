@@ -7,6 +7,8 @@ import logging
 import os
 import re
 import sys
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import IO, Any, Generator
 
@@ -553,14 +555,60 @@ def parse_file_cached(path: Path, content_hash: str, cache_dir: Path | None = No
     return events
 
 
-def _evict_parse_cache(cache_dir: Path, max_files: int = 50) -> None:
-    """Remove oldest parse cache files if count exceeds max_files."""
+@contextmanager
+def _cache_dir_lock(cache_dir: Path, timeout: float = 5.0):
+    """Atomic lock for cache eviction using mkdir as the atomic primitive."""
+    lock_dir = cache_dir / ".eviction.lock"
+    deadline = time.monotonic() + timeout
+    acquired = False
+    while time.monotonic() < deadline:
+        try:
+            lock_dir.mkdir()
+            acquired = True
+            break
+        except FileExistsError:
+            # Check if lock is stale (>30 s old)
+            try:
+                age = time.time() - lock_dir.stat().st_mtime
+                if age > 30:
+                    try:
+                        lock_dir.rmdir()
+                        continue  # retry acquisition
+                    except OSError:
+                        pass
+            except FileNotFoundError:
+                continue  # lock vanished between exists-check and stat
+            time.sleep(0.05)
+    if not acquired:
+        # Another worker holds the lock; skip eviction — it will happen eventually
+        yield False
+        return
     try:
-        cache_files = sorted(cache_dir.glob("parsed_*.json.gz"),
-                             key=lambda f: f.stat().st_mtime)
-        if len(cache_files) > max_files:
-            for old in cache_files[:len(cache_files) - max_files]:
-                old.unlink(missing_ok=True)
-                _log.debug("Evicted parse cache: %s", old.name)
+        yield True
+    finally:
+        try:
+            lock_dir.rmdir()
+        except OSError:
+            pass
+
+
+def _evict_parse_cache(cache_dir: Path, max_files: int = 50) -> None:
+    """Remove oldest parse cache files if count exceeds max_files.
+
+    Uses a mkdir-based lock so concurrent FastAPI workers do not race on the
+    same eviction pass.  ``missing_ok=True`` is kept as a secondary safety net.
+    """
+    try:
+        with _cache_dir_lock(cache_dir) as acquired:
+            if not acquired:
+                return  # Another worker is evicting; skip
+            cache_files = sorted(
+                cache_dir.glob("parsed_*.json.gz"),
+                key=lambda f: f.stat().st_mtime,
+            )
+            if len(cache_files) > max_files:
+                for old in cache_files[: len(cache_files) - max_files]:
+                    old.unlink(missing_ok=True)
+                    _log.debug("Evicted parse cache: %s", old.name)
     except OSError:
         pass
