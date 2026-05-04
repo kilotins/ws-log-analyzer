@@ -493,17 +493,35 @@ _STATE_DEFAULTS = {
     "local_ai_preset": "LM Studio",
     "_incident_description": "",
     "_ai_exclude_patterns": "",
-    "_incident_screenshot": None,
+    "_incident_screenshots": [],   # plural — list of uploaded screenshot files
     "_incident_answer": None,
     "_incident_model": None,
     "_incident_provider": "claude",
     "_incident_model_id": "claude-sonnet-4-6",
     "_leadership_brief": None,
-    # Jira / Confluence integration
+    # Incident history
+    "incident_history": [],
+    "_pending_hist_delete": None,
+    # Global AI model selector (sidebar selectbox widget key)
+    "_selected_ai_model": "",
+    # Cross-system triage
+    "_triage_answer": None,
+    "_triage_model": None,
+    "triage_model": None,          # widget key for triage model selectbox
+    # Noise filter slider widget key
+    "noise_threshold_slider": 0.5,
+    # Global event filters (sidebar multiselect widget keys)
+    "filter_levels": [],
+    "filter_sources": [],
+    # App theme ("system" | "light" | "dark")
+    "_app_theme": "system",
+    # Folder path for folder-scan input
+    "folder_path": "",
     # Trace to Code
     "_code_repo_path": "",
     "_upload_session_id": "",
     "_code_matches": None,
+    "_code_cache_key": "",
     # Jira / Confluence integration
     "_jira_tickets": None,
     "_jira_cache_key": "",
@@ -563,9 +581,9 @@ if not st.session_state.license_key:
     except Exception:
         pass
 
-# Load persisted theme on fresh session
+# Load persisted theme on fresh session (override default "system" if a theme file exists)
 _THEME_FILE = CACHE_DIR / ".theme.json"
-if "_app_theme" not in st.session_state:
+if st.session_state._app_theme == "system":
     _saved_theme = _load_json_file(_THEME_FILE, {})
     if isinstance(_saved_theme, dict) and _saved_theme.get("theme"):
         st.session_state._app_theme = _saved_theme["theme"]
@@ -579,6 +597,19 @@ if "_app_theme" not in st.session_state:
                 _stcfg_init.set_option("theme.textColor", "#e6edf3")
         except (ImportError, AttributeError):
             pass
+
+# --- License config check ---
+def _check_license_config() -> str | None:
+    """Returns error message string if license env is misconfigured, else None."""
+    if os.environ.get("LOGPILOT_REQUIRE_LICENSE", "false").lower() == "true":
+        if not os.environ.get("LOGPILOT_LICENSE_SECRET"):
+            return (
+                "LOGPILOT_REQUIRE_LICENSE=true men LOGPILOT_LICENSE_SECRET saknas. "
+                "License-funktioner kommer vara avaktiverade. "
+                "Sätt secret eller LOGPILOT_REQUIRE_LICENSE=false."
+            )
+    return None
+
 
 # --- Streamlit UI ---
 _FAVICON = str(_APP_DIR / "assets" / "favicon.svg")
@@ -706,6 +737,10 @@ st.markdown('''<div class="logpilot-header">
         <div class="subtitle">Log Intelligence Ai-Platform</div>
     </div>
 </div>''', unsafe_allow_html=True)
+
+_license_error = _check_license_config()
+if _license_error:
+    st.error(_license_error, icon="🔑")
 
 # --- Sidebar: API key ---
 _KEYRING_SERVICE = "logpilot"
